@@ -57,3 +57,22 @@ void prim_memset64(HsWord64 *ptr, HsInt offset, HsInt n, HsWord64 x){
     n--;
   }
 }
+
+void prim_memsetFloat(HsFloat *ptr, HsInt offset, HsInt n, HsFloat x){
+  ptr+= offset;
+  while(n > 0){
+    *ptr++ = x;
+    n--;
+  }
+}
+
+void prim_memsetDouble(HsDouble *ptr, HsInt offset, HsInt n, HsDouble x){
+  HsFloat *ptr32 = (HsFloat *)ptr;
+  const HsFloat *x32 = (const HsFloat *)(void *)&x;
+  while (n>0) {
+    ptr32[0] = x32[0];
+    ptr32[1] = x32[1];
+    ptr32+= 2;
+    n--;
+  }
+}

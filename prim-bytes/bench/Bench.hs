@@ -23,16 +23,13 @@ main = do
   mba <- BA.newByteArray nBytes
   defaultMain
     [ bgroup "set"
-      [ setBytesBench @Int8 mb mba n
-      , setBytesBench @Int16 mb mba n
-      , setBytesBench @Int32 mb mba n
-      , setBytesBench @Int64 mb mba n
-      , setBytesBench @Int mb mba n
-      , setBytesBench @Word8 mb mba n
+      [ setBytesBench @Word8 mb mba n
       , setBytesBench @Word16 mb mba n
       , setBytesBench @Word32 mb mba n
       , setBytesBench @Word64 mb mba n
       , setBytesBench @Word mb mba n
+      , setBytesBench @Float mb mba n
+      , setBytesBench @Double mb mba n
       ]
     ]
 
@@ -44,7 +41,7 @@ setBytesBench ::
   -> Benchmark
 setBytesBench mb mba n =
   bgroup (showsType (Proxy :: Proxy a) "")
-    [ bench "setMBytes" $ nfIO (setMBytes mb 0 n a)
+    [ bench "setMBytes" $ nfIO (setMBytes mb 0 (Count n) a)
     , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
     ]
   where

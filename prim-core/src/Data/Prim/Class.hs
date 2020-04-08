@@ -408,12 +408,63 @@ instance Prim Word64 where
   {-# INLINE setOffAddr# #-}
 
 
+instance Prim Float where
+  type PrimBase Float = Float
+  type SizeOf Float = SIZEOF_FLOAT
+  type Alignment Float = ALIGNMENT_FLOAT
+  sizeOf# _ = SIZEOF_FLOAT
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_FLOAT
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = F# (indexFloatArray# ba# i#)
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = F# (indexFloatOffAddr# ba# i#)
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readFloatArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, F# a# #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readFloatOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, F# a# #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (F# a#) = writeFloatArray# mba# i# a#
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (F# a#) = writeFloatOffAddr# mba# i# a#
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetFloatMutableByteArray# mba# o# n# a)
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetFloatAddr# addr# o# n# a)
+  {-# INLINE setOffAddr# #-}
+
+instance Prim Double where
+  type PrimBase Double = Double
+  type SizeOf Double = SIZEOF_DOUBLE
+  type Alignment Double = ALIGNMENT_DOUBLE
+  sizeOf# _ = SIZEOF_DOUBLE
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_DOUBLE
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = D# (indexDoubleArray# ba# i#)
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = D# (indexDoubleOffAddr# ba# i#)
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readDoubleArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, D# a# #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readDoubleOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, D# a# #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (D# a#) = writeDoubleArray# mba# i# a#
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (D# a#) = writeDoubleOffAddr# mba# i# a#
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetDoubleMutableByteArray# mba# o# n# a)
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetDoubleAddr# addr# o# n# a)
+  {-# INLINE setOffAddr# #-}
+
+bool2int# :: Bool -> Int#
 bool2int# b = if b then 1# else 0#
--- instance Prim Bool where
---   type PrimBase Bool = Int8
---   toPrimBase True  = 1
---   toPrimBase False = 0
---   fromPrimBase (I8# i#) = isTrue# i#
+
 instance Prim Bool where
   type PrimBase Bool = Bool
   type SizeOf Bool = SIZEOF_INT8

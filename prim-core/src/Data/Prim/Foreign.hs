@@ -27,6 +27,11 @@ module Data.Prim.Foreign
   , memsetWord64Addr#
   , memsetInt64MutableByteArray#
   , memsetInt64Addr#
+  , memsetFloatMutableByteArray#
+  , memsetFloatAddr#
+  , memsetDoubleMutableByteArray#
+  , memsetDoubleAddr#
+
   , getSizeofMutableByteArray#
   , isByteArrayPinned#
   , isMutableByteArrayPinned#
@@ -86,6 +91,20 @@ foreign import ccall unsafe "prim.c prim_memset64"
 
 foreign import ccall unsafe "prim.c prim_memset64"
   memsetWord64Addr# :: Addr# -> Int# -> Int# -> Word64 -> IO ()
+
+
+foreign import ccall unsafe "prim.c prim_memsetFloat"
+  memsetFloatMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Float -> IO ()
+
+foreign import ccall unsafe "prim.c prim_memsetFloat"
+  memsetFloatAddr# :: Addr# -> Int# -> Int# -> Float -> IO ()
+
+foreign import ccall unsafe "prim.c prim_memsetDouble"
+  memsetDoubleMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Double -> IO ()
+
+foreign import ccall unsafe "prim.c prim_memsetDouble"
+  memsetDoubleAddr# :: Addr# -> Int# -> Int# -> Double -> IO ()
+
 
 #if __GLASGOW_HASKELL__ < 804
 -- | Compatibility function for the old compiler versions
