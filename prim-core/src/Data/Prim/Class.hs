@@ -1,10 +1,12 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Data.Prim.Class
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -21,17 +23,26 @@ module Data.Prim.Class
   , impossibleError
   ) where
 
-import GHC.Exts
-import GHC.Int
-import GHC.Word
 import Control.Monad.Prim.Unsafe
 import Data.Prim.Foreign
+import Foreign.C.Types
+import Foreign.Ptr
+import GHC.Exts
+import GHC.Int
+import GHC.TypeNats
+import GHC.Word
 
 #include "MachDeps.h"
+#include "HsBaseConfig.h"
 
 -- | A type class describing how a data type can be written to and read from memory.
 class Coercible a (PrimBase a) => Prim a where
   type PrimBase a :: *
+
+  type SizeOf a :: Nat
+  type SizeOf a = SizeOf (PrimBase a)
+  type Alignment a :: Nat
+  type Alignment a = Alignment (PrimBase a)
 
   -- | Size of a value in bytes.
   sizeOf# :: Proxy# a -> Int
@@ -117,6 +128,8 @@ class Coercible a (PrimBase a) => Prim a where
 
 instance Prim Int where
   type PrimBase Int = Int
+  type SizeOf Int = SIZEOF_HSINT
+  type Alignment Int = ALIGNMENT_HSINT
   sizeOf# _ = SIZEOF_HSINT
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_HSINT
@@ -147,6 +160,8 @@ instance Prim Int where
 
 instance Prim Int8 where
   type PrimBase Int8 = Int8
+  type SizeOf Int8 = SIZEOF_INT8
+  type Alignment Int8 = ALIGNMENT_INT8
   sizeOf# _ = SIZEOF_INT8
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT8
@@ -172,6 +187,8 @@ instance Prim Int8 where
 
 instance Prim Int16 where
   type PrimBase Int16 = Int16
+  type SizeOf Int16 = SIZEOF_INT16
+  type Alignment Int16 = ALIGNMENT_INT16
   sizeOf# _ = SIZEOF_INT16
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT16
@@ -197,6 +214,8 @@ instance Prim Int16 where
 
 instance Prim Int32 where
   type PrimBase Int32 = Int32
+  type SizeOf Int32 = SIZEOF_INT32
+  type Alignment Int32 = ALIGNMENT_INT32
   sizeOf# _ = SIZEOF_INT32
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT32
@@ -222,6 +241,8 @@ instance Prim Int32 where
 
 instance Prim Int64 where
   type PrimBase Int64 = Int64
+  type SizeOf Int64 = SIZEOF_INT64
+  type Alignment Int64 = ALIGNMENT_INT64
   sizeOf# _ = SIZEOF_INT64
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT64
@@ -248,6 +269,8 @@ instance Prim Int64 where
 
 instance Prim Word where
   type PrimBase Word = Word
+  type SizeOf Word = SIZEOF_HSWORD
+  type Alignment Word = ALIGNMENT_HSWORD
   sizeOf# _ = SIZEOF_HSWORD
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_HSWORD
@@ -278,6 +301,8 @@ instance Prim Word where
 
 instance Prim Word8 where
   type PrimBase Word8 = Word8
+  type SizeOf Word8 = SIZEOF_WORD8
+  type Alignment Word8 = ALIGNMENT_WORD8
   sizeOf# _ = SIZEOF_WORD8
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_WORD8
@@ -303,6 +328,8 @@ instance Prim Word8 where
 
 instance Prim Word16 where
   type PrimBase Word16 = Word16
+  type SizeOf Word16 = SIZEOF_WORD16
+  type Alignment Word16 = ALIGNMENT_WORD16
   sizeOf# _ = SIZEOF_WORD16
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_WORD16
@@ -328,6 +355,8 @@ instance Prim Word16 where
 
 instance Prim Word32 where
   type PrimBase Word32 = Word32
+  type SizeOf Word32 = SIZEOF_WORD32
+  type Alignment Word32 = ALIGNMENT_WORD32
   sizeOf# _ = SIZEOF_WORD32
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_WORD32
@@ -353,6 +382,8 @@ instance Prim Word32 where
 
 instance Prim Word64 where
   type PrimBase Word64 = Word64
+  type SizeOf Word64 = SIZEOF_WORD64
+  type Alignment Word64 = ALIGNMENT_WORD64
   sizeOf# _ = SIZEOF_WORD64
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_WORD64
@@ -375,6 +406,194 @@ instance Prim Word64 where
   {-# INLINE setMutableByteArray# #-}
   setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord64Addr# addr# o# n# a)
   {-# INLINE setOffAddr# #-}
+
+
+bool2int# b = if b then 1# else 0#
+-- instance Prim Bool where
+--   type PrimBase Bool = Int8
+--   toPrimBase True  = 1
+--   toPrimBase False = 0
+--   fromPrimBase (I8# i#) = isTrue# i#
+instance Prim Bool where
+  type PrimBase Bool = Bool
+  type SizeOf Bool = SIZEOF_INT8
+  type Alignment Bool = ALIGNMENT_INT8
+  sizeOf# _ = SIZEOF_INT8
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_INT8
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = isTrue# (indexInt8Array# ba# i#)
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = isTrue# (indexInt8OffAddr# ba# i#)
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, isTrue# a# #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, isTrue# a# #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2int# b)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2int# b)
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2int# b)
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2int# b))
+  {-# INLINE setOffAddr# #-}
+
+instance Prim Char where
+  type PrimBase Char = Char
+  type SizeOf Char = SIZEOF_INT32
+  type Alignment Char = ALIGNMENT_INT32
+  sizeOf# _ = SIZEOF_INT32
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_INT32
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = C# (chr# (indexInt32Array# ba# i#))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = C# (chr# (indexInt32OffAddr# ba# i#))
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readInt32Array# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, C# (chr# a#) #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readInt32OffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, C# (chr# a#) #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (C# a#) = writeInt32Array# mba# i# (ord# a#)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (C# a#) = writeInt32OffAddr# mba# i# (ord# a#)
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# (C# a#) = setMutableByteArray# mba# o# n# (I32# (ord# a#))
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# (C# a#) = setOffAddr# addr# o# n# (I32# (ord# a#))
+  {-# INLINE setOffAddr# #-}
+
+instance Prim (Ptr a) where
+  type PrimBase (Ptr a) = Ptr a
+  type SizeOf (Ptr a) = SIZEOF_HSINT
+  type Alignment (Ptr a) = ALIGNMENT_HSINT
+  sizeOf# _ = SIZEOF_HSINT
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_HSINT
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = Ptr (int2Addr# (indexIntArray# ba# i#))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = Ptr (int2Addr# (indexIntOffAddr# ba# i#))
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, Ptr (int2Addr# a#) #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readIntOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, Ptr (int2Addr# a#) #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (Ptr a#) = writeIntArray# mba# i# (addr2Int# a#)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (Ptr a#) = writeIntOffAddr# mba# i# (addr2Int# a#)
+  {-# INLINE writeOffAddr# #-}
+#if WORD_SIZE_IN_BITS >= 64
+  setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
+  setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
+#else
+  setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
+  setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
+#endif
+  {-# INLINE setMutableByteArray# #-}
+  {-# INLINE setOffAddr# #-}
+
+instance Prim (FunPtr a) where
+  type PrimBase (FunPtr a) = FunPtr a
+  type SizeOf (FunPtr a) = SIZEOF_HSINT
+  type Alignment (FunPtr a) = ALIGNMENT_HSINT
+  sizeOf# _ = SIZEOF_HSINT
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_HSINT
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = FunPtr (int2Addr# (indexIntArray# ba# i#))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# ba# i# = FunPtr (int2Addr# (indexIntOffAddr# ba# i#))
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, FunPtr (int2Addr# a#) #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readIntOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, FunPtr (int2Addr# a#) #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (FunPtr a#) = writeIntArray# mba# i# (addr2Int# a#)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (FunPtr a#) = writeIntOffAddr# mba# i# (addr2Int# a#)
+  {-# INLINE writeOffAddr# #-}
+#if WORD_SIZE_IN_BITS >= 64
+  setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
+  setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
+#else
+  setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
+  setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
+#endif
+  {-# INLINE setMutableByteArray# #-}
+  {-# INLINE setOffAddr# #-}
+
+instance Prim IntPtr where
+  type PrimBase IntPtr = Int
+
+instance Prim WordPtr where
+  type PrimBase WordPtr = Word
+
+instance Prim CBool where
+  type PrimBase CBool = HTYPE_BOOL
+
+instance Prim CChar where
+  type PrimBase CChar = HTYPE_CHAR
+
+instance Prim CSChar where
+  type PrimBase CSChar = HTYPE_SIGNED_CHAR
+
+instance Prim CUChar where
+  type PrimBase CUChar = HTYPE_UNSIGNED_CHAR
+
+instance Prim CShort where
+  type PrimBase CShort = HTYPE_SHORT
+
+instance Prim CUShort where
+  type PrimBase CUShort = HTYPE_UNSIGNED_SHORT
+
+instance Prim CInt where
+  type PrimBase CInt = HTYPE_INT
+
+instance Prim CUInt where
+  type PrimBase CUInt = HTYPE_UNSIGNED_INT
+
+instance Prim CLong where
+  type PrimBase CLong = HTYPE_LONG
+
+instance Prim CULong where
+  type PrimBase CULong = HTYPE_UNSIGNED_LONG
+
+instance Prim CPtrdiff where
+  type PrimBase CPtrdiff = HTYPE_PTRDIFF_T
+
+instance Prim CSize where
+  type PrimBase CSize = HTYPE_SIZE_T
+
+instance Prim CWchar where
+  type PrimBase CWchar = HTYPE_WCHAR_T
+
+instance Prim CSigAtomic where
+  type PrimBase CSigAtomic = HTYPE_SIG_ATOMIC_T
+
+instance Prim CIntPtr where
+  type PrimBase CIntPtr = HTYPE_INTPTR_T
+
+instance Prim CUIntPtr where
+  type PrimBase CUIntPtr = HTYPE_UINTPTR_T
+
+instance Prim CIntMax where
+  type PrimBase CIntMax = HTYPE_INTMAX_T
+
+instance Prim CUIntMax where
+  type PrimBase CUIntMax = HTYPE_UINTMAX_T
+
+
+
 
 thawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
 thawByteArray# ba# s# = (# s#, unsafeCoerce# ba# #)
