@@ -137,7 +137,7 @@ instance (Monoid w, MonadPrim s m) => MonadPrim s (CPS.WriterT w m) where
 
 primBase_ :: MonadPrimBase s m => m () -> State# s -> State# s
 primBase_ m s# = case primBase m s# of
-                (# s'#, () #) -> s'#
+                   (# s'#, () #) -> s'#
 {-# INLINE primBase_ #-}
 
 -- | Construct a primitive action that does not return anything.

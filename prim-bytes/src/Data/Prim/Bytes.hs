@@ -65,6 +65,7 @@ module Data.Prim.Bytes
 
 import Control.Arrow
 import Control.DeepSeq
+import Control.Monad
 import Control.Monad.Prim
 import Control.Monad.ST
 import Data.List as List

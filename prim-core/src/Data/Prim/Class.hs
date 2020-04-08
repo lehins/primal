@@ -430,10 +430,11 @@ instance Prim Float where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (F# a#) = writeFloatOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetFloatMutableByteArray# mba# o# n# a)
+  setMutableByteArray# mba# o# n# (F# f#) =
+    unsafePrimBase_ (memsetWord32MutableByteArray# mba# o# n# (W32# (floatToWord32# f#)))
   {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetFloatAddr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setOffAddr# addr# o# n# (F# f#) =
+    unsafePrimBase_ (memsetWord32Addr# addr# o# n# (W32# (floatToWord32# f#)))
 
 instance Prim Double where
   type PrimBase Double = Double
@@ -457,9 +458,11 @@ instance Prim Double where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (D# a#) = writeDoubleOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetDoubleMutableByteArray# mba# o# n# a)
+  setMutableByteArray# mba# o# n# (D# d#) =
+    unsafePrimBase_ (memsetWord64MutableByteArray# mba# o# n# (W64# (doubleToWord64# d#)))
   {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetDoubleAddr# addr# o# n# a)
+  setOffAddr# addr# o# n# (D# d#) =
+    unsafePrimBase_ (memsetWord64Addr# addr# o# n# (W64# (doubleToWord64# d#)))
   {-# INLINE setOffAddr# #-}
 
 bool2int# :: Bool -> Int#
