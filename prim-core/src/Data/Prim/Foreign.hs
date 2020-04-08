@@ -27,6 +27,9 @@ module Data.Prim.Foreign
   , memsetWord64Addr#
   , memsetInt64MutableByteArray#
   , memsetInt64Addr#
+  , getSizeofMutableByteArray#
+  , isByteArrayPinned#
+  , isMutableByteArrayPinned#
   ) where
 
 import GHC.Exts
@@ -83,3 +86,18 @@ foreign import ccall unsafe "prim.c prim_memset64"
 
 foreign import ccall unsafe "prim.c prim_memset64"
   memsetWord64Addr# :: Addr# -> Int# -> Int# -> Word64 -> IO ()
+
+#if __GLASGOW_HASKELL__ < 804
+-- | Compatibility function for the old compiler versions
+getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
+{-# INLINE getSizeofMutableByteArray# #-}
+#endif
+
+-- ghc-8.2 (i.e. 802 version) introduced these two functions, for versions before those
+-- use their reimplementations in C:
+#if __GLASGOW_HASKELL__ < 802
+foreign import ccall unsafe "pvar.c pvar_is_byte_array_pinned"
+  isByteArrayPinned# :: ByteArray# -> Int#
+foreign import ccall unsafe "pvar.c pvar_is_byte_array_pinned"
+  isMutableByteArrayPinned# :: MutableByteArray# s -> Int#
+#endif

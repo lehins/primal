@@ -15,8 +15,10 @@
 --
 module Data.Prim.Class
   ( Prim(..)
+  , thawByteArray#
   , mutableByteArrayContents#
   , setMutableByteArrayLoop#
+  , impossibleError
   ) where
 
 import GHC.Exts
@@ -374,6 +376,10 @@ instance Prim Word64 where
   setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord64Addr# addr# o# n# a)
   {-# INLINE setOffAddr# #-}
 
+thawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
+thawByteArray# ba# s# = (# s#, unsafeCoerce# ba# #)
+{-# INLINE thawByteArray# #-}
+
 mutableByteArrayContents# :: MutableByteArray# s -> Addr#
 mutableByteArrayContents# mba# = byteArrayContents# (unsafeCoerce# mba#)
 {-# INLINE mutableByteArrayContents# #-}
@@ -391,3 +397,7 @@ setMutableByteArrayLoop# mba# o# n# a = go o#
       | otherwise = s#
 {-# INLINE setMutableByteArrayLoop# #-}
 
+
+impossibleError :: String -> String -> a
+impossibleError fname msg = errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
+{-# NOINLINE impossibleError #-}

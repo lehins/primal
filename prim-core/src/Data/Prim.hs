@@ -49,7 +49,7 @@ sizeOfType = sizeOf# (proxy# :: Proxy# a)
 -- >>> sizeOfProxy (Proxy :: Proxy Int64)
 -- 8
 --
-sizeOfProxy :: forall a . Prim a => Proxy a -> Int
+sizeOfProxy :: forall proxy a . Prim a => proxy a -> Int
 sizeOfProxy _ = sizeOf# (proxy# :: Proxy# a)
 {-# INLINE sizeOfProxy #-}
 
