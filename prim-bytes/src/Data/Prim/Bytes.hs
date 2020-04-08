@@ -17,8 +17,9 @@
 --
 module Data.Prim.Bytes
   ( Bytes(..)
-  , Count(..)
+  , MBytes(..)
   , Pinned(..)
+  , Count(..)
   , isPinnedBytes
   , isPinnedMBytes
   , toPinnedBytes
@@ -29,19 +30,23 @@ module Data.Prim.Bytes
   , fromListBytes
   , fromListBytesN
   , toListBytes
-    -- * Mutable
-  , MBytes(..)
+  -- * Mutable
+  -- ** To/From immutable
   , thawBytes
   , freezeMBytes
-  , newMBytes
-  , newPinnedMBytes
-  , newPinnedAlignedMBytes
+  -- ** Construction
   , allocMBytes
   , allocPinnedMBytes
   , allocPinnedAlignedMBytes
   , callocMBytes
   , callocPinnedMBytes
   , callocPinnedAlignedMBytes
+  , newMBytes
+  , newPinnedMBytes
+  , newPinnedAlignedMBytes
+  , cnewMBytes
+  , cnewPinnedMBytes
+  , cnewPinnedAlignedMBytes
   , loadListMBytes
   , showsBytesHex
   , zerosMBytes
@@ -80,7 +85,8 @@ instance Show (Bytes p) where
     Foldable.foldr' ($) "]" $
     (('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsBytesHex b)))
 
--- | A list of ShowS that covert bytes to base16 encoded strings
+-- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
+-- is a function that will convert one byte.
 --
 -- >>> mb <- newPinnedMBytes (Count 5 :: Count Int)
 -- >>> mapM_ (\i -> writeMBytes mb (pred i) i) [1 .. 5]
@@ -134,10 +140,35 @@ newPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
 newPinnedMBytes es@(Count n) = allocPinnedMBytes (n * sizeOfProxy es)
 {-# INLINE newPinnedMBytes #-}
 
-newPinnedAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> Int -> m (MBytes 'Pinned s)
-newPinnedAlignedMBytes es@(Count n) = allocPinnedAlignedMBytes (n * sizeOfProxy es)
+newPinnedAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
+newPinnedAlignedMBytes es@(Count n) =
+  allocPinnedAlignedMBytes (n * sizeOfProxy es) (alignmentProxy es)
 {-# INLINE newPinnedAlignedMBytes #-}
 
+
+cnewMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes p s)
+cnewMBytes c = do
+  mb <- newMBytes c
+  n <- getSizeOfMBytes mb
+  mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
+{-# INLINE cnewMBytes #-}
+
+cnewPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
+cnewPinnedMBytes c = do
+  mb <- newPinnedMBytes c
+  n <- getSizeOfMBytes mb
+  mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
+{-# INLINE cnewPinnedMBytes #-}
+
+cnewPinnedAlignedMBytes ::
+     (MonadPrim s m, Prim a)
+  => Count a -- ^ Size in number of bytes
+  -> m (MBytes 'Pinned s)
+cnewPinnedAlignedMBytes c = do
+  mb <- newPinnedAlignedMBytes c
+  n <- getSizeOfMBytes mb
+  mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
+{-# INLINE cnewPinnedAlignedMBytes #-}
 
 
 allocMBytes :: MonadPrim s m => Int -> m (MBytes p s)
@@ -216,6 +247,22 @@ thawBytes (Bytes ba#) =
       (# s'#, mba# #) -> (# s'#, MBytes mba# #)
 {-# INLINE thawBytes #-}
 
+
+withMBytes ::
+     MonadPrim s m => Bytes p -> (MBytes pm s -> m a) -> m (a, Bytes pm)
+withMBytes b f = do
+  let n = sizeOfBytes b
+  mb <- allocMBytes n
+  copyBytesToMBytes b 0 mb 0 n
+  res <- f mb
+  b <- freezeMBytes mb
+  pure (res, b)
+
+
+copyBytesToMBytes ::
+     MonadPrim s m => Bytes p -> Int -> MBytes pm s -> Int -> Int -> m ()
+copyBytesToMBytes (Bytes bSrc#) (I# bSrcOff#) (MBytes mbDst#) (I# mbDstOff#) (I# n#) =
+  prim_ (copyByteArray# bSrc# bSrcOff# mbDst# mbDstOff# n#)
 
 sizeOfBytes :: Bytes p -> Int
 sizeOfBytes (Bytes ba#) = I# (sizeofByteArray# ba#)

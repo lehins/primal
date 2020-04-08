@@ -46,6 +46,7 @@ sizeOfType = sizeOf# (proxy# :: Proxy# a)
 
 -- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
 --
+-- >>> import Data.Proxy
 -- >>> sizeOfProxy (Proxy :: Proxy Int64)
 -- 8
 --
@@ -72,10 +73,11 @@ alignmentType = alignment# (proxy# :: Proxy# a)
 
 -- | Same as `alignment`, but argument is a `Proxy` of @a@, instead of the type itself.
 --
+-- >>> import Data.Proxy
 -- >>> alignmentProxy (Proxy :: Proxy Int64)
 -- 8
 --
-alignmentProxy :: forall a . Prim a => Proxy a -> Int
+alignmentProxy :: forall proxy a . Prim a => proxy a -> Int
 alignmentProxy _ = alignment# (proxy# :: Proxy# a)
 {-# INLINE alignmentProxy #-}
 
