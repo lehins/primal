@@ -51,7 +51,18 @@ module Data.Prim.Bytes
   , showsBytesHex
   , zerosMBytes
   , coerceStateMBytes
-    -- * Size
+  -- ** MoOdifying data
+  , withMBytes
+  , withMBytes_
+  , withCopyMBytes
+  , withCopyMBytes_
+  , withCopyPinnedMBytes
+  , withCopyPinnedMBytes_
+  , applyFrrezeMBytes
+  -- ** Moving data
+  , copyBytesToMBytes
+  , copyMBytesToMBytes
+  -- * Size
   , getSizeOfMBytes
   , countOfMBytes
   , countRemOfMBytes
@@ -65,26 +76,30 @@ module Data.Prim.Bytes
 
 import Control.Arrow
 import Control.DeepSeq
-import Control.Monad
 import Control.Monad.Prim
 import Control.Monad.ST
-import Data.List as List
 import Data.Foldable as Foldable
+import Data.List as List
+import Data.Maybe
 import Data.Prim
 import Data.Prim.Class
-import Data.Prim.Foreign (isByteArrayPinned#, isMutableByteArrayPinned#, getSizeofMutableByteArray#)
-import GHC.Exts hiding (isByteArrayPinned#, isMutableByteArrayPinned#, getSizeofMutableByteArray#)
-import Numeric (showHex)
+import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
+                          isMutableByteArrayPinned#)
+import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
+                 isMutableByteArrayPinned#)
 import GHC.Word
+import Numeric (showHex)
 
-data Pinned = Pinned
+-- | Memory can either be Pinned or Inconclusive. Use eith `toPinnedBytes` or
+-- `toPinnedMBytes` to get a conclusive answer for the latter case.
+data Pinned = Pin | Inc
 
 data Bytes (p :: Pinned) = Bytes ByteArray#
 
 instance Show (Bytes p) where
   show b =
     Foldable.foldr' ($) "]" $
-    (('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsBytesHex b)))
+    ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsBytesHex b))
 
 -- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
 -- is a function that will convert one byte.
@@ -102,6 +117,39 @@ showsBytesHex b = map toHex (toListBytes b :: [Word8])
          then ('0' :)
          else id) .
       showHex b8
+
+instance Eq (Bytes p) where
+  (==) = eqBytes
+
+-- | Check if two byte arrays refer to pinned memory and compare their pointers.
+sameBytes :: Bytes p1 -> Bytes p2 -> Bool
+sameBytes b1 b2 =
+  fromMaybe False (samePinnedBytes <$> toPinnedBytes b1 <*> toPinnedBytes b2)
+{-# INLINE sameBytes #-}
+
+-- | Perform pointer equality on pinned allocations of `Bytes`.
+samePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
+samePinnedBytes pb1 pb2 = getBytesPtr pb1 == getBytesPtr pb2
+{-# INLINE samePinnedBytes #-}
+
+-- | Check if two mutable bytes allocations refer to the same memory
+sameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool
+sameMBytes (MBytes mb1#) (MBytes mb2#) =
+  isTrue# (sameMutableByteArray# mb1# mb2#)
+
+eqBytes :: Bytes p1 -> Bytes p2 -> Bool
+eqBytes b1 b2 = mPtrEq || eqBytesN lenEq 0
+  where
+    n = sizeOfBytes b1
+    lenEq = n == sizeOfBytes b2
+    eqBytesN acc i
+      | i < n = acc && eqBytesN ((indexBytes b1 i :: Word8) == indexBytes b2 i) (i + 1)
+      | otherwise = acc
+    mPtrEq =
+      fromMaybe False $ do
+        pb1 <- toPinnedBytes b1
+        pb2 <- toPinnedBytes b2
+        Just (getBytesPtr pb1 == getBytesPtr pb2)
 
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 
@@ -132,29 +180,28 @@ coerceStateMBytes = unsafeCoerce#
 
 ---- Mutable
 
-newMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes p s)
+newMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
 newMBytes es@(Count n) = allocMBytes (n * sizeOfProxy es)
 {-# INLINE newMBytes #-}
 
-
-newPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
+newPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 newPinnedMBytes es@(Count n) = allocPinnedMBytes (n * sizeOfProxy es)
 {-# INLINE newPinnedMBytes #-}
 
-newPinnedAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
+newPinnedAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 newPinnedAlignedMBytes es@(Count n) =
   allocPinnedAlignedMBytes (n * sizeOfProxy es) (alignmentProxy es)
 {-# INLINE newPinnedAlignedMBytes #-}
 
 
-cnewMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes p s)
+cnewMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
 cnewMBytes c = do
   mb <- newMBytes c
   n <- getSizeOfMBytes mb
   mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
 {-# INLINE cnewMBytes #-}
 
-cnewPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pinned s)
+cnewPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 cnewPinnedMBytes c = do
   mb <- newPinnedMBytes c
   n <- getSizeOfMBytes mb
@@ -164,7 +211,7 @@ cnewPinnedMBytes c = do
 cnewPinnedAlignedMBytes ::
      (MonadPrim s m, Prim a)
   => Count a -- ^ Size in number of bytes
-  -> m (MBytes 'Pinned s)
+  -> m (MBytes 'Pin s)
 cnewPinnedAlignedMBytes c = do
   mb <- newPinnedAlignedMBytes c
   n <- getSizeOfMBytes mb
@@ -172,14 +219,14 @@ cnewPinnedAlignedMBytes c = do
 {-# INLINE cnewPinnedAlignedMBytes #-}
 
 
-allocMBytes :: MonadPrim s m => Int -> m (MBytes p s)
+allocMBytes :: MonadPrim s m => Int -> m (MBytes 'Inc s)
 allocMBytes (I# i#) =
   prim $ \s# ->
     case newByteArray# i# s# of
       (# s'#, ba# #) -> (# s'#, MBytes ba# #)
 {-# INLINE allocMBytes #-}
 
-allocPinnedMBytes :: MonadPrim s m => Int -> m (MBytes 'Pinned s)
+allocPinnedMBytes :: MonadPrim s m => Int -> m (MBytes 'Pin s)
 allocPinnedMBytes (I# i#) =
   prim $ \s# ->
     case newPinnedByteArray# i# s# of
@@ -190,20 +237,20 @@ allocPinnedAlignedMBytes ::
      MonadPrim s m
   => Int -- ^ Size in number of bytes
   -> Int -- ^ Alignment in number of bytes
-  -> m (MBytes 'Pinned s)
+  -> m (MBytes 'Pin s)
 allocPinnedAlignedMBytes (I# i#) (I# a#) =
   prim $ \s# ->
     case newAlignedPinnedByteArray# i# a# s# of
       (# s'#, ba# #) -> (# s'#, MBytes ba# #)
 {-# INLINE allocPinnedAlignedMBytes #-}
 
-callocMBytes :: MonadPrim s m => Int -> m (MBytes p s)
+callocMBytes :: MonadPrim s m => Int -> m (MBytes 'Inc s)
 callocMBytes n = do
   mb <- allocMBytes n
   mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
 {-# INLINE callocMBytes #-}
 
-callocPinnedMBytes :: MonadPrim s m => Int -> m (MBytes 'Pinned s)
+callocPinnedMBytes :: MonadPrim s m => Int -> m (MBytes 'Pin s)
 callocPinnedMBytes n = do
   mb <- allocPinnedMBytes n
   mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
@@ -213,7 +260,7 @@ callocPinnedAlignedMBytes ::
      MonadPrim s m
   => Int -- ^ Size in number of bytes
   -> Int -- ^ Alignment in number of bytes
-  -> m (MBytes 'Pinned s)
+  -> m (MBytes 'Pin s)
 callocPinnedAlignedMBytes n a = do
   mb <- allocPinnedAlignedMBytes n a
   mb <$ setMBytes mb 0 (Count n) (0 :: Word8)
@@ -248,22 +295,68 @@ thawBytes (Bytes ba#) =
       (# s'#, mba# #) -> (# s'#, MBytes mba# #)
 {-# INLINE thawBytes #-}
 
+withCopyAllocMBytes ::
+     MonadPrim s m
+  => (Int -> m (MBytes pm s))
+  -> Bytes p
+  -> (MBytes pm s -> m a)
+  -> m (a, Bytes pm)
+withCopyAllocMBytes alloc b f = do
+  let n = sizeOfBytes b
+  mb <- alloc n
+  copyBytesToMBytes b 0 mb 0 n
+  applyFrrezeMBytes f mb
+{-# INLINE withCopyAllocMBytes #-}
+
+applyFrrezeMBytes ::
+     MonadPrim s m => (MBytes p s -> m a) -> MBytes p s -> m (a, Bytes p)
+applyFrrezeMBytes f mb = do
+  res <- f mb
+  b' <- freezeMBytes mb
+  pure (res, b')
+{-# INLINE applyFrrezeMBytes #-}
 
 withMBytes ::
-     MonadPrim s m => Bytes p -> (MBytes pm s -> m a) -> m (a, Bytes pm)
-withMBytes b f = do
-  let n = sizeOfBytes b
-  mb <- allocMBytes n
-  copyBytesToMBytes b 0 mb 0 n
-  res <- f mb
-  b <- freezeMBytes mb
-  pure (res, b)
+     MonadPrim s m => Bytes p -> (MBytes p s -> m a) -> m (a, Bytes p)
+withMBytes b f = thawBytes b >>= applyFrrezeMBytes f
+{-# INLINE withMBytes #-}
 
+withMBytes_ ::
+     MonadPrim s m => Bytes p -> (MBytes p s -> m a) -> m (Bytes p)
+withMBytes_ b f = snd <$> withMBytes b f
+{-# INLINE withMBytes_ #-}
+
+withCopyMBytes ::
+     MonadPrim s m => Bytes p -> (MBytes 'Inc s -> m a) -> m (a, Bytes 'Inc)
+withCopyMBytes = withCopyAllocMBytes allocMBytes
+{-# INLINE withCopyMBytes #-}
+
+withCopyMBytes_ ::
+     MonadPrim s m => Bytes p -> (MBytes 'Inc s -> m a) -> m (Bytes 'Inc)
+withCopyMBytes_ b f = snd <$> withCopyMBytes b f
+{-# INLINE withCopyMBytes_ #-}
+
+withCopyPinnedMBytes ::
+     MonadPrim s m => Bytes p -> (MBytes 'Pin s -> m a) -> m (a, Bytes 'Pin)
+withCopyPinnedMBytes = withCopyAllocMBytes allocPinnedMBytes
+{-# INLINE withCopyPinnedMBytes #-}
+
+withCopyPinnedMBytes_ ::
+     MonadPrim s m => Bytes p -> (MBytes 'Pin s -> m a) -> m (Bytes 'Pin)
+withCopyPinnedMBytes_ b f = snd <$> withCopyPinnedMBytes b f
+{-# INLINE withCopyPinnedMBytes_ #-}
 
 copyBytesToMBytes ::
-     MonadPrim s m => Bytes p -> Int -> MBytes pm s -> Int -> Int -> m ()
+     MonadPrim s m => Bytes p -> Int -> MBytes pd s -> Int -> Int -> m ()
 copyBytesToMBytes (Bytes bSrc#) (I# bSrcOff#) (MBytes mbDst#) (I# mbDstOff#) (I# n#) =
   prim_ (copyByteArray# bSrc# bSrcOff# mbDst# mbDstOff# n#)
+{-# INLINE copyBytesToMBytes #-}
+
+copyMBytesToMBytes ::
+     MonadPrim s m => MBytes ps s-> Int -> MBytes pd s -> Int -> Int -> m ()
+copyMBytesToMBytes (MBytes mbSrc#) (I# mbSrcOff#) (MBytes mbDst#) (I# mbDstOff#) (I# n#) =
+  prim_ (copyMutableByteArray# mbSrc# mbSrcOff# mbDst# mbDstOff# n#)
+{-# INLINE copyMBytesToMBytes #-}
 
 sizeOfBytes :: Bytes p -> Int
 sizeOfBytes (Bytes ba#) = I# (sizeofByteArray# ba#)
@@ -333,10 +426,10 @@ loadListMBytes ys mb = do
 {-# INLINE loadListMBytes #-}
 
 fromListBytesN ::
-     forall a p. Prim a
+     forall a. Prim a
   => Int
   -> [a]
-  -> (Ordering, Bytes p)
+  -> (Ordering, Bytes 'Inc)
 fromListBytesN n xs = runST $ do
   mb <- newMBytes (Count n :: Count a)
   res <- loadListMBytes xs mb
@@ -344,9 +437,9 @@ fromListBytesN n xs = runST $ do
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
-     forall a p. Prim a
+     forall a. Prim a
   => [a]
-  -> Bytes p
+  -> Bytes 'Inc
 fromListBytes xs =
   case fromListBytesN (length xs) xs of
     (EQ, ba) -> ba
@@ -366,19 +459,24 @@ writeMBytes (MBytes mba#) (I# i#) a = prim_ (writeMutableByteArray# mba# i# a)
 
 isPinnedBytes :: Bytes p -> Bool
 isPinnedBytes (Bytes b#) = isTrue# (isByteArrayPinned# b#)
-{-# INLINE isPinnedBytes #-}
+{-# INLINE[0] isPinnedBytes #-}
 
 isPinnedMBytes :: MBytes p d -> Bool
 isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
-{-# INLINE isPinnedMBytes #-}
+{-# INLINE[0] isPinnedMBytes #-}
 
-toPinnedBytes :: Bytes p -> Maybe (Bytes 'Pinned)
+{-# RULES
+"isPinnedBytes" forall (x :: Bytes 'Pin) . isPinnedBytes x = True
+"isPinnedMBytes" forall (x :: MBytes 'Pin s) . isPinnedMBytes x = True
+  #-}
+
+toPinnedBytes :: Bytes p -> Maybe (Bytes 'Pin)
 toPinnedBytes (Bytes b#)
   | isTrue# (isByteArrayPinned# b#) = Just (Bytes b#)
   | otherwise = Nothing
 {-# INLINE toPinnedBytes #-}
 
-toPinnedMBytes :: MBytes p s -> Maybe (MBytes 'Pinned s)
+toPinnedMBytes :: MBytes p s -> Maybe (MBytes 'Pin s)
 toPinnedMBytes (MBytes mb#)
   | isTrue# (isMutableByteArrayPinned# mb#) = Just (MBytes mb#)
   | otherwise = Nothing
@@ -387,11 +485,11 @@ toPinnedMBytes (MBytes mb#)
 
 
 
-getBytesPtr :: Bytes 'Pinned -> Ptr a
+getBytesPtr :: Bytes 'Pin -> Ptr a
 getBytesPtr (Bytes ba#) = Ptr (byteArrayContents# ba#)
 {-# INLINE getBytesPtr #-}
 
-getMBytesPtr :: MBytes 'Pinned s -> Ptr a
+getMBytesPtr :: MBytes 'Pin s -> Ptr a
 getMBytesPtr (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
 {-# INLINE getMBytesPtr #-}
 

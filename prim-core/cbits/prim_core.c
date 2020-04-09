@@ -22,6 +22,10 @@ long prim_is_byte_array_pinned(StgPtr ba)
   return ((bd->flags & (BF_PINNED | BF_LARGE)) != 0);
 }
 
+/* HsInt8 prim_memcmp(HsWord8 *ptr1, HsWord8 *ptr2, HsInt n){ */
+/*   //ptr1 == ptr */
+/*   memcmp(ptr1, ptr2, n); */
+/* } */
 
 void prim_memset8(HsWord8 *ptr, HsInt offset, HsInt n, HsWord8 x){
   ptr+= offset;
