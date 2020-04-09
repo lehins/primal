@@ -497,25 +497,25 @@ instance Prim Bool where
 
 instance Prim Char where
   type PrimBase Char = Char
-  type SizeOf Char = SIZEOF_INT32
-  type Alignment Char = ALIGNMENT_INT32
-  sizeOf# _ = SIZEOF_INT32
+  type SizeOf Char = SIZEOF_HSCHAR
+  type Alignment Char = ALIGNMENT_HSCHAR
+  sizeOf# _ = SIZEOF_HSCHAR
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT32
+  alignment# _ = ALIGNMENT_HSCHAR
   {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = C# (chr# (indexInt32Array# ba# i#))
+  indexByteArray# ba# i# = C# (indexWideCharArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = C# (chr# (indexInt32OffAddr# ba# i#))
+  indexOffAddr# ba# i# = C# (indexWideCharOffAddr# ba# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt32Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, C# (chr# a#) #)
+  readMutableByteArray# mba# i# s# = case readWideCharArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, C# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt32OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, C# (chr# a#) #)
+  readOffAddr# mba# i# s# = case readWideCharOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, C# a# #)
   {-# INLINE readOffAddr# #-}
-  writeMutableByteArray# mba# i# (C# a#) = writeInt32Array# mba# i# (ord# a#)
+  writeMutableByteArray# mba# i# (C# a#) = writeWideCharArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# mba# i# (C# a#) = writeInt32OffAddr# mba# i# (ord# a#)
+  writeOffAddr# mba# i# (C# a#) = writeWideCharOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# mba# o# n# (C# a#) = setMutableByteArray# mba# o# n# (I32# (ord# a#))
   {-# INLINE setMutableByteArray# #-}

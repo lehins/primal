@@ -29,7 +29,7 @@ import GHC.ST
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Except (ExceptT)
-import Control.Monad.Trans.Identity (IdentityT)
+import Control.Monad.Trans.Identity (IdentityT(..))
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
@@ -53,13 +53,16 @@ class MonadPrim s m => MonadPrimBase s m where
   primBase :: m a -> State# s -> (# State# s, a #)
 
 instance MonadPrimBase RealWorld IO where
-  primBase (IO m) s# = m s#
+  primBase (IO m) = m
   {-# INLINE primBase #-}
 
 instance MonadPrimBase s (ST s) where
-  primBase (ST m) s# = m s#
+  primBase (ST m) = m
   {-# INLINE primBase #-}
 
+instance MonadPrimBase s m => MonadPrimBase s (IdentityT m) where
+  primBase (IdentityT m) = primBase m
+  {-# INLINE primBase #-}
 
 
 class Monad m => MonadPrim s m | m -> s where

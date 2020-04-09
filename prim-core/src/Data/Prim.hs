@@ -24,7 +24,6 @@ module Data.Prim
   ) where
 
 import GHC.Exts
-import Data.Proxy
 import Data.Prim.Class
 import Control.Monad.Prim
 

@@ -28,6 +28,11 @@ module Data.Prim.Foreign
   , memsetInt64MutableByteArray#
   , memsetInt64Addr#
 
+  , memmoveAddr#
+  , memmoveMutableByteArray#
+  , memmoveMutableByteArrayToAddr#
+  , memmoveMutableByteArrayFromAddr#
+
   , getSizeofMutableByteArray#
   , isByteArrayPinned#
   , isMutableByteArrayPinned#
@@ -39,56 +44,86 @@ import GHC.Int
 import GHC.Word
 import Data.Prim.Foreign.Cmm
 
-foreign import ccall unsafe "prim_core.c prim_memset8"
+foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset8"
+foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetInt8Addr# :: Addr# -> Int# -> Int# -> Int8 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset8"
+foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetWord8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word8 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset8"
+foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetWord8Addr# :: Addr# -> Int# -> Int# -> Word8 -> IO ()
 
 
-foreign import ccall unsafe "prim_core.c prim_memset16"
+foreign import ccall unsafe "prim_core.c prim_core_memset16"
   memsetInt16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int16 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset16"
+foreign import ccall unsafe "prim_core.c prim_core_memset16"
   memsetInt16Addr# :: Addr# -> Int# -> Int# -> Int16 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset16"
+foreign import ccall unsafe "prim_core.c prim_core_memset16"
   memsetWord16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word16 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset16"
+foreign import ccall unsafe "prim_core.c prim_core_memset16"
   memsetWord16Addr# :: Addr# -> Int# -> Int# -> Word16 -> IO ()
 
 
-foreign import ccall unsafe "prim_core.c prim_memset32"
+foreign import ccall unsafe "prim_core.c prim_core_memset32"
   memsetInt32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int32 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset32"
+foreign import ccall unsafe "prim_core.c prim_core_memset32"
   memsetInt32Addr# :: Addr# -> Int# -> Int# -> Int32 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset32"
+foreign import ccall unsafe "prim_core.c prim_core_memset32"
   memsetWord32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word32 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset32"
+foreign import ccall unsafe "prim_core.c prim_core_memset32"
   memsetWord32Addr# :: Addr# -> Int# -> Int# -> Word32 -> IO ()
 
 
-foreign import ccall unsafe "prim_core.c prim_memset64"
+foreign import ccall unsafe "prim_core.c prim_core_memset64"
   memsetInt64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int64 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset64"
+foreign import ccall unsafe "prim_core.c prim_core_memset64"
   memsetInt64Addr# :: Addr# -> Int# -> Int# -> Int64 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset64"
+foreign import ccall unsafe "prim_core.c prim_core_memset64"
   memsetWord64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word64 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_memset64"
+foreign import ccall unsafe "prim_core.c prim_core_memset64"
   memsetWord64Addr# :: Addr# -> Int# -> Int# -> Word64 -> IO ()
+
+foreign import ccall unsafe "prim_core.c prim_core_memmove"
+  memmoveAddr# :: Addr# -- ^ Source ptr
+               -> Int# -- ^ Offset in bytes into source array
+               -> Addr# -- ^ Destination ptr
+               -> Int# -- ^ Offset in bytes into destination
+               -> Int# -- ^ Number of bytes to copy
+               -> IO ()
+foreign import ccall unsafe "prim_core.c prim_core_memmove"
+  memmoveMutableByteArray# :: MutableByteArray# s -- ^ Source array
+                           -> Int# -- ^ Offset in bytes into source array
+                           -> MutableByteArray# s -- ^ Destination
+                           -> Int# -- ^ Offset in bytes into destination
+                           -> Int# -- ^ Number of bytes to copy
+                           -> IO ()
+foreign import ccall unsafe "prim_core.c prim_core_memmove"
+  memmoveMutableByteArrayToAddr# :: MutableByteArray# s -- ^ Source array
+                                 -> Int# -- ^ Offset in bytes into source array
+                                 -> Addr# -- ^ Destination ptr
+                                 -> Int# -- ^ Offset in bytes into destination
+                                 -> Int# -- ^ Number of bytes to copy
+                                 -> IO ()
+foreign import ccall unsafe "prim_core.c prim_core_memmove"
+  memmoveMutableByteArrayFromAddr# :: Addr# -- ^ Source Ptr
+                                   -> Int# -- ^ Offset in bytes into source array
+                                   -> MutableByteArray# s -- ^ Destination
+                                   -> Int# -- ^ Offset in bytes into destination
+                                   -> Int# -- ^ Number of bytes to copy
+                                   -> IO ()
+
 
 #if __GLASGOW_HASKELL__ < 804
 -- | Compatibility function for the old compiler versions
@@ -99,8 +134,8 @@ getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
 -- ghc-8.2 (i.e. 802 version) introduced these two functions, for versions before those
 -- use their reimplementations in C:
 #if __GLASGOW_HASKELL__ < 802
-foreign import ccall unsafe "prim_core.c pvar_is_byte_array_pinned"
+foreign import ccall unsafe "prim_core.c prim_core_is_byte_array_pinned"
   isByteArrayPinned# :: ByteArray# -> Int#
-foreign import ccall unsafe "prim_core.c pvar_is_byte_array_pinned"
+foreign import ccall unsafe "prim_core.c prim_core_is_byte_array_pinned"
   isMutableByteArrayPinned# :: MutableByteArray# s -> Int#
 #endif
