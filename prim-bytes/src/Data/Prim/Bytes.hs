@@ -20,6 +20,8 @@ module Data.Prim.Bytes
   , MBytes(..)
   , Pinned(..)
   , Count(..)
+  , Ptr(..)
+  --, ForeignPtr
   , isPinnedBytes
   , isPinnedMBytes
   , toPinnedBytes
@@ -30,6 +32,7 @@ module Data.Prim.Bytes
   , fromListBytes
   , fromListBytesN
   , toListBytes
+  , sameBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -51,14 +54,16 @@ module Data.Prim.Bytes
   , showsBytesHex
   , zerosMBytes
   , coerceStateMBytes
-  -- ** MoOdifying data
+  -- ** Modifying data
   , withMBytes
   , withMBytes_
   , withCopyMBytes
   , withCopyMBytes_
   , withCopyPinnedMBytes
   , withCopyPinnedMBytes_
-  , applyFrrezeMBytes
+  , copyBytesToPtr
+  , copyMBytesToPtr
+  , applyFreezeMBytes
   -- ** Moving data
   , copyBytesToMBytes
   , copyMBytesToMBytes
@@ -69,14 +74,23 @@ module Data.Prim.Bytes
   , readMBytes
   , writeMBytes
   , setMBytes
+  , withMBytesPtr
   , getBytesPtr
   , getMBytesPtr
   , module Data.Prim
+  -- * Experimental
+  , fillPinnedMBytesWord64LE
+  , fillPinnedMBytesWith
   ) where
 
+import Data.Proxy
+import Data.ByteString.Builder.Prim (word64LE, word32LE)
+import Data.ByteString.Builder.Prim.Internal (runF)
+--import Data.ByteString.Internal (ByteString(PS))
 import Control.Arrow
 import Control.DeepSeq
 import Control.Monad.Prim
+import Control.Monad.Prim.Unsafe
 import Control.Monad.ST
 import Data.Foldable as Foldable
 import Data.List as List
@@ -89,6 +103,7 @@ import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 import GHC.Word
 import Numeric (showHex)
+import Foreign.Ptr
 
 -- | Memory can either be Pinned or Inconclusive. Use eith `toPinnedBytes` or
 -- `toPinnedMBytes` to get a conclusive answer for the latter case.
@@ -305,20 +320,20 @@ withCopyAllocMBytes alloc b f = do
   let n = sizeOfBytes b
   mb <- alloc n
   copyBytesToMBytes b 0 mb 0 n
-  applyFrrezeMBytes f mb
+  applyFreezeMBytes f mb
 {-# INLINE withCopyAllocMBytes #-}
 
-applyFrrezeMBytes ::
+applyFreezeMBytes ::
      MonadPrim s m => (MBytes p s -> m a) -> MBytes p s -> m (a, Bytes p)
-applyFrrezeMBytes f mb = do
+applyFreezeMBytes f mb = do
   res <- f mb
   b' <- freezeMBytes mb
   pure (res, b')
-{-# INLINE applyFrrezeMBytes #-}
+{-# INLINE applyFreezeMBytes #-}
 
 withMBytes ::
      MonadPrim s m => Bytes p -> (MBytes p s -> m a) -> m (a, Bytes p)
-withMBytes b f = thawBytes b >>= applyFrrezeMBytes f
+withMBytes b f = thawBytes b >>= applyFreezeMBytes f
 {-# INLINE withMBytes #-}
 
 withMBytes_ ::
@@ -483,8 +498,6 @@ toPinnedMBytes (MBytes mb#)
 {-# INLINE toPinnedMBytes #-}
 
 
-
-
 getBytesPtr :: Bytes 'Pin -> Ptr a
 getBytesPtr (Bytes ba#) = Ptr (byteArrayContents# ba#)
 {-# INLINE getBytesPtr #-}
@@ -502,3 +515,71 @@ setMBytes ::
   -> m ()
 setMBytes (MBytes mba#) (I# o#) (Count (I# n#)) a = prim_ (setMutableByteArray# mba# o# n# a)
 {-# INLINE setMBytes #-}
+
+
+
+-- | Writing 8 bytes at a time in a Little-endian order gives us platform portability
+fillPinnedMBytesWord64LE :: MonadPrim s m => g -> (g -> (Word64, g)) -> MBytes 'Pin s -> m g
+fillPinnedMBytesWord64LE = fillPinnedMBytesWith (\a -> unsafeIOToPrim . runF word64LE a)
+{-# INLINE fillPinnedMBytesWord64LE #-}
+
+-- | Writing 4 bytes at a time in a Little-endian order gives us platform portability
+fillPinnedMBytesWord32LE :: MonadPrim s m => g -> (g -> (Word32, g)) -> MBytes 'Pin s -> m g
+fillPinnedMBytesWord32LE = fillPinnedMBytesWith (\a -> unsafeIOToPrim . runF word32LE a)
+{-# INLINE fillPinnedMBytesWord32LE #-}
+
+fillPinnedMBytesWith ::
+     forall a g s m. (MonadPrim s m, Prim a)
+  => (a -> Ptr Word8 -> m ())
+  -> g
+  -> (g -> (a, g))
+  -> MBytes 'Pin s
+  -> m g
+fillPinnedMBytesWith f g0 gen64 mb =
+  withMBytesPtr mb $ \ptr0 -> do
+    n <- getSizeOfMBytes mb
+    let sz = sizeOfProxy (Proxy :: Proxy a)
+        (n64, nrem64) = n `quotRem` sz
+    let go g i ptr
+          | i < n64 = do
+            let (w64, g') = gen64 g
+            f w64 ptr
+            go g' (i + 1) (ptr `plusPtr` sz)
+          | otherwise = return (g, ptr)
+    (g, ptr') <- go g0 0 ptr0
+    if nrem64 == 0
+      then pure g
+      else do
+        let (w64, g') = gen64 g
+        -- In order to not mess up the byte order we write generated Word64 into a temporary
+        -- pointer and then copy only the missing bytes over to the array. It is tempting to
+        -- simply generate as many bytes as we still need using smaller type (eg. Word16),
+        -- but that would result in an inconsistent tail when total the length is slightly
+        -- varied.
+        w64mb <- newPinnedMBytes (Count 1 :: Count a)
+        writeMBytes w64mb 0 w64
+        withMBytesPtr w64mb (f w64)
+        copyMBytesToPtr w64mb 0 ptr' 0
+        pure g'
+{-# INLINE fillPinnedMBytesWith #-}
+
+copyMBytesToPtr :: MonadPrim s m => MBytes p s -> Int -> Ptr a -> Int -> m ()
+copyMBytesToPtr (MBytes src#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) =
+  prim_ (copyMutableByteArrayToAddr# src# srcOff# dstAddr# dstOff#)
+{-# INLINE copyMBytesToPtr #-}
+
+--
+copyBytesToPtr :: MonadPrim s m => Bytes p -> Int -> Ptr a -> Int -> m ()
+copyBytesToPtr (Bytes src#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) =
+  prim_ (copyByteArrayToAddr# src# srcOff# dstAddr# dstOff#)
+{-# INLINE copyBytesToPtr #-}
+
+
+
+withMBytesPtr :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withMBytesPtr mb f = do
+  let ptr = getMBytesPtr mb
+  res <- f ptr
+  touch mb
+  pure res
+{-# INLINE withMBytesPtr #-}

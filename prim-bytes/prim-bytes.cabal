@@ -33,6 +33,7 @@ library
 
   other-modules:
   build-depends:       base >= 4.8 && < 5
+                     , bytestring
                      , deepseq
                      , prim-core
 
@@ -51,23 +52,24 @@ library
 --                       -fno-warn-orphans
 --                       -threaded
 
--- test-suite tests
---   type:               exitcode-stdio-1.0
---   hs-source-dirs:     tests
---   main-is:            Main.hs
---   other-modules:      Common
---                     , LibSpec
---                     , Spec
---   build-depends:      base             >= 4.8 && < 5
---                     , prim-bytes
---                     , hspec
---                     , QuickCheck
+test-suite tests
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            Main.hs
+  other-modules:      Spec
+                    , Test.Prim.Common
+                    , Test.Prim.BytesSpec
+  build-depends:      base             >= 4.8 && < 5
+                    , prim-bytes
+                    , primitive
+                    , hspec
+                    , QuickCheck
 
---   default-language:   Haskell2010
---   ghc-options:        -Wall
---                       -fno-warn-orphans
---                       -threaded
---                       -with-rtsopts=-N2
+  default-language:   Haskell2010
+  ghc-options:        -Wall
+                      -fno-warn-orphans
+                      -threaded
+                      -with-rtsopts=-N2
 
 benchmark bench
   type:                exitcode-stdio-1.0
