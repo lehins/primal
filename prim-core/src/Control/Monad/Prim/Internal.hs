@@ -1,10 +1,11 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Control.Monad.Prim.Internal
@@ -17,10 +18,12 @@
 module Control.Monad.Prim.Internal
   ( MonadPrim(..)
   , MonadPrimBase(..)
+  , MonadUnliftPrim(..)
   , prim_
   , primBase_
   , liftPrimBase
   , primBaseToIO
+  , primBaseToST
   ) where
 
 import GHC.Exts
@@ -31,6 +34,7 @@ import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Except (ExceptT)
 import Control.Monad.Trans.Identity (IdentityT(..))
 import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Reader (ReaderT(..))
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
 import Control.Monad.Trans.State.Lazy as Lazy (StateT)
@@ -65,6 +69,28 @@ instance MonadPrimBase s m => MonadPrimBase s (IdentityT m) where
   {-# INLINE primBase #-}
 
 
+class MonadUnliftPrim s m where
+  withRunInPrimBase :: MonadPrimBase s n => ((forall a. m a -> n a) -> n b) -> m b
+
+instance MonadUnliftPrim RealWorld IO where
+  withRunInPrimBase inner = liftPrimBase (inner liftPrimBase)
+  {-# INLINE withRunInPrimBase #-}
+
+instance MonadUnliftPrim s (ST s) where
+  withRunInPrimBase inner = liftPrimBase (inner liftPrimBase)
+  {-# INLINE withRunInPrimBase #-}
+
+instance MonadUnliftPrim s m => MonadUnliftPrim s (IdentityT m) where
+  withRunInPrimBase inner =
+    IdentityT $ withRunInPrimBase $ \run -> inner (run . runIdentityT)
+  {-# INLINE withRunInPrimBase #-}
+
+instance MonadUnliftPrim s m => MonadUnliftPrim s (ReaderT r m) where
+  withRunInPrimBase inner =
+    ReaderT $ \r -> withRunInPrimBase $ \run -> inner (run . flip runReaderT r)
+  {-# INLINE withRunInPrimBase #-}
+
+
 class Monad m => MonadPrim s m | m -> s where
   -- | Construct a primitive action
   prim :: (State# s -> (# State# s, a #)) -> m a
@@ -91,6 +117,10 @@ instance MonadPrim s m => MonadPrim s (IdentityT m) where
   {-# INLINE prim #-}
 
 instance MonadPrim s m => MonadPrim s (MaybeT m) where
+  prim = lift . prim
+  {-# INLINE prim #-}
+
+instance MonadPrim s m => MonadPrim s (ReaderT r m) where
   prim = lift . prim
   {-# INLINE prim #-}
 
@@ -158,3 +188,8 @@ liftPrimBase m = prim (primBase m)
 primBaseToIO :: MonadPrimBase RealWorld m => m a -> IO a
 primBaseToIO = liftPrimBase
 {-# INLINE primBaseToIO #-}
+
+-- | Restrict a `MonadPrimBase` action that works in `ST`.
+primBaseToST :: MonadPrimBase s m => m a -> ST s a
+primBaseToST = liftPrimBase
+{-# INLINE primBaseToST #-}

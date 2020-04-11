@@ -30,7 +30,8 @@ custom-setup
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Bytes
-
+                     --, Data.Prim.ForeignPtr
+                     , Data.Prim.Ptr
   other-modules:
   build-depends:       base >= 4.8 && < 5
                      , bytestring

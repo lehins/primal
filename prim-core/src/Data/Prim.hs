@@ -1,6 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Data.Prim
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -21,11 +23,18 @@ module Data.Prim
   , alignment
   , alignmentType
   , alignmentProxy
+  , Count(..)
+  , fromCount
+  , fromCount#
+  , Off(..)
+  , fromOff
+  , fromOff#
   ) where
 
-import GHC.Exts
-import Data.Prim.Class
+import Control.DeepSeq
 import Control.Monad.Prim
+import Data.Prim.Class
+import GHC.Exts
 
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
@@ -80,3 +89,43 @@ alignmentProxy :: forall proxy a . Prim a => proxy a -> Int
 alignmentProxy _ = alignment# (proxy# :: Proxy# a)
 {-# INLINE alignmentProxy #-}
 
+
+
+-- | Number of elements
+newtype Count a = Count
+  { unCount :: Int
+  } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
+
+instance Prim (Count a) where
+  type PrimBase (Count a) = Int
+
+
+fromCount# :: Prim a => Count a -> Int#
+fromCount# c@(Count (I# n#)) =
+  case sizeOfProxy c of
+    (I# sz#) -> sz# *# n#
+{-# INLINE fromCount# #-}
+
+fromCount :: Prim a => Count a -> Int
+fromCount c = I# (fromCount# c)
+{-# INLINE fromCount #-}
+
+-- | Offset in number of elements
+newtype Off a = Off
+  { unOff :: Int
+  } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
+
+instance Prim (Off a) where
+  type PrimBase (Off a) = Int
+
+
+fromOff# :: Prim a => Off a -> Int#
+fromOff# o@(Off (I# o#)) =
+  case sizeOfProxy o of
+    (I# sz#) -> sz# *# o#
+{-# INLINE fromOff# #-}
+
+
+fromOff :: Prim a => Off a -> Int
+fromOff c = I# (fromOff# c)
+{-# INLINE fromOff #-}

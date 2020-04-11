@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Control.Monad.Prim.Unsafe
@@ -18,6 +19,7 @@ module Control.Monad.Prim.Unsafe
   , unsafePrimBaseToST
   , unsafeIOToPrim
   , unsafeSTToPrim
+  , unsafeLiftPrimBase
   , noDuplicatePrim
   , unsafeDupablePerformPrimBase
   -- * Inline
@@ -165,3 +167,11 @@ unsafeDupableInterleavePrimBase x =
             (# _, res #) -> res
      in (# s, r #)
 {-# NOINLINE unsafeDupableInterleavePrimBase #-}
+
+-- | A version of `liftPrimBase` that coerce the state token.
+--
+-- === Highly unsafe!
+--
+unsafeLiftPrimBase :: forall sn n sm m a. (MonadPrimBase sn n, MonadPrim sm m) => n a -> m a
+unsafeLiftPrimBase m = prim (unsafePrimBase m)
+{-# INLINE unsafeLiftPrimBase #-}
