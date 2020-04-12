@@ -25,16 +25,22 @@ module Data.Prim
   , alignmentProxy
   , Count(..)
   , fromCount
+  , fromCount
+  , countWord8
   , fromCount#
   , Off(..)
   , fromOff
   , fromOff#
+  , module Data.Word
+  , module Data.Int
   ) where
 
 import Control.DeepSeq
 import Control.Monad.Prim
 import Data.Prim.Class
 import GHC.Exts
+import Data.Word
+import Data.Int
 
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
@@ -99,16 +105,30 @@ newtype Count a = Count
 instance Prim (Count a) where
   type PrimBase (Count a) = Int
 
+fromCountWord8# :: Count Word8 -> Int#
+fromCountWord8# (Count (I# n#)) = n#
+{-# INLINE fromCountWord8# #-}
+fromCountInt8# :: Count Int8 -> Int#
+fromCountInt8# (Count (I# n#)) = n#
+{-# INLINE fromCountInt8# #-}
+{-# RULES
+"fromCountWord8#" fromCount# = fromCountWord8#
+"fromCountInt8#" fromCount# = fromCountInt8#
+  #-}
 
 fromCount# :: Prim a => Count a -> Int#
 fromCount# c@(Count (I# n#)) =
   case sizeOfProxy c of
     (I# sz#) -> sz# *# n#
-{-# INLINE fromCount# #-}
+{-# INLINE[0] fromCount# #-}
 
 fromCount :: Prim a => Count a -> Int
 fromCount c = I# (fromCount# c)
 {-# INLINE fromCount #-}
+
+countWord8 :: Prim a => Count a -> Count Word8
+countWord8 = Count . fromCount
+{-# INLINE countWord8 #-}
 
 -- | Offset in number of elements
 newtype Off a = Off
@@ -118,12 +138,22 @@ newtype Off a = Off
 instance Prim (Off a) where
   type PrimBase (Off a) = Int
 
+fromOffWord8# :: Off Word8 -> Int#
+fromOffWord8# (Off (I# o#)) = o#
+{-# INLINE fromOffWord8# #-}
+fromOffInt8# :: Off Int8 -> Int#
+fromOffInt8# (Off (I# o#)) = o#
+{-# INLINE fromOffInt8# #-}
+{-# RULES
+"fromOffWord8#" fromOff# = fromOffWord8#
+"fromOffInt8#" fromOff# = fromOffInt8#
+  #-}
 
 fromOff# :: Prim a => Off a -> Int#
 fromOff# o@(Off (I# o#)) =
   case sizeOfProxy o of
     (I# sz#) -> sz# *# o#
-{-# INLINE fromOff# #-}
+{-# INLINE[0] fromOff# #-}
 
 
 fromOff :: Prim a => Off a -> Int

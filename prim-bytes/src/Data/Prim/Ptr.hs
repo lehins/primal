@@ -32,7 +32,6 @@ module Data.Prim.Ptr
   , copyPtrToMBytes
   , movePtrToMBytes
   , copyBytesToPtr
-  , moveBytesToPtr
   , copyMBytesToPtr
   , moveMBytesToPtr
   ) where
@@ -76,143 +75,151 @@ import Numeric (showHex)
 
 
 
-readOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Int -> m a
-readOffPtr (Ptr addr#) (I# i#) = prim (readOffAddr# addr# i#)
+readOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m a
+readOffPtr (Ptr addr#) (Off (I# i#)) = prim (readOffAddr# addr# i#)
 {-# INLINE readOffPtr #-}
 
-writeOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Int -> a -> m ()
-writeOffPtr (Ptr addr#) (I# i#) a = prim_ (writeOffAddr# addr# i# a)
+writeOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> a -> m ()
+writeOffPtr (Ptr addr#) (Off (I# i#)) a = prim_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
 
 readPtr :: (MonadPrim s m, Prim a) => Ptr a -> m a
 readPtr (Ptr addr#) = prim (readOffAddr# addr# 0#)
 {-# INLINE readPtr #-}
 
-writePtr :: (MonadPrim s m, Prim a) => Ptr a -> Int -> m ()
+writePtr :: (MonadPrim s m, Prim a) => Ptr a -> a -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
+plusPtrOff :: Prim a => Ptr a -> Off a -> Ptr a
+plusPtrOff (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
+{-# INLINE plusPtrOff #-}
 
+-- copyPtrToPtr8 ::
+--   MonadPrim s m => Ptr Word8 -> Off Word8 -> Ptr Word8 -> Off Word8 -> Count Word8 -> m ()
+-- copyPtrToPtr8 srcPtr srcOff dstPtr dstOff (Count n) =
+--   unsafeIOToPrim $
+--   copyBytes (dstPtr `plusPtrOff8` dstOff) (srcPtr `plusPtrOff8` srcOff) n
+-- {-# INLINE copyPtrToPtr8 #-}
+-- {-# RULES "copyPtrToPtr8" copyPtrToPtr = copyPtrToPtr8 #-}
 
-copyPtrToPtr8 :: MonadPrim s m => Ptr Word8 -> Int -> Ptr Word8 -> Int -> Count Word8 -> m ()
-copyPtrToPtr8 srcPtr srcOff dstPtr dstOff (Count n) =
-  unsafeIOToPrim $
-  copyBytes (dstPtr `plusPtr` dstOff) (srcPtr `plusPtr` srcOff) n
-{-# INLINE copyPtrToPtr8 #-}
-{-# RULES "copyPtrToPtr8" copyPtrToPtr = copyPtrToPtr8 #-}
-
-copyPtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Int -> Ptr a -> Int -> Count a -> m ()
-copyPtrToPtr (Ptr srcAddr#) srcOff (Ptr dstAddr#) dstOff c =
+copyPtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
+copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
   unsafeIOToPrim $
   copyBytes
-    (Ptr (dstAddr# `plusAddr#` fromOff# c dstOff))
-    (Ptr (srcAddr# `plusAddr#` fromOff# c srcOff))
-    (I# (fromCount# c))
+    (dstPtr `plusPtrOff` dstOff)
+    (srcPtr `plusPtrOff` srcOff)
+    (fromCount c)
 {-# INLINE[0] copyPtrToPtr #-}
 
 
 
-movePtrToPtr8 :: MonadPrim s m => Ptr Word8 -> Int -> Ptr Word8 -> Int -> Count Word8 -> m ()
-movePtrToPtr8 (Ptr srcAddr#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) (Count (I# n#)) =
-  unsafeIOToPrim $ memmoveAddr# srcAddr# srcOff# dstAddr# dstOff# n#
-{-# INLINE movePtrToPtr8 #-}
-{-# RULES "movePtrToPtr8" movePtrToPtr = movePtrToPtr8 #-}
+-- movePtrToPtr8 ::
+--   MonadPrim s m => Ptr Word8 -> Off Word8 -> Ptr Word8 -> Off Word8 -> Count Word8 -> m ()
+-- movePtrToPtr8 (Ptr srcAddr#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# dstOff#)) (Count (I# n#)) =
+--   unsafeIOToPrim $ memmoveAddr# srcAddr# srcOff# dstAddr# dstOff# n#
+-- {-# INLINE movePtrToPtr8 #-}
+-- {-# RULES "movePtrToPtr8" movePtrToPtr = movePtrToPtr8 #-}
 
-movePtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Int -> Ptr a -> Int -> Count a -> m ()
+movePtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
 movePtrToPtr (Ptr srcAddr#) srcOff (Ptr dstAddr#) dstOff c =
   unsafeIOToPrim $
   memmoveAddr#
     srcAddr#
-    (fromOff# c srcOff)
+    (fromOff# srcOff)
     dstAddr#
-    (fromOff# c dstOff)
+    (fromOff# dstOff)
     (fromCount# c)
 {-# INLINE[0] movePtrToPtr #-}
 
 
--- | Offsets are in bytes
-copyPtrToMBytes8 ::
-     MonadPrim s m => Ptr Word8 -> Int -> MBytes pd s -> Int -> Count Word8 -> m ()
-copyPtrToMBytes8 (Ptr srcAddr#) (I# srcOff#) (MBytes dst#) (I# dstOff#) (Count (I# n#)) =
-  prim_ (copyAddrToByteArray# (srcAddr# `plusAddr#` srcOff#) dst# dstOff# n#)
-{-# INLINE copyPtrToMBytes8 #-}
-{-# RULES "copyPtrToMBytes8" copyPtrToMBytes = copyPtrToMBytes8 #-}
+-- -- | Offsets are in bytes
+-- copyPtrToMBytes8 ::
+--      MonadPrim s m => Ptr Word8 -> Int -> MBytes pd s -> Int -> Count Word8 -> m ()
+-- copyPtrToMBytes8 (Ptr srcAddr#) (I# srcOff#) (MBytes dst#) (I# dstOff#) (Count (I# n#)) =
+--   prim_ (copyAddrToByteArray# (srcAddr# `plusAddr#` srcOff#) dst# dstOff# n#)
+-- {-# INLINE copyPtrToMBytes8 #-}
+-- {-# RULES "copyPtrToMBytes8" copyPtrToMBytes = copyPtrToMBytes8 #-}
 
 copyPtrToMBytes ::
-     (MonadPrim s m, Prim a) => Ptr a -> Int -> MBytes pd s -> Int -> Count a -> m ()
-copyPtrToMBytes (Ptr srcAddr#) srcOff (MBytes dst#) dstOff c =
-  let src# = srcAddr# `plusAddr#` fromOff# c srcOff
-   in prim_ $ copyAddrToByteArray# src# dst# (fromOff# c dstOff) (fromCount# c)
-{-# INLINE[0] copyPtrToMBytes #-}
+     (MonadPrim s m, Prim a) => Ptr a -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+copyPtrToMBytes srcPtr srcOff (MBytes dst#) dstOff c =
+  let Ptr addr# = srcPtr `plusPtrOff` srcOff
+   in prim_ $ copyAddrToByteArray# addr# dst# (fromOff# dstOff) (fromCount# c)
+{-# INLINE copyPtrToMBytes #-}
 
 
-copyBytesToPtr8 :: MonadPrim s m => Bytes p -> Int -> Ptr Word8 -> Int -> Count Word8 -> m ()
-copyBytesToPtr8 (Bytes src#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) (Count (I# n#)) =
-  let addr# = dstAddr# `plusAddr#` dstOff#
-  in prim_ (copyByteArrayToAddr# src# srcOff# addr# n#)
-{-# INLINE copyBytesToPtr8 #-}
-{-# RULES "copyBytesToPtr8" copyBytesToPtr = copyBytesToPtr8 #-}
+-- copyBytesToPtr8 ::
+--   MonadPrim s m => Bytes p -> Off Word8 -> Ptr Word8 -> Off Word8 -> Count Word8 -> m ()
+-- copyBytesToPtr8 (Bytes src#) (Off (I# srcOff#)) dstPtr dstOff (Count (I# n#)) =
+--   let Ptr addr# = dstPtr `plusPtrOff8` dstOff
+--   in prim_ (copyByteArrayToAddr# src# srcOff# addr# n#)
+-- {-# INLINE copyBytesToPtr8 #-}
+-- {-# RULES "copyBytesToPtr8" copyBytesToPtr = copyBytesToPtr8 #-}
 
-copyBytesToPtr :: (MonadPrim s m, Prim a) => Bytes p -> Int -> Ptr a -> Int -> Count a -> m ()
-copyBytesToPtr (Bytes src#) srcOff (Ptr dstAddr#) dstOff c =
-  let addr# = dstAddr# `plusAddr#` fromOff# c dstOff
-  in prim_ (copyByteArrayToAddr# src# (fromOff# c srcOff) addr# (fromCount# c))
+copyBytesToPtr :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> Ptr a -> Off a -> Count a -> m ()
+copyBytesToPtr (Bytes src#) srcOff dstPtr dstOff c =
+  let Ptr addr# = dstPtr `plusPtrOff` dstOff
+  in prim_ (copyByteArrayToAddr# src# (fromOff# srcOff) addr# (fromCount# c))
 {-# INLINE[0] copyBytesToPtr #-}
 
 
 
-copyMBytesToPtr8 :: MonadPrim s m => MBytes p s -> Int -> Ptr Word8 -> Int -> Count Word8 -> m ()
-copyMBytesToPtr8 (MBytes src#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) (Count (I# n#)) =
-  let addr# = dstAddr# `plusAddr#` dstOff#
-  in prim_ (copyMutableByteArrayToAddr# src# srcOff# addr# n#)
-{-# INLINE copyMBytesToPtr8 #-}
-{-# RULES "copyMBytesToPtr8" copyMBytesToPtr = copyMBytesToPtr8 #-}
+-- copyMBytesToPtr8 ::
+--   MonadPrim s m => MBytes p s -> Off Word8 -> Ptr Word8 -> Off Word8 -> Count Word8 -> m ()
+-- copyMBytesToPtr8 (MBytes src#) (Off (I# srcOff#)) dstPtr dstOff (Count (I# n#)) =
+--   let Ptr addr# = dstPtr `plusPtrOff8` dstOff
+--   in prim_ (copyMutableByteArrayToAddr# src# srcOff# addr# n#)
+-- {-# INLINE copyMBytesToPtr8 #-}
+-- {-# RULES "copyMBytesToPtr8" copyMBytesToPtr = copyMBytesToPtr8 #-}
 
-copyMBytesToPtr :: (MonadPrim s m, Prim a) => MBytes p s -> Int -> Ptr a -> Int -> Count a -> m ()
-copyMBytesToPtr (MBytes src#) srcOff (Ptr dstAddr#) dstOff c =
-  let addr# = dstAddr# `plusAddr#` fromOff# c dstOff
+copyMBytesToPtr :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> Ptr a -> Off a -> Count a -> m ()
+copyMBytesToPtr (MBytes src#) srcOff dstPtr dstOff c =
+  let Ptr addr# = dstPtr `plusPtrOff` dstOff
    in prim_ $
-      copyMutableByteArrayToAddr# src# (fromOff# c srcOff) addr# (fromCount# c)
+      copyMutableByteArrayToAddr# src# (fromOff# srcOff) addr# (fromCount# c)
 {-# INLINE[0] copyMBytesToPtr #-}
 
 
 
 
-movePtrToMBytes8 :: MonadPrim s m => Ptr Word8 -> Int -> MBytes p s -> Int -> Count Word8 -> m ()
-movePtrToMBytes8 (Ptr srcAddr#) (I# srcOff#) (MBytes dst#) (I# dstOff#) (Count (I# n#)) =
-  unsafeIOToPrim $
-  memmoveMutableByteArrayFromAddr# srcAddr# srcOff# dst# dstOff# n#
-{-# INLINE movePtrToMBytes8 #-}
-{-# RULES "movePtrToMBytes8" movePtrToMBytes = movePtrToMBytes8 #-}
+-- movePtrToMBytes8 ::
+--   MonadPrim s m => Ptr Word8 -> Off Word8 -> MBytes p s -> Off Word8 -> Count Word8 -> m ()
+-- movePtrToMBytes8 (Ptr srcAddr#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) (Count (I# n#)) =
+--   unsafeIOToPrim $
+--   memmoveMutableByteArrayFromAddr# srcAddr# srcOff# dst# dstOff# n#
+-- {-# INLINE movePtrToMBytes8 #-}
+-- {-# RULES "movePtrToMBytes8" movePtrToMBytes = movePtrToMBytes8 #-}
 
-movePtrToMBytes :: (MonadPrim s m, Prim a) => Ptr a -> Int -> MBytes p s -> Int -> Count a -> m ()
+movePtrToMBytes :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> MBytes p s -> Off a -> Count a -> m ()
 movePtrToMBytes (Ptr srcAddr#) srcOff (MBytes dst#) dstOff c =
   unsafeIOToPrim $
   memmoveMutableByteArrayFromAddr#
     srcAddr#
-    (fromOff# c srcOff)
+    (fromOff# srcOff)
     dst#
-    (fromOff# c dstOff)
+    (fromOff# dstOff)
     (fromCount# c)
 {-# INLINE[0] movePtrToMBytes #-}
 
 
 
-moveMBytesToPtr8 :: MonadPrim s m => MBytes p s -> Int -> Ptr Word8 -> Int -> Count Word8 -> m ()
-moveMBytesToPtr8 (MBytes src#) (I# srcOff#) (Ptr dstAddr#) (I# dstOff#) (Count (I# n#)) =
-  unsafeIOToPrim $
-  memmoveMutableByteArrayToAddr# src# srcOff# dstAddr# dstOff# n#
-{-# INLINE moveMBytesToPtr8 #-}
-{-# RULES "moveMBytesToPtr8" moveMBytesToPtr = moveMBytesToPtr8 #-}
+-- moveMBytesToPtr8 ::
+--   MonadPrim s m => MBytes p s -> Off Word8 -> Ptr Word8 -> Off Word8 -> Count Word8 -> m ()
+-- moveMBytesToPtr8 (MBytes src#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# dstOff#)) (Count (I# n#)) =
+--   unsafeIOToPrim $
+--   memmoveMutableByteArrayToAddr# src# srcOff# dstAddr# dstOff# n#
+-- {-# INLINE moveMBytesToPtr8 #-}
+-- {-# RULES "moveMBytesToPtr8" moveMBytesToPtr = moveMBytesToPtr8 #-}
 
 
-moveMBytesToPtr :: (MonadPrim s m, Prim a) => MBytes p s -> Int -> Ptr a -> Int -> Count a -> m ()
+moveMBytesToPtr :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> Ptr a -> Off a -> Count a -> m ()
 moveMBytesToPtr (MBytes src#) srcOff (Ptr dstAddr#) dstOff c =
   unsafeIOToPrim $
   memmoveMutableByteArrayToAddr#
     src#
-    (fromOff# c srcOff)
+    (fromOff# srcOff)
     dstAddr#
-    (fromOff# c dstOff)
+    (fromOff# dstOff)
     (fromCount# c)
 {-# INLINE[0] moveMBytesToPtr #-}

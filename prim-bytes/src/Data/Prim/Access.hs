@@ -42,6 +42,7 @@ import Data.List as List
 import Data.Maybe
 import Data.Prim
 import Data.Prim.Bytes
+import Data.Prim.Ptr
 import Data.Prim.Class
 import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
                           isMutableByteArrayPinned#, memmoveAddr#,
@@ -73,14 +74,14 @@ instance MonadPrim s m => PtrAccess m (MBytes 'Pin s) where
   withPtrAccess = withMBytesPtr
 
 
-instance MonadPrim s m => PtrAccess m (ForeignPtr a) where
-  withPtrAccess fptr f = unsafeIOToPrim $ withForeignPtr fptr $ \ ptr -> liftPrimBase (f (castPtr ptr))
+--instance MonadPrim s m => PtrAccess m (ForeignPtr a) where
+--  withPtrAccess fptr f = unsafeIOToPrim $ withForeignPtr fptr $ \ ptr -> liftPrimBase (f (castPtr ptr))
 
--- instance MonadPrim s m => PtrAccess m (ForeignPtr a) where
---   withPtrAccess (ForeignPtr addr# ptrContents) f = do
---     r <- f (Ptr addr#)
---     touch ptrContents
---     return r
+instance MonadPrim s m => PtrAccess m (ForeignPtr a) where
+  withPtrAccess (ForeignPtr addr# ptrContents) f = do
+    r <- f (Ptr addr#)
+    touch ptrContents
+    return r
 
 instance MonadPrim s m => PtrAccess m (Ptr a) where
   withPtrAccess ptr f = f (castPtr ptr)
@@ -91,24 +92,24 @@ instance PtrAccess m ByteString where
 class MonadPrim s m => ReadAccess s m r where
   count :: Prim a => r -> m (Count a)
 
-  readPrim :: Prim a => r -> Int -> m a
+  readPrim :: Prim a => r -> Off a -> m a
 
-  readPrimWithCount :: Prim a => r -> (Count a -> m Int) -> m a
-
-  -- | Source and target can't be the same memory chunks
-  copyToMBytes :: Prim a => r -> Int -> MBytes p s -> Int -> Count a -> m ()
+  readPrimWithCount :: Prim a => r -> (Count a -> m (Off a)) -> m a
 
   -- | Source and target can't be the same memory chunks
-  copyToPtr :: Prim a => r -> Int -> Ptr a -> Int -> Count a -> m ()
+  copyToMBytes :: Prim a => r -> Off a -> MBytes p s -> Off a -> Count a -> m ()
+
+  -- | Source and target can't be the same memory chunks
+  copyToPtr :: Prim a => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
 class ReadAccess s m r => WriteAccess s m r where
-  writeAccess :: r -> Int -> a -> m a
+  writeAccess :: r -> Off a -> a -> m a
 
   -- | Source and target can be overlapping memory chunks
-  moveToMBytes :: Prim a => r -> Int -> MBytes p s -> Int -> Count a -> m ()
+  moveToMBytes :: Prim a => r -> Off a -> MBytes p s -> Off a -> Count a -> m ()
 
   -- | Source and target can be overlapping memory chunks
-  moveToPtr :: Prim a => r -> Int -> Ptr a -> Int -> Count a -> m ()
+  moveToPtr :: Prim a => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
 instance ReadAccess RealWorld IO ByteString where
   readPrim bs i = unsafeUseAsCString bs $ \(Ptr p#) -> readOffPtr (Ptr p#) i
@@ -136,6 +137,7 @@ instance (MonadPrim s m) => ReadAccess s m (Bytes p) where
 --   readAccess (MVec mb) = readMBytes mb
 --   --readWithCount mb f = getCountOfMBytes mb >>= f >>= readMBytes mb
 
+
 instance (MonadPrim s m) => ReadAccess s m (MBytes p s) where
   readPrim = readMBytes
   readPrimWithCount mb f = getCountOfMBytes mb >>= f >>= readMBytes mb
@@ -146,7 +148,7 @@ instance (MonadPrim s m) => WriteAccess s m (MBytes p s) where
   moveToMBytes = moveMBytesToMBytes
 
 class Alloc m a where
-  mallocBytes :: MonadPrim s m => Int -> m a
+  mallocBytes :: MonadPrim s m => Count Word8 -> m a
 
 -- class AllocAligned m a where
 --   mallocBytesAligned :: MonadPrim s m => Int -> Int -> m a
@@ -165,16 +167,16 @@ instance MonadPrim s m => Alloc m (MBytes 'Pin s) where
   mallocBytes = allocPinnedMBytes
 
 instance Alloc IO (ForeignPtr a) where
-  mallocBytes = mallocForeignPtrBytes
+  mallocBytes = mallocForeignPtrBytes . coerce
 
 malloc :: (Alloc m a, MonadPrim s m, Prim p) => Count p -> m a
-malloc c@(Count n) = mallocBytes (n * sizeOfProxy c)
+malloc = mallocBytes . countWord8
 
-memcpy :: (ReadAccess s m r, PtrAccess m p, Prim a) => r -> Int -> p -> Int -> Count a -> m ()
+memcpy :: (ReadAccess s m r, PtrAccess m p, Prim a) => r -> Off a -> p -> Off a -> Count a -> m ()
 memcpy src srcOff dst dstOff c =
   withPtrAccess dst $ \dstPtr -> copyToPtr src srcOff dstPtr dstOff c
 
-memmove :: (ReadAccess s m r, PtrAccess m p, Prim a) => r -> Int -> p -> Int -> Count a -> m ()
+memmove :: (WriteAccess s m r, PtrAccess m p, Prim a) => r -> Off a -> p -> Off a -> Count a -> m ()
 memmove src srcOff dst dstOff c =
   withPtrAccess dst $ \dstPtr -> moveToPtr src srcOff dstPtr dstOff c
 
