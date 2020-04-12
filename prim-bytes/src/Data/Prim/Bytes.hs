@@ -70,10 +70,13 @@ module Data.Prim.Bytes
   , readMBytes
   , writeMBytes
   , setMBytes
-  -- ** With Ptr
+  -- ** Ptr
   , withMBytesPtr
   , getBytesPtr
   , getMBytesPtr
+  -- ** ForeignPtr
+  , getBytesForeignPtr
+  , getMBytesForeignPtr
   , module Data.Prim
   -- * Helpers
   , applyFreezeMBytes
@@ -98,6 +101,7 @@ import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
 import GHC.Base
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
+import GHC.ForeignPtr
 import GHC.Word
 import Numeric (showHex)
 
@@ -512,8 +516,7 @@ sizeOfBytes (Bytes ba#) = I# (sizeofByteArray# ba#)
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemOfBytes`
 countOfBytes :: forall a p. Prim a => Bytes p -> Count a
-countOfBytes b =
-  coerce (quotSizeOfWith (proxy# :: Proxy# a) (sizeOfBytes b) 0 quotInt)
+countOfBytes b = countSize (sizeOfBytes b)
 {-# INLINE[0] countOfBytes #-}
 
 -- | Get the count of elements of type @a@ that can fit into bytes as well as the slack
@@ -521,17 +524,9 @@ countOfBytes b =
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 countRemOfBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
-countRemOfBytes b =
-  coerce (quotSizeOfWith (proxy# :: Proxy# a) (sizeOfBytes b) (0, 0) quotRemInt)
+countRemOfBytes b = countRemSize (sizeOfBytes b)
 {-# INLINE countRemOfBytes #-}
 
-quotSizeOfWith :: forall a b. Prim a => Proxy# a -> Int -> b -> (Int -> Int -> b) -> b
-quotSizeOfWith px# sz onZero quotWith
-  | tySize <= 0 = onZero
-  | otherwise = sz `quotWith` tySize
-  where
-    tySize = sizeOf# px#
-{-# INLINE quotSizeOfWith #-}
 
 -- getCountOfMBytes8 :: MonadPrim s m => MBytes p s -> m (Count Word8)
 -- getCountOfMBytes8 = fmap coerce . getSizeOfMBytes
@@ -541,9 +536,7 @@ quotSizeOfWith px# sz onZero quotWith
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
 -- of leftover bytes use `countRemOfBytes`
 getCountOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
-getCountOfMBytes b =
-  (\sz -> coerce (quotSizeOfWith (proxy# :: Proxy# a) sz 0 quotInt)) <$>
-  getSizeOfMBytes b
+getCountOfMBytes b = countSize <$> getSizeOfMBytes b
 {-# INLINE[0] getCountOfMBytes #-}
 
 -- | Get the number of elements of type @a@ that can fit into bytes as well as the slack
@@ -551,9 +544,7 @@ getCountOfMBytes b =
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 getCountRemOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a, Int)
-getCountRemOfMBytes b =
-  (\sz -> coerce (quotSizeOfWith (proxy# :: Proxy# a) sz (0, 0) quotRemInt)) <$>
-  getSizeOfMBytes b
+getCountRemOfMBytes b = countRemSize <$> getSizeOfMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 
 -- | It is only guaranteed to convert the full chunk of memory to a list of elements of
@@ -681,9 +672,19 @@ getBytesPtr :: Bytes 'Pin -> Ptr a
 getBytesPtr (Bytes ba#) = Ptr (byteArrayContents# ba#)
 {-# INLINE getBytesPtr #-}
 
+getBytesForeignPtr :: Bytes 'Pin -> ForeignPtr a
+getBytesForeignPtr (Bytes ba#) =
+  ForeignPtr (byteArrayContents# ba#) $ PlainPtr (unsafeCoerce# ba#)
+{-# INLINE getBytesForeignPtr #-}
+
 getMBytesPtr :: MBytes 'Pin s -> Ptr a
 getMBytesPtr (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
 {-# INLINE getMBytesPtr #-}
+
+getMBytesForeignPtr :: MBytes 'Pin s -> ForeignPtr a
+getMBytesForeignPtr (MBytes mba#) =
+  ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
+{-# INLINE getMBytesForeignPtr #-}
 
 withMBytesPtr :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
 withMBytesPtr mb f = do

@@ -25,9 +25,10 @@ module Data.Prim
   , alignmentProxy
   , Count(..)
   , fromCount
-  , fromCount
   , countWord8
   , fromCount#
+  , countSize
+  , countRemSize
   , Off(..)
   , fromOff
   , fromOff#
@@ -38,6 +39,7 @@ module Data.Prim
 import Control.DeepSeq
 import Control.Monad.Prim
 import Data.Prim.Class
+import GHC.Base (quotInt,  quotRemInt)
 import GHC.Exts
 import Data.Word
 import Data.Int
@@ -159,3 +161,20 @@ fromOff# o@(Off (I# o#)) =
 fromOff :: Prim a => Off a -> Int
 fromOff c = I# (fromOff# c)
 {-# INLINE fromOff #-}
+
+
+countSize :: forall a . Prim a => Int -> Count a
+countSize sz =  coerce (quotSizeOfWith (proxy# :: Proxy# a) sz 0 quotInt)
+{-# INLINE countSize #-}
+
+countRemSize :: forall a . Prim a => Int -> (Count a, Int)
+countRemSize sz =  coerce (quotSizeOfWith (proxy# :: Proxy# a) sz (0, 0) quotRemInt)
+{-# INLINE countRemSize #-}
+
+quotSizeOfWith :: forall a b. Prim a => Proxy# a -> Int -> b -> (Int -> Int -> b) -> b
+quotSizeOfWith px# sz onZero quotWith
+  | tySize <= 0 = onZero
+  | otherwise = sz `quotWith` tySize
+  where
+    tySize = sizeOf# px#
+{-# INLINE quotSizeOfWith #-}

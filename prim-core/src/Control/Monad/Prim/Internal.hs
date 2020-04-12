@@ -69,7 +69,7 @@ instance MonadPrimBase s m => MonadPrimBase s (IdentityT m) where
   {-# INLINE primBase #-}
 
 
-class MonadUnliftPrim s m where
+class MonadPrim s m => MonadUnliftPrim s m where
   withRunInPrimBase :: MonadPrimBase s n => ((forall a. m a -> n a) -> n b) -> m b
 
 instance MonadUnliftPrim RealWorld IO where

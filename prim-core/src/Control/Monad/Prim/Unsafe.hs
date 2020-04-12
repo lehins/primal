@@ -91,7 +91,7 @@ unsafeIOToPrim = unsafePrimBaseToPrim
 -- | Convert an `ST` action to some `MonadPrim` while coercing the state token.
 --
 -- === Highly unsafe!
-unsafeSTToPrim :: MonadPrim s m => ST s a -> m a
+unsafeSTToPrim :: MonadPrim s' m => ST s a -> m a
 unsafeSTToPrim = unsafePrimBaseToPrim
 {-# INLINE unsafeSTToPrim #-}
 
