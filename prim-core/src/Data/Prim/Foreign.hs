@@ -11,7 +11,9 @@
 -- Portability : non-portable
 --
 module Data.Prim.Foreign
-  ( memsetWord8MutableByteArray#
+  ( isSameByteArray#
+  , isSameMutableByteArray#
+  , memsetWord8MutableByteArray#
   , memsetWord8Addr#
   , memsetInt8MutableByteArray#
   , memsetInt8Addr#
@@ -43,6 +45,12 @@ import GHC.Exts
 import GHC.Int
 import GHC.Word
 import Data.Prim.Foreign.Cmm
+
+foreign import ccall unsafe "prim_core.c prim_core_ptreq"
+  isSameByteArray# :: ByteArray# -> ByteArray# -> Int#
+
+foreign import ccall unsafe "prim_core.c prim_core_ptreq"
+  isSameMutableByteArray# :: MutableByteArray# s -> MutableByteArray# s -> Int#
 
 foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()

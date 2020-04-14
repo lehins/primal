@@ -20,7 +20,7 @@ module Data.Prim.Class
   , thawByteArray#
   , mutableByteArrayContents#
   , setMutableByteArrayLoop#
-  , impossibleError
+  , errorImpossible
   ) where
 
 import Control.Monad.Prim.Unsafe
@@ -136,7 +136,7 @@ instance Prim Int where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = I# (indexIntArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = I# (indexIntOffAddr# ba# i#)
+  indexOffAddr# addr# i# = I# (indexIntOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, I# a# #)
@@ -168,7 +168,7 @@ instance Prim Int8 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = I8# (indexInt8Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = I8# (indexInt8OffAddr# ba# i#)
+  indexOffAddr# addr# i# = I8# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, I8# a# #)
@@ -195,7 +195,7 @@ instance Prim Int16 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = I16# (indexInt16Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = I16# (indexInt16OffAddr# ba# i#)
+  indexOffAddr# addr# i# = I16# (indexInt16OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt16Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, I16# a# #)
@@ -222,7 +222,7 @@ instance Prim Int32 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = I32# (indexInt32Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = I32# (indexInt32OffAddr# ba# i#)
+  indexOffAddr# addr# i# = I32# (indexInt32OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt32Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, I32# a# #)
@@ -249,7 +249,7 @@ instance Prim Int64 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = I64# (indexInt64Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = I64# (indexInt64OffAddr# ba# i#)
+  indexOffAddr# addr# i# = I64# (indexInt64OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt64Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, I64# a# #)
@@ -277,7 +277,7 @@ instance Prim Word where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = W# (indexWordArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = W# (indexWordOffAddr# ba# i#)
+  indexOffAddr# addr# i# = W# (indexWordOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWordArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, W# a# #)
@@ -309,7 +309,7 @@ instance Prim Word8 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = W8# (indexWord8Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = W8# (indexWord8OffAddr# ba# i#)
+  indexOffAddr# addr# i# = W8# (indexWord8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWord8Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, W8# a# #)
@@ -336,7 +336,7 @@ instance Prim Word16 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = W16# (indexWord16Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = W16# (indexWord16OffAddr# ba# i#)
+  indexOffAddr# addr# i# = W16# (indexWord16OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWord16Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, W16# a# #)
@@ -363,7 +363,7 @@ instance Prim Word32 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = W32# (indexWord32Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = W32# (indexWord32OffAddr# ba# i#)
+  indexOffAddr# addr# i# = W32# (indexWord32OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWord32Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, W32# a# #)
@@ -390,7 +390,7 @@ instance Prim Word64 where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = W64# (indexWord64Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = W64# (indexWord64OffAddr# ba# i#)
+  indexOffAddr# addr# i# = W64# (indexWord64OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWord64Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, W64# a# #)
@@ -418,7 +418,7 @@ instance Prim Float where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = F# (indexFloatArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = F# (indexFloatOffAddr# ba# i#)
+  indexOffAddr# addr# i# = F# (indexFloatOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readFloatArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, F# a# #)
@@ -446,7 +446,7 @@ instance Prim Double where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = D# (indexDoubleArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = D# (indexDoubleOffAddr# ba# i#)
+  indexOffAddr# addr# i# = D# (indexDoubleOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readDoubleArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, D# a# #)
@@ -478,7 +478,7 @@ instance Prim Bool where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = isTrue# (indexInt8Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = isTrue# (indexInt8OffAddr# ba# i#)
+  indexOffAddr# addr# i# = isTrue# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, isTrue# a# #)
@@ -505,7 +505,7 @@ instance Prim Char where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = C# (indexWideCharArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = C# (indexWideCharOffAddr# ba# i#)
+  indexOffAddr# addr# i# = C# (indexWideCharOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readWideCharArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, C# a# #)
@@ -532,7 +532,7 @@ instance Prim (Ptr a) where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = Ptr (int2Addr# (indexIntArray# ba# i#))
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = Ptr (int2Addr# (indexIntOffAddr# ba# i#))
+  indexOffAddr# addr# i# = Ptr (int2Addr# (indexIntOffAddr# addr# i#))
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, Ptr (int2Addr# a#) #)
@@ -564,7 +564,7 @@ instance Prim (FunPtr a) where
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# = FunPtr (int2Addr# (indexIntArray# ba# i#))
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# ba# i# = FunPtr (int2Addr# (indexIntOffAddr# ba# i#))
+  indexOffAddr# addr# i# = FunPtr (int2Addr# (indexIntOffAddr# addr# i#))
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
                                        (# s'#, a# #) -> (# s'#, FunPtr (int2Addr# a#) #)
@@ -671,6 +671,6 @@ setMutableByteArrayLoop# mba# o# n# a = go o#
 {-# INLINE setMutableByteArrayLoop# #-}
 
 
-impossibleError :: String -> String -> a
-impossibleError fname msg = errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
-{-# NOINLINE impossibleError #-}
+errorImpossible :: String -> String -> a
+errorImpossible fname msg = errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
+{-# NOINLINE errorImpossible #-}

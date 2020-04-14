@@ -1,5 +1,6 @@
 #include "Rts.h"
 #include <HsFFI.h>
+#include <string.h>
 
 #if __GLASGOW_HASKELL__ < 802
 /**
@@ -15,7 +16,7 @@
  * - `MutableByteArray# s -> Int#`
  *
  */
-long prim_core_is_byte_array_pinned(StgPtr ba){
+HsInt prim_core_is_byte_array_pinned(StgPtr ba){
   bdescr *bd = Bdescr(ba);
   // All of BF_PINNED, BF_LARGE and BF_COMPACT are considered immovable. Although
   // BF_COMPACT is only available in ghc-8.2, so we don't care about it.
@@ -23,14 +24,20 @@ long prim_core_is_byte_array_pinned(StgPtr ba){
 }
 #endif
 
-void prim_core_memmove(HsWord8 *src, HsInt src_offset, HSWord8 *dst, HsInt dst_offset, HsInt n){
+HsInt prim_core_ptreq(HsWord8 *ptr1, HsWord8 *ptr2){
+  return ptr1 == ptr2;
+}
+
+HsInt8 prim_core_memcmp(HsWord8 *ptr1, HsWord8 *ptr2, HsInt n){
+  if (ptr1 == ptr2)
+    return 0;
+  return memcmp(ptr1, ptr2, n);
+}
+
+void prim_core_memmove(HsWord8 *src, HsInt src_offset, HsWord8 *dst, HsInt dst_offset, HsInt n){
   memmove(dst + dst_offset, src + src_offset, n);
 }
 
-/* HsInt8 prim_core_memcmp(HsWord8 *ptr1, HsWord8 *ptr2, HsInt n){ */
-/*   //ptr1 == ptr */
-/*   memcmp(ptr1, ptr2, n); */
-/* } */
 
 void prim_core_memset8(HsWord8 *ptr, HsInt offset, HsInt n, HsWord8 x){
   ptr+= offset;

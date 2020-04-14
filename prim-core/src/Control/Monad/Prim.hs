@@ -35,3 +35,4 @@ seqPrim a = prim (seq# a)
 -- | Helper function that convert the type to a string
 showsType :: Typeable t => proxy t -> ShowS
 showsType = showsTypeRep . typeRep
+

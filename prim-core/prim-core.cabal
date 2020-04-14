@@ -38,6 +38,7 @@ library
   other-modules:       Control.Monad.Prim.Internal
                      , Data.Prim.Foreign.Cmm
   build-depends:       base >= 4.8 && < 5
+                     , deepseq
                      , transformers
 
   default-language:    Haskell2010
