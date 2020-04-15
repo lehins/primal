@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 -- |
 -- Module      : Data.Prim.Foreign
@@ -133,7 +134,7 @@ foreign import ccall unsafe "prim_core.c prim_core_memmove"
                                    -> IO ()
 
 
-#if __GLASGOW_HASKELL__ < 804
+#if 0 && __GLASGOW_HASKELL__ < 804
 -- | Compatibility function for the old compiler versions
 getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
 {-# INLINE getSizeofMutableByteArray# #-}

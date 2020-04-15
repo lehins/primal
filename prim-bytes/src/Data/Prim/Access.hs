@@ -58,14 +58,14 @@ instance MonadPrim RealWorld m => PtrAccess m (ForeignPtr a) where
 
 instance PtrAccess m (Bytes 'Pin) where
   withPtrAccess b f = do
-    let ptr = getBytesPtr b
+    let ptr = getPtrBytes b
     res <- f ptr
     touch b
     pure res
   toForeignPtr = pure . getBytesForeignPtr
 
 instance MonadPrim s m => PtrAccess m (MBytes 'Pin s) where
-  withPtrAccess = withMBytesPtr
+  withPtrAccess = withPtrMBytes
   toForeignPtr = pure . getMBytesForeignPtr
 
 instance MonadPrim s m => PtrAccess m ByteString where

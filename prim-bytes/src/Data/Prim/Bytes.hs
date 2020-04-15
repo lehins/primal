@@ -75,9 +75,9 @@ module Data.Prim.Bytes
   , writeMBytes
   , setMBytes
   -- ** Ptr
-  , withMBytesPtr
-  , getBytesPtr
-  , getMBytesPtr
+  , withPtrMBytes
+  , getPtrBytes
+  , getPtrMBytes
   -- ** ForeignPtr
   , getBytesForeignPtr
   , getMBytesForeignPtr
@@ -158,7 +158,7 @@ isSameBytes (Bytes b1#) (Bytes b2#) = isTrue# (isSameByteArray# b1# b2#)
 
 -- | Perform pointer equality on pointers to pinned `Bytes`.
 isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
-isSamePinnedBytes pb1 pb2 = getBytesPtr pb1 == getBytesPtr pb2
+isSamePinnedBytes pb1 pb2 = getPtrBytes pb1 == getPtrBytes pb2
 {-# INLINE isSamePinnedBytes #-}
 
 -- | Check if two mutable bytes pointers refer to the same memory
@@ -549,29 +549,29 @@ setMBytes (MBytes mba#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setMutableByteA
 {-# INLINE setMBytes #-}
 
 
-getBytesPtr :: Bytes 'Pin -> Ptr a
-getBytesPtr (Bytes ba#) = Ptr (byteArrayContents# ba#)
-{-# INLINE getBytesPtr #-}
+getPtrBytes :: Bytes 'Pin -> Ptr a
+getPtrBytes (Bytes ba#) = Ptr (byteArrayContents# ba#)
+{-# INLINE getPtrBytes #-}
 
 getBytesForeignPtr :: Bytes 'Pin -> ForeignPtr a
 getBytesForeignPtr (Bytes ba#) =
   ForeignPtr (byteArrayContents# ba#) $ PlainPtr (unsafeCoerce# ba#)
 {-# INLINE getBytesForeignPtr #-}
 
-getMBytesPtr :: MBytes 'Pin s -> Ptr a
-getMBytesPtr (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
-{-# INLINE getMBytesPtr #-}
+getPtrMBytes :: MBytes 'Pin s -> Ptr a
+getPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
+{-# INLINE getPtrMBytes #-}
 
 getMBytesForeignPtr :: MBytes 'Pin s -> ForeignPtr a
 getMBytesForeignPtr (MBytes mba#) =
   ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE getMBytesForeignPtr #-}
 
-withMBytesPtr :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
-withMBytesPtr mb f = do
-  let ptr = getMBytesPtr mb
+withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withPtrMBytes mb f = do
+  let ptr = getPtrMBytes mb
   res <- f ptr
   res <$ touch mb
-{-# INLINE withMBytesPtr #-}
-
+{-# NOINLINE withPtrMBytes #-}
+-- See https://gitlab.haskell.org/ghc/ghc/issues/18061 why this is a NOINLINE
 

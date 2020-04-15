@@ -23,6 +23,13 @@ import Data.Typeable
 import Data.Word
 import Test.Prim.Common
 import Test.QuickCheck.Random
+import Control.Concurrent
+import Control.Monad
+import Data.Word
+import Foreign.Storable
+import Foreign.ForeignPtr
+import Numeric
+import System.Timeout
 
 instance Arbitrary (Off a) where
   arbitrary = Off . getNonNegative <$> arbitrary
@@ -109,8 +116,7 @@ spec = do
       --     leastThreshold = 3249
       -- Documented to be 3277, but seems to be different in practice.
       -- https://gitlab.haskell.org/ghc/ghc/-/blob/feb852e67e166f752c783978f5fecc3c28c966f9/docs/users_guide/ffi-chap.rst#L1008
-      let --pinnedExpectation :: 
-          pinnedExpectation alloc isPinned = do
+      let pinnedExpectation alloc isPinned = do
             mb <- alloc
             isPinnedMBytes mb `shouldBe` isPinned
             b <- freezeMBytes mb
@@ -126,6 +132,10 @@ spec = do
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocPinnedAlignedMBytes n) True
+    describe "Ptr Access" $
+      it "Test avoidance of GHC bug #18061" $
+        void $ timeout 100000 $
+        spec_WorkArounBugGHC18061 allocPinnedMBytes withPtrMBytes
 
 
 prop_toListBytes :: forall p a . (Prim a, Eq a, Show a) => NEBytes p a -> Property
@@ -144,3 +154,15 @@ prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
     br <- freezeMBytes mbr
     pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
 
+spec_WorkArounBugGHC18061 ::
+     (Count Word32 -> IO t) -> (t -> (Ptr Word32 -> IO a) -> IO ()) -> IO ()
+spec_WorkArounBugGHC18061 alloc withPtr = do
+  replicateM_ 49 $ threadDelay 1
+  fptr <- alloc (4 :: Count Word32)
+  withPtr fptr $ \p ->
+    forever $ do
+      poke p (0xDEADBEEF :: Word32)
+      threadDelay 10
+      x <- peek p
+      unless (x == 0xDEADBEEF) $ error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
+{-# INLINE spec_WorkArounBugGHC18061 #-}

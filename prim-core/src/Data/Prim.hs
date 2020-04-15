@@ -36,6 +36,10 @@ module Data.Prim
   , offAsProxy
   , module Data.Word
   , module Data.Int
+  -- * Re-export
+  , Ptr
+  , ForeignPtr
+  , module Data.Monoid
   ) where
 
 import Control.DeepSeq
@@ -45,6 +49,8 @@ import GHC.Base (quotInt,  quotRemInt)
 import GHC.Exts
 import Data.Word
 import Data.Int
+import Foreign.ForeignPtr (ForeignPtr)
+import Data.Monoid
 
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.

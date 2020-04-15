@@ -63,13 +63,15 @@ curAddrOff (Addr addr# (Bytes b#)) =
 
 curMAddrOff :: Prim a => MAddr s a -> Off a
 curMAddrOff (MAddr addr# mb) =
-  let count = countSize (Ptr addr# `minusPtr` getMBytesPtr mb)
+  let count = countSize (Ptr addr# `minusPtr` getPtrMBytes mb)
   in offAsProxy count (Off (unCount count))
 
 withPtrMAddr :: MonadPrim s m => MAddr s a -> (Ptr a -> m b) -> m b
 withPtrMAddr (MAddr addr# mb) f = do
   a <- f (Ptr addr#)
   a <$ touch mb
+{-# NOINLINE withPtrMAddr #-}
+-- See https://gitlab.haskell.org/ghc/ghc/issues/18061 why this is a NOINLINE
 
 thawAddr :: MonadPrim s m => Addr a -> m (MAddr s a)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
