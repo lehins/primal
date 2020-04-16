@@ -14,10 +14,11 @@
 module Data.Prim.Foreign
   ( isSameByteArray#
   , isSameMutableByteArray#
-  , memsetWord8MutableByteArray#
+  --, memsetWord8MutableByteArray#
   , memsetWord8Addr#
-  , memsetInt8MutableByteArray#
+  --, memsetInt8MutableByteArray#
   , memsetInt8Addr#
+  , setWord16MutableByteArray#
   , memsetWord16MutableByteArray#
   , memsetWord16Addr#
   , memsetInt16MutableByteArray#
@@ -42,10 +43,17 @@ module Data.Prim.Foreign
   , module Data.Prim.Foreign.Cmm
   ) where
 
+import Control.Monad.Prim
+import GHC.IO
 import GHC.Exts
 import GHC.Int
 import GHC.Word
 import Data.Prim.Foreign.Cmm
+
+-- | Because GC is guaranteed not to move unpinned memory during the unsafe FFI call we
+-- can compare memory pointers on the C side. Because the addresses cannot change
+-- underneath us we can safely guarantee pointer equality for the same pinned or unpinned
+-- arrays
 
 foreign import ccall unsafe "prim_core.c prim_core_ptreq"
   isSameByteArray# :: ByteArray# -> ByteArray# -> Int#
@@ -53,18 +61,25 @@ foreign import ccall unsafe "prim_core.c prim_core_ptreq"
 foreign import ccall unsafe "prim_core.c prim_core_ptreq"
   isSameMutableByteArray# :: MutableByteArray# s -> MutableByteArray# s -> Int#
 
-foreign import ccall unsafe "prim_core.c prim_core_memset8"
-  memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()
+
+-- foreign import ccall unsafe "prim_core.c prim_core_memset8"
+--   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()
 
 foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetInt8Addr# :: Addr# -> Int# -> Int# -> Int8 -> IO ()
 
-foreign import ccall unsafe "prim_core.c prim_core_memset8"
-  memsetWord8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word8 -> IO ()
+-- foreign import ccall unsafe "prim_core.c prim_core_memset8"
+--   memsetWord8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word8 -> IO ()
 
 foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetWord8Addr# :: Addr# -> Int# -> Int# -> Word8 -> IO ()
 
+setWord16MutableByteArray# :: MutableByteArray# RealWorld -> Int# -> Int# -> Word16 -> IO ()
+setWord16MutableByteArray# mba# i# o# w16@(W16# w16#) =
+  let w8# = and# w16# 0xff##
+  in if isTrue# (uncheckedShiftRL# w16# 8# `eqWord#` w8#)
+     then prim_ (setByteArray# mba# (i# *# 2#) (o# *# 2#) (word2Int# w8#))
+     else memsetWord16MutableByteArray# mba# i# o# w16
 
 foreign import ccall unsafe "prim_core.c prim_core_memset16"
   memsetInt16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int16 -> IO ()

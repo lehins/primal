@@ -1,5 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,6 +14,7 @@ module Test.Prim.BytesSpec
 import Control.Monad.ST
 --import Control.DeepSeq
 import Control.Monad
+import Control.Monad.Prim
 -- import Data.Bits
 -- import Data.Foldable as F
 --import Data.GenValidity
@@ -72,8 +75,49 @@ instance (Prim a, Arbitrary a, Typeable p) => Arbitrary (NEBytes p a) where
 toByteArray :: Bytes p -> BA.ByteArray
 toByteArray (Bytes ba) = BA.ByteArray ba
 
+primSpec :: forall (p :: Pinned) a. (Eq a, Show a, Prim a, Arbitrary a, Typeable p, Typeable a) => Spec
+primSpec = do
+  let bytesTypeName =
+        showsType (Proxy :: Proxy (Bytes p)) .
+        (' ' :) . showsType (Proxy :: Proxy a) $
+        ""
+  describe bytesTypeName $ do
+    describe "memset" $ do
+      prop "empty" $ \ (a :: a) -> do
+        mb :: MBytes p RealWorld <- allocMBytes (0 :: Count a)
+        setMBytes mb 0 0 a
+        b <- freezeMBytes mb
+        toListBytes b `shouldBe` ([] :: [a])
+      prop "non-empty" $ \(NEBytes off@(Off o) xs b :: NEBytes p a) (a :: a) -> do
+        mb <- thawBytes b
+        Count n :: Count a <- getCountOfMBytes mb
+        let c = Count (n - o)
+        setMBytes mb off c a
+        zipWithM_ (\i x -> readMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
+        forM_ [o .. unCount c - 1] $ \i ->
+          readMBytes mb (Off i) `shouldReturn` a
+
+primTypeSpec ::
+     forall a. (Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+  => Spec
+primTypeSpec = do
+  primSpec @'Pin @a
+  primSpec @'Inc @a
+
 spec :: Spec
 spec = do
+  primTypeSpec @Bool
+  primTypeSpec @Char
+  primTypeSpec @Word
+  primTypeSpec @Word8
+  primTypeSpec @Word16
+  primTypeSpec @Word32
+  primTypeSpec @Word64
+  primTypeSpec @Int
+  primTypeSpec @Int8
+  primTypeSpec @Int16
+  primTypeSpec @Int32
+  primTypeSpec @Int64
   describe "Eq" $ do
     describe "isSameBytes" $ do
       describe "Inc" $ do

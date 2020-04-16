@@ -38,6 +38,7 @@ library
                      , bytestring
                      , deepseq
                      , prim-core
+                     , primitive
 
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -63,6 +64,7 @@ test-suite tests
                     , Test.Prim.BytesSpec
   build-depends:      base             >= 4.8 && < 5
                     , prim-bytes
+                    , prim-core
                     , primitive
                     , hspec
                     , QuickCheck

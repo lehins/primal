@@ -348,7 +348,8 @@ instance Prim Word16 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W16# a#) = writeWord16OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetWord16MutableByteArray# mba# o# n# a)
+  setMutableByteArray# mba# o# n# a =
+    unsafePrimBase_ (setWord16MutableByteArray# (unsafeCoerce# mba#) o# n# a)
   {-# INLINE setMutableByteArray# #-}
   setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord16Addr# addr# o# n# a)
   {-# INLINE setOffAddr# #-}
