@@ -468,6 +468,11 @@ instance Prim Double where
 
 bool2int# :: Bool -> Int#
 bool2int# b = if b then 1# else 0#
+{-# INLINE bool2int# #-}
+
+isSafeTrue# :: Int# -> Bool
+isSafeTrue# i# = tagToEnum# (andI# i# 1#)
+{-# INLINE isSafeTrue# #-}
 
 instance Prim Bool where
   type PrimBase Bool = Bool
@@ -477,15 +482,15 @@ instance Prim Bool where
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT8
   {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = isTrue# (indexInt8Array# ba# i#)
+  indexByteArray# ba# i# = isSafeTrue# (indexInt8Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# = isTrue# (indexInt8OffAddr# addr# i#)
+  indexOffAddr# addr# i# = isSafeTrue# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, isTrue# a# #)
+                                       (# s'#, a# #) -> (# s'#, isSafeTrue# a# #)
   {-# INLINE readMutableByteArray# #-}
   readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, isTrue# a# #)
+                              (# s'#, a# #) -> (# s'#, isSafeTrue# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2int# b)
   {-# INLINE writeMutableByteArray# #-}

@@ -28,6 +28,7 @@ module Data.Prim.Bytes
   , isSameBytes
   , isSamePinnedBytes
   , isSameMBytes
+  --, isSamePinnedMBytes
   , relaxPinned
   , isPinnedBytes
   , isPinnedMBytes
@@ -36,6 +37,7 @@ module Data.Prim.Bytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
   , indexBytes
+  , sizeOfBytes
   , countOfBytes
   , countRemOfBytes
   , fromListBytes
@@ -122,10 +124,10 @@ instance Show (Bytes p) where
     Foldable.foldr' ($) "]" $
     ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsBytesHex b))
 
-instance IsList (Bytes 'Inc) where
-  type Item (Bytes 'Inc) = Word8
+instance Typeable p => IsList (Bytes p) where
+  type Item (Bytes p) = Word8
   fromList = fromListBytes
-  fromListN = fromListBytesN_
+  fromListN n = fromListBytesN_ (Count n)
   toList = toListBytes
 
 -- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
@@ -419,27 +421,27 @@ getCountRemOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> 
 getCountRemOfMBytes b = countRemSize <$> getSizeOfMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 
--- | It is only guaranteed to convert the full chunk of memory to a list of elements of
--- size 8bit (eg. `Word8`)
+-- | It is only guaranteed to convert the whole memory to a list whenever the size of
+-- allocated memory is exactly divisible by the size of the element, otherwise there will
+-- be some slack left unaccounted for.
 toListBytes :: Prim a => Bytes p -> [a]
 toListBytes ba = build (\ c n -> foldrBytesBuild c n ba)
 {-# INLINE toListBytes #-}
 
 foldrBytesBuild :: forall a b p . Prim a => (a -> b -> b) -> b -> Bytes p -> b
-foldrBytesBuild c n bs = go 0
+foldrBytesBuild c nil bs = go 0
   where
     Count k = countOfBytes bs :: Count a
     go i
-      | i == k = n
+      | i == k = nil
       | otherwise =
         let !v = indexBytes bs (Off i)
          in v `c` go (i + 1)
 {-# INLINE[0] foldrBytesBuild #-}
 
-
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
--- Otherwise it will return `LT` if the list was too small and `GT` if the list was bigger
--- than the available allocated memory.
+-- Otherwise it will return either `LT` if the list was smaller than allocated memory or
+-- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
 loadListMBytes :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
   (Count n :: Count a, slack) <- getCountRemOfMBytes mb
@@ -451,33 +453,40 @@ loadListMBytes ys mb = do
 {-# INLINE loadListMBytes #-}
 
 fromListBytesN_ ::
-     forall a. Prim a
-  => Int
+     forall a p. (Prim a, Typeable p)
+  => Count a
   -> [a]
-  -> Bytes 'Inc
+  -> Bytes p
 fromListBytesN_ n = snd . fromListBytesN n
 {-# INLINE fromListBytesN_ #-}
 
+-- | If the list is bigger than the supplied @`Count` a@ then `GT` ordering will be
+-- returned, along with the `Bytes` fully filled with the prefix of the list. On the other
+-- hand if the list is smaller than the supplied `Count`, `LT` with partially filled
+-- `Bytes` will returned. In the latter case expect some garbage at the end of the
+-- allocated memory, since no attempt is made to zero it out. Exact match obviously
+-- results in an `EQ`.
 fromListBytesN ::
-     forall a. Prim a
-  => Int
+     forall a p. (Prim a, Typeable p)
+  => Count a
   -> [a]
-  -> (Ordering, Bytes 'Inc)
-fromListBytesN n xs = runST $ do
-  mb <- allocMBytes (Count n :: Count a)
-  res <- loadListMBytes xs mb
-  (,) res <$> freezeMBytes mb
+  -> (Ordering, Bytes p)
+fromListBytesN n xs =
+  runST $ do
+    mb <- allocMBytes n
+    res <- loadListMBytes xs mb
+    (,) res <$> freezeMBytes mb
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
-     forall a. Prim a
+     forall a p. (Prim a, Typeable p)
   => [a]
-  -> Bytes 'Inc
+  -> Bytes p
 fromListBytes xs =
-  case fromListBytesN (length xs) xs of
+  case fromListBytesN (Count (length xs)) xs of
     (EQ, ba) -> ba
     (_, _) ->
-      errorImpossible "fromListBytes" "Number of elements in the list was expected"
+      errorImpossible "fromListBytes" "Number of elements in the list was unexpected"
 {-# INLINE fromListBytes #-}
 
 
@@ -503,15 +512,16 @@ isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
   #-}
 
 
-ensurePinnedBytes :: MonadPrim s m => Bytes p -> m (Bytes 'Pin)
+ensurePinnedBytes :: Bytes p -> Bytes 'Pin
 ensurePinnedBytes b =
   case toPinnedBytes b of
-    Just pb -> pure pb
-    Nothing  -> do
-      let n8 = countOfBytes b :: Count Word8
-      pmb <- allocPinnedMBytes n8
-      copyBytesToMBytes b 0 pmb 0 n8
-      freezeMBytes pmb
+    Just pb -> pb
+    Nothing ->
+      runST $ do
+        let n8 = countOfBytes b :: Count Word8
+        pmb <- allocPinnedMBytes n8
+        copyBytesToMBytes b 0 pmb 0 n8
+        freezeMBytes pmb
 {-# INLINE ensurePinnedBytes #-}
 
 ensurePinnedMBytes :: MonadPrim s m => MBytes p s -> m (MBytes 'Pin s)

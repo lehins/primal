@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,7 +13,7 @@ module Test.Prim.BytesSpec
   ) where
 
 import Control.Monad.ST
---import Control.DeepSeq
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Prim
 -- import Data.Bits
@@ -75,7 +76,10 @@ instance (Prim a, Arbitrary a, Typeable p) => Arbitrary (NEBytes p a) where
 toByteArray :: Bytes p -> BA.ByteArray
 toByteArray (Bytes ba) = BA.ByteArray ba
 
-primSpec :: forall (p :: Pinned) a. (Eq a, Show a, Prim a, Arbitrary a, Typeable p, Typeable a) => Spec
+primSpec ::
+     forall (p :: Pinned) a.
+     (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable p, Typeable a)
+  => Spec
 primSpec = do
   let bytesTypeName =
         showsType (Proxy :: Proxy (Bytes p)) .
@@ -83,7 +87,7 @@ primSpec = do
         ""
   describe bytesTypeName $ do
     describe "memset" $ do
-      prop "empty" $ \ (a :: a) -> do
+      prop "empty" $ \(a :: a) -> do
         mb :: MBytes p RealWorld <- allocMBytes (0 :: Count a)
         setMBytes mb 0 0 a
         b <- freezeMBytes mb
@@ -95,19 +99,97 @@ primSpec = do
         setMBytes mb off c a
         zipWithM_ (\i x -> readMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
-          readMBytes mb (Off i) `shouldReturn` a
+            readMBytes mb (Off i) `shouldReturn` a
+    describe "List" $ do
+      prop "toListBytes" $ \(NEBytes _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
+      prop "toListBytes+fromBytes" $ \(NEBytes _ xs b :: NEBytes p a) ->
+        let xs' = toListBytes b :: [a]
+        in xs' === xs .&&. fromListBytes xs' === b
+      prop "loadListMBytes" $ \ (xs :: [a]) (b :: Bytes p) -> do
+        mb <- thawBytes b
+        (Count n :: Count a, r) <- getCountRemOfMBytes mb
+        loadListMBytes xs mb >>= \case
+          GT ->
+            zipWithM_ (\i x -> readMBytes mb (Off i :: Off a) `shouldReturn` x) [0.. n - 1] xs
+          elt -> do
+            when (elt == EQ) $ r `shouldBe` 0
+            zipWithM_ (\i x -> readMBytes mb (i :: Off a) `shouldReturn` x) [0..] xs
+      prop "fromListBytesN" $ \(NEBytes (Off i) xs b :: NEBytes p a) (Positive n') -> do
+        let n = Count $ length xs
+            (order, b') = fromListBytesN n xs
+            (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
+            (order'', b''' :: Bytes p) = fromListBytesN (n + n') xs
+        order `shouldBe` EQ
+        b' `shouldBe` b
+        order' `shouldBe` GT
+        xs `shouldStartWith` toListBytes b''
+        order'' `shouldBe` LT
+        let xs' = toListBytes b'''
+        xs' `deepseq` (xs' `shouldStartWith` xs)
+    describe "Allocation" $ do
+      prop "resizeMBytes" $ prop_resizeMBytes @p @a
+      prop "singletonBytes" $ \(a :: a) ->
+        indexBytes (singletonBytes a :: Bytes p) 0 === a
 
 primTypeSpec ::
-     forall a. (Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+     forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
   => Spec
 primTypeSpec = do
   primSpec @'Pin @a
   primSpec @'Inc @a
 
+primBinarySpec ::
+     forall (p :: Pinned). (Typeable p)
+  => Spec
+primBinarySpec = do
+  let bytesTypeName = showsType (Proxy :: Proxy (Bytes p)) ""
+  describe bytesTypeName $ do
+    describe "clone" $
+      prop "Bytes" $ \(b :: Bytes p) -> do
+        let bc = cloneBytes b
+        bc `shouldBe` b
+        unless (sizeOfBytes b == 0) $ isSameBytes b bc `shouldBe` False
+    describe "isSameBytes" $ do
+      prop "True" $ \(b :: Bytes p) -> isSameBytes b b .&&. b == b
+      it "(empty) True" $
+        isSameBytes emptyBytes emptyBytes .&&. emptyBytes == emptyBytes
+      prop "(non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
+        not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
+      prop "Pin (non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
+        not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
+    describe "isSameMBytes" $ do
+      prop "True" $ \(b :: Bytes p) -> do
+        mb <- thawBytes b
+        isSameMBytes mb mb `shouldBe` True
+      it "(empty) True" $ do
+        mb1 <- thawBytes emptyBytes
+        mb2 <- thawBytes emptyBytes
+        isSameMBytes mb1 mb2 `shouldBe` True
+      prop "(non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes p) -> monadicIO $ run $ do
+        mb1 <- thawBytes b1
+        mb2 <- thawBytes b2
+        pure $ not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameMBytes mb1 mb2)
+      prop "Pin (non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
+        not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
+    describe "toList" $ do
+      prop "Inc" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
+        (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
+      prop "Inc+Pin" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
+        (relaxPinned b1 == relaxPinned b2) ===
+        (toListBytes b1 == (toListBytes b2 :: [Word8]))
+    describe "ensurePinned" $ do
+      prop "Bytes" $ \(b :: Bytes p) ->
+        let b' = ensurePinnedBytes b
+        in isPinnedBytes b'
+      prop "MBytes" $ \(b :: Bytes p) -> do
+        mb <- thawBytes b
+        mb' <- ensurePinnedMBytes mb
+        isPinnedMBytes mb' `shouldBe` True
+
 spec :: Spec
 spec = do
-  primTypeSpec @Bool
-  primTypeSpec @Char
+  primBinarySpec @'Pin
+  primBinarySpec @'Inc
   primTypeSpec @Word
   primTypeSpec @Word8
   primTypeSpec @Word16
@@ -118,38 +200,9 @@ spec = do
   primTypeSpec @Int16
   primTypeSpec @Int32
   primTypeSpec @Int64
-  describe "Eq" $ do
-    describe "isSameBytes" $ do
-      describe "Inc" $ do
-        prop "True" $ \(b :: Bytes 'Inc) -> isSameBytes b b .&&. b == b
-        it "(empty) True" $
-          isSameBytes emptyBytes emptyBytes .&&. emptyBytes == emptyBytes
-        prop "(non-empty) False" $ \(b1 :: Bytes 'Inc) (b2 :: Bytes 'Inc) ->
-          not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
-      describe "Pin" $ do
-        prop "True" $ \(b :: Bytes 'Pin) -> isSameBytes b b .&&. b == b
-        it "(empty) True" $
-          isSameBytes emptyBytes emptyBytes .&&. emptyBytes == emptyBytes
-        prop "(non-empty) False" $ \(b1 :: Bytes 'Pin) (b2 :: Bytes 'Pin) ->
-          not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
-      prop "Inc+Pin (non-empty) False" $ \(b1 :: Bytes 'Inc) (b2 :: Bytes 'Pin) ->
-        not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
-    describe "toList" $ do
-      prop "Inc" $ \(b1 :: Bytes 'Inc) (b2 :: Bytes 'Inc) ->
-        (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
-      prop "Pin" $ \(b1 :: Bytes 'Pin) (b2 :: Bytes 'Pin) ->
-        (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
-      prop "Inc+Pin" $ \(b1 :: Bytes 'Inc) (b2 :: Bytes 'Pin) ->
-        (b1 == relaxPinned b2) ===
-        (toListBytes b1 == (toListBytes (relaxPinned b2) :: [Word8]))
-  describe "List" $ do
-    describe "toListBytes" $ do
-      prop "Inc" $ prop_toListBytes @'Inc @Int
-      prop "Pin" $ prop_toListBytes @'Pin @Int
+  primTypeSpec @Char
+  primTypeSpec @Bool
   describe "Allocation" $ do
-    describe "resizeMBytes" $ do
-      prop "Inc" $ prop_resizeMBytes @'Inc @Int
-      prop "Pin" $ prop_resizeMBytes @'Pin @Int
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8
           leastThreshold = 3277 :: Count Word8
@@ -174,13 +227,17 @@ spec = do
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocPinnedAlignedMBytes n) True
+    describe "isSamePinnedBytes" $ do
+      prop "True" $ \(b :: Bytes 'Pin) -> isSamePinnedBytes b b .&&. b == b
+      it "(empty) True" $
+        isSamePinnedBytes emptyBytes emptyBytes .&&. emptyBytes == emptyBytes
+      prop "Pin (non-empty) False" $ \(b1 :: Bytes 'Pin) (b2 :: Bytes 'Pin) ->
+        not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSamePinnedBytes b1 b2)
     describe "Ptr Access" $
       prop "Test avoidance of GHC bug #18061" $
         prop_WorkArounBugGHC18061 allocPinnedMBytes withPtrMBytes
 
 
-prop_toListBytes :: forall p a . (Prim a, Eq a, Show a) => NEBytes p a -> Property
-prop_toListBytes (NEBytes _ xs b) = xs === (toListBytes b :: [a])
 
 prop_resizeMBytes ::
      forall p a. (Prim a, Eq a, Show a, Typeable p)

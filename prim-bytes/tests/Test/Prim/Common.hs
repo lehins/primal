@@ -3,7 +3,6 @@ module Test.Prim.Common
   ) where
 
 import Test.Hspec as X
-import Test.QuickCheck as X
 import Test.Hspec.QuickCheck as X
 import Test.QuickCheck as X hiding ((.&.))
 import Test.QuickCheck.Function as X
