@@ -24,13 +24,29 @@ main = do
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   defaultMain
     [ bgroup
-        "set"
-        [ setBytesBench mb1 mb2 mba (n * 8 :: Count Word8)
-        , setBytesBench mb1 mb2 mba (n * 4 :: Count Word16)
-        , setBytesBench mb1 mb2 mba (n * 2 :: Count Word32)
-        , setBytesBench mb1 mb2 mba (n :: Count Word64)
-        , setBytesBench mb1 mb2 mba (n * 2 :: Count Float)
-        , setBytesBench mb1 mb2 mba (n :: Count Double)
+        "set:0"
+        [ setBytesBench mb1 mb2 mba 0 (n * 8 :: Count Word8)
+        , setBytesBench mb1 mb2 mba 0 (n * 4 :: Count Word16)
+        , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Word32)
+        , setBytesBench mb1 mb2 mba 0 (n :: Count Word64)
+        , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
+        , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
+        ]
+    , bgroup
+        "set:regular"
+        [ setBytesBench mb1 mb2 mba 123 (n * 8 :: Count Word8)
+        , setBytesBench mb1 mb2 mba 123 (n * 4 :: Count Word16)
+        , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Word32)
+        , setBytesBench mb1 mb2 mba 123 (n :: Count Word64)
+        , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
+        , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
+        ]
+    , bgroup
+        "set:symmetric"
+        [ setBytesBench mb1 mb2 mba maxBound (n * 8 :: Count Word8)
+        , setBytesBench mb1 mb2 mba maxBound (n * 4 :: Count Word16)
+        , setBytesBench mb1 mb2 mba maxBound (n * 2 :: Count Word32)
+        , setBytesBench mb1 mb2 mba maxBound (n :: Count Word64)
         ]
     , bgroup
         "with"
@@ -39,6 +55,23 @@ main = do
         , bench "withPtrMBytes (INLINE)" $ nfIO (ptrAction_inline n64 mb3)
         ]
     ]
+
+
+setBytesBench ::
+     forall a . (Num a, Typeable a, Primitive.Prim a, Prim a)
+  => MBytes 'Pin RealWorld
+  -> MBytes 'Pin RealWorld
+  -> BA.MutableByteArray RealWorld
+  -> a
+  -> Count a
+  -> Benchmark
+setBytesBench mb mb2 mba a c@(Count n) =
+  bgroup (showsType (Proxy :: Proxy a) "")
+    [ bench "setMBytes" $ nfIO (setMBytes mb 0 c a)
+    , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ ptr -> setOffPtr ptr 0 c a :: IO ())
+    , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
+    ]
+
 
 withPtrMBytes_noinline :: MBytes 'Pin s -> (Ptr a -> IO b) -> IO b
 withPtrMBytes_noinline mb f = do
@@ -78,19 +111,3 @@ ptrAction_noinline (Count n) mb = go 0
         withPtrMBytes_noinline mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
         go (i + 1)
       | otherwise = pure ()
-
-setBytesBench ::
-     forall a . (Num a, Typeable a, Primitive.Prim a, Prim a)
-  => MBytes 'Pin RealWorld
-  -> MBytes 'Pin RealWorld
-  -> BA.MutableByteArray RealWorld
-  -> Count a
-  -> Benchmark
-setBytesBench mb mb2 mba c@(Count n) =
-  bgroup (showsType (Proxy :: Proxy a) "")
-    [ bench "setMBytes" $ nfIO (setMBytes mb 0 c a)
-    , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ ptr -> setOffPtr ptr 0 c a :: IO ())
-    , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
-    ]
-  where
-    a = 0xffff :: a
