@@ -567,11 +567,10 @@ getMBytesForeignPtr (MBytes mba#) =
   ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE getMBytesForeignPtr #-}
 
-withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
-withPtrMBytes mb f = do
-  let ptr = getPtrMBytes mb
-  res <- f ptr
-  res <$ touch mb
-{-# NOINLINE withPtrMBytes #-}
--- See https://gitlab.haskell.org/ghc/ghc/issues/18061 why this is a NOINLINE
-
+withPtrMBytes ::
+     (MonadPrimBase s n, MonadPrim s m)
+  => MBytes 'Pin s
+  -> (Ptr a -> n b)
+  -> m b
+withPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
+{-# INLINE withPtrMBytes #-}

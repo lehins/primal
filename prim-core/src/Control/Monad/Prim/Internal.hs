@@ -24,6 +24,8 @@ module Control.Monad.Prim.Internal
   , liftPrimBase
   , primBaseToIO
   , primBaseToST
+  , withPrimBase
+  , with#
   ) where
 
 import GHC.Exts
@@ -193,3 +195,22 @@ primBaseToIO = liftPrimBase
 primBaseToST :: MonadPrimBase s m => m a -> ST s a
 primBaseToST = liftPrimBase
 {-# INLINE primBaseToST #-}
+
+
+-- | Forward compatible operator that will be introduced in some future ghc version.
+--
+-- See: https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961
+with# ::
+     a
+  -> (State# s -> (# State# s, b #))
+  -> State# s
+  -> (# State# s#, b #)
+with# a m s# =
+  case m s# of
+    (# s'#, r #) -> (# unsafeCoerce# (touch# a) s'#, r #)
+{-# NOINLINE with# #-}
+
+
+withPrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
+withPrimBase a m = prim (with# a (primBase m))
+{-# INLINE withPrimBase #-}

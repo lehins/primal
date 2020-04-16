@@ -20,14 +20,12 @@ import Control.Monad
 import Data.Prim.Bytes
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
-import Data.Word
 import Test.Prim.Common
-import Test.QuickCheck.Random
+--import Test.QuickCheck.Random
 import Control.Concurrent
-import Control.Monad
-import Data.Word
+--import Control.Monad
+--import Data.Word
 import Foreign.Storable
-import Foreign.ForeignPtr
 import Numeric
 import System.Timeout
 
@@ -133,9 +131,8 @@ spec = do
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocPinnedAlignedMBytes n) True
     describe "Ptr Access" $
-      it "Test avoidance of GHC bug #18061" $
-        void $ timeout 100000 $
-        spec_WorkArounBugGHC18061 allocPinnedMBytes withPtrMBytes
+      prop "Test avoidance of GHC bug #18061" $
+        prop_WorkArounBugGHC18061 allocPinnedMBytes withPtrMBytes
 
 
 prop_toListBytes :: forall p a . (Prim a, Eq a, Show a) => NEBytes p a -> Property
@@ -154,15 +151,21 @@ prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
     br <- freezeMBytes mbr
     pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
 
-spec_WorkArounBugGHC18061 ::
-     (Count Word32 -> IO t) -> (t -> (Ptr Word32 -> IO a) -> IO ()) -> IO ()
-spec_WorkArounBugGHC18061 alloc withPtr = do
-  replicateM_ 49 $ threadDelay 1
-  fptr <- alloc (4 :: Count Word32)
-  withPtr fptr $ \p ->
-    forever $ do
-      poke p (0xDEADBEEF :: Word32)
-      threadDelay 10
-      x <- peek p
-      unless (x == 0xDEADBEEF) $ error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
-{-# INLINE spec_WorkArounBugGHC18061 #-}
+prop_WorkArounBugGHC18061 ::
+     (Count Word32 -> IO t)
+  -> (t -> (Ptr Word32 -> IO a) -> IO ())
+  -> Positive Int
+  -> IO ()
+prop_WorkArounBugGHC18061 alloc withPtr (Positive n) =
+  void $
+  timeout (1000 * n) $ do
+    replicateM_ 49 $ threadDelay 1
+    fptr <- alloc (4 :: Count Word32)
+    withPtr fptr $ \p ->
+      forever $ do
+        poke p (0xDEADBEEF :: Word32)
+        threadDelay 10
+        x <- peek p
+        unless (x == 0xDEADBEEF) $
+          error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
+{-# INLINE prop_WorkArounBugGHC18061 #-}

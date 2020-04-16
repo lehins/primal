@@ -21,18 +21,21 @@ import Control.Monad.Prim.Internal
 import Control.Monad.Prim.Unsafe
 import Data.Typeable
 
--- | Create an action that ensures that the value is still available and garbage collector has
--- not cleaned it up.
+-- | This is an action that ensures that the value is still available and garbage
+-- collector has not cleaned it up.
+--
+-- Make sure not to use it after some computation that doesn't return, like after
+-- `forever` for example, otherwise touch will simply be removed by ghc and bad things
+-- will happen. If you have a case like that, make sure to use `withPrimBase` instead.
 touch :: MonadPrim s m => a -> m ()
 touch x = unsafeIOToPrim $ prim_ (touch# x)
 {-# INLINE touch #-}
 
--- | Create an action that evaluates a value to weak head normal form. Same
+-- | An action that evaluates a value to weak head normal form. Same
 -- as `Control.Exception.evaluate`, except it work in a `MonadPrim`
 seqPrim :: MonadPrim s m => a -> m a
 seqPrim a = prim (seq# a)
 
--- | Helper function that convert the type to a string
+-- | Helper function that converts a type into a string
 showsType :: Typeable t => proxy t -> ShowS
 showsType = showsTypeRep . typeRep
-

@@ -28,6 +28,7 @@ module Data.Prim.Ptr
   , readOffPtr
   , writePtr
   , writeOffPtr
+  , setOffPtr
 
   , copyPtrToPtr
   , movePtrToPtr
@@ -52,6 +53,17 @@ import Foreign.Marshal.Utils
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 
+
+
+setOffPtr ::
+     (MonadPrim s m, Prim a)
+  => Ptr a -- ^ Chunk of memory to fill
+  -> Off a -- ^ Offset in number of elements
+  -> Count a -- ^ Number of cells to fill
+  -> a -- ^ A value to fill the cells with
+  -> m ()
+setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setOffAddr# addr# o# n# a)
+{-# INLINE setOffPtr #-}
 
 
 readOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m a
