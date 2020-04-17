@@ -42,18 +42,18 @@ import Foreign.Ptr
 
 data Addr a = Addr Addr# {-# UNPACK #-} !(Bytes 'Pin)
 
-data MAddr s a = MAddr Addr# {-# UNPACK #-} !(MBytes 'Pin s)
+data MAddr a s = MAddr Addr# {-# UNPACK #-} !(MBytes 'Pin s)
 
 instance NFData (Addr a) where
   rnf (Addr _ _) = ()
 
-instance NFData (MAddr s a) where
+instance NFData (MAddr a s) where
   rnf (MAddr _ _) = ()
 
 plusOffAddr :: Prim a => Addr a -> Off a -> Addr a
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` fromOff# off) b
 
-plusOffMAddr :: Prim a => MAddr s a -> Off a -> MAddr s a
+plusOffMAddr :: Prim a => MAddr a s -> Off a -> MAddr a s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` fromOff# off) mb
 
 curAddrOff :: Prim a => Addr a -> Off a
@@ -61,19 +61,19 @@ curAddrOff (Addr addr# (Bytes b#)) =
   let count = countSize (I# (addr# `minusAddr#` byteArrayContents# b#))
   in offAsProxy count (Off (unCount count))
 
-curMAddrOff :: Prim a => MAddr s a -> Off a
+curMAddrOff :: Prim a => MAddr a s -> Off a
 curMAddrOff (MAddr addr# mb) =
   let count = countSize (Ptr addr# `minusPtr` getPtrMBytes mb)
   in offAsProxy count (Off (unCount count))
 
-withPtrMAddr :: MonadPrim s m => MAddr s a -> (Ptr a -> m b) -> m b
+withPtrMAddr :: MonadPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
 withPtrMAddr (MAddr addr# mb) f = do
   a <- f (Ptr addr#)
   a <$ touch mb
 {-# NOINLINE withPtrMAddr #-}
 -- See https://gitlab.haskell.org/ghc/ghc/issues/18061 why this is a NOINLINE
 
-thawAddr :: MonadPrim s m => Addr a -> m (MAddr s a)
+thawAddr :: MonadPrim s m => Addr a -> m (MAddr a s)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
 
 readAddr :: (MonadPrim s m, Prim a) => Addr a -> m a
@@ -92,16 +92,16 @@ indexOffAddr :: Prim a => Addr a -> Off a -> a
 indexOffAddr addr off = unsafeInlineIO $ readOffAddr addr off
 
 
-readOffMAddr :: (MonadPrim s m, Prim a) => MAddr s a -> Off a -> m a
+readOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m a
 readOffMAddr (MAddr addr# mb) off = do
   a <- prim (readOffAddr# addr# (fromOff# off))
   a <$ touch mb
 
-writeOffMAddr :: (MonadPrim s m, Prim a) => MAddr s a -> Off a -> a -> m ()
+writeOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> a -> m ()
 writeOffMAddr (MAddr addr# mb) off a = do
   prim_ (writeOffAddr# addr# (fromOff# off) a)
   touch mb
 
 
-freezeMAddr :: MonadPrim s m => MAddr s a -> m (Addr a)
+freezeMAddr :: MonadPrim s m => MAddr a s -> m (Addr a)
 freezeMAddr (MAddr addr# mb) = Addr addr# <$> freezeMBytes mb

@@ -93,6 +93,7 @@ main = do
             , setBytesBench mb1 mb2 mba 0 (n :: Count Word64)
             , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
+            , bench "setMBytes/Bool" $ nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) False)
             ]
         , bgroup
             "regular"
@@ -102,6 +103,7 @@ main = do
             , setBytesBench mb1 mb2 mba 123 (n :: Count Word64)
             , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
+            , bench "setMBytes/Bool" $ nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) True)
             ]
         , bgroup
             "symmetric"
@@ -198,7 +200,7 @@ benchPeek px mb mba =
     ]
 
 setBytesBench ::
-     forall a . (Num a, Typeable a, BA.Prim a, Prim a)
+     forall a . (Typeable a, BA.Prim a, Prim a)
   => MBytes 'Pin RealWorld
   -> MBytes 'Pin RealWorld
   -> BA.MutableByteArray RealWorld
