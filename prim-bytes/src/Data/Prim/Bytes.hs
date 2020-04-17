@@ -85,6 +85,7 @@ module Data.Prim.Bytes
   , zeroMBytes
   -- ** Ptr
   , withPtrMBytes
+  , withPtrNoHaltMBytes
   , getPtrBytes
   , getPtrMBytes
   -- ** ForeignPtr
@@ -108,7 +109,7 @@ import Data.Prim
 import Data.Prim.Class
 import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
                           isMutableByteArrayPinned#, isSameByteArray#,
-                          memmoveMutableByteArray#)
+                          memmoveMutableByteArray#, memcmpByteArray#)
 import Data.Proxy
 import Data.Typeable
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
@@ -180,13 +181,12 @@ isSameMBytes (MBytes mb1#) (MBytes mb2#) =
 {-# INLINE isSameMBytes #-}
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
-eqBytes b1 b2 = isSameBytes b1 b2 || eqBytesN lenEq (0 :: Off Word8)
+eqBytes b1@(Bytes ba1#) b2@(Bytes ba2#) =
+  isSameBytes b1 b2 ||
+  (lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
   where
-    n1 = sizeOfBytes b1
+    !n1@(I# len#) = sizeOfBytes b1
     lenEq = n1 == sizeOfBytes b2
-    eqBytesN acc i8@(Off i)
-      | i < n1 = acc && eqBytesN (indexBytes b1 i8 == indexBytes b2 i8) (i8 + 1)
-      | otherwise = acc
 {-# INLINE eqBytes #-}
 
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
@@ -647,10 +647,16 @@ getMBytesForeignPtr (MBytes mba#) =
   ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE getMBytesForeignPtr #-}
 
-withPtrMBytes ::
+withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withPtrMBytes mb f = do
+  res <- f (getPtrMBytes mb)
+  res <$ touch mb
+{-# INLINE withPtrMBytes #-}
+
+withPtrNoHaltMBytes ::
      (MonadPrimBase s n, MonadPrim s m)
   => MBytes 'Pin s
   -> (Ptr a -> n b)
   -> m b
-withPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
-{-# INLINE withPtrMBytes #-}
+withPtrNoHaltMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
+{-# INLINE withPtrNoHaltMBytes #-}

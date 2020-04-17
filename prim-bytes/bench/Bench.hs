@@ -12,8 +12,10 @@ import Criterion.Main
 import Data.Prim.Bytes
 import Data.Prim.Ptr
 import Control.Monad.Prim
-import qualified Data.Primitive.Types as Primitive
+import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
+import qualified Control.Monad.Primitive as BA
+import Foreign.Storable as S
 
 main :: IO ()
 main = do
@@ -25,11 +27,9 @@ main = do
   mb3 <- allocAlignedMBytes n64
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
-
   -- Ensure that arrays are equal
   mbEq1 <- callocAlignedMBytes n64
   mbEq2 <- callocAlignedMBytes n64
-
   mbaEq1 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   mbaEq2 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)
@@ -48,6 +48,18 @@ main = do
         , bench "(==) - sameByteArray (unexported)" $ whnf (ba ==) ba
         , bench "isSameMBytes" $ whnf (isSameMBytes mb1) mb1
         , bench "sameMutableByteArray" $ whnf (BA.sameMutableByteArray mba) mba
+        ]
+    , bgroup
+        "eq"
+        [ env ((,) <$> freezeMBytes mbEq1 <*> freezeMBytes mbEq2) $ \ ~(b1, b2) ->
+            bench "Bytes" $ whnf (b1 ==) b2
+        , bench "ByteArray" $ whnf (baEq1 ==) baEq2
+        ]
+    , bgroup
+        "with"
+        [ bench "withPtrMBytes (INLINE)" $ nfIO (ptrAction_inline n64 mb3)
+        , bench "withPtrMBytes (withPtrNoHaltMBytes)" $ nfIO (ptrAction n64 mb2)
+        , bench "withPtrMBytes (NOINLINE)" $ nfIO (ptrAction_noinline n64 mb1)
         ]
     , bgroup
         "list"
@@ -100,22 +112,93 @@ main = do
             ]
         ]
     , bgroup
-        "eq"
-        [ env ((,) <$> freezeMBytes mbEq1 <*> freezeMBytes mbEq2) $ \ ~(b1, b2) ->
-            bench "Bytes" $ whnf (b1 ==) b2
-        , bench "ByteArray" $ whnf (baEq1 ==) baEq2
-        ]
-    , bgroup
-        "with"
-        [ bench "withPtrMBytes (NOINLINE)" $ nfIO (ptrAction_noinline n64 mb1)
-        , bench "withPtrMBytes (withPrimBase)" $ nfIO (ptrAction_inline n64 mb2)
-        , bench "withPtrMBytes (INLINE)" $ nfIO (ptrAction_inline n64 mb3)
+        "access"
+        [ env (freezeMBytes mbEq1) $ \b ->
+            bgroup
+              "index"
+              [ benchIndex (Proxy :: Proxy Word8) b ba
+              , benchIndex (Proxy :: Proxy Word16) b ba
+              , benchIndex (Proxy :: Proxy Word32) b ba
+              , benchIndex (Proxy :: Proxy Word64) b ba
+              , benchIndex (Proxy :: Proxy Char) b ba
+              , bgroup
+                  "Bool"
+                  [bench "Bytes" $ whnf (indexBytes b) (Off 125 :: Off Bool)]
+              ]
+        , bgroup
+            "read"
+            [ benchRead (Proxy :: Proxy Word8) mb1 mba
+            , benchRead (Proxy :: Proxy Word16) mb1 mba
+            , benchRead (Proxy :: Proxy Word32) mb1 mba
+            , benchRead (Proxy :: Proxy Word64) mb1 mba
+            , benchRead (Proxy :: Proxy Char) mb1 mba
+            , bgroup
+                "Bool" -- TODO: try out FFI
+                [bench "Bytes" $ whnfIO (readMBytes mb1 (Off 125 :: Off Bool))]
+            ]
+        , bgroup
+            "peek"
+            [ benchPeek (Proxy :: Proxy Word8) mb1 mba
+            , benchPeek (Proxy :: Proxy Word16) mb1 mba
+            , benchPeek (Proxy :: Proxy Word32) mb1 mba
+            , benchPeek (Proxy :: Proxy Word64) mb1 mba
+            , benchPeek (Proxy :: Proxy Char) mb1 mba
+            , bgroup
+                "Bool"
+                [ bench "Bytes" $
+                  whnfIO (withPtrMBytes mb1 (readPtr :: Ptr Bool -> IO Bool))
+                ]
+            ]
         ]
     ]
 
+benchIndex ::
+     forall a p. (Typeable a, Prim a, BA.Prim a)
+  => Proxy a
+  -> Bytes p
+  -> BA.ByteArray
+  -> Benchmark
+benchIndex px b ba =
+  bgroup
+    (showsType px "")
+    [ bench "Bytes" $ whnf (indexBytes b) (Off i :: Off a)
+    , bench "ByteArray" $ whnf (BA.indexByteArray ba :: Int -> a) i
+    ]
+  where i = 100
+
+benchRead ::
+     forall a p. (Typeable a, Prim a, BA.Prim a)
+  => Proxy a
+  -> MBytes p RealWorld
+  -> BA.MutableByteArray RealWorld
+  -> Benchmark
+benchRead px mb mba =
+  bgroup
+    (showsType px "")
+    [ bench "Bytes" $ whnfIO (readMBytes mb (Off i :: Off a))
+    , bench "ByteArray" $ whnfIO (BA.readByteArray mba i :: IO a)
+    ]
+  where i = 100
+
+benchPeek ::
+     forall a. (Typeable a, Prim a, BA.Prim a)
+  => Proxy a
+  -> MBytes 'Pin RealWorld
+  -> BA.MutableByteArray RealWorld
+  -> Benchmark
+benchPeek px mb mba =
+  bgroup
+    (showsType px "")
+    [ bench "Bytes" $ whnfIO $ withPtrMBytes mb (readPtr :: Ptr a -> IO a)
+    , bench "ByteArray" $
+      whnfIO $ do
+        let ptr = BA.mutableByteArrayContents mba
+        res <- S.peek ptr
+        res <$ BA.touch mba
+    ]
 
 setBytesBench ::
-     forall a . (Num a, Typeable a, Primitive.Prim a, Prim a)
+     forall a . (Num a, Typeable a, BA.Prim a, Prim a)
   => MBytes 'Pin RealWorld
   -> MBytes 'Pin RealWorld
   -> BA.MutableByteArray RealWorld
@@ -136,18 +219,12 @@ withPtrMBytes_noinline mb f = do
   res <$ touch mb
 {-# NOINLINE withPtrMBytes_noinline #-}
 
-withPtrMBytes_inline :: MBytes 'Pin s -> (Ptr a -> IO b) -> IO b
-withPtrMBytes_inline mb f = do
-  res <- f (getPtrMBytes mb)
-  res <$ touch mb
-{-# INLINE withPtrMBytes_inline #-}
-
 ptrAction :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withPtrMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
+        withPtrNoHaltMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
         go (i + 1)
       | otherwise = pure ()
 
@@ -156,7 +233,7 @@ ptrAction_inline (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withPtrMBytes_inline mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
+        withPtrMBytes mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
         go (i + 1)
       | otherwise = pure ()
 

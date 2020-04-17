@@ -278,7 +278,7 @@ spec = do
         not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSamePinnedBytes b1 b2)
     describe "Ptr Access" $
       prop "Test avoidance of GHC bug #18061" $
-        prop_WorkArounBugGHC18061 allocAlignedMBytes withPtrMBytes
+        prop_WorkArounBugGHC18061 allocAlignedMBytes withPtrNoHaltMBytes
 
 
 prop_WorkArounBugGHC18061 ::

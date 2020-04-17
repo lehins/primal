@@ -14,6 +14,9 @@
 module Data.Prim.Foreign
   ( isSameByteArray#
   , isSameMutableByteArray#
+  , memcmpAddr#
+  , memcmpByteArray#
+
   , memsetWord8MutableByteArray#
   , memsetWord8Addr#
   , memsetInt8MutableByteArray#
@@ -58,6 +61,10 @@ foreign import ccall unsafe "prim_core.c prim_core_ptreq"
 foreign import ccall unsafe "prim_core.c prim_core_ptreq"
   isSameMutableByteArray# :: MutableByteArray# s -> MutableByteArray# s -> Int#
 
+foreign import ccall unsafe "prim_core.c prim_core_memcmp"
+  memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int#
+foreign import ccall unsafe "prim_core.c prim_core_memcmp"
+  memcmpByteArray# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
 
 foreign import ccall unsafe "prim_core.c prim_core_memset8"
   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()

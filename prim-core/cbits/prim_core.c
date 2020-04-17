@@ -28,9 +28,9 @@ HsInt prim_core_ptreq(HsWord8 *ptr1, HsWord8 *ptr2){
   return ptr1 == ptr2;
 }
 
-HsInt8 prim_core_memcmp(HsWord8 *ptr1, HsWord8 *ptr2, HsInt n){
-  if (ptr1 == ptr2)
-    return 0;
+HsInt8 prim_core_memcmp(HsWord8 *ptr1, HsInt offset1, HsWord8 *ptr2, HsInt offset2, HsInt n){
+  ptr1+= offset1;
+  ptr2+= offset2;
   return memcmp(ptr1, ptr2, n);
 }
 

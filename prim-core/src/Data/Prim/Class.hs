@@ -21,6 +21,8 @@ module Data.Prim.Class
   , mutableByteArrayContents#
   , setMutableByteArrayLoop#
   , errorImpossible
+  , bool2Int#
+  , int2Bool#
   ) where
 
 import Control.Monad.Prim.Unsafe
@@ -466,13 +468,13 @@ instance Prim Double where
     unsafePrimBase_ (memsetWord64Addr# addr# o# n# (W64# (doubleToWord64# d#)))
   {-# INLINE setOffAddr# #-}
 
-bool2int# :: Bool -> Int#
-bool2int# b = if b then 1# else 0#
-{-# INLINE bool2int# #-}
+bool2Int# :: Bool -> Int#
+bool2Int# b = if b then 1# else 0#
+{-# INLINE bool2Int# #-}
 
-isSafeTrue# :: Int# -> Bool
-isSafeTrue# i# = tagToEnum# (andI# i# 1#)
-{-# INLINE isSafeTrue# #-}
+int2Bool# :: Int# -> Bool
+int2Bool# i# = isTrue# (i# /=# 0#) -- tagToEnum# (i# /=# 0#) -- (andI# i# 1#)
+{-# INLINE int2Bool# #-}
 
 instance Prim Bool where
   type PrimBase Bool = Bool
@@ -482,23 +484,23 @@ instance Prim Bool where
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_INT8
   {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = isSafeTrue# (indexInt8Array# ba# i#)
+  indexByteArray# ba# i# = int2Bool# (indexInt8Array# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# = isSafeTrue# (indexInt8OffAddr# addr# i#)
+  indexOffAddr# addr# i# = int2Bool# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, isSafeTrue# a# #)
+                                       (# s'#, a# #) -> (# s'#, int2Bool# a# #)
   {-# INLINE readMutableByteArray# #-}
   readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, isSafeTrue# a# #)
+                              (# s'#, a# #) -> (# s'#, int2Bool# a# #)
   {-# INLINE readOffAddr# #-}
-  writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2int# b)
+  writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2Int# b)
   {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2int# b)
+  writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2Int# b)
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2int# b)
+  setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2Int# b)
   {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2int# b))
+  setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2Int# b))
   {-# INLINE setOffAddr# #-}
 
 instance Prim Char where
