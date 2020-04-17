@@ -137,6 +137,21 @@ primSpec = do
       prop "singletonBytes" $ \(a :: a) ->
         indexBytes (singletonBytes a :: Bytes p) 0 === a
 
+
+prop_resizeMBytes ::
+     forall p a. (Prim a, Eq a, Show a, Typeable p)
+  => NEBytes p a
+  -> NonNegative Int
+  -> Property
+prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
+  monadicIO $
+  run $ do
+    mb <- thawBytes $ cloneBytes b
+    mbr <- resizeMBytes mb (Count n' :: Count Int)
+    br <- freezeMBytes mbr
+    pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
+
+
 primTypeSpec ::
      forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
   => Spec
@@ -274,20 +289,6 @@ spec = do
       prop "Test avoidance of GHC bug #18061" $
         prop_WorkArounBugGHC18061 allocAlignedMBytes withPtrMBytes
 
-
-
-prop_resizeMBytes ::
-     forall p a. (Prim a, Eq a, Show a, Typeable p)
-  => NEBytes p a
-  -> NonNegative Int
-  -> Property
-prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
-  monadicIO $
-  run $ do
-    mb <- thawBytes $ cloneBytes b
-    mbr <- resizeMBytes mb (Count n' :: Count Int)
-    br <- freezeMBytes mbr
-    pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
 
 prop_WorkArounBugGHC18061 ::
      (Count Word32 -> IO t)

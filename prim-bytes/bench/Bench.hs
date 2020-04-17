@@ -5,6 +5,7 @@
 
 module Main where
 
+import GHC.Exts
 import Data.Proxy
 import Data.Typeable
 import Criterion.Main
@@ -18,6 +19,7 @@ main :: IO ()
 main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
+      xs = [1 .. unCount n]
   mb1 <- allocAlignedMBytes n64
   mb2 <- allocAlignedMBytes n64
   mb3 <- allocAlignedMBytes n64
@@ -35,6 +37,24 @@ main = do
         , bench "(==) - sameByteArray (unexported)" $ whnf (ba ==) ba
         , bench "isSameMBytes" $ whnf (isSameMBytes mb1) mb1
         , bench "sameMutableByteArray" $ whnf (BA.sameMutableByteArray mba) mba
+        ]
+    , bgroup
+        "list"
+        [ bgroup
+            "toList"
+            [ env (freezeMBytes mb1) (bench "Bytes" . nf toList)
+            , bench "ByteArray" $ nf toList ba
+            ]
+        , bgroup
+            "fromList"
+            [ env (pure xs) (bench "Bytes" . whnf (fromListBytes :: [Int] -> Bytes 'Inc))
+            , bench "ByteArray" $ whnf BA.byteArrayFromList xs
+            ]
+        , bgroup
+            "fromListN"
+            [ env (pure xs) (bench "Bytes" . whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc))
+            , bench "ByteArray" $ whnf (BA.byteArrayFromListN (unCount n)) xs
+            ]
         ]
     , bgroup
         "set"

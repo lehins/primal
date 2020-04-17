@@ -23,13 +23,14 @@ module Data.Prim.Bytes
   , emptyBytes
   , singletonBytes
   , isEmptyBytes
+  , createBytes
+  , createBytes_
   , MBytes(..)
   , Pinned(..)
   , Count(..)
   , isSameBytes
   , isSamePinnedBytes
   , isSameMBytes
-  --, isSamePinnedMBytes
   , relaxPinned
   , isPinnedBytes
   , isPinnedMBytes
@@ -43,7 +44,9 @@ module Data.Prim.Bytes
   , countRemOfBytes
   , fromListBytes
   , fromListBytesN
+  , fromListBytesN_
   , toListBytes
+  -- , concatBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -54,17 +57,16 @@ module Data.Prim.Bytes
   , allocAlignedMBytes
   , callocMBytes
   , callocAlignedMBytes
-  , cloneMBytes
   , resizeMBytes
-  , loadListMBytes
   , showsBytesHex
-  , zeroMBytes
   , coerceStateMBytes
   -- ** Modifying data
+  , cloneMBytes
   , withMBytes
   , withMBytes_
   , withMBytesST
   , withMBytesST_
+  , loadListMBytes
   , copyBytesToMBytes
   , copyMBytesToMBytes
   , moveMBytesToMBytes
@@ -77,6 +79,7 @@ module Data.Prim.Bytes
   , readMBytes
   , writeMBytes
   , setMBytes
+  , zeroMBytes
   -- ** Ptr
   , withPtrMBytes
   , getPtrBytes
@@ -92,18 +95,19 @@ module Data.Prim.Bytes
   ) where
 
 import Control.DeepSeq
+import Control.Monad
 import Control.Monad.Prim
 import Control.Monad.Prim.Unsafe
 import Control.Monad.ST
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.Prim
-import Data.Proxy
-import Data.Typeable
 import Data.Prim.Class
 import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
                           isMutableByteArrayPinned#, isSameByteArray#,
                           memmoveMutableByteArray#)
+import Data.Proxy
+import Data.Typeable
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 import GHC.ForeignPtr
@@ -263,6 +267,27 @@ cloneMBytes mb = do
   mb' <$ copyMBytesToMBytes mb 0 mb' 0 n
 {-# INLINE cloneMBytes #-}
 
+
+-- | Allocated memory is not cleared, so make sure to fill it in properly, otherwise you
+-- might find some garbage there.
+createBytes ::
+     forall p a b s m. (Prim a, Typeable p, MonadPrim s m)
+  => Count a
+  -> (MBytes p s -> m b)
+  -> m (b, Bytes p)
+createBytes n f = do
+  mb <- allocMBytes n
+  res <- f mb
+  (,) res <$> freezeMBytes mb
+{-# INLINE createBytes #-}
+
+createBytes_ ::
+     forall p a b s m. (Prim a, Typeable p, MonadPrim s m)
+  => Count a
+  -> (MBytes p s -> m b)
+  -> m (Bytes p)
+createBytes_ n f = allocMBytes n >>= \mb -> f mb >> freezeMBytes mb
+{-# INLINE createBytes_ #-}
 
 allocUnpinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
@@ -448,25 +473,37 @@ foldrBytesBuild c nil bs = go 0
          in v `c` go (i + 1)
 {-# INLINE[0] foldrBytesBuild #-}
 
+
+loadListInternal :: (MonadPrim s m, Prim a) => Count a -> Int -> [a] -> MBytes p s -> m Ordering
+loadListInternal (Count n) slack ys mb = do
+  let go [] !i = pure (compare i n <> compare 0 slack)
+      go (x:xs) !i
+        | i < n = writeMBytes mb (Off i) x >> go xs (i + 1)
+        | otherwise = pure GT
+  go ys 0
+{-# INLINE loadListInternal #-}
+
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
 loadListMBytes :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
-  (Count n :: Count a, slack) <- getCountRemOfMBytes mb
-  let go [] i = pure (compare i n <> compare 0 slack)
-      go (x:xs) i
-        | i < n = writeMBytes mb (Off i) x >> go xs (i + 1)
-        | otherwise = pure GT
-  go ys 0
+  (c :: Count a, slack) <- getCountRemOfMBytes mb
+  loadListInternal c slack ys mb
 {-# INLINE loadListMBytes #-}
+
+loadListMBytes_ :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
+loadListMBytes_ ys mb = do
+  c :: Count a <- getCountOfMBytes mb
+  void $ loadListInternal c 0 ys mb
+{-# INLINE loadListMBytes_ #-}
 
 fromListBytesN_ ::
      forall a p. (Prim a, Typeable p)
   => Count a
   -> [a]
   -> Bytes p
-fromListBytesN_ n = snd . fromListBytesN n
+fromListBytesN_ n xs = runST $ createBytes_ n (loadListMBytes_ xs)
 {-# INLINE fromListBytesN_ #-}
 
 -- | If the list is bigger than the supplied @`Count` a@ then `GT` ordering will be
@@ -480,22 +517,14 @@ fromListBytesN ::
   => Count a
   -> [a]
   -> (Ordering, Bytes p)
-fromListBytesN n xs =
-  runST $ do
-    mb <- allocMBytes n
-    res <- loadListMBytes xs mb
-    (,) res <$> freezeMBytes mb
+fromListBytesN n xs = runST $ createBytes n (loadListMBytes xs)
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
      forall a p. (Prim a, Typeable p)
   => [a]
   -> Bytes p
-fromListBytes xs =
-  case fromListBytesN (Count (length xs)) xs of
-    (EQ, ba) -> ba
-    (_, _) ->
-      errorImpossible "fromListBytes" "Number of elements in the list was unexpected"
+fromListBytes xs = fromListBytesN_ (Count (length xs)) xs
 {-# INLINE fromListBytes #-}
 
 
