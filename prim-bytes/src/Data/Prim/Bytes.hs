@@ -25,6 +25,8 @@ module Data.Prim.Bytes
   , isEmptyBytes
   , createBytes
   , createBytes_
+  , createBytesST
+  , createBytesST_
   , MBytes(..)
   , Pinned(..)
   , Count(..)
@@ -46,7 +48,8 @@ module Data.Prim.Bytes
   , fromListBytesN
   , fromListBytesN_
   , toListBytes
-  -- , concatBytes
+  , concatBytes
+  , foldrBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -277,7 +280,7 @@ createBytes ::
   -> m (b, Bytes p)
 createBytes n f = do
   mb <- allocMBytes n
-  res <- f mb
+  !res <- f mb
   (,) res <$> freezeMBytes mb
 {-# INLINE createBytes #-}
 
@@ -288,6 +291,22 @@ createBytes_ ::
   -> m (Bytes p)
 createBytes_ n f = allocMBytes n >>= \mb -> f mb >> freezeMBytes mb
 {-# INLINE createBytes_ #-}
+
+createBytesST ::
+     forall p a b. (Prim a, Typeable p)
+  => Count a
+  -> (forall s . MBytes p s -> ST s b)
+  -> (b, Bytes p)
+createBytesST n f = runST $ createBytes n f
+{-# INLINE createBytesST #-}
+
+createBytesST_ ::
+     forall p a b. (Prim a, Typeable p)
+  => Count a
+  -> (forall s. MBytes p s -> ST s b)
+  -> Bytes p
+createBytesST_ n f =  runST $ createBytes_ n f
+{-# INLINE createBytesST_ #-}
 
 allocUnpinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
@@ -369,7 +388,7 @@ withMBytes ::
   -> m (a, Bytes p)
 withMBytes b f = do
   mb <- cloneMBytes =<< thawBytes b
-  res <- f mb
+  !res <- f mb
   b' <- freezeMBytes mb
   pure (res, b')
 {-# INLINE withMBytes #-}
@@ -379,7 +398,7 @@ withMBytes_ ::
   => Bytes p
   -> (MBytes p s -> m a)
   -> m (Bytes p)
-withMBytes_ b f = snd <$> withMBytes b f
+withMBytes_ b f = thawBytes b >>= cloneMBytes >>= \mb -> f mb >> freezeMBytes mb
 {-# INLINE withMBytes_ #-}
 
 withMBytesST ::
@@ -389,7 +408,7 @@ withMBytesST b f = runST $ withMBytes b f
 
 withMBytesST_ ::
   Typeable p => Bytes p -> (forall s. MBytes p s -> ST s a) -> Bytes p
-withMBytesST_ b f = snd $ withMBytesST b f
+withMBytesST_ b f = runST $ withMBytes_ b f
 {-# INLINE withMBytesST_ #-}
 
 
@@ -459,11 +478,11 @@ getCountRemOfMBytes b = countRemSize <$> getSizeOfMBytes b
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
 toListBytes :: Prim a => Bytes p -> [a]
-toListBytes ba = build (\ c n -> foldrBytesBuild c n ba)
+toListBytes ba = build (\ c n -> foldrBytes c n ba)
 {-# INLINE toListBytes #-}
 
-foldrBytesBuild :: forall a b p . Prim a => (a -> b -> b) -> b -> Bytes p -> b
-foldrBytesBuild c nil bs = go 0
+foldrBytes :: forall a b p . Prim a => (a -> b -> b) -> b -> Bytes p -> b
+foldrBytes c nil bs = go 0
   where
     Count k = countOfBytes bs :: Count a
     go i
@@ -471,7 +490,7 @@ foldrBytesBuild c nil bs = go 0
       | otherwise =
         let !v = indexBytes bs (Off i)
          in v `c` go (i + 1)
-{-# INLINE[0] foldrBytesBuild #-}
+{-# INLINE[0] foldrBytes #-}
 
 
 loadListInternal :: (MonadPrim s m, Prim a) => Count a -> Int -> [a] -> MBytes p s -> m Ordering
@@ -503,7 +522,7 @@ fromListBytesN_ ::
   => Count a
   -> [a]
   -> Bytes p
-fromListBytesN_ n xs = runST $ createBytes_ n (loadListMBytes_ xs)
+fromListBytesN_ n xs = createBytesST_ n (loadListMBytes_ xs)
 {-# INLINE fromListBytesN_ #-}
 
 -- | If the list is bigger than the supplied @`Count` a@ then `GT` ordering will be
@@ -517,7 +536,7 @@ fromListBytesN ::
   => Count a
   -> [a]
   -> (Ordering, Bytes p)
-fromListBytesN n xs = runST $ createBytes n (loadListMBytes xs)
+fromListBytesN n xs = createBytesST n (loadListMBytes xs)
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
@@ -527,6 +546,19 @@ fromListBytes ::
 fromListBytes xs = fromListBytesN_ (Count (length xs)) xs
 {-# INLINE fromListBytes #-}
 
+
+concatBytes ::
+     forall p p'. Typeable p
+  => [Bytes p']
+  -> Bytes p
+concatBytes xs = do
+  let c = Foldable.foldl' (\acc b -> acc + countOfBytes b) 0 xs
+  createBytesST_ (c :: Count Word8) $ \mb -> do
+    let load i b = do
+          let cb@(Count n) = countOfBytes b :: Count Word8
+          (i + Off n) <$ copyBytesToMBytes b 0 mb i cb
+    foldM_ load 0 xs
+{-# INLINE concatBytes #-}
 
 readMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
 readMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)

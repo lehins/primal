@@ -25,6 +25,17 @@ main = do
   mb3 <- allocAlignedMBytes n64
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
+
+  -- Ensure that arrays are equal
+  mbEq1 <- callocAlignedMBytes n64
+  mbEq2 <- callocAlignedMBytes n64
+
+  mbaEq1 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
+  mbaEq2 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
+  BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)
+  BA.setByteArray mbaEq2 0 (unCount n64) (0 :: Word64)
+  baEq1 <- BA.unsafeFreezeByteArray mbaEq1
+  baEq2 <- BA.unsafeFreezeByteArray mbaEq2
   defaultMain
     [ bgroup
         "ptr"
@@ -47,12 +58,16 @@ main = do
             ]
         , bgroup
             "fromList"
-            [ env (pure xs) (bench "Bytes" . whnf (fromListBytes :: [Int] -> Bytes 'Inc))
+            [ env
+                (pure xs)
+                (bench "Bytes" . whnf (fromListBytes :: [Int] -> Bytes 'Inc))
             , bench "ByteArray" $ whnf BA.byteArrayFromList xs
             ]
         , bgroup
             "fromListN"
-            [ env (pure xs) (bench "Bytes" . whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc))
+            [ env
+                (pure xs)
+                (bench "Bytes" . whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc))
             , bench "ByteArray" $ whnf (BA.byteArrayFromListN (unCount n)) xs
             ]
         ]
@@ -85,6 +100,12 @@ main = do
             ]
         ]
     , bgroup
+        "eq"
+        [ env ((,) <$> freezeMBytes mbEq1 <*> freezeMBytes mbEq2) $ \ ~(b1, b2) ->
+            bench "Bytes" $ whnf (b1 ==) b2
+        , bench "ByteArray" $ whnf (baEq1 ==) baEq2
+        ]
+    , bgroup
         "with"
         [ bench "withPtrMBytes (NOINLINE)" $ nfIO (ptrAction_noinline n64 mb1)
         , bench "withPtrMBytes (withPrimBase)" $ nfIO (ptrAction_inline n64 mb2)
@@ -101,9 +122,9 @@ setBytesBench ::
   -> a
   -> Count a
   -> Benchmark
-setBytesBench mb mb2 mba a c@(Count n) =
+setBytesBench mb1 mb2 mba a c@(Count n) =
   bgroup (showsType (Proxy :: Proxy a) "")
-    [ bench "setMBytes" $ nfIO (setMBytes mb 0 c a)
+    [ bench "setMBytes" $ nfIO (setMBytes mb1 0 c a)
     , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ ptr -> setOffPtr ptr 0 c a :: IO ())
     , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
     ]

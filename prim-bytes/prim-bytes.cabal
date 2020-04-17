@@ -77,6 +77,29 @@ test-suite tests
                       -threaded
                       -with-rtsopts=-N2
 
+test-suite tests-O0
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     tests
+  main-is:            Main.hs
+  other-modules:      Spec
+                    , Test.Prim.Common
+                    , Test.Prim.BytesSpec
+  build-depends:      base             >= 4.8 && < 5
+                    , bytestring
+                    , deepseq
+                    , prim-bytes
+                    , prim-core
+                    , primitive
+                    , hspec
+                    , QuickCheck
+
+  default-language:   Haskell2010
+  ghc-options:        -Wall
+                      -fno-warn-orphans
+                      -threaded
+                      -with-rtsopts=-N2
+                      -O0
+
 benchmark bench
   type:                exitcode-stdio-1.0
   hs-source-dirs:      bench

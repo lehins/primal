@@ -15,24 +15,15 @@ module Test.Prim.BytesSpec
 
 import GHC.Exts
 import qualified Data.List as List
-import Control.Monad.ST
 import Control.DeepSeq
 import Control.Monad
 import Data.Monoid
 import Control.Monad.Prim
--- import Data.Bits
--- import Data.Foldable as F
---import Data.GenValidity
--- import Data.Int
--- import Data.List (intercalate, partition)
 import Data.Prim.Bytes
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
 import Test.Prim.Common
---import Test.QuickCheck.Random
 import Control.Concurrent
---import Control.Monad
---import Data.Word
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import Foreign.Storable
@@ -53,10 +44,8 @@ instance Typeable p => Arbitrary (Bytes p) where
     NonNegative n <- arbitrary
     xs :: [Word8] <- vectorOf n arbitrary
     pure $
-      runST $ do
-        mb <- allocMBytes (Count n :: Count Word8)
+      createBytesST_ (Count n :: Count Word8) $ \mb ->
         zipWithM_ (writeMBytes mb) [0 ..] xs
-        freezeMBytes mb
 
 data NEBytes p a = NEBytes (Off a) [a] (Bytes p)
   deriving (Eq)
@@ -73,10 +62,8 @@ instance (Prim a, Arbitrary a, Typeable p) => Arbitrary (NEBytes p a) where
     xs :: [a] <- vectorOf n arbitrary
     pure $
       NEBytes (Off i) xs $
-      runST $ do
-        mb <- allocMBytes (Count n :: Count a)
+      createBytesST_ (Count n :: Count a) $ \mb ->
         zipWithM_ (writeMBytes mb) [0 ..] xs
-        freezeMBytes mb
 
 
 toByteArray :: Bytes p -> BA.ByteArray
@@ -132,6 +119,10 @@ primSpec = do
         order'' `shouldBe` LT
         let xs' = toListBytes b'''
         xs' `deepseq` (xs' `shouldStartWith` xs)
+      prop "concatBytes (empty)" $ \ (NonNegative n) ->
+        concatBytes (replicate n (emptyBytes :: Bytes p)) === (emptyBytes :: Bytes p)
+      prop "concatBytes" $ \ (xs :: [Bytes p]) ->
+        (concatBytes xs :: Bytes p) === fromListBytes (foldMap toList xs)
     describe "Allocation" $ do
       prop "resizeMBytes" $ prop_resizeMBytes @p @a
       prop "singletonBytes" $ \(a :: a) ->
