@@ -22,8 +22,21 @@ main = do
   mb2 <- allocAlignedMBytes n64
   mb3 <- allocAlignedMBytes n64
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
+  ba <- BA.unsafeFreezeByteArray mba
   defaultMain
     [ bgroup
+        "ptr"
+        [ env (freezeMBytes mb1) $ \b ->
+            bench "(==) - isSameBytes" $ whnf (isSameBytes b) b
+        , env (freezeMBytes mb1) $ \b ->
+            bench "isSameBytes" $ whnf (isSameBytes b) (relaxPinned b)
+        , env (freezeMBytes mb1) $ \b ->
+            bench "isSamePinnedBytes" $ whnf (isSamePinnedBytes b) b
+        , bench "(==) - sameByteArray (unexported)" $ whnf (ba ==) ba
+        , bench "isSameMBytes" $ whnf (isSameMBytes mb1) mb1
+        , bench "sameMutableByteArray" $ whnf (BA.sameMutableByteArray mba) mba
+        ]
+    , bgroup
         "set"
         [ bgroup
             "0"

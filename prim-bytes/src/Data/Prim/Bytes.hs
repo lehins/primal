@@ -156,9 +156,12 @@ relaxPinned = coerce
 -- | Check if two byte arrays refer to pinned memory and compare their pointers.
 isSameBytes :: Bytes p1 -> Bytes p2 -> Bool
 isSameBytes (Bytes b1#) (Bytes b2#) = isTrue# (isSameByteArray# b1# b2#)
-{-# INLINE isSameBytes #-}
+{-# INLINE[0] isSameBytes #-}
+{-# RULES
+"isSamePinnedBytes" isSameBytes = isSamePinnedBytes
+  #-}
 
--- | Perform pointer equality on pointers to pinned `Bytes`.
+-- | Perform pointer equality on pinned `Bytes`.
 isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
 isSamePinnedBytes pb1 pb2 = getPtrBytes pb1 == getPtrBytes pb2
 {-# INLINE isSamePinnedBytes #-}
