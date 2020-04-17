@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -49,21 +50,21 @@ module Data.Prim.Bytes
   , freezeMBytes
   -- ** Construction
   , allocMBytes
-  , allocUnpinnedMBytes
   , allocPinnedMBytes
-  , allocPinnedAlignedMBytes
+  , allocAlignedMBytes
   , callocMBytes
-  , callocPinnedMBytes
-  , callocPinnedAlignedMBytes
+  , callocAlignedMBytes
   , cloneMBytes
   , resizeMBytes
   , loadListMBytes
   , showsBytesHex
-  , zerosMBytes
+  , zeroMBytes
   , coerceStateMBytes
   -- ** Modifying data
   , withMBytes
   , withMBytes_
+  , withMBytesST
+  , withMBytesST_
   , copyBytesToMBytes
   , copyMBytesToMBytes
   , moveMBytesToMBytes
@@ -85,7 +86,6 @@ module Data.Prim.Bytes
   , getMBytesForeignPtr
   , module Data.Prim
   -- * Helpers
-  , applyFreezeMBytes
   -- * Experimental
   -- , fillPinnedMBytesWord64LE
   -- , fillPinnedMBytesWith
@@ -116,8 +116,8 @@ data Pinned = Pin | Inc
 
 data Bytes (p :: Pinned) = Bytes ByteArray#
 
-instance NFData (MBytes p s) where
-  rnf (MBytes _) = ()
+instance NFData (Bytes p) where
+  rnf (Bytes _) = ()
 
 instance Show (Bytes p) where
   show b =
@@ -181,8 +181,8 @@ eqBytes b1 b2 = isSameBytes b1 b2 || eqBytesN lenEq (0 :: Off Word8)
 
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 
-instance NFData (Bytes p) where
-  rnf (Bytes _) = ()
+instance NFData (MBytes p s) where
+  rnf (MBytes _) = ()
 
 ---- Pure
 
@@ -217,7 +217,7 @@ singletonBytes a = runST $ do
 
 
 allocMBytes ::
-     forall p a s m. (Typeable p, MonadPrim s m, Prim a)
+     forall p a s m. (Typeable p, Prim a, MonadPrim s m)
   => Count a
   -> m (MBytes p s)
 allocMBytes c =
@@ -276,38 +276,32 @@ allocPinnedMBytes c =
       (# s'#, ba# #) -> (# s'#, MBytes ba# #)
 {-# INLINE allocPinnedMBytes #-}
 
-allocPinnedAlignedMBytes ::
+allocAlignedMBytes ::
      (MonadPrim s m, Prim a)
   => Count a -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-allocPinnedAlignedMBytes c =
+allocAlignedMBytes c =
   prim $ \s# ->
     case alignmentProxy c of
       I# a# ->
         case newAlignedPinnedByteArray# (fromCount# c) a# s# of
           (# s'#, ba# #) -> (# s'#, MBytes ba# #)
-{-# INLINE allocPinnedAlignedMBytes #-}
+{-# INLINE allocAlignedMBytes #-}
 
-callocMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
+callocMBytes :: (MonadPrim s m, Prim a, Typeable p) => Count a -> m (MBytes p s)
 callocMBytes n = do
   mb <- allocMBytes n
   mb <$ setMBytes mb 0 (countWord8 n) (0 :: Word8)
 {-# INLINE callocMBytes #-}
 
-callocPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
-callocPinnedMBytes n = do
-  mb <- allocPinnedMBytes n
-  mb <$ setMBytes mb 0 (countWord8 n) (0 :: Word8)
-{-# INLINE callocPinnedMBytes #-}
-
-callocPinnedAlignedMBytes ::
+callocAlignedMBytes ::
      (MonadPrim s m, Prim a)
   => Count a -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-callocPinnedAlignedMBytes n = do
-  mb <- allocPinnedAlignedMBytes n
+callocAlignedMBytes n = do
+  mb <- allocAlignedMBytes n
   mb <$ setMBytes mb 0 (countWord8 n) (0 :: Word8)
-{-# INLINE callocPinnedAlignedMBytes #-}
+{-# INLINE callocAlignedMBytes #-}
 
 
 getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Int
@@ -319,11 +313,11 @@ getSizeOfMBytes (MBytes ba#) =
 
 
 -- | Fill the mutable array with zeros efficiently.
-zerosMBytes :: MonadPrim s m => MBytes p s -> m ()
-zerosMBytes mba@(MBytes mba#) = do
+zeroMBytes :: MonadPrim s m => MBytes p s -> m ()
+zeroMBytes mba@(MBytes mba#) = do
   I# n# <- getSizeOfMBytes mba
   prim_ (setByteArray# mba# 0# n# 0#)
-{-# INLINE zerosMBytes #-}
+{-# INLINE zeroMBytes #-}
 
 freezeMBytes :: MonadPrim s m => MBytes p s -> m (Bytes p)
 freezeMBytes (MBytes mba#) =
@@ -340,23 +334,35 @@ thawBytes (Bytes ba#) =
 {-# INLINE thawBytes #-}
 
 
-applyFreezeMBytes ::
-     MonadPrim s m => (MBytes p s -> m a) -> MBytes p s -> m (a, Bytes p)
-applyFreezeMBytes f mb = do
+withMBytes ::
+     (MonadPrim s m, Typeable p)
+  => Bytes p
+  -> (MBytes p s -> m a)
+  -> m (a, Bytes p)
+withMBytes b f = do
+  mb <- cloneMBytes =<< thawBytes b
   res <- f mb
   b' <- freezeMBytes mb
   pure (res, b')
-{-# INLINE applyFreezeMBytes #-}
-
-withMBytes ::
-     MonadPrim s m => Bytes p -> (MBytes p s -> m a) -> m (a, Bytes p)
-withMBytes b f = thawBytes b >>= applyFreezeMBytes f
 {-# INLINE withMBytes #-}
 
 withMBytes_ ::
-     MonadPrim s m => Bytes p -> (MBytes p s -> m a) -> m (Bytes p)
+  (MonadPrim s m, Typeable p)
+  => Bytes p
+  -> (MBytes p s -> m a)
+  -> m (Bytes p)
 withMBytes_ b f = snd <$> withMBytes b f
 {-# INLINE withMBytes_ #-}
+
+withMBytesST ::
+  Typeable p => Bytes p -> (forall s. MBytes p s -> ST s a) -> (a, Bytes p)
+withMBytesST b f = runST $ withMBytes b f
+{-# INLINE withMBytesST #-}
+
+withMBytesST_ ::
+  Typeable p => Bytes p -> (forall s. MBytes p s -> ST s a) -> Bytes p
+withMBytesST_ b f = snd $ withMBytesST b f
+{-# INLINE withMBytesST_ #-}
 
 
 

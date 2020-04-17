@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -12,9 +13,12 @@ module Test.Prim.BytesSpec
   , module Data.Prim.Bytes
   ) where
 
+import GHC.Exts
+import qualified Data.List as List
 import Control.Monad.ST
 import Control.DeepSeq
 import Control.Monad
+import Data.Monoid
 import Control.Monad.Prim
 -- import Data.Bits
 -- import Data.Foldable as F
@@ -29,6 +33,8 @@ import Test.Prim.Common
 import Control.Concurrent
 --import Control.Monad
 --import Data.Word
+import Data.ByteString.Builder
+import qualified Data.ByteString.Lazy.Char8 as BSL8
 import Foreign.Storable
 import Numeric
 import System.Timeout
@@ -144,6 +150,13 @@ primBinarySpec ::
 primBinarySpec = do
   let bytesTypeName = showsType (Proxy :: Proxy (Bytes p)) ""
   describe bytesTypeName $ do
+    describe "calloc" $ do
+      prop "callocMBytes" $ \(b :: Bytes p) -> do
+        mb0 <- callocMBytes (countOfBytes b :: Count Word8)
+        mb <- thawBytes b
+        zeroMBytes mb
+        b0 <- freezeMBytes mb
+        freezeMBytes mb0 `shouldReturn` b0
     describe "clone" $
       prop "Bytes" $ \(b :: Bytes p) -> do
         let bc = cloneBytes b
@@ -165,10 +178,14 @@ primBinarySpec = do
         mb1 <- thawBytes emptyBytes
         mb2 <- thawBytes emptyBytes
         isSameMBytes mb1 mb2 `shouldBe` True
-      prop "(non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes p) -> monadicIO $ run $ do
-        mb1 <- thawBytes b1
-        mb2 <- thawBytes b2
-        pure $ not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameMBytes mb1 mb2)
+      prop "(non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
+        monadicIO $
+        run $ do
+          mb1 <- thawBytes b1
+          mb2 <- thawBytes b2
+          pure $
+            not (isEmptyBytes b1 && isEmptyBytes b2) ==>
+            not (isSameMBytes mb1 mb2)
       prop "Pin (non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
         not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
     describe "toList" $ do
@@ -180,11 +197,25 @@ primBinarySpec = do
     describe "ensurePinned" $ do
       prop "Bytes" $ \(b :: Bytes p) ->
         let b' = ensurePinnedBytes b
-        in isPinnedBytes b'
+         in isPinnedBytes b'
       prop "MBytes" $ \(b :: Bytes p) -> do
         mb <- thawBytes b
         mb' <- ensurePinnedMBytes mb
         isPinnedMBytes mb' `shouldBe` True
+    describe "IsList" $ do
+      prop "toList" $ \(NEBytes _ xs b :: NEBytes p Word8) -> xs === toList b
+      prop "fromList . toList" $ \(b :: Bytes p) -> b === fromList (toList b)
+      prop "fromListN . toList" $ \(b :: Bytes p) ->
+        b === fromListN (sizeOfBytes b) (toList b)
+    describe "Show" $
+      prop "fromList . toList" $ \(b :: Bytes p) ->
+        show b ===
+        BSL8.unpack (toLazyByteString $
+           "[" <>
+           mconcat
+             (List.intersperse "," ["0x" <> word8HexFixed w8 | w8 <- toList b]) <>
+           "]")
+
 
 spec :: Spec
 spec = do
@@ -226,7 +257,13 @@ spec = do
       prop "Pin - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
-        pinnedExpectation (allocPinnedAlignedMBytes n) True
+        pinnedExpectation (allocAlignedMBytes n) True
+      prop "callocAlignedMBytes" $ \(b :: Bytes p) -> do
+        mb0 <- callocAlignedMBytes (countOfBytes b :: Count Word8)
+        mb <- thawBytes b
+        zeroMBytes mb
+        b0 <- freezeMBytes mb
+        freezeMBytes mb0 `shouldReturn` b0
     describe "isSamePinnedBytes" $ do
       prop "True" $ \(b :: Bytes 'Pin) -> isSamePinnedBytes b b .&&. b == b
       it "(empty) True" $
@@ -235,7 +272,7 @@ spec = do
         not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSamePinnedBytes b1 b2)
     describe "Ptr Access" $
       prop "Test avoidance of GHC bug #18061" $
-        prop_WorkArounBugGHC18061 allocPinnedMBytes withPtrMBytes
+        prop_WorkArounBugGHC18061 allocAlignedMBytes withPtrMBytes
 
 
 

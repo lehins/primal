@@ -63,6 +63,7 @@ test-suite tests
                     , Test.Prim.Common
                     , Test.Prim.BytesSpec
   build-depends:      base             >= 4.8 && < 5
+                    , bytestring
                     , deepseq
                     , prim-bytes
                     , prim-core

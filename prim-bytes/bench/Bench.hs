@@ -18,35 +18,38 @@ main :: IO ()
 main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
-  mb1 <- allocPinnedAlignedMBytes n64
-  mb2 <- allocPinnedAlignedMBytes n64
-  mb3 <- allocPinnedAlignedMBytes n64
+  mb1 <- allocAlignedMBytes n64
+  mb2 <- allocAlignedMBytes n64
+  mb3 <- allocAlignedMBytes n64
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   defaultMain
     [ bgroup
-        "set:0"
-        [ setBytesBench mb1 mb2 mba 0 (n * 8 :: Count Word8)
-        , setBytesBench mb1 mb2 mba 0 (n * 4 :: Count Word16)
-        , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Word32)
-        , setBytesBench mb1 mb2 mba 0 (n :: Count Word64)
-        , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
-        , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
-        ]
-    , bgroup
-        "set:regular"
-        [ setBytesBench mb1 mb2 mba 123 (n * 8 :: Count Word8)
-        , setBytesBench mb1 mb2 mba 123 (n * 4 :: Count Word16)
-        , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Word32)
-        , setBytesBench mb1 mb2 mba 123 (n :: Count Word64)
-        , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
-        , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
-        ]
-    , bgroup
-        "set:symmetric"
-        [ setBytesBench mb1 mb2 mba maxBound (n * 8 :: Count Word8)
-        , setBytesBench mb1 mb2 mba maxBound (n * 4 :: Count Word16)
-        , setBytesBench mb1 mb2 mba maxBound (n * 2 :: Count Word32)
-        , setBytesBench mb1 mb2 mba maxBound (n :: Count Word64)
+        "set"
+        [ bgroup
+            "0"
+            [ setBytesBench mb1 mb2 mba 0 (n * 8 :: Count Word8)
+            , setBytesBench mb1 mb2 mba 0 (n * 4 :: Count Word16)
+            , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Word32)
+            , setBytesBench mb1 mb2 mba 0 (n :: Count Word64)
+            , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
+            , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
+            ]
+        , bgroup
+            "regular"
+            [ setBytesBench mb1 mb2 mba 123 (n * 8 :: Count Word8)
+            , setBytesBench mb1 mb2 mba 123 (n * 4 :: Count Word16)
+            , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Word32)
+            , setBytesBench mb1 mb2 mba 123 (n :: Count Word64)
+            , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
+            , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
+            ]
+        , bgroup
+            "symmetric"
+            [ setBytesBench mb1 mb2 mba maxBound (n * 8 :: Count Word8)
+            , setBytesBench mb1 mb2 mba maxBound (n * 4 :: Count Word16)
+            , setBytesBench mb1 mb2 mba maxBound (n * 2 :: Count Word32)
+            , setBytesBench mb1 mb2 mba maxBound (n :: Count Word64)
+            ]
         ]
     , bgroup
         "with"
