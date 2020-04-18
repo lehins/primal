@@ -1,17 +1,13 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Data.Prim.Access
@@ -25,10 +21,10 @@ module Data.Prim.Access where
 
 
 import Data.ByteString.Internal hiding (toForeignPtr)
-import Control.Monad
 import Control.Monad.Prim
 import Data.Prim
 import Data.Prim.Bytes
+import Data.Prim.Bytes.Addr
 import Data.Prim.Ptr
 import Foreign.ForeignPtr
 import Foreign.Ptr
@@ -55,8 +51,7 @@ withNoHaltPtrAccess p f = do
 withForeignPtrPrim :: MonadPrim s m => ForeignPtr a1 -> (Ptr a2 -> m b) -> m b
 withForeignPtrPrim (ForeignPtr addr# ptrContents) f = do
   r <- f (Ptr addr#)
-  touch ptrContents
-  return r
+  r <$ touch ptrContents
 
 instance MonadPrim RealWorld m => PtrAccess m (ForeignPtr a) where
   withPtrAccess = withForeignPtrPrim
@@ -129,12 +124,6 @@ instance ReadAccess (Mem (Bytes p)) where
   copyToMBytes b = copyBytesToMBytes (coerce b)
   copyToPtr b = copyBytesToPtr (coerce b)
 
--- newtype MVec s a = MVec (MBytes 'Pin s)
-
--- instance (MonadPrim s m) => ReadAccess s m (MVec s a) where
---   readAccess (MVec mb) = readMBytes mb
---   --readWithCount mb f = getCountOfMBytes mb >>= f >>= readMBytes mb
-
 
 instance ReadAccess (MBytes p) where
   readPrim = readMBytes
@@ -149,32 +138,58 @@ instance WriteAccess (MBytes p) where
   move = moveMBytesToMBytes
   set = setMBytes
 
-class Alloc r where
+class WriteAccess r => Alloc r where
+  type Frozen r :: *
   sizeOfAlloc :: MonadPrim s m => r s -> m (Count Word8)
 
   malloc :: MonadPrim s m => Count Word8 -> m (r s)
+
+  thaw :: MonadPrim s m => Frozen r -> m (r s)
+
+  freeze :: MonadPrim s m => r s -> m (Frozen r)
+
+-- instance ReadAccess (MAddr a) where
+--   readPrim = readOffMAddr
+
+-- instance Alloc (MAddr a) where
+--   type Frozen (MAddr a) = Addr a
+
 
 
 alloc :: (Alloc r, MonadPrim s m, Prim p) => Count p -> m (r s)
 alloc = malloc . countWord8
 
 calloc ::
-     (WriteAccess r, Alloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
+     (Alloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
 calloc n = do
   m <- alloc n
   m <$ set m 0 (countWord8 n) (0 :: Word8)
 
--- new :: (Alloc (Mem r), WriteAccess (Mem r), Prim a) => Count a -> r
--- new n = runST (unMem <$> calloc n)
+
+newST :: (Alloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, Frozen r)
+newST n f = runST $ do
+  m <- calloc n
+  res <- f m
+  i <- freeze m
+  pure (res, i)
+
+newST_ :: (Alloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> Frozen r
+newST_ n f = runST (calloc n >>= \m -> f m >> freeze m)
 
 
-instance Typeable p => Alloc (Mem (Bytes p)) where
-  sizeOfAlloc = pure . countOfBytes . coerce
-  malloc = fmap Mem . freezeMBytes <=< malloc
+-- instance Typeable p => Alloc (Mem (Bytes p)) where
+--   type Frozen (Mem (Bytes p)) = Bytes p
+--   sizeOfAlloc = pure . countOfBytes . coerce
+--   malloc = fmap Mem . freezeMBytes <=< malloc
+--   thaw = pure . Mem
+--   freeze = pure . unMem
 
 instance Typeable p => Alloc (MBytes p) where
+  type Frozen (MBytes p) = Bytes p
   sizeOfAlloc = getCountOfMBytes
   malloc = allocMBytes
+  thaw = thawBytes
+  freeze = freezeMBytes
 
 -- -- instance MonadPrim s m => Alloc m (MBytes 'Pin s) where
 -- --   malloc = allocPinnedMBytes
@@ -208,12 +223,12 @@ instance Typeable p => Alloc (MBytes p) where
 -- cloneBytes b = withCopyMBytes_ b pure
 -- {-# INLINE cloneBytes #-}
 
--- clone :: (Alloc m r, WriteAccess s m r) => r -> m r
--- clone mb = do
---   n <- countPrim mb
---   mb' <- malloc n
---   mb' <$ copy mb 0 mb' 0 n
--- {-# INLINE clone #-}
+clone :: (Alloc r, WriteAccess r, MonadPrim s m) => r s -> m (r s)
+clone mb = do
+  n <- sizeOfAlloc mb
+  mb' <- malloc n
+  mb' <$ copy mb 0 mb' 0 n
+{-# INLINE clone #-}
 
 
 

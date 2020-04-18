@@ -30,6 +30,7 @@ custom-setup
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Bytes
+                     , Data.Prim.Bytes.Addr
                      --, Data.Prim.ForeignPtr
                      , Data.Prim.Ptr
   other-modules:
