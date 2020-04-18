@@ -58,7 +58,7 @@ main = do
     , bgroup
         "with"
         [ bench "withPtrMBytes (INLINE)" $ nfIO (ptrAction_inline n64 mb3)
-        , bench "withPtrMBytes (withPtrNoHaltMBytes)" $ nfIO (ptrAction n64 mb2)
+        , bench "withPtrMBytes (withNoHaltPtrMBytes)" $ nfIO (ptrAction n64 mb2)
         , bench "withPtrMBytes (NOINLINE)" $ nfIO (ptrAction_noinline n64 mb1)
         ]
     , bgroup
@@ -226,7 +226,7 @@ ptrAction (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withPtrNoHaltMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
+        withNoHaltPtrMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
         go (i + 1)
       | otherwise = pure ()
 

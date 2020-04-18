@@ -42,9 +42,15 @@ import Data.Typeable
 -- it can always be converted to a `ForeignPtr`.
 class PtrAccess m p where
   withPtrAccess :: MonadPrim s m => p -> (Ptr a -> m b) -> m b
-  --withPtrAccess p action = toForeignPtr p >>= (`withPtrAccess` action)
+  withPtrAccess p action = toForeignPtr p >>= (`withForeignPtrPrim` action)
 
   toForeignPtr :: MonadPrim s m => p -> m (ForeignPtr a)
+
+withNoHaltPtrAccess ::
+     (MonadPrimBase s n, MonadPrim s m, PtrAccess m p) => p -> (Ptr a -> n b) -> m b
+withNoHaltPtrAccess p f = do
+  ForeignPtr addr# ptrContents <- toForeignPtr p
+  withPrimBase ptrContents $ f (Ptr addr#)
 
 withForeignPtrPrim :: MonadPrim s m => ForeignPtr a1 -> (Ptr a2 -> m b) -> m b
 withForeignPtrPrim (ForeignPtr addr# ptrContents) f = do
@@ -58,10 +64,8 @@ instance MonadPrim RealWorld m => PtrAccess m (ForeignPtr a) where
 
 instance PtrAccess m (Bytes 'Pin) where
   withPtrAccess b f = do
-    let ptr = getPtrBytes b
-    res <- f ptr
-    touch b
-    pure res
+    !res <- f $ getPtrBytes b
+    res <$ touch b
   toForeignPtr = pure . getBytesForeignPtr
 
 instance MonadPrim s m => PtrAccess m (MBytes 'Pin s) where

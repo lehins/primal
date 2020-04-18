@@ -85,7 +85,7 @@ module Data.Prim.Bytes
   , zeroMBytes
   -- ** Ptr
   , withPtrMBytes
-  , withPtrNoHaltMBytes
+  , withNoHaltPtrMBytes
   , getPtrBytes
   , getPtrMBytes
   -- ** ForeignPtr
@@ -653,10 +653,10 @@ withPtrMBytes mb f = do
   res <$ touch mb
 {-# INLINE withPtrMBytes #-}
 
-withPtrNoHaltMBytes ::
+withNoHaltPtrMBytes ::
      (MonadPrimBase s n, MonadPrim s m)
   => MBytes 'Pin s
   -> (Ptr a -> n b)
   -> m b
-withPtrNoHaltMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
-{-# INLINE withPtrNoHaltMBytes #-}
+withNoHaltPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
+{-# INLINE withNoHaltPtrMBytes #-}
