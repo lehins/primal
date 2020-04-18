@@ -77,9 +77,7 @@ instance MonadPrim s m => PtrAccess m ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
 
 
-class ReadAccess m r where
-  countPrim :: (MonadPrim s m, Prim a) => r s -> m (Count a)
-
+class ReadAccess r where
   readPrim :: (MonadPrim s m, Prim a) => r s -> Off a -> m a
 
   -- | Source and target can't be the same memory chunks
@@ -88,7 +86,7 @@ class ReadAccess m r where
   -- | Source and target can't be the same memory chunks
   copyToPtr :: (MonadPrim s m, Prim a) => r s -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
-class ReadAccess m r => WriteAccess m r where
+class ReadAccess r => WriteAccess r where
   writePrim :: (MonadPrim s m, Prim a) => r s -> Off a -> a -> m ()
 
   -- | Source and target can be overlapping memory chunks
@@ -111,25 +109,22 @@ class ReadAccess m r => WriteAccess m r where
 
 newtype Mem a s = Mem { unMem :: a }
 
-instance MonadPrim s m => ReadAccess m (Mem ByteString) where
-  countPrim (Mem (PS _ _ c)) = pure $ countSize c
+instance ReadAccess (Mem ByteString) where
   readPrim (Mem bs) i = withPtrAccess bs (`readOffPtr` i)
   copyToMBytes (Mem bs) srcOff mb dstOff c =
     withPtrAccess bs $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
   copyToPtr (Mem bs) srcOff dstPtr dstOff c =
     withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
 
--- instance MonadPrim RealWorld m => ReadAccess m (Mem (ForeignPtr a)) where
---   countPrim (Mem (ForeignPtr _ c <-- )) = pure $ countSize c -- Problem with size
---   readPrim (Mem bs) i = withPtrAccess bs (`readOffPtr` i)
---   copyToMBytes (Mem bs) srcOff mb dstOff c =
---     withPtrAccess bs $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
---   copyToPtr (Mem bs) srcOff dstPtr dstOff c =
---     withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
+instance ReadAccess (Mem (ForeignPtr a)) where
+  readPrim (Mem fptr) i = withForeignPtrPrim fptr (`readOffPtr` i)
+  copyToMBytes (Mem fptr) srcOff mb dstOff c =
+    withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
+  copyToPtr (Mem fptr) srcOff dstPtr dstOff c =
+    withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
 
 
-instance MonadPrim s m => ReadAccess m (Mem (Bytes p)) where
-  countPrim = pure . countOfBytes . coerce
+instance ReadAccess (Mem (Bytes p)) where
   readPrim b = pure . indexBytes (coerce b)
   copyToMBytes b = copyBytesToMBytes (coerce b)
   copyToPtr b = copyBytesToPtr (coerce b)
@@ -141,13 +136,12 @@ instance MonadPrim s m => ReadAccess m (Mem (Bytes p)) where
 --   --readWithCount mb f = getCountOfMBytes mb >>= f >>= readMBytes mb
 
 
-instance MonadPrim s m => ReadAccess m (MBytes p) where
-  countPrim = getCountOfMBytes
+instance ReadAccess (MBytes p) where
   readPrim = readMBytes
   copyToMBytes = copyMBytesToMBytes
   copyToPtr = copyMBytesToPtr
 
-instance MonadPrim s m => WriteAccess m (MBytes p) where
+instance WriteAccess (MBytes p) where
   writePrim = writeMBytes
   moveToPtr = moveMBytesToPtr
   moveToMBytes = moveMBytesToMBytes
@@ -155,30 +149,32 @@ instance MonadPrim s m => WriteAccess m (MBytes p) where
   move = moveMBytesToMBytes
   set = setMBytes
 
-class Alloc m r where
+class Alloc r where
   sizeOfAlloc :: MonadPrim s m => r s -> m (Count Word8)
 
   malloc :: MonadPrim s m => Count Word8 -> m (r s)
 
 
-alloc :: (Alloc m r, MonadPrim s m, Prim p) => Count p -> m (r s)
+alloc :: (Alloc r, MonadPrim s m, Prim p) => Count p -> m (r s)
 alloc = malloc . countWord8
 
 calloc ::
-     (WriteAccess m r, Alloc m r, MonadPrim s m, Prim a) => Count a -> m (r s)
+     (WriteAccess r, Alloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
 calloc n = do
   m <- alloc n
   m <$ set m 0 (countWord8 n) (0 :: Word8)
 
+-- new :: (Alloc (Mem r), WriteAccess (Mem r), Prim a) => Count a -> r
+-- new n = runST (unMem <$> calloc n)
 
 
-
-instance (Alloc m (MBytes p), Typeable p) => Alloc m (Mem (Bytes p)) where
+instance Typeable p => Alloc (Mem (Bytes p)) where
   sizeOfAlloc = pure . countOfBytes . coerce
   malloc = fmap Mem . freezeMBytes <=< malloc
 
--- instance (Typeable p, MonadPrim s m) => Alloc m (MBytes p s) where
---   malloc = allocMBytes
+instance Typeable p => Alloc (MBytes p) where
+  sizeOfAlloc = getCountOfMBytes
+  malloc = allocMBytes
 
 -- -- instance MonadPrim s m => Alloc m (MBytes 'Pin s) where
 -- --   malloc = allocPinnedMBytes
