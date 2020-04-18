@@ -2,15 +2,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Data.Prim.Ptr
@@ -23,6 +18,7 @@
 module Data.Prim.Ptr
   ( Ptr(..)
   , nullPtr
+  , plusPtrOff
   , castPtr
   , readPtr
   , readOffPtr
@@ -125,7 +121,6 @@ copyMBytesToPtr (MBytes src#) srcOff dstPtr dstOff c =
    in prim_ $
       copyMutableByteArrayToAddr# src# (fromOff# srcOff) addr# (fromCount# c)
 {-# INLINE copyMBytesToPtr #-}
-
 
 movePtrToMBytes :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> MBytes p s -> Off a -> Count a -> m ()
 movePtrToMBytes (Ptr srcAddr#) srcOff (MBytes dst#) dstOff c =
