@@ -77,61 +77,62 @@ instance MonadPrim s m => PtrAccess m ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
 
 
-class MonadPrim s m => ReadAccess s m r where
-  countPrim :: Prim a => r -> m (Count a)
+class ReadAccess m r where
+  countPrim :: (MonadPrim s m, Prim a) => r s -> m (Count a)
 
-  readPrim :: Prim a => r -> Off a -> m a
-
-  -- | Source and target can't be the same memory chunks
-  copyToMBytes :: Prim a => r -> Off a -> MBytes p s -> Off a -> Count a -> m ()
+  readPrim :: (MonadPrim s m, Prim a) => r s -> Off a -> m a
 
   -- | Source and target can't be the same memory chunks
-  copyToPtr :: Prim a => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
+  copyToMBytes :: (MonadPrim s m, Prim a) => r s -> Off a -> MBytes p s -> Off a -> Count a -> m ()
 
-class ReadAccess s m r => WriteAccess s m r where
-  writePrim :: Prim a => r -> Off a -> a -> m ()
+  -- | Source and target can't be the same memory chunks
+  copyToPtr :: (MonadPrim s m, Prim a) => r s -> Off a -> Ptr a -> Off a -> Count a -> m ()
+
+class ReadAccess m r => WriteAccess m r where
+  writePrim :: (MonadPrim s m, Prim a) => r s -> Off a -> a -> m ()
 
   -- | Source and target can be overlapping memory chunks
-  moveToMBytes :: Prim a => r -> Off a -> MBytes p s -> Off a -> Count a -> m ()
+  moveToMBytes :: (MonadPrim s m, Prim a) => r s -> Off a -> MBytes p s -> Off a -> Count a -> m ()
 
   -- | Source and target can be overlapping memory chunks
-  moveToPtr :: Prim a => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
+  moveToPtr :: (MonadPrim s m, Prim a) => r s -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
-  copy :: Prim a => r -> Off a -> r -> Off a -> Count a -> m ()
-  default copy :: (PtrAccess m r, Prim a) => r -> Off a -> r -> Off a -> Count a -> m ()
-  copy src srcOff dst dstOff n =
-    withPtrAccess dst $ \dstPtr -> copyToPtr src srcOff dstPtr dstOff n
+  copy :: (MonadPrim s m, Prim a) => r s -> Off a -> r s -> Off a -> Count a -> m ()
+  -- default copy :: (PtrAccess m r, Prim a) => r s -> Off a -> r -> Off a -> Count a -> m ()
+  -- copy src srcOff dst dstOff n =
+  --   withPtrAccess dst $ \dstPtr -> copyToPtr src srcOff dstPtr dstOff n
 
-  move :: Prim a => r -> Off a -> r -> Off a -> Count a -> m ()
-  default move :: (PtrAccess m r, Prim a) => r -> Off a -> r -> Off a -> Count a -> m ()
-  move src srcOff dst dstOff n =
-    withPtrAccess dst $ \dstPtr -> copyToPtr src srcOff dstPtr dstOff n
+  move :: (MonadPrim s m, Prim a) => r s -> Off a -> r s -> Off a -> Count a -> m ()
+  -- default move :: (PtrAccess m r, Prim a) => r -> Off a -> r -> Off a -> Count a -> m ()
+  -- move src srcOff dst dstOff n =
+  --   withPtrAccess dst $ \dstPtr -> copyToPtr src srcOff dstPtr dstOff n
 
-  set :: Prim a => r -> Off a -> Count a -> a -> m ()
+  set :: (MonadPrim s m, Prim a) => r s -> Off a -> Count a -> a -> m ()
 
-instance MonadPrim s m => ReadAccess s m ByteString where
-  countPrim (PS _ _ c) = pure $ countSize c
-  readPrim bs i = withPtrAccess bs (`readOffPtr` i)
-  copyToMBytes bs srcOff mb dstOff c =
+newtype Mem a s = Mem { unMem :: a }
+
+instance MonadPrim s m => ReadAccess m (Mem ByteString) where
+  countPrim (Mem (PS _ _ c)) = pure $ countSize c
+  readPrim (Mem bs) i = withPtrAccess bs (`readOffPtr` i)
+  copyToMBytes (Mem bs) srcOff mb dstOff c =
     withPtrAccess bs $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
-  copyToPtr bs srcOff dstPtr dstOff c =
+  copyToPtr (Mem bs) srcOff dstPtr dstOff c =
     withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
 
--- instance MonadPrim s m => ReadAccess s m (ForeignPtr a) where
---   countPrim (PS _ _ c) = pure $ countSize c
---   readPrim bs i = withPtrAccess bs (`readOffPtr` i)
---   copyToMBytes bs srcOff mb dstOff c =
+-- instance MonadPrim RealWorld m => ReadAccess m (Mem (ForeignPtr a)) where
+--   countPrim (Mem (ForeignPtr _ c <-- )) = pure $ countSize c -- Problem with size
+--   readPrim (Mem bs) i = withPtrAccess bs (`readOffPtr` i)
+--   copyToMBytes (Mem bs) srcOff mb dstOff c =
 --     withPtrAccess bs $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
---   copyToPtr bs srcOff dstPtr dstOff c =
+--   copyToPtr (Mem bs) srcOff dstPtr dstOff c =
 --     withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
 
 
-
-instance MonadPrim s m => ReadAccess s m (Bytes p) where
-  countPrim = pure . countOfBytes
-  readPrim b = pure . indexBytes b
-  copyToMBytes = copyBytesToMBytes
-  copyToPtr = copyBytesToPtr
+instance MonadPrim s m => ReadAccess m (Mem (Bytes p)) where
+  countPrim = pure . countOfBytes . coerce
+  readPrim b = pure . indexBytes (coerce b)
+  copyToMBytes b = copyBytesToMBytes (coerce b)
+  copyToPtr b = copyBytesToPtr (coerce b)
 
 -- newtype MVec s a = MVec (MBytes 'Pin s)
 
@@ -140,12 +141,13 @@ instance MonadPrim s m => ReadAccess s m (Bytes p) where
 --   --readWithCount mb f = getCountOfMBytes mb >>= f >>= readMBytes mb
 
 
-instance (MonadPrim s m) => ReadAccess s m (MBytes p s) where
+instance MonadPrim s m => ReadAccess m (MBytes p) where
   countPrim = getCountOfMBytes
   readPrim = readMBytes
   copyToMBytes = copyMBytesToMBytes
   copyToPtr = copyMBytesToPtr
-instance (MonadPrim s m) => WriteAccess s m (MBytes p s) where
+
+instance MonadPrim s m => WriteAccess m (MBytes p) where
   writePrim = writeMBytes
   moveToPtr = moveMBytesToPtr
   moveToMBytes = moveMBytesToMBytes
@@ -153,41 +155,48 @@ instance (MonadPrim s m) => WriteAccess s m (MBytes p s) where
   move = moveMBytesToMBytes
   set = setMBytes
 
-class Alloc m a where
-  malloc :: MonadPrim s m => Count Word8 -> m a
+class Alloc m r where
+  sizeOfAlloc :: MonadPrim s m => r s -> m (Count Word8)
 
--- class AllocAligned m a where
---   mallocBytesAligned :: MonadPrim s m => Int -> Int -> m a
+  malloc :: MonadPrim s m => Count Word8 -> m (r s)
 
 
-instance Typeable p => Alloc m (Bytes p) where
-  malloc = malloc >=> freezeMBytes
-
-instance (Typeable p, MonadPrim s m) => Alloc m (MBytes p s) where
-  malloc = allocMBytes
-
--- instance MonadPrim s m => Alloc m (MBytes 'Pin s) where
---   malloc = allocPinnedMBytes
-
-instance Alloc IO (ForeignPtr a) where
-  malloc = mallocForeignPtrBytes . coerce
-
-fromListBytesN ::
-  forall a p . (Prim a, Typeable p)
-  => Int
-  -> [a]
-  -> (Ordering, Bytes p)
-fromListBytesN n xs = runST $ do
-  mb <- alloc (Count n :: Count a)
-  res <- loadListMBytes xs mb
-  (,) res <$> freezeMBytes mb
-{-# INLINE fromListBytesN #-}
-
-alloc :: (Alloc m a, MonadPrim s m, Prim p) => Count p -> m a
+alloc :: (Alloc m r, MonadPrim s m, Prim p) => Count p -> m (r s)
 alloc = malloc . countWord8
 
--- calloc n = do
---   m <- malloc n
+calloc ::
+     (WriteAccess m r, Alloc m r, MonadPrim s m, Prim a) => Count a -> m (r s)
+calloc n = do
+  m <- alloc n
+  m <$ set m 0 (countWord8 n) (0 :: Word8)
+
+
+
+
+instance (Alloc m (MBytes p), Typeable p) => Alloc m (Mem (Bytes p)) where
+  sizeOfAlloc = pure . countOfBytes . coerce
+  malloc = fmap Mem . freezeMBytes <=< malloc
+
+-- instance (Typeable p, MonadPrim s m) => Alloc m (MBytes p s) where
+--   malloc = allocMBytes
+
+-- -- instance MonadPrim s m => Alloc m (MBytes 'Pin s) where
+-- --   malloc = allocPinnedMBytes
+
+-- instance Alloc IO (ForeignPtr a) where
+--   malloc = mallocForeignPtrBytes . coerce
+
+-- fromListBytesN ::
+--   forall a p . (Prim a, Typeable p)
+--   => Int
+--   -> [a]
+--   -> (Ordering, Bytes p)
+-- fromListBytesN n xs = runST $ do
+--   mb <- alloc (Count n :: Count a)
+--   res <- loadListMBytes xs mb
+--   (,) res <$> freezeMBytes mb
+-- {-# INLINE fromListBytesN #-}
+
 
 
 -- memcopy :: (ReadAccess s m r, PtrAccess m p, Prim a) => r -> Off a -> p -> Off a -> Count a -> m ()
@@ -203,12 +212,12 @@ alloc = malloc . countWord8
 -- cloneBytes b = withCopyMBytes_ b pure
 -- {-# INLINE cloneBytes #-}
 
-clone :: (Alloc m r, WriteAccess s m r) => r -> m r
-clone mb = do
-  n <- countPrim mb
-  mb' <- malloc n
-  mb' <$ copy mb 0 mb' 0 n
-{-# INLINE clone #-}
+-- clone :: (Alloc m r, WriteAccess s m r) => r -> m r
+-- clone mb = do
+--   n <- countPrim mb
+--   mb' <- malloc n
+--   mb' <$ copy mb 0 mb' 0 n
+-- {-# INLINE clone #-}
 
 
 
