@@ -62,7 +62,8 @@ test-suite tests
   other-modules:      Spec
                     , Test.Prim.Common
                     , Test.Prim.BytesSpec
-  build-depends:      base             >= 4.8 && < 5
+                    , Test.Prim.BytesExtraSpec
+  build-depends:      base
                     , bytestring
                     , deepseq
                     , prim-bytes
@@ -84,7 +85,8 @@ test-suite tests-O0
   other-modules:      Spec
                     , Test.Prim.Common
                     , Test.Prim.BytesSpec
-  build-depends:      base             >= 4.8 && < 5
+                    , Test.Prim.BytesExtraSpec
+  build-depends:      base
                     , bytestring
                     , deepseq
                     , prim-bytes

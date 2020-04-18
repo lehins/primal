@@ -2,8 +2,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -13,22 +13,45 @@ module Test.Prim.BytesSpec
   , module Data.Prim.Bytes
   ) where
 
-import GHC.Exts
-import qualified Data.List as List
+import Control.Concurrent
 import Control.DeepSeq
 import Control.Monad
-import Data.Monoid
 import Control.Monad.Prim
+import Data.ByteString.Builder
+import qualified Data.ByteString.Lazy.Char8 as BSL8
+import qualified Data.List as List
+import Data.Monoid
 import Data.Prim.Bytes
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
-import Test.Prim.Common
-import Control.Concurrent
-import Data.ByteString.Builder
-import qualified Data.ByteString.Lazy.Char8 as BSL8
 import Foreign.Storable
+import Foreign.C.Types
+import Foreign.Ptr
+import GHC.Exts
 import Numeric
 import System.Timeout
+import Test.Prim.Common
+
+instance Arbitrary (Ptr a) where
+  arbitrary = intPtrToPtr <$> arbitrary
+
+instance Arbitrary (FunPtr a) where
+  arbitrary = castPtrToFunPtr <$> arbitrary
+
+instance Arbitrary IntPtr where
+  arbitrary = IntPtr <$> arbitrary
+
+instance Arbitrary WordPtr where
+  arbitrary = WordPtr <$> arbitrary
+
+instance NFData IntPtr where
+  rnf (IntPtr _) = ()
+
+instance NFData WordPtr where
+  rnf (WordPtr _) = ()
+
+instance Arbitrary CBool where
+  arbitrary = CBool <$> arbitrary
 
 instance Arbitrary (Off a) where
   arbitrary = Off . getNonNegative <$> arbitrary
@@ -127,7 +150,24 @@ primSpec = do
       prop "resizeMBytes" $ prop_resizeMBytes @p @a
       prop "singletonBytes" $ \(a :: a) ->
         indexBytes (singletonBytes a :: Bytes p) 0 === a
-
+    describe "moveMBytesToMBytes" $ do
+      prop "copyBytesToMBytes" $
+        \(NEBytes i1 _ b1 :: NEBytes p a) (NEBytes i2 _ b2 :: NEBytes p a) -> do
+          let c = min (countOfBytes b1 - Count (unOff i1)) (countOfBytes b2 - Count (unOff i2))
+          mb2x <- thawBytes b2
+          copyBytesToMBytes b1 i1 mb2x i2 c
+          mb2y <- thawBytes $ cloneBytes b2
+          mb1 <- thawBytes b1
+          moveMBytesToMBytes mb1 i1 mb2y i2 c
+          bx <- freezeMBytes mb2x
+          by <- freezeMBytes mb2y
+          bx `shouldBe` by
+      prop "moveInside" $ \(NEBytes i xs b :: NEBytes p a) -> do
+        let c = countOfBytes b - Count (unOff i)
+        mb <- thawBytes b
+        moveMBytesToMBytes mb i mb 0 c
+        b' <- freezeMBytes mb
+        take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
 
 prop_resizeMBytes ::
      forall p a. (Prim a, Eq a, Show a, Typeable p)
@@ -239,6 +279,30 @@ spec = do
   primTypeSpec @Int64
   primTypeSpec @Char
   primTypeSpec @Bool
+  primTypeSpec @IntPtr
+  primTypeSpec @WordPtr
+  primTypeSpec @(Ptr ())
+  primTypeSpec @(FunPtr ())
+  -- primTypeSpec @CBool
+  -- primTypeSpec @CChar
+  -- primTypeSpec @CSChar
+  -- primTypeSpec @CUChar
+  -- primTypeSpec @CShort
+  -- primTypeSpec @CUShort
+  -- primTypeSpec @CInt
+  -- primTypeSpec @CUInt
+  -- primTypeSpec @CLong
+  -- primTypeSpec @CULong
+  -- primTypeSpec @CPtrdiff
+  -- primTypeSpec @CSize
+  -- primTypeSpec @CWchar
+  -- primTypeSpec @CSigAtomic
+  -- primTypeSpec @CLLong
+  -- primTypeSpec @CULLong
+  -- primTypeSpec @CIntPtr
+  -- primTypeSpec @CUIntPtr
+  -- primTypeSpec @CIntMax
+  -- primTypeSpec @CUIntMax
   describe "Allocation" $ do
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8

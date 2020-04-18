@@ -630,6 +630,12 @@ instance Prim CLong where
 instance Prim CULong where
   type PrimBase CULong = HTYPE_UNSIGNED_LONG
 
+instance Prim CLLong where
+  type PrimBase CLLong = HTYPE_LONG_LONG
+
+instance Prim CULLong where
+  type PrimBase CULLong = HTYPE_UNSIGNED_LONG_LONG
+
 instance Prim CPtrdiff where
   type PrimBase CPtrdiff = HTYPE_PTRDIFF_T
 
