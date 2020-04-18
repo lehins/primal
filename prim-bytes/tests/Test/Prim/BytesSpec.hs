@@ -156,11 +156,10 @@ primSpec = do
           let c = min (countOfBytes b1 - Count (unOff i1)) (countOfBytes b2 - Count (unOff i2))
           mb2x <- thawBytes b2
           copyBytesToMBytes b1 i1 mb2x i2 c
-          mb2y <- thawBytes $ cloneBytes b2
-          mb1 <- thawBytes b1
-          moveMBytesToMBytes mb1 i1 mb2y i2 c
+          by <- withCloneMBytes_ b2 $ \ mb2y -> do
+            mb1 <- thawBytes b1
+            moveMBytesToMBytes mb1 i1 mb2y i2 c
           bx <- freezeMBytes mb2x
-          by <- freezeMBytes mb2y
           bx `shouldBe` by
       prop "moveInside" $ \(NEBytes i xs b :: NEBytes p a) -> do
         let c = countOfBytes b - Count (unOff i)

@@ -65,10 +65,10 @@ module Data.Prim.Bytes
   , coerceStateMBytes
   -- ** Modifying data
   , cloneMBytes
-  , withMBytes
-  , withMBytes_
-  , withMBytesST
-  , withMBytesST_
+  , withCloneMBytes
+  , withCloneMBytes_
+  , withCloneMBytesST
+  , withCloneMBytesST_
   , loadListMBytes
   , copyBytesToMBytes
   , copyMBytesToMBytes
@@ -381,35 +381,35 @@ thawBytes (Bytes ba#) =
 {-# INLINE thawBytes #-}
 
 
-withMBytes ::
+withCloneMBytes ::
      (MonadPrim s m, Typeable p)
   => Bytes p
   -> (MBytes p s -> m a)
   -> m (a, Bytes p)
-withMBytes b f = do
+withCloneMBytes b f = do
   mb <- cloneMBytes =<< thawBytes b
   !res <- f mb
   b' <- freezeMBytes mb
   pure (res, b')
-{-# INLINE withMBytes #-}
+{-# INLINE withCloneMBytes #-}
 
-withMBytes_ ::
+withCloneMBytes_ ::
   (MonadPrim s m, Typeable p)
   => Bytes p
   -> (MBytes p s -> m a)
   -> m (Bytes p)
-withMBytes_ b f = thawBytes b >>= cloneMBytes >>= \mb -> f mb >> freezeMBytes mb
-{-# INLINE withMBytes_ #-}
+withCloneMBytes_ b f = thawBytes b >>= cloneMBytes >>= \mb -> f mb >> freezeMBytes mb
+{-# INLINE withCloneMBytes_ #-}
 
-withMBytesST ::
+withCloneMBytesST ::
   Typeable p => Bytes p -> (forall s. MBytes p s -> ST s a) -> (a, Bytes p)
-withMBytesST b f = runST $ withMBytes b f
-{-# INLINE withMBytesST #-}
+withCloneMBytesST b f = runST $ withCloneMBytes b f
+{-# INLINE withCloneMBytesST #-}
 
-withMBytesST_ ::
+withCloneMBytesST_ ::
   Typeable p => Bytes p -> (forall s. MBytes p s -> ST s a) -> Bytes p
-withMBytesST_ b f = runST $ withMBytes_ b f
-{-# INLINE withMBytesST_ #-}
+withCloneMBytesST_ b f = runST $ withCloneMBytes_ b f
+{-# INLINE withCloneMBytesST_ #-}
 
 
 
