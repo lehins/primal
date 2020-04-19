@@ -19,6 +19,7 @@
 module Data.Prim.Bytes.Addr
   ( Addr(..)
   , curOffAddr
+  , curCountOfAddr
   , plusOffAddr
   , indexAddr
   , indexOffAddr
@@ -62,11 +63,33 @@ data Addr a = Addr Addr# {-# UNPACK #-} !(Bytes 'Pin)
 
 data MAddr a s = MAddr Addr# {-# UNPACK #-} !(MBytes 'Pin s)
 
+class PFunctor f where
+  mapPrim :: MonadPrim s m => (a -> m b) -> f a s -> m (f b s)
+
+instance PFunctor MAddr where
+  mapPrim f maddr = do
+    c@(Count n) <- getCurrentCountOfMAddr maddr
+    maddr' <- allocMAddr (Count n)
+    forM_ [0 .. n - 1] $ \i ->
+      readOffMAddr maddr (Off i) >>= f >>= writeOffMAddr maddr' (Off i)
+    pure maddr'
+
 instance NFData (Addr a) where
   rnf (Addr _ _) = ()
 
 instance NFData (MAddr a s) where
   rnf (MAddr _ _) = ()
+
+toAddr :: Bytes 'Pin -> Addr a
+toAddr b@(Bytes b#) = Addr (byteArrayContents# b#) b
+
+toMAddr :: MBytes 'Pin s -> MAddr a s
+toMAddr mb =
+  case getPtrMBytes mb of
+    Ptr addr# -> MAddr addr# mb
+
+allocMAddr :: (MonadPrim s m, Prim a) => Count a -> m (MAddr a s)
+allocMAddr c = toMAddr <$> allocPinnedMBytes c
 
 plusOffAddr :: Prim a => Addr a -> Off a -> Addr a
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` fromOff# off) b
@@ -78,6 +101,15 @@ curOffAddr :: Prim a => Addr a -> Off a
 curOffAddr (Addr addr# (Bytes b#)) =
   let count = countSize (I# (addr# `minusAddr#` byteArrayContents# b#))
   in offAsProxy count (Off (unCount count))
+
+curCountOfAddr :: forall a .Prim a => Addr a -> Count a
+curCountOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
+
+getCurrentCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
+getCurrentCountOfMAddr maddr@(MAddr _ mb) = do
+  c <- getCountOfMBytes mb
+  pure (c - coerce (curOffMAddr maddr))
+
 
 indexAddr :: Prim a => Addr a -> a
 indexAddr addr = indexOffAddr addr 0

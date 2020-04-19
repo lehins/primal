@@ -660,3 +660,9 @@ withNoHaltPtrMBytes ::
   -> m b
 withNoHaltPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
+
+
+compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
+  case compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c) of
+    0# -> EQ
+    --order# | gt
