@@ -118,6 +118,22 @@ instance ReadAccess (Mem (ForeignPtr a)) where
   copyToPtr (Mem fptr) srcOff dstPtr dstOff c =
     withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
 
+instance WriteAccess (Mem (ForeignPtr a)) where
+  writePrim (Mem fptr) i a = withForeignPtrPrim fptr (\ptr -> writeOffPtr ptr i a)
+  moveToPtr (Mem fsrc) srcOff dstPtr dstOff c =
+    withForeignPtrPrim fsrc $ \srcPtr -> copyPtrToPtr srcPtr srcOff dstPtr dstOff c
+  moveToMBytes (Mem fsrc) srcOff dst dstOff c =
+    withForeignPtrPrim fsrc $ \srcPtr -> copyPtrToMBytes srcPtr srcOff dst dstOff c
+  copy (Mem fsrc) srcOff (Mem fdst) dstOff c =
+    withForeignPtrPrim fsrc $ \srcPtr ->
+      withForeignPtrPrim fdst $ \dstPtr ->
+         copyPtrToPtr srcPtr srcOff dstPtr dstOff c
+  move (Mem fsrc) srcOff (Mem fdst) dstOff c =
+    withForeignPtrPrim fsrc $ \srcPtr ->
+      withForeignPtrPrim fdst $ \dstPtr ->
+         movePtrToPtr srcPtr srcOff dstPtr dstOff c
+  set (Mem fptr) off c a = withForeignPtrPrim fptr $ \ptr -> setOffPtr ptr off c a
+
 
 instance ReadAccess (Mem (Bytes p)) where
   readPrim b = pure . indexBytes (coerce b)
@@ -148,8 +164,12 @@ class WriteAccess r => Alloc r where
 
   freeze :: MonadPrim s m => r s -> m (Frozen r)
 
--- instance ReadAccess (MAddr a) where
---   readPrim = readOffMAddr
+instance ReadAccess (MAddr a) where
+  readPrim ma i = withPtrMAddr ma ((`readOffPtr` i) . castPtr)
+  copyToMBytes ma si mb di c =
+    withPtrMAddr ma $ \ptr -> copyPtrToMBytes (castPtr ptr) si mb di c
+  copyToPtr ma si mb di c =
+    withPtrMAddr ma $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
 
 -- instance Alloc (MAddr a) where
 --   type Frozen (MAddr a) = Addr a
