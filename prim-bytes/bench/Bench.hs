@@ -11,7 +11,7 @@ import Data.Typeable
 import Criterion.Main
 import Data.Prim.Bytes
 import Data.Prim.Ptr
-import Control.Monad.Prim
+import Control.Prim.Monad
 import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
 import qualified Control.Monad.Primitive as BA

@@ -29,14 +29,20 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Control.Monad.Prim
-                     , Control.Monad.Prim.Unsafe
+  exposed-modules:     Control.Prim.Concurrent
+                     , Control.Prim.Eval
+                     , Control.Prim.Exception
+                     , Control.Prim.Monad
+                     , Control.Prim.Monad.Unsafe
                      , Data.Prim
                      , Data.Prim.Class
-                     , Data.Prim.Foreign
+                     , Data.Prim.StableName
+                     , Foreign.Prim
+                     , Foreign.Prim.StablePtr
 
-  other-modules:       Control.Monad.Prim.Internal
-                     , Data.Prim.Foreign.Cmm
+  other-modules:       Control.Prim.Monad.Internal
+                     , Foreign.Prim.C
+                     , Foreign.Prim.Cmm
   build-depends:       base >= 4.8 && < 5
                      , deepseq
                      , transformers

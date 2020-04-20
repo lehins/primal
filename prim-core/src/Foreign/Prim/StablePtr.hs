@@ -1,14 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
--- Module      : Data.Prim.StablePtr
+-- Module      : Foreign.Prim.StablePtr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.StablePtr
+module Foreign.Prim.StablePtr
   ( GHC.StablePtr(..)
   , newStablePtr
   , deRefStablePtr
@@ -18,8 +18,7 @@ module Data.Prim.StablePtr
   ) where
 
 import Control.DeepSeq
-import Control.Monad.Prim
-import Control.Monad.Prim.Core
+import Control.Prim.Monad
 import qualified GHC.Stable as GHC
 
 instance NFData (GHC.StablePtr a) where

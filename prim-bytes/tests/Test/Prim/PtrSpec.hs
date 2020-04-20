@@ -10,7 +10,7 @@ module Test.Prim.PtrSpec
 
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Prim
+import Control.Prim.Monad
 import Data.Prim.Ptr
 import Data.Typeable
 import Foreign.Ptr

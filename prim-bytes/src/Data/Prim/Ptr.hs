@@ -36,16 +36,15 @@ module Data.Prim.Ptr
   ) where
 
 
-import Control.Monad.Prim
-import Control.Monad.Prim.Unsafe
+import Control.Prim.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
-import Data.Prim.Foreign (memmoveAddr#,
-                          memmoveMutableByteArrayFromAddr#,
-                          memmoveMutableByteArrayToAddr#)
-import Foreign.Ptr
 import Foreign.Marshal.Utils
+import Foreign.Prim (memmoveAddr#, memmoveMutableByteArrayFromAddr#,
+                     memmoveMutableByteArrayToAddr#)
+import Foreign.Ptr
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 

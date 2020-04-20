@@ -4,14 +4,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Control.Monad.Prim.Unsafe
+-- Module      : Control.Prim.Monad.Unsafe
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Control.Monad.Prim.Unsafe
+module Control.Prim.Monad.Unsafe
   ( unsafePrimBase
   , unsafePrimBase_
   , unsafePrimBaseToPrim
@@ -37,7 +37,7 @@ module Control.Monad.Prim.Unsafe
   ) where
 
 import System.IO.Unsafe
-import Control.Monad.Prim.Internal
+import Control.Prim.Monad.Internal
 import Control.Monad.ST (ST)
 import GHC.IO
 import GHC.Exts

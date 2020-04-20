@@ -25,8 +25,8 @@ module Data.Prim.Class
   , int2Bool#
   ) where
 
-import Control.Monad.Prim.Unsafe
-import Data.Prim.Foreign
+import Control.Prim.Monad.Unsafe
+import Foreign.Prim
 import Foreign.C.Types
 import Foreign.Ptr
 import GHC.Stable

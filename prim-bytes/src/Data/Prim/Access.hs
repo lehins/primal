@@ -21,7 +21,7 @@ module Data.Prim.Access where
 
 
 import Data.ByteString.Internal hiding (toForeignPtr)
-import Control.Monad.Prim
+import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Bytes.Addr
@@ -71,6 +71,8 @@ instance MonadPrim s m => PtrAccess m ByteString where
   withPtrAccess (PS ps s _) f = withForeignPtrPrim ps $ \ptr -> f (ptr `plusPtr` s)
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
 
+indexPrim :: (ReadAccess r, Prim a) => Mem r s -> Off a -> a
+indexPrim mem off = unsafeInlinePrim (readPrim mem off)
 
 class ReadAccess r where
   readPrim :: (MonadPrim s m, Prim a) => r s -> Off a -> m a

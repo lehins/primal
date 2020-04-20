@@ -22,12 +22,12 @@
 --
 module Data.Prim.Ptr
   ( ForeignPtr(..)
-  , readForeignPtr
-  , readOffForeignPtr
-  , writeForeignPtr
-  , writeOffForeignPtr
+  -- , readForeignPtr
+  -- , readOffForeignPtr
+  -- , writeForeignPtr
+  -- , writeOffForeignPtr
 
-  , copyForeignPtrToPtr
+  -- , copyForeignPtrToPtr
   , movePtrToPtr
   , copyPtrToMBytes
   , movePtrToMBytes
@@ -40,16 +40,16 @@ module Data.Prim.Ptr
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder.Prim (word32LE, word64LE)
 import Data.ByteString.Builder.Prim.Internal (runF)
-import Data.ByteString.Unsafe
 import Data.ByteString.Internal
+import Data.ByteString.Unsafe
 import Data.Proxy
 --import Data.ByteString.Internal (ByteString(PS))
 import Control.Arrow
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Prim
-import Control.Monad.Prim.Unsafe
 import Control.Monad.ST
+import Control.Prim.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.Function
 import Data.List as List
@@ -57,20 +57,19 @@ import Data.Maybe
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
-import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
-                          isMutableByteArrayPinned#, memmoveAddr#,
-                          memmoveMutableByteArray#,
-                          memmoveMutableByteArrayFromAddr#,
-                          memmoveMutableByteArrayToAddr#)
 import Foreign.C.Types
 import Foreign.ForeignPtr
+import Foreign.Marshal.Utils
+import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
+                     isMutableByteArrayPinned#, memmoveAddr#,
+                     memmoveMutableByteArray#, memmoveMutableByteArrayFromAddr#,
+                     memmoveMutableByteArrayToAddr#)
 import Foreign.Ptr
 import Foreign.Storable
-import Foreign.Marshal.Utils
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
-import GHC.Word
 import GHC.ForeignPtr
+import GHC.Word
 import Numeric (showHex)
 
 

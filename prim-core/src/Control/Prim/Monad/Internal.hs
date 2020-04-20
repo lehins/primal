@@ -8,15 +8,16 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Control.Monad.Prim.Internal
+-- Module      : Control.Prim.Monad.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Control.Monad.Prim.Internal
-  ( MonadPrim(..)
+module Control.Prim.Monad.Internal
+  ( RW
+  , MonadPrim(..)
   , MonadPrimBase(..)
   , MonadUnliftPrim(..)
   , prim_
@@ -24,8 +25,6 @@ module Control.Monad.Prim.Internal
   , liftPrimBase
   , primBaseToIO
   , primBaseToST
-  , withPrimBase
-  , with#
   ) where
 
 import GHC.Exts
@@ -53,6 +52,8 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 #endif
 #endif
 
+-- | A shorter synonym for the magical `RealWorld`
+type RW = RealWorld
 
 class MonadPrim s m => MonadPrimBase s m where
   -- | Unwrap a primitive action
@@ -195,22 +196,3 @@ primBaseToIO = liftPrimBase
 primBaseToST :: MonadPrimBase s m => m a -> ST s a
 primBaseToST = liftPrimBase
 {-# INLINE primBaseToST #-}
-
-
--- | Forward compatible operator that will be introduced in some future ghc version.
---
--- See: [!2961](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961)
-with# ::
-     a
-  -> (State# s -> (# State# s, b #))
-  -> State# s
-  -> (# State# s#, b #)
-with# a m s# =
-  case m s# of
-    (# s'#, r #) -> (# unsafeCoerce# (touch# a) s'#, r #)
-{-# NOINLINE with# #-}
-
-
-withPrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
-withPrimBase a m = prim (with# a (primBase m))
-{-# INLINE withPrimBase #-}

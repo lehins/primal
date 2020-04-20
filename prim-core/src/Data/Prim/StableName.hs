@@ -18,8 +18,7 @@ module Data.Prim.StableName
   , GHC.eqStableName
   ) where
 
-import Control.Monad.Prim
-import Control.Monad.Prim.Core
+import Control.Prim.Monad
 import GHC.Exts
 import qualified GHC.StableName as GHC
 

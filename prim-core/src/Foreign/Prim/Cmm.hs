@@ -4,14 +4,14 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 -- |
--- Module      : Data.Prim.Foreign.Cmm
+-- Module      : Foreign.Prim.Cmm
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Foreign.Cmm
+module Foreign.Prim.Cmm
   ( word32ToFloat#
   , floatToWord32#
   , word64ToDouble#

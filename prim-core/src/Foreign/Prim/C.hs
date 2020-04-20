@@ -4,14 +4,14 @@
 --{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 -- |
--- Module      : Data.Prim.Foreign
+-- Module      : Foreign.Prim.C
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Foreign
+module Foreign.Prim.C
   ( isSameByteArray#
   , isSameMutableByteArray#
   , memcmpAddr#
@@ -42,13 +42,11 @@ module Data.Prim.Foreign
   , getSizeofMutableByteArray#
   , isByteArrayPinned#
   , isMutableByteArrayPinned#
-  , module Data.Prim.Foreign.Cmm
   ) where
 
 import GHC.Exts
 import GHC.Int
 import GHC.Word
-import Data.Prim.Foreign.Cmm
 
 -- | Because GC is guaranteed not to move unpinned memory during the unsafe FFI call we
 -- can compare memory pointers on the C side. Because the addresses cannot change

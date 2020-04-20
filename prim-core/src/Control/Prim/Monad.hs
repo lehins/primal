@@ -1,22 +1,23 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE MagicHash #-}
 -- |
--- Module      : Control.Monad.Prim
+-- Module      : Control.Prim.Monad
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Control.Monad.Prim
-  ( module Control.Monad.Prim.Internal
+module Control.Prim.Monad
+  ( module Control.Prim.Monad.Internal
+  , touch
+  , evaluate
+  , withPrimBase
   , RealWorld
   , showsType
   ) where
 
 import GHC.Exts
-import Control.Monad.Prim.Internal
-import Control.Monad.Prim.Unsafe
+import Control.Prim.Eval
+import Control.Prim.Monad.Internal
 import Data.Typeable
 
 -- | Helper function that converts a type into a string

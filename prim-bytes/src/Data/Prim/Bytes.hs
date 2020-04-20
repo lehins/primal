@@ -100,18 +100,18 @@ module Data.Prim.Bytes
 
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Prim
-import Control.Monad.Prim.Unsafe
 import Control.Monad.ST
+import Control.Prim.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.Prim
 import Data.Prim.Class
-import Data.Prim.Foreign (getSizeofMutableByteArray#, isByteArrayPinned#,
-                          isMutableByteArrayPinned#, isSameByteArray#,
-                          memmoveMutableByteArray#, memcmpByteArray#)
 import Data.Proxy
 import Data.Typeable
+import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
+                     isMutableByteArrayPinned#, isSameByteArray#,
+                     memcmpByteArray#, memmoveMutableByteArray#)
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 import GHC.ForeignPtr

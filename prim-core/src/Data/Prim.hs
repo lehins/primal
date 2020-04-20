@@ -43,7 +43,7 @@ module Data.Prim
   ) where
 
 import Control.DeepSeq
-import Control.Monad.Prim
+import Control.Prim.Monad
 import Data.Prim.Class
 import GHC.Base (quotInt,  quotRemInt)
 import GHC.Exts

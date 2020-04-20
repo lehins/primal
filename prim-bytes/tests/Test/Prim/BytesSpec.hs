@@ -16,18 +16,18 @@ module Test.Prim.BytesSpec
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Monad
-import Control.Monad.Prim
+import Control.Prim.Monad
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
 import Data.Monoid
 import Data.Prim.Bytes
+import Foreign.Prim.StablePtr
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
-import Foreign.Storable
 import Foreign.C.Types
 import Foreign.Ptr
-import Data.Prim.StablePtr
+import Foreign.Storable
 import GHC.Exts
 import Numeric
 import System.Timeout
