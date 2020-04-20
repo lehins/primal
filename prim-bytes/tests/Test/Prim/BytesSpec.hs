@@ -27,6 +27,7 @@ import Data.Typeable
 import Foreign.Storable
 import Foreign.C.Types
 import Foreign.Ptr
+import Data.Prim.StablePtr
 import GHC.Exts
 import Numeric
 import System.Timeout
@@ -37,6 +38,9 @@ instance Arbitrary (Ptr a) where
 
 instance Arbitrary (FunPtr a) where
   arbitrary = castPtrToFunPtr <$> arbitrary
+
+instance Arbitrary (StablePtr a) where
+  arbitrary = castPtrToStablePtr <$> arbitrary
 
 instance Arbitrary IntPtr where
   arbitrary = IntPtr <$> arbitrary
@@ -282,6 +286,7 @@ spec = do
   primTypeSpec @WordPtr
   primTypeSpec @(Ptr ())
   primTypeSpec @(FunPtr ())
+  primTypeSpec @(StablePtr ())
   -- primTypeSpec @CBool
   -- primTypeSpec @CChar
   -- primTypeSpec @CSChar

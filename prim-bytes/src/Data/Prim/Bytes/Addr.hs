@@ -63,12 +63,18 @@ data Addr a = Addr Addr# {-# UNPACK #-} !(Bytes 'Pin)
 
 data MAddr a s = MAddr Addr# {-# UNPACK #-} !(MBytes 'Pin s)
 
+class NoConstraint a
+instance NoConstraint a
+
 class PFunctor f where
-  mapPrim :: MonadPrim s m => (a -> m b) -> f a s -> m (f b s)
+  type Elt f :: * -> Constraint
+  type Elt f = NoConstraint
+  mapPrim :: (Elt f a, Elt f b, MonadPrim s m) => (a -> m b) -> f a s -> m (f b s)
 
 instance PFunctor MAddr where
+  type Elt MAddr = Prim
   mapPrim f maddr = do
-    c@(Count n) <- getCurrentCountOfMAddr maddr
+    Count n <- getCurrentCountOfMAddr maddr
     maddr' <- allocMAddr (Count n)
     forM_ [0 .. n - 1] $ \i ->
       readOffMAddr maddr (Off i) >>= f >>= writeOffMAddr maddr' (Off i)

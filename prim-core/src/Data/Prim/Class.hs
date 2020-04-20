@@ -29,6 +29,7 @@ import Control.Monad.Prim.Unsafe
 import Data.Prim.Foreign
 import Foreign.C.Types
 import Foreign.Ptr
+import GHC.Stable
 import GHC.Exts
 import GHC.Int
 import GHC.TypeNats
@@ -532,40 +533,42 @@ instance Prim Char where
 
 instance Prim (Ptr a) where
   type PrimBase (Ptr a) = Ptr a
-  type SizeOf (Ptr a) = SIZEOF_HSINT
-  type Alignment (Ptr a) = ALIGNMENT_HSINT
+  type SizeOf (Ptr a) = SIZEOF_HSPTR
+  type Alignment (Ptr a) = ALIGNMENT_HSPTR
   sizeOf# _ = SIZEOF_HSINT
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_HSINT
   {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = Ptr (int2Addr# (indexIntArray# ba# i#))
+  indexByteArray# ba# i# = Ptr (indexAddrArray# ba# i#)
   {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# = Ptr (int2Addr# (indexIntOffAddr# addr# i#))
+  indexOffAddr# addr# i# = Ptr (indexAddrOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, Ptr (int2Addr# a#) #)
+  readMutableByteArray# mba# i# s# = case readAddrArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, Ptr a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readIntOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, Ptr (int2Addr# a#) #)
+  readOffAddr# mba# i# s# = case readAddrOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, Ptr a# #)
   {-# INLINE readOffAddr# #-}
-  writeMutableByteArray# mba# i# (Ptr a#) = writeIntArray# mba# i# (addr2Int# a#)
+  writeMutableByteArray# mba# i# (Ptr a#) = writeAddrArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# mba# i# (Ptr a#) = writeIntOffAddr# mba# i# (addr2Int# a#)
+  writeOffAddr# mba# i# (Ptr a#) = writeAddrOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-#if WORD_SIZE_IN_BITS >= 64
+#if SIZEOF_HSFUNPTR == SIZEOF_INT64
   setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
   setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
-#else
+#elif SIZEOF_HSFUNPTR == SIZEOF_INT32
   setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
   setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
+#else
+#error Ptr is of unsupported size SIZEOF_HSPTR
 #endif
   {-# INLINE setMutableByteArray# #-}
   {-# INLINE setOffAddr# #-}
 
 instance Prim (FunPtr a) where
   type PrimBase (FunPtr a) = FunPtr a
-  type SizeOf (FunPtr a) = SIZEOF_HSINT
-  type Alignment (FunPtr a) = ALIGNMENT_HSINT
+  type SizeOf (FunPtr a) = SIZEOF_HSFUNPTR
+  type Alignment (FunPtr a) = ALIGNMENT_HSFUNPTR
   sizeOf# _ = SIZEOF_HSINT
   {-# INLINE sizeOf# #-}
   alignment# _ = ALIGNMENT_HSINT
@@ -584,15 +587,53 @@ instance Prim (FunPtr a) where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (FunPtr a#) = writeIntOffAddr# mba# i# (addr2Int# a#)
   {-# INLINE writeOffAddr# #-}
-#if WORD_SIZE_IN_BITS >= 64
+#if SIZEOF_HSFUNPTR == SIZEOF_INT64
   setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
   setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
-#else
+#elif SIZEOF_HSFUNPTR == SIZEOF_INT32
   setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
   setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
+#else
+#error FunPtr is of unsupported size SIZEOF_HSFUNPTR
 #endif
   {-# INLINE setMutableByteArray# #-}
   {-# INLINE setOffAddr# #-}
+
+
+instance Prim (StablePtr a) where
+  type PrimBase (StablePtr a) = StablePtr a
+  type SizeOf (StablePtr a) = SIZEOF_HSSTABLEPTR
+  type Alignment (StablePtr a) = ALIGNMENT_HSSTABLEPTR
+  sizeOf# _ = SIZEOF_HSINT
+  {-# INLINE sizeOf# #-}
+  alignment# _ = ALIGNMENT_HSINT
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# = StablePtr (indexStablePtrArray# ba# i#)
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# = StablePtr (indexStablePtrOffAddr# addr# i#)
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s# = case readStablePtrArray# mba# i# s# of
+                                       (# s'#, a# #) -> (# s'#, StablePtr a# #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# mba# i# s# = case readStablePtrOffAddr# mba# i# s# of
+                              (# s'#, a# #) -> (# s'#, StablePtr a# #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (StablePtr a#) = writeStablePtrArray# mba# i# a#
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# mba# i# (StablePtr a#) = writeStablePtrOffAddr# mba# i# a#
+  {-# INLINE writeOffAddr# #-}
+#if SIZEOF_HSSTABLEPTR == SIZEOF_INT64
+  setMutableByteArray# mba# o# n# (StablePtr a#) = setMutableByteArray# mba# o# n# (I64# (unsafeCoerce# a#))
+  setOffAddr# addr# o# n# (StablePtr a#) = setOffAddr# addr# o# n# (I64# (unsafeCoerce# a#))
+#elif SIZEOF_HSSTABLEPTR == SIZEOF_INT32
+  setMutableByteArray# mba# o# n# (StablePtr a#) = setMutableByteArray# mba# o# n# (I32# (unsafeCoerce# a#))
+  setOffAddr# addr# o# n# (StablePtr a#) = setOffAddr# addr# o# n# (I32# (unsafeCoerce# a#))
+#else
+#error StablePtr is of unsupported size SIZEOF_HSSTABLEPTR
+#endif
+  {-# INLINE setMutableByteArray# #-}
+  {-# INLINE setOffAddr# #-}
+
 
 instance Prim IntPtr where
   type PrimBase IntPtr = Int

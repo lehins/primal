@@ -199,7 +199,7 @@ primBaseToST = liftPrimBase
 
 -- | Forward compatible operator that will be introduced in some future ghc version.
 --
--- See: https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961
+-- See: [!2961](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961)
 with# ::
      a
   -> (State# s -> (# State# s, b #))
