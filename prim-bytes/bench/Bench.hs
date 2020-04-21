@@ -25,11 +25,12 @@ main = do
   mb1 <- allocAlignedMBytes n64
   mb2 <- allocAlignedMBytes n64
   mb3 <- allocAlignedMBytes n64
+  b1 <- freezeMBytes mb1
   mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
-  -- Ensure that arrays are equal
-  mbEq1 <- callocAlignedMBytes n64
-  mbEq2 <- callocAlignedMBytes n64
+  -- Ensure that arrays are equal by filling them with zeros
+  bEq1 <- freezeMBytes =<< callocAlignedMBytes n64
+  bEq2 <- freezeMBytes =<< callocAlignedMBytes n64
   mbaEq1 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   mbaEq2 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)
@@ -51,8 +52,7 @@ main = do
         ]
     , bgroup
         "eq"
-        [ env ((,) <$> freezeMBytes mbEq1 <*> freezeMBytes mbEq2) $ \ ~(b1, b2) ->
-            bench "Bytes" $ whnf (b1 ==) b2
+        [ bench "Bytes" $ whnf (bEq1 ==) bEq2
         , bench "ByteArray" $ whnf (baEq1 ==) baEq2
         ]
     , bgroup
@@ -93,7 +93,8 @@ main = do
             , setBytesBench mb1 mb2 mba 0 (n :: Count Word64)
             , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
-            , bench "setMBytes/Bool" $ nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) False)
+            , bench "setMBytes/Bool" $
+              nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) False)
             ]
         , bgroup
             "regular"
@@ -103,7 +104,8 @@ main = do
             , setBytesBench mb1 mb2 mba 123 (n :: Count Word64)
             , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
-            , bench "setMBytes/Bool" $ nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) True)
+            , bench "setMBytes/Bool" $
+              nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) True)
             ]
         , bgroup
             "symmetric"
@@ -115,18 +117,17 @@ main = do
         ]
     , bgroup
         "access"
-        [ env (freezeMBytes mbEq1) $ \b ->
-            bgroup
-              "index"
-              [ benchIndex (Proxy :: Proxy Word8) b ba
-              , benchIndex (Proxy :: Proxy Word16) b ba
-              , benchIndex (Proxy :: Proxy Word32) b ba
-              , benchIndex (Proxy :: Proxy Word64) b ba
-              , benchIndex (Proxy :: Proxy Char) b ba
-              , bgroup
-                  "Bool"
-                  [bench "Bytes" $ whnf (indexBytes b) (Off 125 :: Off Bool)]
-              ]
+        [ bgroup
+            "index"
+            [ benchIndex (Proxy :: Proxy Word8) b1 ba
+            , benchIndex (Proxy :: Proxy Word16) b1 ba
+            , benchIndex (Proxy :: Proxy Word32) b1 ba
+            , benchIndex (Proxy :: Proxy Word64) b1 ba
+            , benchIndex (Proxy :: Proxy Char) b1 ba
+            , bgroup
+                "Bool"
+                [bench "Bytes" $ whnf (indexBytes b1) (Off 125 :: Off Bool)]
+            ]
         , bgroup
             "read"
             [ benchRead (Proxy :: Proxy Word8) mb1 mba

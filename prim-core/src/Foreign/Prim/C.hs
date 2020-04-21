@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 --{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
@@ -14,6 +15,7 @@
 module Foreign.Prim.C
   ( isSameByteArray#
   , isSameMutableByteArray#
+  , toOrdering#
   , memcmpAddr#
   , memcmpByteArray#
 
@@ -59,8 +61,18 @@ foreign import ccall unsafe "prim_core.c prim_core_ptreq"
 foreign import ccall unsafe "prim_core.c prim_core_ptreq"
   isSameMutableByteArray# :: MutableByteArray# s -> MutableByteArray# s -> Int#
 
+-- | Convert memcmp result into an ordering
+toOrdering# :: Int# -> Ordering
+toOrdering# =
+  \case
+    0# -> EQ
+    n# ->
+      if isTrue# (n# <# 0#)
+        then LT
+        else GT
+
 foreign import ccall unsafe "prim_core.c prim_core_memcmp"
-  memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int#
+  memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int# -> Int#
 foreign import ccall unsafe "prim_core.c prim_core_memcmp"
   memcmpByteArray# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
 

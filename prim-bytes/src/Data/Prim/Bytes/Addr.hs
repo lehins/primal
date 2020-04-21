@@ -18,8 +18,10 @@
 --
 module Data.Prim.Bytes.Addr
   ( Addr(..)
+  , castAddr
+  , toAddr
   , curOffAddr
-  , curCountOfAddr
+  , countOfAddr
   , plusOffAddr
   , indexAddr
   , indexOffAddr
@@ -28,9 +30,15 @@ module Data.Prim.Bytes.Addr
 
   , thawAddr
   , freezeMAddr
+  , withPtrAddr
+  , withAddrAddr#
 
   , MAddr(..)
+  , castMAddr
+  , allocMAddr
+  , callocMAddr
   , curOffMAddr
+  , getCountOfMAddr
   , plusOffMAddr
   , readMAddr
   , readOffMAddr
@@ -44,41 +52,52 @@ import Control.DeepSeq
 import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
-import Data.Foldable as Foldable
-import Data.List as List
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
 import Data.Proxy
 import Data.Typeable
 import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
-                     isMutableByteArrayPinned#, isSameByteArray#,
-                     memmoveMutableByteArray#)
+                     isMutableByteArrayPinned#, isSameByteArray#, memcmpAddr#,
+                     memmoveMutableByteArray#, toOrdering#)
 import Foreign.Ptr
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 
 
-data Addr a = Addr Addr# {-# UNPACK #-} !(Bytes 'Pin)
+data Addr a = Addr
+  { addrAddr# :: Addr#
+  , addrBytes :: {-# UNPACK #-}!(Bytes 'Pin)
+  }
 
-data MAddr a s = MAddr Addr# {-# UNPACK #-} !(MBytes 'Pin s)
+data MAddr a s = MAddr
+  { mAddrAddr# :: Addr#
+  , mAddrMBytes :: {-# UNPACK #-}!(MBytes 'Pin s)
+  }
 
-class NoConstraint a
-instance NoConstraint a
+instance Eq (Addr a) where
+  a1 == a2 =
+    isSameAddr a1 a2 || (c1' == c2' && memcmpAddr a1' 0 a2' 0 c1' == EQ)
+    where
+      a1' = castAddr a1 :: Addr Word8
+      a2' = castAddr a2 :: Addr Word8
+      c1' = countOfAddr a1'
+      c2' = countOfAddr a2'
 
-class PFunctor f where
-  type Elt f :: * -> Constraint
-  type Elt f = NoConstraint
-  mapPrim :: (Elt f a, Elt f b, MonadPrim s m) => (a -> m b) -> f a s -> m (f b s)
+castAddr :: Addr a -> Addr b
+castAddr = coerce
 
-instance PFunctor MAddr where
-  type Elt MAddr = Prim
-  mapPrim f maddr = do
-    Count n <- getCurrentCountOfMAddr maddr
-    maddr' <- allocMAddr (Count n)
-    forM_ [0 .. n - 1] $ \i ->
-      readOffMAddr maddr (Off i) >>= f >>= writeOffMAddr maddr' (Off i)
-    pure maddr'
+castMAddr :: MAddr a s -> MAddr b s
+castMAddr = coerce
+
+memcmpAddr :: Prim a => Addr a -> Off a -> Addr a -> Off a -> Count a -> Ordering
+memcmpAddr a1 o1 a2 o2 c = unsafeInlineIO $
+  withAddrAddr# a1 $ \ addr1# ->
+    withAddrAddr# a2 $ \ addr2# ->
+      pure $ toOrdering# (memcmpAddr# addr1# (fromOff# o1) addr2# (fromOff# o2) (fromCount# c))
+
+isSameAddr :: Addr a -> Addr a -> Bool
+isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
 
 instance NFData (Addr a) where
   rnf (Addr _ _) = ()
@@ -95,7 +114,10 @@ toMAddr mb =
     Ptr addr# -> MAddr addr# mb
 
 allocMAddr :: (MonadPrim s m, Prim a) => Count a -> m (MAddr a s)
-allocMAddr c = toMAddr <$> allocPinnedMBytes c
+allocMAddr c = toMAddr <$> allocAlignedMBytes c
+
+callocMAddr :: (MonadPrim s m, Prim a) => Count a -> m (MAddr a s)
+callocMAddr c = toMAddr <$> callocAlignedMBytes c
 
 plusOffAddr :: Prim a => Addr a -> Off a -> Addr a
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` fromOff# off) b
@@ -108,13 +130,12 @@ curOffAddr (Addr addr# (Bytes b#)) =
   let count = countSize (I# (addr# `minusAddr#` byteArrayContents# b#))
   in offAsProxy count (Off (unCount count))
 
-curCountOfAddr :: forall a .Prim a => Addr a -> Count a
-curCountOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
+countOfAddr :: forall a .Prim a => Addr a -> Count a
+countOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
 
-getCurrentCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
-getCurrentCountOfMAddr maddr@(MAddr _ mb) = do
-  c <- getCountOfMBytes mb
-  pure (c - coerce (curOffMAddr maddr))
+getCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
+getCountOfMAddr maddr@(MAddr _ mb) =
+  subtract (coerce (curOffMAddr maddr)) <$> getCountOfMBytes mb
 
 
 indexAddr :: Prim a => Addr a -> a
@@ -122,6 +143,14 @@ indexAddr addr = indexOffAddr addr 0
 
 indexOffAddr :: Prim a => Addr a -> Off a -> a
 indexOffAddr addr off = unsafeInlineIO $ readOffAddr addr off
+
+withPtrAddr :: MonadPrim s m => Addr a -> (Ptr a -> m b) -> m b
+withPtrAddr addr f = withAddrAddr# addr (\addr# -> f (Ptr addr#))
+
+withAddrAddr# :: MonadPrim s m => Addr a -> (Addr# -> m b) -> m b
+withAddrAddr# (Addr addr# mb) f = do
+  a <- f addr#
+  a <$ touch mb
 
 
 curOffMAddr :: Prim a => MAddr a s -> Off a

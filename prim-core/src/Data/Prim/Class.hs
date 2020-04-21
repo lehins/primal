@@ -701,6 +701,11 @@ instance Prim CIntMax where
 instance Prim CUIntMax where
   type PrimBase CUIntMax = HTYPE_UINTMAX_T
 
+instance Prim CFloat where
+  type PrimBase CFloat = HTYPE_FLOAT
+
+instance Prim CDouble where
+  type PrimBase CDouble = HTYPE_DOUBLE
 
 
 

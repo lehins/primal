@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -44,6 +45,8 @@ module Data.Prim.Bytes
   , sizeOfBytes
   , countOfBytes
   , countRemOfBytes
+  , memcmpBytes
+  , compareBytes
   , fromListBytes
   , fromListBytesN
   , fromListBytesN_
@@ -111,7 +114,7 @@ import Data.Proxy
 import Data.Typeable
 import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
                      isMutableByteArrayPinned#, isSameByteArray#,
-                     memcmpByteArray#, memmoveMutableByteArray#)
+                     memcmpByteArray#, memmoveMutableByteArray#, toOrdering#)
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
 import GHC.ForeignPtr
@@ -181,11 +184,12 @@ isSameMBytes (MBytes mb1#) (MBytes mb2#) =
 {-# INLINE isSameMBytes #-}
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
-eqBytes b1@(Bytes ba1#) b2@(Bytes ba2#) =
+eqBytes b1 b2 =
   isSameBytes b1 b2 ||
-  (lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
+  (lenEq && memcmpBytes b1 0 b2 0 (Count n1 :: Count Word8) == EQ)
+   --(lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
   where
-    !n1@(I# len#) = sizeOfBytes b1
+    n1 = sizeOfBytes b1
     lenEq = n1 == sizeOfBytes b2
 {-# INLINE eqBytes #-}
 
@@ -196,6 +200,18 @@ instance NFData (MBytes p s) where
 
 ---- Pure
 
+
+memcmpBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
+memcmpBytes (Bytes ba1#) off1 (Bytes ba2#) off2 c =
+  toOrdering# (memcmpByteArray# ba1# (fromOff# off1) ba2# (fromOff# off2) (fromCount# c))
+{-# INLINE memcmpBytes #-}
+
+compareBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
+compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
+  toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
+{-# INLINE compareBytes #-}
+
+
 indexBytes :: Prim a => Bytes p -> Off a -> a
 indexBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
 {-# INLINE indexBytes #-}
@@ -205,6 +221,8 @@ indexBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
 coerceStateMBytes :: MBytes p s' -> MBytes p s
 coerceStateMBytes = unsafeCoerce#
 
+
+-- Internal function for coercing pinnes
 castBytes :: Bytes p1 -> Bytes p2
 castBytes = coerce
 
@@ -662,7 +680,3 @@ withNoHaltPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
 
 
-compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
-  case compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c) of
-    0# -> EQ
-    --order# | gt

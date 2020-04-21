@@ -22,6 +22,7 @@ module Data.Prim.Access where
 
 import Data.ByteString.Internal hiding (toForeignPtr)
 import Control.Prim.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Bytes.Addr
@@ -33,6 +34,9 @@ import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
 import GHC.ForeignPtr
 import Control.Monad.ST
 import Data.Typeable
+import Data.Foldable as Foldable
+import Data.List as List
+import Data.Kind
 
 -- | Access to a pointer is only safe in Haskell with pinned memory, which also means that
 -- it can always be converted to a `ForeignPtr`.
@@ -71,8 +75,8 @@ instance MonadPrim s m => PtrAccess m ByteString where
   withPtrAccess (PS ps s _) f = withForeignPtrPrim ps $ \ptr -> f (ptr `plusPtr` s)
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
 
-indexPrim :: (ReadAccess r, Prim a) => Mem r s -> Off a -> a
-indexPrim mem off = unsafeInlinePrim (readPrim mem off)
+indexPrim :: (ReadAccess (Mem r), Prim a) => Mem r s -> Off a -> a
+indexPrim mem off = unsafeInlineST (readPrim mem off)
 
 class ReadAccess r where
   readPrim :: (MonadPrim s m, Prim a) => r s -> Off a -> m a
@@ -325,3 +329,69 @@ clone mb = do
 --         pure g'
 -- {-# INLINE fillPinnedMBytesWith #-}
 
+
+
+class NoConstraint a
+instance NoConstraint a
+
+class Mut f where
+  type Elt f :: * -> Constraint
+  type Elt f = NoConstraint
+  newMut :: (Elt f a, MonadPrim s m) => m (f a s)
+
+  readMut :: (Elt f a, MonadPrim s m) => f a s -> m a
+
+  writeMut :: (Elt f a, MonadPrim s m) => f a s -> a -> m ()
+
+  makeMut :: (Elt f a, MonadPrim s m) => a -> m (f a s)
+  makeMut a = do
+    mut <- newMut
+    mut <$ writeMut mut a
+
+class Mut f => MutArray f where
+  type Array f :: * -> Type
+
+  getCountMutArray :: Elt f a => f a s -> m (Count a)
+
+  thawArray :: (Elt f a, MonadPrim s m) => Array f a -> m (f a s)
+
+  freezeMutArray :: (Elt f a, MonadPrim s m) => f a s -> m (Array f a)
+
+  newMutArray :: (Elt f a, MonadPrim s m) => Count a -> m (f a s)
+
+  readMutArray :: (Elt f a, MonadPrim s m) => f a s -> Off a -> m a
+
+  writeMutArray :: (Elt f a, MonadPrim s m) => f a s -> Off a -> a -> m ()
+
+
+
+makeMutArray :: (MutArray f, Elt f a, MonadPrim s m) => Count a -> (Off a -> m a) -> m (f a s)
+makeMutArray c f = do
+  ma <- newMutArray c
+  ma <$ forM_ [0 .. Off (unCount c) - 1] (\i -> f i >>= writeMutArray ma i)
+
+
+instance Mut MAddr where
+  type Elt MAddr = Prim
+  newMut = allocMAddr (Count 1)
+  readMut = readMAddr
+  writeMut = writeMAddr
+
+instance MutArray MAddr where
+  type Array MAddr = Addr
+  newMutArray = allocMAddr
+  thawArray = thawAddr
+  freezeMutArray = freezeMAddr
+  readMutArray = readOffMAddr
+  writeMutArray = writeOffMAddr
+
+class Mut f => MutFunctor f where
+  mapMut :: (Elt f a, Elt f b, MonadPrim s m) => (a -> m b) -> f a s -> m (f b s)
+
+instance MutFunctor MAddr where
+  mapMut f maddr = do
+    Count n <- getCountOfMAddr maddr
+    maddr' <- allocMAddr (Count n)
+    forM_ [0 .. n - 1] $ \i ->
+      readOffMAddr maddr (Off i) >>= f >>= writeOffMAddr maddr' (Off i)
+    pure maddr'
