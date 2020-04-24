@@ -63,6 +63,7 @@ module Data.Prim.Bytes
   , allocAlignedMBytes
   , callocMBytes
   , callocAlignedMBytes
+  , shrinkMBytes
   , resizeMBytes
   , showsBytesHex
   , coerceStateMBytes
@@ -264,13 +265,19 @@ allocMBytes c =
 "allocPinnedMBytes" allocMBytes = allocPinnedMBytes
   #-}
 
+shrinkMBytes ::
+     (MonadPrim s m, Prim a) => MBytes p s -> Count a -> m ()
+shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
+{-# INLINE shrinkMBytes #-}
+
+
 -- | Attempt to resize mutable bytes in place.
 --
 -- * New bytes might be allocated, with the copy of an old one.
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizeMBytes ::
-     (MonadPrim s m, Prim a) => MBytes p1 s -> Count a -> m (MBytes 'Inc s)
+     (MonadPrim s m, Prim a) => MBytes p s -> Count a -> m (MBytes 'Inc s)
 resizeMBytes (MBytes mb#) c =
   prim $ \s ->
     case resizeMutableByteArray# mb# (fromCount# c) s of
