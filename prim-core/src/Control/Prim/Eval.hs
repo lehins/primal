@@ -47,10 +47,10 @@ with# ::
      a
   -> (State# s -> (# State# s, b #))
   -> State# s
-  -> (# State# s#, b #)
-with# a m s# =
-  case m s# of
-    (# s'#, r #) -> (# unsafeCoerce# (touch# a) s'#, r #)
+  -> (# State# s, b #)
+with# a m s =
+  case m s of
+    (# s', r #) -> (# unsafeCoerce# (touch# a) s', r #)
 {-# NOINLINE with# #-}
 
 

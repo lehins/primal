@@ -28,19 +28,19 @@ spark a = prim (spark# a)
 
 numSparks :: MonadPrim s m => m Int
 numSparks =
-  prim $ \s# ->
-    case numSparks# s# of
-      (# s'#, n# #) -> (# s'#, I# n# #)
+  prim $ \s ->
+    case numSparks# s of
+      (# s', n# #) -> (# s', I# n# #)
 
 runSparks :: MonadPrim s m => m ()
 runSparks = prim_ loop
   where
-    loop s# =
-      case getSpark# s# of
-        (# s'#, n#, p #) ->
+    loop s =
+      case getSpark# s of
+        (# s', n#, p #) ->
           if isTrue# (n# ==# 0#)
-            then s'#
-            else p `seq` loop s'#
+            then s'
+            else p `seq` loop s'
 
 delay :: MonadPrim s m => Int -> m ()
 delay (I# i#) = prim_ (delay# i#)
@@ -57,17 +57,17 @@ waitWrite (I# i#) = prim_ (waitWrite# i#)
 -- action, so you gotta make sure to do it yourself.
 forkPrim :: MonadPrim RW m => m () -> m GHC.ThreadId
 forkPrim action =
-  prim $ \s# ->
-    case fork# action s# of
-      (# s'#, tid# #) -> (# s'#, GHC.ThreadId tid# #)
+  prim $ \s ->
+    case fork# action s of
+      (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 -- | Unlike `Control.Concurrent.forkOn` it does not install any exception handlers on the
 -- action, so you gotta make sure to do it yourself.
 forkOnPrim :: MonadPrim RW m => Int -> m () -> m GHC.ThreadId
 forkOnPrim (I# cap#) action =
-  prim $ \s# ->
-    case forkOn# cap# action s# of
-      (# s'#, tid# #) -> (# s'#, GHC.ThreadId tid# #)
+  prim $ \s ->
+    case forkOn# cap# action s of
+      (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 
 killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
@@ -80,9 +80,9 @@ yield = prim_ yield#
 
 myThreadIdPrim :: MonadPrim RW m => m GHC.ThreadId
 myThreadIdPrim =
-  prim $ \s# ->
-    case myThreadId# s# of
-      (# s'#, tid# #) -> (# s'#, GHC.ThreadId tid# #)
+  prim $ \s ->
+    case myThreadId# s of
+      (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 -- | Pointer should refer to UTF8 encoded string of bytes
 labelThreadPrim :: MonadPrim RW m => GHC.ThreadId -> Ptr a -> m ()
@@ -90,9 +90,9 @@ labelThreadPrim (GHC.ThreadId tid#) (Ptr addr#) = prim_ (labelThread# tid# addr#
 
 isCurrentThreadBoundPrim :: MonadPrim RW m => m Bool
 isCurrentThreadBoundPrim =
-  prim $ \s# ->
-    case isCurrentThreadBound# s# of
-      (# s'#, bool# #) -> (# s'#, isTrue# bool# #)
+  prim $ \s ->
+    case isCurrentThreadBound# s of
+      (# s', bool# #) -> (# s', isTrue# bool# #)
 
 threadStatus :: MonadPrim RW m => GHC.ThreadId -> m GHC.ThreadStatus
 threadStatus = liftPrimBase . GHC.threadStatus

@@ -161,10 +161,10 @@ unsafeInterleavePrimBase x = unsafeDupableInterleavePrimBase (noDuplicatePrim >>
 -- | Same as `unsafeDupableInterleaveIO`, except works in any `MonadPrimBase`
 unsafeDupableInterleavePrimBase :: MonadPrimBase s m => m a -> m a
 unsafeDupableInterleavePrimBase x =
-  prim $ \s# ->
-    let r = case primBase x s# of
+  prim $ \s ->
+    let r = case primBase x s of
               (# _, res #) -> res
-     in (# s#, r #)
+     in (# s, r #)
 {-# NOINLINE unsafeDupableInterleavePrimBase #-}
 
 -- | A version of `liftPrimBase` that coerce the state token.

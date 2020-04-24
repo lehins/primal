@@ -272,9 +272,9 @@ allocMBytes c =
 resizeMBytes ::
      (MonadPrim s m, Prim a) => MBytes p1 s -> Count a -> m (MBytes 'Inc s)
 resizeMBytes (MBytes mb#) c =
-  prim $ \s# ->
-    case resizeMutableByteArray# mb# (fromCount# c) s# of
-      (# s'#, mb'# #) -> (# s'#, MBytes mb'# #)
+  prim $ \s ->
+    case resizeMutableByteArray# mb# (fromCount# c) s of
+      (# s', mb'# #) -> (# s', MBytes mb'# #)
 {-# INLINE resizeMBytes #-}
 
 cloneBytes :: Typeable p => Bytes p -> Bytes p
@@ -328,17 +328,17 @@ createBytesST_ n f =  runST $ createBytes_ n f
 
 allocUnpinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
-  prim $ \s# ->
-    case newByteArray# (fromCount# c) s# of
-      (# s'#, ba# #) -> (# s'#, MBytes ba# #)
+  prim $ \s ->
+    case newByteArray# (fromCount# c) s of
+      (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocUnpinnedMBytes #-}
 
 
 allocPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 allocPinnedMBytes c =
-  prim $ \s# ->
-    case newPinnedByteArray# (fromCount# c) s# of
-      (# s'#, ba# #) -> (# s'#, MBytes ba# #)
+  prim $ \s ->
+    case newPinnedByteArray# (fromCount# c) s of
+      (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocPinnedMBytes #-}
 
 allocAlignedMBytes ::
@@ -346,11 +346,11 @@ allocAlignedMBytes ::
   => Count a -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocAlignedMBytes c =
-  prim $ \s# ->
+  prim $ \s ->
     case alignmentProxy c of
       I# a# ->
-        case newAlignedPinnedByteArray# (fromCount# c) a# s# of
-          (# s'#, ba# #) -> (# s'#, MBytes ba# #)
+        case newAlignedPinnedByteArray# (fromCount# c) a# s of
+          (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocAlignedMBytes #-}
 
 callocMBytes :: (MonadPrim s m, Prim a, Typeable p) => Count a -> m (MBytes p s)
@@ -371,9 +371,9 @@ callocAlignedMBytes n = do
 
 getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Int
 getSizeOfMBytes (MBytes ba#) =
-  prim $ \s# ->
-    case getSizeofMutableByteArray# ba# s# of
-      (# s'#, n# #) -> (# s'#, I# n# #)
+  prim $ \s ->
+    case getSizeofMutableByteArray# ba# s of
+      (# s', n# #) -> (# s', I# n# #)
 {-# INLINE getSizeOfMBytes #-}
 
 
@@ -386,16 +386,16 @@ zeroMBytes mba@(MBytes mba#) = do
 
 freezeMBytes :: MonadPrim s m => MBytes p s -> m (Bytes p)
 freezeMBytes (MBytes mba#) =
-  prim $ \s# ->
-    case unsafeFreezeByteArray# mba# s# of
-      (# s'#, ba# #) -> (# s'#, Bytes ba# #)
+  prim $ \s ->
+    case unsafeFreezeByteArray# mba# s of
+      (# s', ba# #) -> (# s', Bytes ba# #)
 {-# INLINE freezeMBytes #-}
 
 thawBytes :: MonadPrim s m => Bytes p -> m (MBytes p s)
 thawBytes (Bytes ba#) =
-  prim $ \s# ->
-    case thawByteArray# ba# s# of
-      (# s'#, mba# #) -> (# s'#, MBytes mba# #)
+  prim $ \s ->
+    case thawByteArray# ba# s of
+      (# s', mba# #) -> (# s', MBytes mba# #)
 {-# INLINE thawBytes #-}
 
 

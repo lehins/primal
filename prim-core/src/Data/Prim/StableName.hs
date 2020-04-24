@@ -40,6 +40,6 @@ makeStableName = liftPrimBase . GHC.makeStableName
 -- but returns `GHC.StableName` `Any` and is generalized to `MonadPrim`
 makeAnyStableName :: MonadPrim RW m => a -> m (GHC.StableName Any)
 makeAnyStableName a =
-  prim $ \s# ->
-    case makeStableName# a s# of
-      (# s'#, sn# #) -> (# s'#, GHC.StableName (unsafeCoerce# sn#) #)
+  prim $ \s ->
+    case makeStableName# a s of
+      (# s', sn# #) -> (# s', GHC.StableName (unsafeCoerce# sn#) #)

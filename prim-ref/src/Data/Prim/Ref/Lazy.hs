@@ -11,7 +11,7 @@
 module Data.Prim.Ref.Lazy where
 
 import Control.Monad (void)
-import Control.Monad.Prim
+import Control.Prim.Monad
 import GHC.Exts
 
 -- | Same as `Data.Prim.Ref.Ref`, but all operations defined on it are done lazily
@@ -23,9 +23,9 @@ instance Eq (Ref a s) where
 
 newRef :: MonadPrim s m => a -> m (Ref a s)
 newRef a =
-  prim $ \s# ->
-    case newMutVar# a s# of
-      (# s'#, ref# #) -> (# s'#, Ref ref# #)
+  prim $ \s ->
+    case newMutVar# a s of
+      (# s', ref# #) -> (# s', Ref ref# #)
 
 
 readRef :: MonadPrim s m => Ref a s -> m a
@@ -37,9 +37,9 @@ writeRef (Ref ref#) a = prim_ (writeMutVar# ref# a)
 
 atomicModifyRef2Lazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
 atomicModifyRef2Lazy (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar2# ref# f s# of
-      (# s'#, old, ~(new, b) #) -> (# s'#, (old, new, b) #)
+  prim $ \s ->
+    case atomicModifyMutVar2# ref# f s of
+      (# s', old, ~(new, b) #) -> (# s', (old, new, b) #)
 
 
 atomicModifyRefLazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
@@ -47,15 +47,15 @@ atomicModifyRefLazy (Ref ref#) f = prim (atomicModifyMutVar# ref# f)
 
 atomicFetchModifyRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicFetchModifyRefLazy (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, prev, _cur #) -> (# s'#, prev #)
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', prev, _cur #) -> (# s', prev #)
 
 atomicModifyFetchRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicModifyFetchRefLazy (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, _prev, cur #) -> (# s'#, cur #)
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', _prev, cur #) -> (# s', cur #)
 
 atomicWriteRefLazy :: MonadPrim s m => Ref b s -> b -> m b
 atomicWriteRefLazy ref x = atomicFetchModifyRefLazy ref (const x)
@@ -64,6 +64,6 @@ atomicWriteRefLazy_ :: MonadPrim s m => Ref b s -> b -> m ()
 atomicWriteRefLazy_ ref x = void $ atomicWriteRefLazy ref x
 
 casRef :: MonadPrim s m => Ref a s -> a -> a -> m (Bool, a)
-casRef (Ref ref#) expOld new = prim $ \ s# ->
-  case casMutVar# ref# expOld new s# of
-    (# s'#, success#, actualOld #) -> (# s'#, (isTrue# success#, actualOld) #)
+casRef (Ref ref#) expOld new = prim $ \ s ->
+  case casMutVar# ref# expOld new s of
+    (# s', success#, actualOld #) -> (# s', (isTrue# success#, actualOld) #)

@@ -158,7 +158,7 @@ foreign import ccall unsafe "prim_core.c prim_core_memmove"
 
 #if 0 && __GLASGOW_HASKELL__ < 804
 -- | Compatibility function for the old compiler versions
-getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
+getSizeofMutableByteArray# mba# s = (# s, sizeofMutableByteArray# mba# #)
 {-# INLINE getSizeofMutableByteArray# #-}
 #endif
 

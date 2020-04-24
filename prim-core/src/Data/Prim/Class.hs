@@ -91,8 +91,8 @@ class Prim a where
   readMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   default readMutableByteArray# :: Prim (PrimBase a) =>
                                    MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  readMutableByteArray# mba# i# s# = case readMutableByteArray# mba# i# s# of
-                                       (# s'#, pa :: PrimBase a #) -> (# s'#, fromPrim pa #)
+  readMutableByteArray# mba# i# s = case readMutableByteArray# mba# i# s of
+                                      (# s', pa :: PrimBase a #) -> (# s', fromPrim pa #)
   {-# INLINE readMutableByteArray# #-}
 
   -- | Read a value from a memory position given by an address and an offset.
@@ -100,8 +100,8 @@ class Prim a where
   readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
   default readOffAddr# :: Prim (PrimBase a) =>
                           Addr# -> Int# -> State# s -> (# State# s, a #)
-  readOffAddr# addr# i# s# = case readOffAddr# addr# i# s# of
-                               (# s'#, pa :: PrimBase a #) -> (# s'#, fromPrim pa #)
+  readOffAddr# addr# i# s = case readOffAddr# addr# i# s of
+                              (# s', pa :: PrimBase a #) -> (# s', fromPrim pa #)
   {-# INLINE readOffAddr# #-}
 
 
@@ -149,11 +149,11 @@ instance Prim Int where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I# (indexIntOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, I# a# #)
+  readMutableByteArray# mba# i# s = case readIntArray# mba# i# s of
+                                      (# s', a# #) -> (# s', I# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readIntOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, I# a# #)
+  readOffAddr# mba# i# s = case readIntOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', I# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (I# a#) = writeIntArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -181,11 +181,11 @@ instance Prim Int8 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I8# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, I8# a# #)
+  readMutableByteArray# mba# i# s = case readInt8Array# mba# i# s of
+                                      (# s', a# #) -> (# s', I8# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, I8# a# #)
+  readOffAddr# mba# i# s = case readInt8OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', I8# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (I8# a#) = writeInt8Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -208,11 +208,11 @@ instance Prim Int16 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I16# (indexInt16OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt16Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, I16# a# #)
+  readMutableByteArray# mba# i# s = case readInt16Array# mba# i# s of
+                                      (# s', a# #) -> (# s', I16# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt16OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, I16# a# #)
+  readOffAddr# mba# i# s = case readInt16OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', I16# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (I16# a#) = writeInt16Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -235,11 +235,11 @@ instance Prim Int32 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I32# (indexInt32OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt32Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, I32# a# #)
+  readMutableByteArray# mba# i# s = case readInt32Array# mba# i# s of
+                                      (# s', a# #) -> (# s', I32# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt32OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, I32# a# #)
+  readOffAddr# mba# i# s = case readInt32OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', I32# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (I32# a#) = writeInt32Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -262,11 +262,11 @@ instance Prim Int64 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I64# (indexInt64OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt64Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, I64# a# #)
+  readMutableByteArray# mba# i# s = case readInt64Array# mba# i# s of
+                                      (# s', a# #) -> (# s', I64# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt64OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, I64# a# #)
+  readOffAddr# mba# i# s = case readInt64OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', I64# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (I64# a#) = writeInt64Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -290,11 +290,11 @@ instance Prim Word where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W# (indexWordOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWordArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, W# a# #)
+  readMutableByteArray# mba# i# s = case readWordArray# mba# i# s of
+                                      (# s', a# #) -> (# s', W# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWordOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, W# a# #)
+  readOffAddr# mba# i# s = case readWordOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', W# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (W# a#) = writeWordArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -322,11 +322,11 @@ instance Prim Word8 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W8# (indexWord8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWord8Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, W8# a# #)
+  readMutableByteArray# mba# i# s = case readWord8Array# mba# i# s of
+                                      (# s', a# #) -> (# s', W8# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWord8OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, W8# a# #)
+  readOffAddr# mba# i# s = case readWord8OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', W8# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (W8# a#) = writeWord8Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -349,11 +349,11 @@ instance Prim Word16 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W16# (indexWord16OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWord16Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, W16# a# #)
+  readMutableByteArray# mba# i# s = case readWord16Array# mba# i# s of
+                                      (# s', a# #) -> (# s', W16# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWord16OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, W16# a# #)
+  readOffAddr# mba# i# s = case readWord16OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', W16# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (W16# a#) = writeWord16Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -377,11 +377,11 @@ instance Prim Word32 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W32# (indexWord32OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWord32Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, W32# a# #)
+  readMutableByteArray# mba# i# s = case readWord32Array# mba# i# s of
+                                      (# s', a# #) -> (# s', W32# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWord32OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, W32# a# #)
+  readOffAddr# mba# i# s = case readWord32OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', W32# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (W32# a#) = writeWord32Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -404,11 +404,11 @@ instance Prim Word64 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W64# (indexWord64OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWord64Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, W64# a# #)
+  readMutableByteArray# mba# i# s = case readWord64Array# mba# i# s of
+                                      (# s', a# #) -> (# s', W64# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWord64OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, W64# a# #)
+  readOffAddr# mba# i# s = case readWord64OffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', W64# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (W64# a#) = writeWord64Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -432,11 +432,11 @@ instance Prim Float where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = F# (indexFloatOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readFloatArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, F# a# #)
+  readMutableByteArray# mba# i# s = case readFloatArray# mba# i# s of
+                                      (# s', a# #) -> (# s', F# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readFloatOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, F# a# #)
+  readOffAddr# mba# i# s = case readFloatOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', F# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (F# a#) = writeFloatArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -460,11 +460,11 @@ instance Prim Double where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = D# (indexDoubleOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readDoubleArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, D# a# #)
+  readMutableByteArray# mba# i# s = case readDoubleArray# mba# i# s of
+                                      (# s', a# #) -> (# s', D# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readDoubleOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, D# a# #)
+  readOffAddr# mba# i# s = case readDoubleOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', D# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (D# a#) = writeDoubleArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -499,11 +499,11 @@ instance Prim Bool where
   -- {-# INLINE indexByteArray# #-}
   -- indexOffAddr# addr# i# = int2Bool# (indexInt8OffAddr# addr# i#)
   -- {-# INLINE indexOffAddr# #-}
-  -- readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
-  --                                      (# s'#, a# #) -> (# s'#, int2Bool# a# #)
+  -- readMutableByteArray# mba# i# s = case readInt8Array# mba# i# s of
+  --                                      (# s', a# #) -> (# s', int2Bool# a# #)
   -- {-# INLINE readMutableByteArray# #-}
-  -- readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
-  --                             (# s'#, a# #) -> (# s'#, int2Bool# a# #)
+  -- readOffAddr# mba# i# s = case readInt8OffAddr# mba# i# s of
+  --                             (# s', a# #) -> (# s', int2Bool# a# #)
   -- {-# INLINE readOffAddr# #-}
   -- writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2Int# b)
   -- {-# INLINE writeMutableByteArray# #-}
@@ -526,11 +526,11 @@ instance Prim Char where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = C# (indexWideCharOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readWideCharArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, C# a# #)
+  readMutableByteArray# mba# i# s = case readWideCharArray# mba# i# s of
+                                      (# s', a# #) -> (# s', C# a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readWideCharOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, C# a# #)
+  readOffAddr# mba# i# s = case readWideCharOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', C# a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (C# a#) = writeWideCharArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -553,11 +553,11 @@ instance Prim (Ptr a) where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = Ptr (indexAddrOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readAddrArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, Ptr a# #)
+  readMutableByteArray# mba# i# s = case readAddrArray# mba# i# s of
+                                      (# s', a# #) -> (# s', Ptr a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readAddrOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, Ptr a# #)
+  readOffAddr# mba# i# s = case readAddrOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', Ptr a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (Ptr a#) = writeAddrArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -593,11 +593,11 @@ instance Prim (StablePtr a) where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = StablePtr (indexStablePtrOffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readStablePtrArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, StablePtr a# #)
+  readMutableByteArray# mba# i# s = case readStablePtrArray# mba# i# s of
+                                      (# s', a# #) -> (# s', StablePtr a# #)
   {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readStablePtrOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, StablePtr a# #)
+  readOffAddr# mba# i# s = case readStablePtrOffAddr# mba# i# s of
+                             (# s', a# #) -> (# s', StablePtr a# #)
   {-# INLINE readOffAddr# #-}
   writeMutableByteArray# mba# i# (StablePtr a#) = writeStablePtrArray# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
@@ -691,7 +691,7 @@ instance Prim CDouble where
 
 
 thawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
-thawByteArray# ba# s# = (# s#, unsafeCoerce# ba# #)
+thawByteArray# ba# s = (# s, unsafeCoerce# ba# #)
 {-# INLINE thawByteArray# #-}
 
 mutableByteArrayContents# :: MutableByteArray# s -> Addr#
@@ -706,9 +706,9 @@ setMutableByteArrayLoop# ::
 setMutableByteArrayLoop# mba# o# n# a = go o#
   where
     k# = o# +# n#
-    go i# s#
-      | isTrue# (i# <# k#) = go (i# +# 1#) (writeMutableByteArray# mba# i# a s#)
-      | otherwise = s#
+    go i# s
+      | isTrue# (i# <# k#) = go (i# +# 1#) (writeMutableByteArray# mba# i# a s)
+      | otherwise = s
 {-# INLINE setMutableByteArrayLoop# #-}
 
 

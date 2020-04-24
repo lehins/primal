@@ -12,7 +12,7 @@
 module Data.Prim.Ref where
 
 import Control.Monad (void)
-import Control.Monad.Prim
+import Control.Prim.Monad
 import GHC.Exts
 import qualified Data.Prim.Ref.Lazy as Lazy
 
@@ -25,7 +25,7 @@ instance Eq (Ref a s) where
   Ref ref1# == Ref ref2# = isTrue# (sameMutVar# ref1# ref2#)
 
 class MutInit f where
-  
+
   initPrim :: MonadPrim s m => a -> m (f a s)
 
 class MutFunctor f where
@@ -47,9 +47,9 @@ fromLazyRef (Lazy.Ref ref#) = Ref ref#
 
 newRef :: MonadPrim s m => a -> m (Ref a s)
 newRef !a =
-  prim $ \s# ->
-    case newMutVar# a s# of
-      (# s'#, ref# #) -> (# s'#, Ref ref# #)
+  prim $ \s ->
+    case newMutVar# a s of
+      (# s', ref# #) -> (# s', Ref ref# #)
 
 
 readRef :: MonadPrim s m => Ref a s -> m a
@@ -60,28 +60,28 @@ writeRef (Ref ref#) !a = prim_ (writeMutVar# ref# a)
 
 atomicModifyRef2_ :: MonadPrim s m => Ref a s -> (a -> a) -> m (a, a)
 atomicModifyRef2_ (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, prev, cur #) ->
-        case seq# cur s'# of
-          (# s''#, cur' #) -> (# s''#, (prev, cur') #)
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', prev, cur #) ->
+        case seq# cur s' of
+          (# s'', cur' #) -> (# s'', (prev, cur') #)
 
 atomicModifyRef_ :: MonadPrim s m => Ref a s -> (a -> a) -> m ()
 atomicModifyRef_ (Ref ref#) f =
-  prim_ $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, _prev, cur #) ->
-        case seq# cur s'# of
-          (# s''#, _cur' #) -> s''#
+  prim_ $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', _prev, cur #) ->
+        case seq# cur s' of
+          (# s'', _cur' #) -> s''
 
 atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 atomicModifyRef (Ref ref#) f =
   let g a =
         case f a of
           t@(a', _) -> a' `seq` t
-   in prim $ \s# ->
-        case atomicModifyMutVar# ref# g s# of
-          (# s'#, b #) -> seq# b s'#
+   in prim $ \s ->
+        case atomicModifyMutVar# ref# g s of
+          (# s', b #) -> seq# b s'
 
 -- TODO: Test this property
 -- @atomicModifyIORef' ref (\x -> (x+1, undefined))@
@@ -94,13 +94,13 @@ atomicModifyRef2 (Ref ref#) f =
   let g a =
         case f a of
           t@(a', _) -> a' `seq` t
-   in prim $ \s# ->
-        case atomicModifyMutVar2# ref# g s# of
-          (# s'#, old, (new, b) #) ->
-            case seq# new s'# of
-              (# s''#, new' #) ->
-                case seq# b s''# of
-                  (# s'''#, b' #) -> (# s'''#, (old, new', b') #)
+   in prim $ \s ->
+        case atomicModifyMutVar2# ref# g s of
+          (# s', old, (new, b) #) ->
+            case seq# new s' of
+              (# s'', new' #) ->
+                case seq# b s'' of
+                  (# s''', b' #) -> (# s''', (old, new', b') #)
 
 atomicWriteRef :: MonadPrim s m => Ref b s -> b -> m b
 atomicWriteRef ref !x = atomicFetchModifyRef ref (const x)
@@ -110,17 +110,17 @@ atomicWriteRef_ ref x = void $ atomicWriteRef ref x
 
 atomicFetchModifyRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicFetchModifyRef (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, prev, _cur #) -> seq# prev s'#
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', prev, _cur #) -> seq# prev s'
 
 atomicModifyFetchRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicModifyFetchRef (Ref ref#) f =
-  prim $ \s# ->
-    case atomicModifyMutVar_# ref# f s# of
-      (# s'#, _prev, cur #) -> seq# cur s'#
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', _prev, cur #) -> seq# cur s'
 
 casRef :: MonadPrim s m => Ref a s -> a -> a -> m (Bool, a)
-casRef (Ref ref#) expOld new = prim $ \ s# ->
-  case casMutVar# ref# expOld new s# of
-    (# s'#, success#, actualOld #) -> (# s'#, (isTrue# success#, actualOld) #)
+casRef (Ref ref#) expOld new = prim $ \ s ->
+  case casMutVar# ref# expOld new s of
+    (# s', success#, actualOld #) -> (# s', (isTrue# success#, actualOld) #)
