@@ -39,13 +39,21 @@ import GHC.Word
 #include "HsBaseConfig.h"
 
 -- | A type class describing how a data type can be written to and read from memory.
-class Coercible a (PrimBase a) => Prim a where
+class Prim a where
   type PrimBase a :: *
 
   type SizeOf a :: Nat
   type SizeOf a = SizeOf (PrimBase a)
   type Alignment a :: Nat
   type Alignment a = Alignment (PrimBase a)
+
+  toPrim :: a -> PrimBase a
+  default toPrim :: (Coercible a (PrimBase a), Prim (PrimBase a)) => a -> PrimBase a
+  toPrim = coerce
+
+  fromPrim :: PrimBase a -> a
+  default fromPrim :: (Coercible a (PrimBase a), Prim (PrimBase a)) => PrimBase a -> a
+  fromPrim = coerce
 
   -- | Size of a value in bytes.
   sizeOf# :: Proxy# a -> Int
@@ -68,14 +76,14 @@ class Coercible a (PrimBase a) => Prim a where
   --
   indexByteArray# :: ByteArray# -> Int# -> a
   default indexByteArray# :: Prim (PrimBase a) => ByteArray# -> Int# -> a
-  indexByteArray# ba# i# = coerce (indexByteArray# ba# i# :: PrimBase a)
+  indexByteArray# ba# i# = fromPrim (indexByteArray# ba# i# :: PrimBase a)
   {-# INLINE indexByteArray# #-}
 
   -- | Index an element from memory specified by an address and an offset. The offset is
   -- in elements of type @a@ rather than in bytes.
   indexOffAddr# :: Addr# -> Int# -> a
   default indexOffAddr# :: Prim (PrimBase a) => Addr# -> Int# -> a
-  indexOffAddr# addr# i# = coerce (indexOffAddr# addr# i# :: PrimBase a)
+  indexOffAddr# addr# i# = fromPrim (indexOffAddr# addr# i# :: PrimBase a)
   {-# INLINE indexOffAddr# #-}
 
   -- | Read a value from the the primitive `MutablByteArray#`. The offset is in elements
@@ -84,7 +92,7 @@ class Coercible a (PrimBase a) => Prim a where
   default readMutableByteArray# :: Prim (PrimBase a) =>
                                    MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readMutableByteArray# mba# i# s# = case readMutableByteArray# mba# i# s# of
-                                       (# s'#, pa :: PrimBase a #) -> (# s'#, coerce pa #)
+                                       (# s'#, pa :: PrimBase a #) -> (# s'#, fromPrim pa #)
   {-# INLINE readMutableByteArray# #-}
 
   -- | Read a value from a memory position given by an address and an offset.
@@ -93,7 +101,7 @@ class Coercible a (PrimBase a) => Prim a where
   default readOffAddr# :: Prim (PrimBase a) =>
                           Addr# -> Int# -> State# s -> (# State# s, a #)
   readOffAddr# addr# i# s# = case readOffAddr# addr# i# s# of
-                               (# s'#, pa :: PrimBase a #) -> (# s'#, coerce pa #)
+                               (# s'#, pa :: PrimBase a #) -> (# s'#, fromPrim pa #)
   {-# INLINE readOffAddr# #-}
 
 
@@ -102,7 +110,7 @@ class Coercible a (PrimBase a) => Prim a where
   writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeMutableByteArray# :: Prim (PrimBase a) =>
                                     MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (coerce a :: PrimBase a)
+  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toPrim a :: PrimBase a)
   {-# INLINE writeMutableByteArray# #-}
 
   -- | Write a value to a memory position given by an address and an offset.
@@ -110,7 +118,7 @@ class Coercible a (PrimBase a) => Prim a where
   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
   default writeOffAddr# :: Prim (PrimBase a) =>
                            Addr# -> Int# -> a -> State# s -> State# s
-  writeOffAddr# mba# i# a = writeOffAddr# mba# i# (coerce a :: PrimBase a)
+  writeOffAddr# mba# i# a = writeOffAddr# mba# i# (toPrim a)
   {-# INLINE writeOffAddr# #-}
 
   -- | Fill a slice of the mutable array with a value. The offset and length of the chunk
@@ -118,7 +126,7 @@ class Coercible a (PrimBase a) => Prim a where
   setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setMutableByteArray# :: Prim (PrimBase a) =>
                                   MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (coerce a :: PrimBase a)
+  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toPrim a)
   {-# INLINE setMutableByteArray# #-}
 
   -- | Fill a memory block given by an address, an offset and a length.
@@ -126,7 +134,7 @@ class Coercible a (PrimBase a) => Prim a where
   setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
   default setOffAddr# :: Prim (PrimBase a) =>
                          Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (coerce a :: PrimBase a)
+  setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (toPrim a)
   {-# INLINE setOffAddr# #-}
 
 instance Prim Int where
@@ -478,31 +486,33 @@ int2Bool# i# = isTrue# (i# /=# 0#) -- tagToEnum# (i# /=# 0#) -- (andI# i# 1#)
 {-# INLINE int2Bool# #-}
 
 instance Prim Bool where
-  type PrimBase Bool = Bool
-  type SizeOf Bool = SIZEOF_INT8
-  type Alignment Bool = ALIGNMENT_INT8
-  sizeOf# _ = SIZEOF_INT8
-  {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT8
-  {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = int2Bool# (indexInt8Array# ba# i#)
-  {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# = int2Bool# (indexInt8OffAddr# addr# i#)
-  {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, int2Bool# a# #)
-  {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, int2Bool# a# #)
-  {-# INLINE readOffAddr# #-}
-  writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2Int# b)
-  {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2Int# b)
-  {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2Int# b)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2Int# b))
-  {-# INLINE setOffAddr# #-}
+  type PrimBase Bool = Int8
+  fromPrim (I8# i#) = int2Bool# i#
+  {-# INLINE fromPrim #-}
+  toPrim b = I8# (bool2Int# b)
+  {-# INLINE toPrim #-}
+  -- sizeOf# _ = SIZEOF_INT8
+  -- {-# INLINE sizeOf# #-}
+  -- alignment# _ = ALIGNMENT_INT8
+  -- {-# INLINE alignment# #-}
+  -- indexByteArray# ba# i# = int2Bool# (indexInt8Array# ba# i#)
+  -- {-# INLINE indexByteArray# #-}
+  -- indexOffAddr# addr# i# = int2Bool# (indexInt8OffAddr# addr# i#)
+  -- {-# INLINE indexOffAddr# #-}
+  -- readMutableByteArray# mba# i# s# = case readInt8Array# mba# i# s# of
+  --                                      (# s'#, a# #) -> (# s'#, int2Bool# a# #)
+  -- {-# INLINE readMutableByteArray# #-}
+  -- readOffAddr# mba# i# s# = case readInt8OffAddr# mba# i# s# of
+  --                             (# s'#, a# #) -> (# s'#, int2Bool# a# #)
+  -- {-# INLINE readOffAddr# #-}
+  -- writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2Int# b)
+  -- {-# INLINE writeMutableByteArray# #-}
+  -- writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2Int# b)
+  -- {-# INLINE writeOffAddr# #-}
+  -- setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2Int# b)
+  -- {-# INLINE setMutableByteArray# #-}
+  -- setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2Int# b))
+  -- {-# INLINE setOffAddr# #-}
 
 instance Prim Char where
   type PrimBase Char = Char
@@ -566,38 +576,9 @@ instance Prim (Ptr a) where
   {-# INLINE setOffAddr# #-}
 
 instance Prim (FunPtr a) where
-  type PrimBase (FunPtr a) = FunPtr a
-  type SizeOf (FunPtr a) = SIZEOF_HSFUNPTR
-  type Alignment (FunPtr a) = ALIGNMENT_HSFUNPTR
-  sizeOf# _ = SIZEOF_HSINT
-  {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSINT
-  {-# INLINE alignment# #-}
-  indexByteArray# ba# i# = FunPtr (int2Addr# (indexIntArray# ba# i#))
-  {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# = FunPtr (int2Addr# (indexIntOffAddr# addr# i#))
-  {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# s# = case readIntArray# mba# i# s# of
-                                       (# s'#, a# #) -> (# s'#, FunPtr (int2Addr# a#) #)
-  {-# INLINE readMutableByteArray# #-}
-  readOffAddr# mba# i# s# = case readIntOffAddr# mba# i# s# of
-                              (# s'#, a# #) -> (# s'#, FunPtr (int2Addr# a#) #)
-  {-# INLINE readOffAddr# #-}
-  writeMutableByteArray# mba# i# (FunPtr a#) = writeIntArray# mba# i# (addr2Int# a#)
-  {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# mba# i# (FunPtr a#) = writeIntOffAddr# mba# i# (addr2Int# a#)
-  {-# INLINE writeOffAddr# #-}
-#if SIZEOF_HSFUNPTR == SIZEOF_INT64
-  setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
-  setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
-#elif SIZEOF_HSFUNPTR == SIZEOF_INT32
-  setMutableByteArray# mba# o# n# (FunPtr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
-  setOffAddr# addr# o# n# (FunPtr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
-#else
-#error FunPtr is of unsupported size SIZEOF_HSFUNPTR
-#endif
-  {-# INLINE setMutableByteArray# #-}
-  {-# INLINE setOffAddr# #-}
+  type PrimBase (FunPtr a) = Ptr a
+  toPrim (FunPtr addr#) = Ptr addr#
+  fromPrim (Ptr addr#) = FunPtr addr#
 
 
 instance Prim (StablePtr a) where
