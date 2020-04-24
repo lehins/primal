@@ -2,9 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
@@ -32,15 +34,16 @@ import Foreign.Ptr
 import GHC.Stable
 import GHC.Exts
 import GHC.Int
-import GHC.TypeNats
+import GHC.TypeNats as Nats
 import GHC.Word
+import Data.Kind
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
 
 -- | A type class describing how a data type can be written to and read from memory.
 class Prim a where
-  type PrimBase a :: *
+  type PrimBase a :: Type
 
   type SizeOf a :: Nat
   type SizeOf a = SizeOf (PrimBase a)
@@ -687,6 +690,118 @@ instance Prim CFloat where
 
 instance Prim CDouble where
   type PrimBase CDouble = HTYPE_DOUBLE
+
+
+
+
+instance (Eq a, Prim a) => Prim (a, a) where
+  type PrimBase (a, a) = (a, a)
+  type SizeOf (a, a) = 2 Nats.* SizeOf a
+  type Alignment (a, a) = 2 Nats.* Alignment a
+  sizeOf# _ = 2 * sizeOf# (proxy# :: Proxy# a)
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 2 * alignment# (proxy# :: Proxy# a)
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# =
+    let i2# = 2# *# i#
+    in (indexByteArray# ba# i2#, indexByteArray# ba# (i2# +# 1#))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# =
+    let i2# = 2# *# i#
+    in (indexOffAddr# addr# i2#, indexOffAddr# addr# (i2# +# 1#))
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s =
+    let i2# = 2# *# i#
+    in case readMutableByteArray# mba# i2# s of
+         (# s', a0 #) ->
+           case readMutableByteArray# mba# (i2# +# 1#) s' of
+             (# s'', a1 #) -> (# s'', (a0, a1) #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# addr# i# s =
+    let i2# = 2# *# i#
+    in case readOffAddr# addr# i2# s of
+         (# s', a0 #) ->
+           case readOffAddr# addr# (i2# +# 1#) s' of
+             (# s'', a1 #) -> (# s'', (a0, a1) #)
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (a0, a1) s =
+    let i2# = 2# *# i#
+    in writeMutableByteArray# mba# (i2# +# 1#) a1 (writeMutableByteArray# mba# i2# a0 s)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# addr# i# (a0, a1) s =
+    let i2# = 2# *# i#
+    in writeOffAddr# addr# (i2# +# 1#) a1
+       (writeOffAddr# addr# i2# a0 s)
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# a@(a0, a1) s
+    | a0 == a1 = setMutableByteArray# mba# (o# *# 2#) (n# *# 2#) a0 s
+    | otherwise = setMutableByteArrayLoop# mba# o# n# a s
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# a@(a0, a1) s
+    | a0 == a1 = setOffAddr# addr# (o# *# 2#) (n# *# 2#) a0 s
+    | otherwise = setOffAddr# addr# o# n# a s
+  {-# INLINE setOffAddr# #-}
+
+
+instance (Eq a, Prim a) => Prim (a, a, a) where
+  type PrimBase (a, a, a) = (a, a, a)
+  type SizeOf (a, a, a) = 3 Nats.* SizeOf a
+  type Alignment (a, a, a) = 3 Nats.* Alignment a
+  sizeOf# _ = 3 * sizeOf# (proxy# :: Proxy# a)
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 3 * alignment# (proxy# :: Proxy# a)
+  {-# INLINE alignment# #-}
+  indexByteArray# ba# i# =
+    let i3# = 3# *# i#
+    in ( indexByteArray# ba# i3#
+       , indexByteArray# ba# (i3# +# 1#)
+       , indexByteArray# ba# (i3# +# 2#)
+       )
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# =
+    let i3# = 3# *# i#
+    in ( indexOffAddr# addr# i3#
+       , indexOffAddr# addr# (i3# +# 1#)
+       , indexOffAddr# addr# (i3# +# 2#)
+       )
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s =
+    let i3# = 3# *# i#
+    in case readMutableByteArray# mba# i3#         s  of { (# s0, a0 #) ->
+       case readMutableByteArray# mba# (i3# +# 1#) s0 of { (# s1, a1 #) ->
+       case readMutableByteArray# mba# (i3# +# 2#) s1 of { (# s2, a2 #) ->
+         (# s2, (a0, a1, a2) #)
+       }}}
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# addr# i# s =
+    let i3# = 3# *# i#
+    in case readOffAddr# addr# i3#         s  of { (# s0, a0 #) ->
+       case readOffAddr# addr# (i3# +# 1#) s0 of { (# s1, a1 #) ->
+       case readOffAddr# addr# (i3# +# 2#) s1 of { (# s2, a2 #) ->
+         (# s2, (a0, a1, a2) #)
+       }}}
+  {-# INLINE readOffAddr# #-}
+  writeMutableByteArray# mba# i# (a0, a1, a2) s =
+    let i3# = 3# *# i#
+    in writeMutableByteArray# mba# (i3# +# 2#) a2
+       (writeMutableByteArray# mba# (i3# +# 1#) a1
+        (writeMutableByteArray# mba# i3# a0 s))
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# addr# i# (a0, a1, a2) s =
+    let i3# = 3# *# i#
+    in writeOffAddr# addr# (i3# +# 2#) a2
+       (writeOffAddr# addr# (i3# +# 1#) a1
+        (writeOffAddr# addr# i3# a0 s))
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# a@(a0, a1, a2) s
+    | a0 == a1 && a1 == a2 = setMutableByteArray# mba# (o# *# 3#) (n# *# 3#) a0 s
+    | otherwise = setMutableByteArrayLoop# mba# o# n# a s
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# a@(a0, a1, a2) s
+    | a0 == a1 && a1 == a2 = setOffAddr# addr# (o# *# 3#) (n# *# 3#) a0 s
+    | otherwise = setOffAddr# addr# o# n# a s
+  {-# INLINE setOffAddr# #-}
+
 
 
 

@@ -1,38 +1,44 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Prim.BytesExtraSpec (spec) where
 
+import Data.Prim.Class
+import Data.Typeable
 import Test.Hspec
+import Test.QuickCheck
 import Test.Prim.BytesSpec (primTypeSpec)
 import Foreign.C.Types
+import Control.DeepSeq
+
+primBaseTypeSpec ::
+     forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+  => Spec
+primBaseTypeSpec = do
+  primTypeSpec @a
+  primTypeSpec @(a, a)
+  primTypeSpec @(a, a, a)
+
 
 spec :: Spec
 spec = do
-  primTypeSpec @CBool
-  primTypeSpec @CChar
-  primTypeSpec @CSChar
-  primTypeSpec @CUChar
-  primTypeSpec @CShort
-  primTypeSpec @CUShort
-  primTypeSpec @CInt
-  primTypeSpec @CUInt
-  primTypeSpec @CLong
-  primTypeSpec @CULong
-  primTypeSpec @CPtrdiff
-  primTypeSpec @CSize
-  primTypeSpec @CWchar
-  primTypeSpec @CSigAtomic
-  primTypeSpec @CLLong
-  primTypeSpec @CULLong
-  primTypeSpec @CIntPtr
-  primTypeSpec @CUIntPtr
-  primTypeSpec @CIntMax
-  primTypeSpec @CUIntMax
+  primBaseTypeSpec @CBool
+  primBaseTypeSpec @CChar
+  primBaseTypeSpec @CSChar
+  primBaseTypeSpec @CUChar
+  primBaseTypeSpec @CShort
+  primBaseTypeSpec @CUShort
+  primBaseTypeSpec @CInt
+  primBaseTypeSpec @CUInt
+  primBaseTypeSpec @CLong
+  primBaseTypeSpec @CULong
+  primBaseTypeSpec @CPtrdiff
+  primBaseTypeSpec @CSize
+  primBaseTypeSpec @CWchar
+  primBaseTypeSpec @CSigAtomic
+  primBaseTypeSpec @CLLong
+  primBaseTypeSpec @CULLong
+  primBaseTypeSpec @CIntPtr
+  primBaseTypeSpec @CUIntPtr
+  primBaseTypeSpec @CIntMax
+  primBaseTypeSpec @CUIntMax
