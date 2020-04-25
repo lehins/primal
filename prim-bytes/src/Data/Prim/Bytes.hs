@@ -42,6 +42,7 @@ module Data.Prim.Bytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
   , indexBytes
+  , indexByteOffBytes
   , sizeOfBytes
   , countOfBytes
   , countRemOfBytes
@@ -84,7 +85,9 @@ module Data.Prim.Bytes
   , getCountRemOfMBytes
   -- * Access
   , readMBytes
+  , readByteOffMBytes
   , writeMBytes
+  , writeByteOffMBytes
   , setMBytes
   , zeroMBytes
   -- ** Ptr
@@ -212,10 +215,14 @@ compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
 {-# INLINE compareBytes #-}
 
-
 indexBytes :: Prim a => Bytes p -> Off a -> a
 indexBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
 {-# INLINE indexBytes #-}
+
+indexByteOffBytes :: Prim a => Bytes p -> Off Word8 -> a
+indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
+{-# INLINE indexByteOffBytes #-}
+
 
 -- | This function allows the change of state token. Use with care, because it can allow
 -- mutation to escape the `ST` monad.
@@ -589,9 +596,17 @@ readMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
 readMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)
 {-# INLINE readMBytes #-}
 
+readByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
+readByteOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readByteOffMutableByteArray# mba# i#)
+{-# INLINE readByteOffMBytes #-}
+
 writeMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
 writeMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeMutableByteArray# mba# i# a)
 {-# INLINE writeMBytes #-}
+
+writeByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
+writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeByteOffMutableByteArray# mba# i# a)
+{-# INLINE writeByteOffMBytes #-}
 
 isPinnedBytes :: Bytes p -> Bool
 isPinnedBytes (Bytes b#) = isTrue# (isByteArrayPinned# b#)

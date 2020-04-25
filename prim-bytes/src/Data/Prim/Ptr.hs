@@ -22,8 +22,10 @@ module Data.Prim.Ptr
   , castPtr
   , readPtr
   , readOffPtr
+  , readByteOffPtr
   , writePtr
   , writeOffPtr
+  , writeByteOffPtr
   , setOffPtr
 
   , copyPtrToPtr
@@ -33,6 +35,7 @@ module Data.Prim.Ptr
   , copyBytesToPtr
   , copyMBytesToPtr
   , moveMBytesToPtr
+  , module Data.Prim
   ) where
 
 
@@ -65,9 +68,22 @@ readOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m a
 readOffPtr (Ptr addr#) (Off (I# i#)) = prim (readOffAddr# addr# i#)
 {-# INLINE readOffPtr #-}
 
+
+readByteOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off Word8 -> m a
+readByteOffPtr ptr (Off i) =
+  case ptr `plusPtr` i of
+    Ptr addr# -> prim (readOffAddr# addr# 0#)
+{-# INLINE readByteOffPtr #-}
+
 writeOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> a -> m ()
 writeOffPtr (Ptr addr#) (Off (I# i#)) a = prim_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
+
+writeByteOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off Word8 -> a -> m ()
+writeByteOffPtr ptr (Off i) a =
+  case ptr `plusPtr` i of
+    Ptr addr# -> prim_ (writeOffAddr# addr# 0# a)
+{-# INLINE writeByteOffPtr #-}
 
 readPtr :: (MonadPrim s m, Prim a) => Ptr a -> m a
 readPtr (Ptr addr#) = prim (readOffAddr# addr# 0#)

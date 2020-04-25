@@ -1,13 +1,10 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Data.Prim.Bytes
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -25,9 +22,10 @@ module Data.Prim.Bytes.Addr
   , plusOffAddr
   , indexAddr
   , indexOffAddr
+  , indexByteOffAddr
   , readAddr
   , readOffAddr
-
+  , readByteOffAddr
   , thawAddr
   , freezeMAddr
   , withPtrAddr
@@ -42,24 +40,25 @@ module Data.Prim.Bytes.Addr
   , plusOffMAddr
   , readMAddr
   , readOffMAddr
+  , readByteOffMAddr
   , writeMAddr
   , writeOffMAddr
+  , writeByteOffMAddr
 
   , withPtrMAddr
   ) where
 
 import Control.DeepSeq
-import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
-import Data.Proxy
-import Data.Typeable
-import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
-                     isMutableByteArrayPinned#, isSameByteArray#, memcmpAddr#,
-                     memmoveMutableByteArray#, toOrdering#)
+import Foreign.Prim (memcmpAddr#, toOrdering# )
+-- (getSizeofMutableByteArray#, isByteArrayPinned#,
+--                      isMutableByteArrayPinned#, isSameByteArray#,
+--                      memmoveMutableByteArray#,
+
 import Foreign.Ptr
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
                  isMutableByteArrayPinned#)
@@ -144,6 +143,9 @@ indexAddr addr = indexOffAddr addr 0
 indexOffAddr :: Prim a => Addr a -> Off a -> a
 indexOffAddr addr off = unsafeInlineIO $ readOffAddr addr off
 
+indexByteOffAddr :: Prim a => Addr a -> Off Word8 -> a
+indexByteOffAddr addr off = unsafeInlineIO $ readByteOffAddr addr off
+
 withPtrAddr :: MonadPrim s m => Addr a -> (Ptr a -> m b) -> m b
 withPtrAddr addr f = withAddrAddr# addr (\addr# -> f (Ptr addr#))
 
@@ -174,8 +176,13 @@ readAddr :: (MonadPrim s m, Prim a) => Addr a -> m a
 readAddr addr = readOffAddr addr 0
 
 readOffAddr :: (MonadPrim s m, Prim a) => Addr a -> Off a -> m a
-readOffAddr (Addr addr# b) off = do
-  a <- prim (seq# (indexOffAddr# addr# (fromOff# off)))
+readOffAddr (Addr addr# b) (Off (I# off#)) = do
+  a <- prim (seq# (indexOffAddr# addr# off#))
+  a <$ touch b
+
+readByteOffAddr :: (MonadPrim s m, Prim a) => Addr a -> Off Word8 -> m a
+readByteOffAddr (Addr addr# b) (Off (I# off#)) = do
+  a <- prim (seq# (indexOffAddr# (addr# `plusAddr#` off#) 0#))
   a <$ touch b
 
 
@@ -183,16 +190,25 @@ readMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m a
 readMAddr maddr = readOffMAddr maddr 0
 
 readOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m a
-readOffMAddr (MAddr addr# mb) off = do
-  a <- prim (readOffAddr# addr# (fromOff# off))
+readOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
+  a <- prim (readOffAddr# addr# off#)
+  a <$ touch mb
+
+readByteOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off Word8 -> m a
+readByteOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
+  a <- prim (readOffAddr# (addr# `plusAddr#` off#) 0#)
   a <$ touch mb
 
 writeMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> a -> m ()
 writeMAddr maddr = writeOffMAddr maddr 0
 
 writeOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> a -> m ()
-writeOffMAddr (MAddr addr# mb) off a = do
-  prim_ (writeOffAddr# addr# (fromOff# off) a)
+writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a = do
+  prim_ (writeOffAddr# addr# off# a)
   touch mb
 
 
+writeByteOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off Word8 -> a -> m ()
+writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a = do
+  prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a)
+  touch mb
