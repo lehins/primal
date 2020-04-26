@@ -116,11 +116,7 @@ import Data.Prim
 import Data.Prim.Class
 import Data.Proxy
 import Data.Typeable
-import Foreign.Prim (getSizeofMutableByteArray#, isByteArrayPinned#,
-                     isMutableByteArrayPinned#, isSameByteArray#,
-                     memcmpByteArray#, memmoveMutableByteArray#, toOrdering#)
-import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
-                 isMutableByteArrayPinned#)
+import Foreign.Prim
 import GHC.ForeignPtr
 import Numeric (showHex)
 

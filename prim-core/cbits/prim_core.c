@@ -24,6 +24,31 @@ HsInt prim_core_is_byte_array_pinned(StgPtr ba){
 }
 #endif
 
+#if __GLASGOW_HASKELL__ < 806
+
+HsWord16 prim_core_memread16(const HsWord8 *ptr, HsInt offset){
+  return *((HsWord16 *)(ptr + offset));
+}
+void prim_core_memwrite16(HsWord8 *ptr, HsInt offset, HsWord16 x){
+  *((HsWord16 *)(ptr + offset)) = x;
+}
+
+HsWord32 prim_core_memread32(const HsWord8 *ptr, HsInt offset){
+  return *((HsWord32 *)(ptr + offset));
+}
+void prim_core_memwrite32(HsWord8 *ptr, HsInt offset, HsWord32 x){
+  *((HsWord32 *)(ptr + offset)) = x;
+}
+
+HsWord64 prim_core_memread64(const HsWord8 *ptr, HsInt offset){
+  return *((HsWord64 *)(ptr + offset));
+}
+void prim_core_memwrite64(HsWord8 *ptr, HsInt offset, HsWord64 x){
+  *((HsWord64 *)(ptr + offset)) = x;
+}
+
+#endif
+
 HsInt prim_core_ptreq(HsWord8 *ptr1, HsWord8 *ptr2){
   return ptr1 == ptr2;
 }

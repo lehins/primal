@@ -34,15 +34,15 @@ import Foreign.Ptr
 import GHC.Stable
 import GHC.Exts
 import GHC.Int
-import GHC.TypeNats as Nats
+import GHC.TypeLits as Nats
 import GHC.Word
-import Data.Kind
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
+#include "prim_core.h"
 
 class Prim a where
-  type PrimBase a :: Type
+  type PrimBase a :: *
 
   type SizeOf a :: Nat
   type SizeOf a = SizeOf (PrimBase a)
@@ -674,10 +674,10 @@ instance Prim (Ptr a) where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (Ptr a#) = writeAddrOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-#if SIZEOF_HSFUNPTR == SIZEOF_INT64
+#if SIZEOF_HSPTR == SIZEOF_INT64
   setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
   setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
-#elif SIZEOF_HSFUNPTR == SIZEOF_INT32
+#elif SIZEOF_HSPTR == SIZEOF_INT32
   setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
   setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
 #else
@@ -734,11 +734,11 @@ instance Prim (StablePtr a) where
   {-# INLINE setOffAddr# #-}
 
 
-instance Prim IntPtr where
-  type PrimBase IntPtr = Int
+-- instance Prim IntPtr where
+--   type PrimBase IntPtr = Int
 
-instance Prim WordPtr where
-  type PrimBase WordPtr = Word
+-- instance Prim WordPtr where
+--   type PrimBase WordPtr = Word
 
 instance Prim CBool where
   type PrimBase CBool = HTYPE_BOOL
@@ -979,5 +979,11 @@ setMutableByteArrayLoop# mba# o# n# a = go o#
 
 
 errorImpossible :: String -> String -> a
-errorImpossible fname msg = errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
+errorImpossible fname msg =
+#if __GLASGOW_HASKELL__ < 800
+  error
+#else
+  errorWithoutStackTrace
+#endif
+  $ "Impossible <" ++ fname ++ ">:" ++ msg
 {-# NOINLINE errorImpossible #-}

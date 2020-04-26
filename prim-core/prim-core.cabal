@@ -49,6 +49,8 @@ library
 
   default-language:    Haskell2010
   ghc-options:         -Wall
+  include-dirs: cbits
+  install-includes: prim_core.h
   c-sources: cbits/prim_core_stg.cmm
            , cbits/prim_core.c
   if !os(solaris)
