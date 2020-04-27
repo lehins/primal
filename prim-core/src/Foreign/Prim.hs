@@ -7,9 +7,19 @@
 -- Portability : non-portable
 --
 module Foreign.Prim
-  ( module Foreign.Prim.C
+  ( -- * Re-exports
+    module Foreign.C.Types
+  , module GHC.Exts
+  , module GHC.Int
+  , module GHC.Word
+  -- * Primitive
+  , module Foreign.Prim.C
   , module Foreign.Prim.Cmm
   ) where
 
 import Foreign.Prim.C
 import Foreign.Prim.Cmm
+import Foreign.C.Types
+import GHC.Exts
+import GHC.Int
+import GHC.Word

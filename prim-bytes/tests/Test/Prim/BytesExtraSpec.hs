@@ -8,7 +8,7 @@ import Data.Typeable
 import Test.Hspec
 import Test.QuickCheck
 import Test.Prim.BytesSpec (primTypeSpec)
-import Foreign.C.Types
+import Foreign.Prim
 import Control.DeepSeq
 
 primBaseTypeSpec ::

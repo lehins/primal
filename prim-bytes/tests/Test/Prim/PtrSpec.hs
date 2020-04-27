@@ -13,7 +13,7 @@ import Control.Monad
 import Control.Prim.Monad
 import Data.Prim.Ptr
 import Data.Typeable
-import Foreign.Ptr
+import Foreign.Prim.Ptr
 import Test.Prim.BytesSpec hiding (spec)
 import Test.Prim.Common
 

@@ -27,19 +27,32 @@ module Data.Prim.Class
   , int2Bool#
   ) where
 
-import Control.Prim.Monad.Unsafe
-import Foreign.Prim
-import Foreign.C.Types
-import Foreign.Ptr
-import GHC.Stable
-import GHC.Exts
-import GHC.Int
-import GHC.TypeLits as Nats
-import GHC.Word
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
-#include "prim_core.h"
+
+import Control.Prim.Monad.Unsafe
+import Foreign.Prim
+import Foreign.Prim.Ptr
+import GHC.Stable
+import GHC.TypeLits as Nats
+#if __GLASGOW_HASKELL__ < 802
+import Unsafe.Coerce
+import qualified Foreign.Ptr as P
+#include "prim_core_compat.h"
+
+instance Prim P.IntPtr where
+  type PrimBase P.IntPtr = IntPtr
+  -- Constructor for newtype was not exported
+  toPrim = unsafeCoerce
+  fromPrim = unsafeCoerce
+
+instance Prim P.WordPtr where
+  type PrimBase P.WordPtr = WordPtr
+  -- Constructor for newtype was not exported
+  toPrim = unsafeCoerce
+  fromPrim = unsafeCoerce
+#endif
 
 class Prim a where
   type PrimBase a :: *
@@ -50,11 +63,11 @@ class Prim a where
   type Alignment a = Alignment (PrimBase a)
 
   toPrim :: a -> PrimBase a
-  default toPrim :: (Coercible a (PrimBase a), Prim (PrimBase a)) => a -> PrimBase a
+  default toPrim :: Coercible a (PrimBase a) => a -> PrimBase a
   toPrim = coerce
 
   fromPrim :: PrimBase a -> a
-  default fromPrim :: (Coercible a (PrimBase a), Prim (PrimBase a)) => PrimBase a -> a
+  default fromPrim :: Coercible a (PrimBase a) => PrimBase a -> a
   fromPrim = coerce
 
   sizeOf# :: Proxy# a -> Int
@@ -734,11 +747,11 @@ instance Prim (StablePtr a) where
   {-# INLINE setOffAddr# #-}
 
 
--- instance Prim IntPtr where
---   type PrimBase IntPtr = Int
+instance Prim IntPtr where
+  type PrimBase IntPtr = Int
 
--- instance Prim WordPtr where
---   type PrimBase WordPtr = Word
+instance Prim WordPtr where
+  type PrimBase WordPtr = Word
 
 instance Prim CBool where
   type PrimBase CBool = HTYPE_BOOL

@@ -45,11 +45,8 @@ import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
 import Foreign.Marshal.Utils
-import Foreign.Prim (memmoveAddr#, memmoveMutableByteArrayFromAddr#,
-                     memmoveMutableByteArrayToAddr#)
-import Foreign.Ptr
-import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
-                 isMutableByteArrayPinned#)
+import Foreign.Prim
+import Foreign.Prim.Ptr
 
 
 

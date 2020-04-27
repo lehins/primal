@@ -54,14 +54,8 @@ import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Bytes
 import Data.Prim.Class
-import Foreign.Prim (memcmpAddr#, toOrdering# )
--- (getSizeofMutableByteArray#, isByteArrayPinned#,
---                      isMutableByteArrayPinned#, isSameByteArray#,
---                      memmoveMutableByteArray#,
-
+import Foreign.Prim
 import Foreign.Ptr
-import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,
-                 isMutableByteArrayPinned#)
 
 
 data Addr a = Addr

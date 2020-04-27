@@ -22,13 +22,12 @@ import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
 import Data.Monoid
 import Data.Prim.Bytes
-import Foreign.Prim.StablePtr
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
-import Foreign.C.Types
-import Foreign.Ptr
+import Foreign.Prim
+import Foreign.Prim.Ptr
+import Foreign.Prim.StablePtr
 import Foreign.Storable
-import GHC.Exts
 import Numeric
 import System.Timeout
 import Test.Prim.Common
@@ -287,26 +286,6 @@ spec = do
   primTypeSpec @(Ptr ())
   primTypeSpec @(FunPtr ())
   primTypeSpec @(StablePtr ())
-  -- primTypeSpec @CBool
-  -- primTypeSpec @CChar
-  -- primTypeSpec @CSChar
-  -- primTypeSpec @CUChar
-  -- primTypeSpec @CShort
-  -- primTypeSpec @CUShort
-  -- primTypeSpec @CInt
-  -- primTypeSpec @CUInt
-  -- primTypeSpec @CLong
-  -- primTypeSpec @CULong
-  -- primTypeSpec @CPtrdiff
-  -- primTypeSpec @CSize
-  -- primTypeSpec @CWchar
-  -- primTypeSpec @CSigAtomic
-  -- primTypeSpec @CLLong
-  -- primTypeSpec @CULLong
-  -- primTypeSpec @CIntPtr
-  -- primTypeSpec @CUIntPtr
-  -- primTypeSpec @CIntMax
-  -- primTypeSpec @CUIntMax
   describe "Allocation" $ do
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8
@@ -332,7 +311,7 @@ spec = do
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocAlignedMBytes n) True
-      prop "callocAlignedMBytes" $ \(b :: Bytes p) -> do
+      prop "callocAlignedMBytes" $ \(b :: Bytes 'Pin) -> do
         mb0 <- callocAlignedMBytes (countOfBytes b :: Count Word8)
         mb <- thawBytes b
         zeroMBytes mb
