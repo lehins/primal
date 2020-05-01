@@ -46,6 +46,26 @@ module Data.Prim.Bytes.Addr
   , writeByteOffMAddr
 
   , withPtrMAddr
+  -- * Prefetch
+  -- ** Directly
+  , prefetchAddr0
+  , prefetchMAddr0
+  , prefetchAddr1
+  , prefetchMAddr1
+  , prefetchAddr2
+  , prefetchMAddr2
+  , prefetchAddr3
+  , prefetchMAddr3
+  -- ** With offset
+  , prefetchOffAddr0
+  , prefetchOffMAddr0
+  , prefetchOffAddr1
+  , prefetchOffMAddr1
+  , prefetchOffAddr2
+  , prefetchOffMAddr2
+  , prefetchOffAddr3
+  , prefetchOffMAddr3
+
   ) where
 
 import Control.DeepSeq
@@ -206,3 +226,71 @@ writeByteOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off Word8 -> a -> m
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a = do
   prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a)
   touch mb
+
+
+
+prefetchAddr0 :: MonadPrim s m => Addr a -> m ()
+prefetchAddr0 (Addr addr# _) = prim_ (prefetchAddr0# addr# 0#)
+{-# INLINE prefetchAddr0 #-}
+
+prefetchMAddr0 :: MonadPrim s m => MAddr a s -> m ()
+prefetchMAddr0 (MAddr maddr# _) = prim_ (prefetchAddr0# maddr# 0#)
+{-# INLINE prefetchMAddr0 #-}
+
+prefetchAddr1 :: MonadPrim s m => Addr a -> m ()
+prefetchAddr1 (Addr addr# _) = prim_ (prefetchAddr1# addr# 0#)
+{-# INLINE prefetchAddr1 #-}
+
+prefetchMAddr1 :: MonadPrim s m => MAddr a s -> m ()
+prefetchMAddr1 (MAddr maddr# _) = prim_ (prefetchAddr1# maddr# 0#)
+{-# INLINE prefetchMAddr1 #-}
+
+prefetchAddr2 :: MonadPrim s m => Addr a -> m ()
+prefetchAddr2 (Addr addr# _) = prim_ (prefetchAddr2# addr# 0#)
+{-# INLINE prefetchAddr2 #-}
+
+prefetchMAddr2 :: MonadPrim s m => MAddr a s -> m ()
+prefetchMAddr2 (MAddr maddr# _) = prim_ (prefetchAddr2# maddr# 0#)
+{-# INLINE prefetchMAddr2 #-}
+
+prefetchAddr3 :: MonadPrim s m => Addr a -> m ()
+prefetchAddr3 (Addr addr# _) = prim_ (prefetchAddr3# addr# 0#)
+{-# INLINE prefetchAddr3 #-}
+
+prefetchMAddr3 :: MonadPrim s m => MAddr a s -> m ()
+prefetchMAddr3 (MAddr maddr# _) = prim_ (prefetchAddr3# maddr# 0#)
+{-# INLINE prefetchMAddr3 #-}
+
+
+prefetchOffAddr0 :: (MonadPrim s m, Prim a) => Addr a -> Off a -> m ()
+prefetchOffAddr0 (Addr addr# _) off = prim_ (prefetchAddr0# addr# (fromOff# off))
+{-# INLINE prefetchOffAddr0 #-}
+
+prefetchOffMAddr0 :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m ()
+prefetchOffMAddr0 (MAddr maddr# _) off = prim_ (prefetchAddr0# maddr# (fromOff# off))
+{-# INLINE prefetchOffMAddr0 #-}
+
+prefetchOffAddr1 :: (MonadPrim s m, Prim a) => Addr a -> Off a -> m ()
+prefetchOffAddr1 (Addr addr# _) off = prim_ (prefetchAddr1# addr# (fromOff# off))
+{-# INLINE prefetchOffAddr1 #-}
+
+prefetchOffMAddr1 :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m ()
+prefetchOffMAddr1 (MAddr maddr# _) off = prim_ (prefetchAddr1# maddr# (fromOff# off))
+{-# INLINE prefetchOffMAddr1 #-}
+
+prefetchOffAddr2 :: (MonadPrim s m, Prim a) => Addr a -> Off a -> m ()
+prefetchOffAddr2 (Addr addr# _) off = prim_ (prefetchAddr2# addr# (fromOff# off))
+{-# INLINE prefetchOffAddr2 #-}
+
+prefetchOffMAddr2 :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m ()
+prefetchOffMAddr2 (MAddr maddr# _) off = prim_ (prefetchAddr2# maddr# (fromOff# off))
+{-# INLINE prefetchOffMAddr2 #-}
+
+prefetchOffAddr3 :: (MonadPrim s m, Prim a) => Addr a -> Off a -> m ()
+prefetchOffAddr3 (Addr addr# _) off = prim_ (prefetchAddr3# addr# (fromOff# off))
+{-# INLINE prefetchOffAddr3 #-}
+
+prefetchOffMAddr3 :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> m ()
+prefetchOffMAddr3 (MAddr maddr# _) off = prim_ (prefetchAddr3# maddr# (fromOff# off))
+{-# INLINE prefetchOffMAddr3 #-}
+

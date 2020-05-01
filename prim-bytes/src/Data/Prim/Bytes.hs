@@ -98,6 +98,15 @@ module Data.Prim.Bytes
   -- ** ForeignPtr
   , getBytesForeignPtr
   , getMBytesForeignPtr
+  -- * Prefetch
+  , prefetchBytes0
+  , prefetchMBytes0
+  , prefetchBytes1
+  , prefetchMBytes1
+  , prefetchBytes2
+  , prefetchMBytes2
+  , prefetchBytes3
+  , prefetchMBytes3
   , module Data.Prim
   -- * Helpers
   -- * Experimental
@@ -697,4 +706,35 @@ withNoHaltPtrMBytes ::
 withNoHaltPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
 
+prefetchBytes0 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes0 (Bytes b#) off = prim_ (prefetchByteArray0# b# (fromOff# off))
+{-# INLINE prefetchBytes0 #-}
+
+prefetchMBytes0 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes0 (MBytes mb#) off = prim_ (prefetchMutableByteArray0# mb# (fromOff# off))
+{-# INLINE prefetchMBytes0 #-}
+
+prefetchBytes1 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes1 (Bytes b#) off = prim_ (prefetchByteArray1# b# (fromOff# off))
+{-# INLINE prefetchBytes1 #-}
+
+prefetchMBytes1 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes1 (MBytes mb#) off = prim_ (prefetchMutableByteArray1# mb# (fromOff# off))
+{-# INLINE prefetchMBytes1 #-}
+
+prefetchBytes2 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes2 (Bytes b#) off = prim_ (prefetchByteArray2# b# (fromOff# off))
+{-# INLINE prefetchBytes2 #-}
+
+prefetchMBytes2 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes2 (MBytes mb#) off = prim_ (prefetchMutableByteArray2# mb# (fromOff# off))
+{-# INLINE prefetchMBytes2 #-}
+
+prefetchBytes3 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes3 (Bytes b#) off = prim_ (prefetchByteArray3# b# (fromOff# off))
+{-# INLINE prefetchBytes3 #-}
+
+prefetchMBytes3 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes3 (MBytes mb#) off = prim_ (prefetchMutableByteArray3# mb# (fromOff# off))
+{-# INLINE prefetchMBytes3 #-}
 

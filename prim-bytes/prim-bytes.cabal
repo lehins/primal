@@ -31,7 +31,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Bytes
                      , Data.Prim.Bytes.Addr
-                     --, Data.Prim.ForeignPtr
+                     , Data.Prim.Bytes.Ptr
+                     , Data.Prim.Bytes.ForeignPtr
                      , Data.Prim.Ptr
   other-modules:
   build-depends:       array

@@ -8,17 +8,17 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Ptr
+-- Module      : Data.Prim.Bytes.Ptr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Ptr
+module Data.Prim.Bytes.Ptr
   ( Ptr(..)
   , nullPtr
-  , plusPtrOff
+  , plusOffPtr
   , castPtr
   , readPtr
   , readOffPtr
@@ -35,6 +35,15 @@ module Data.Prim.Ptr
   , copyBytesToPtr
   , copyMBytesToPtr
   , moveMBytesToPtr
+  -- * Prefetch
+  , prefetchPtr0
+  , prefetchPtr1
+  , prefetchPtr2
+  , prefetchPtr3
+  , prefetchOffPtr0
+  , prefetchOffPtr1
+  , prefetchOffPtr2
+  , prefetchOffPtr3
   , module Data.Prim
   ) where
 
@@ -90,16 +99,16 @@ writePtr :: (MonadPrim s m, Prim a) => Ptr a -> a -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
-plusPtrOff :: Prim a => Ptr a -> Off a -> Ptr a
-plusPtrOff (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
-{-# INLINE plusPtrOff #-}
+plusOffPtr :: Prim a => Ptr a -> Off a -> Ptr a
+plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
+{-# INLINE plusOffPtr #-}
 
 copyPtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
 copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
   unsafeIOToPrim $
   copyBytes
-    (dstPtr `plusPtrOff` dstOff)
-    (srcPtr `plusPtrOff` srcOff)
+    (dstPtr `plusOffPtr` dstOff)
+    (srcPtr `plusOffPtr` srcOff)
     (fromCount c)
 {-# INLINE copyPtrToPtr #-}
 
@@ -117,19 +126,19 @@ movePtrToPtr (Ptr srcAddr#) srcOff (Ptr dstAddr#) dstOff c =
 copyPtrToMBytes ::
      (MonadPrim s m, Prim a) => Ptr a -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
 copyPtrToMBytes srcPtr srcOff (MBytes dst#) dstOff c =
-  let !(Ptr addr#) = srcPtr `plusPtrOff` srcOff
+  let !(Ptr addr#) = srcPtr `plusOffPtr` srcOff
    in prim_ $ copyAddrToByteArray# addr# dst# (fromOff# dstOff) (fromCount# c)
 {-# INLINE copyPtrToMBytes #-}
 
 copyBytesToPtr :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> Ptr a -> Off a -> Count a -> m ()
 copyBytesToPtr (Bytes src#) srcOff dstPtr dstOff c =
-  let !(Ptr addr#) = dstPtr `plusPtrOff` dstOff
+  let !(Ptr addr#) = dstPtr `plusOffPtr` dstOff
   in prim_ (copyByteArrayToAddr# src# (fromOff# srcOff) addr# (fromCount# c))
 {-# INLINE copyBytesToPtr #-}
 
 copyMBytesToPtr :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> Ptr a -> Off a -> Count a -> m ()
 copyMBytesToPtr (MBytes src#) srcOff dstPtr dstOff c =
-  let !(Ptr addr#) = dstPtr `plusPtrOff` dstOff
+  let !(Ptr addr#) = dstPtr `plusOffPtr` dstOff
    in prim_ $
       copyMutableByteArrayToAddr# src# (fromOff# srcOff) addr# (fromCount# c)
 {-# INLINE copyMBytesToPtr #-}
@@ -155,3 +164,36 @@ moveMBytesToPtr (MBytes src#) srcOff (Ptr dstAddr#) dstOff c =
     (fromOff# dstOff)
     (fromCount# c)
 {-# INLINE moveMBytesToPtr #-}
+
+
+prefetchPtr0 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr0 (Ptr b#) = prim_ (prefetchAddr0# b# 0#)
+{-# INLINE prefetchPtr0 #-}
+
+prefetchPtr1 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr1 (Ptr b#) = prim_ (prefetchAddr1# b# 0#)
+{-# INLINE prefetchPtr1 #-}
+
+prefetchPtr2 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr2 (Ptr b#) = prim_ (prefetchAddr2# b# 0#)
+{-# INLINE prefetchPtr2 #-}
+
+prefetchPtr3 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr3 (Ptr b#) = prim_ (prefetchAddr3# b# 0#)
+{-# INLINE prefetchPtr3 #-}
+
+prefetchOffPtr0 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr0 (Ptr b#) off = prim_ (prefetchAddr0# b# (fromOff# off))
+{-# INLINE prefetchOffPtr0 #-}
+
+prefetchOffPtr1 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr1 (Ptr b#) off = prim_ (prefetchAddr1# b# (fromOff# off))
+{-# INLINE prefetchOffPtr1 #-}
+
+prefetchOffPtr2 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (fromOff# off))
+{-# INLINE prefetchOffPtr2 #-}
+
+prefetchOffPtr3 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (fromOff# off))
+{-# INLINE prefetchOffPtr3 #-}

@@ -2,14 +2,14 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Foreign.Prim.Weak
+-- Module      : Foreign.Prim.WeakPtr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Foreign.Prim.Weak
+module Foreign.Prim.WeakPtr
   ( Weak(..)
   , mkWeak
   , mkWeakNoFinalizer

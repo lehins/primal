@@ -40,7 +40,7 @@ library
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr
-                     , Foreign.Prim.Weak
+                     , Foreign.Prim.WeakPtr
 
   other-modules:       Control.Prim.Monad.Internal
                      , Foreign.Prim.C
