@@ -5,6 +5,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
@@ -22,6 +23,7 @@ module Control.Prim.Monad.Internal
   , MonadUnliftPrim(..)
   , prim_
   , primBase_
+  , runInPrimBase
   , liftPrimBase
   , primBaseToIO
   , primBaseToST
@@ -71,6 +73,14 @@ instance MonadPrimBase s m => MonadPrimBase s (IdentityT m) where
   primBase (IdentityT m) = primBase m
   {-# INLINE primBase #-}
 
+runInPrimBase ::
+     forall s m a b. MonadUnliftPrim s m
+  => m a
+  -> ((State# s -> (# State# s, a #)) -> State# s -> (# State# s, b #))
+  -> m b
+runInPrimBase f g =
+  withRunInPrimBase (\run -> prim (g (primBase (run f :: ST s a))))
+{-# INLINE runInPrimBase #-}
 
 class MonadPrim s m => MonadUnliftPrim s m where
   withRunInPrimBase :: MonadPrimBase s n => ((forall a. m a -> n a) -> n b) -> m b

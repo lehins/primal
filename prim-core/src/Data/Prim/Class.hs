@@ -36,9 +36,10 @@ import Foreign.Prim
 import Foreign.Prim.Ptr
 import GHC.Stable
 import GHC.TypeLits as Nats
+import System.Posix.Types
 #if __GLASGOW_HASKELL__ < 802
-import Unsafe.Coerce
 import qualified Foreign.Ptr as P
+import Unsafe.Coerce
 #include "prim_core_compat.h"
 
 instance Prim P.IntPtr where
@@ -820,7 +821,112 @@ instance Prim CDouble where
   type PrimBase CDouble = HTYPE_DOUBLE
 
 
+instance Prim Fd where
+  type PrimBase Fd = CInt
 
+
+#if defined(HTYPE_DEV_T)
+instance Prim CDev where
+  type PrimBase CDev = HTYPE_DEV_T
+#endif
+#if defined(HTYPE_INO_T)
+instance Prim CIno where
+  type PrimBase CIno = HTYPE_INO_T
+#endif
+#if defined(HTYPE_MODE_T)
+instance Prim CMode where
+  type PrimBase CMode = HTYPE_MODE_T
+#endif
+#if defined(HTYPE_OFF_T)
+instance Prim COff where
+  type PrimBase COff = HTYPE_OFF_T
+#endif
+#if defined(HTYPE_PID_T)
+instance Prim CPid where
+  type PrimBase CPid = HTYPE_PID_T
+#endif
+#if defined(HTYPE_SSIZE_T)
+instance Prim CSsize where
+  type PrimBase CSsize = HTYPE_SSIZE_T
+#endif
+#if defined(HTYPE_GID_T)
+instance Prim CGid where
+  type PrimBase CGid = HTYPE_GID_T
+#endif
+#if defined(HTYPE_NLINK_T)
+instance Prim CNlink where
+  type PrimBase CNlink = HTYPE_NLINK_T
+#endif
+#if defined(HTYPE_UID_T)
+instance Prim CUid where
+  type PrimBase CUid = HTYPE_UID_T
+#endif
+#if defined(HTYPE_CC_T)
+instance Prim CCc where
+  type PrimBase CCc = HTYPE_CC_T
+#endif
+#if defined(HTYPE_SPEED_T)
+instance Prim CSpeed where
+  type PrimBase CSpeed = HTYPE_SPEED_T
+#endif
+#if defined(HTYPE_TCFLAG_T)
+instance Prim CTcflag where
+  type PrimBase CTcflag = HTYPE_TCFLAG_T
+#endif
+#if defined(HTYPE_RLIM_T)
+instance Prim CRLim where
+  type PrimBase CRLim = HTYPE_RLIM_T
+#endif
+
+#if __GLASGOW_HASKELL__ >= 802
+
+#if defined(HTYPE_BLKSIZE_T)
+instance Prim CBlkSize where
+  type PrimBase CBlkSize = HTYPE_BLKSIZE_T
+#endif
+#if defined(HTYPE_BLKCNT_T)
+instance Prim CBlkCnt where
+  type PrimBase CBlkCnt = HTYPE_BLKCNT_T
+#endif
+#if defined(HTYPE_CLOCKID_T)
+instance Prim CClockId where
+  type PrimBase CClockId = HTYPE_CLOCKID_T
+#endif
+#if defined(HTYPE_FSBLKCNT_T)
+instance Prim CFsBlkCnt where
+  type PrimBase CFsBlkCnt = HTYPE_FSBLKCNT_T
+#endif
+#if defined(HTYPE_FSFILCNT_T)
+instance Prim CFsFilCnt where
+  type PrimBase CFsFilCnt = HTYPE_FSFILCNT_T
+#endif
+#if defined(HTYPE_ID_T)
+instance Prim CId where
+  type PrimBase CId = HTYPE_ID_T
+#endif
+#if defined(HTYPE_KEY_T)
+instance Prim CKey where
+  type PrimBase CKey = HTYPE_KEY_T
+#endif
+#if defined(HTYPE_TIMER_T)
+instance Prim CTimer where
+  type PrimBase CTimer = HTYPE_TIMER_T
+#endif
+
+#if __GLASGOW_HASKELL__ >= 810
+
+#if defined(HTYPE_SOCKLEN_T)
+instance Prim CSocklen where
+  type PrimBase CSocklen = HTYPE_SOCKLEN_T
+#endif
+#if defined(HTYPE_NFDS_T)
+instance Prim CNfds where
+  type PrimBase CNfds = HTYPE_NFDS_T
+#endif
+
+#endif /* __GLASGOW_HASKELL__ >= 810 */
+
+#endif /* __GLASGOW_HASKELL__ >= 802 */
 
 instance (Eq a, Prim a) => Prim (a, a) where
   type PrimBase (a, a) = (a, a)

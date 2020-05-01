@@ -40,6 +40,7 @@ library
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr
+                     , Foreign.Prim.Weak
 
   other-modules:       Control.Prim.Monad.Internal
                      , Foreign.Prim.C
@@ -56,9 +57,11 @@ library
            , cbits/prim_core.c
   if impl(ghc < 8.6)
      c-sources: cbits/prim_core_compat.c
-     if impl(ghc < 8.2)
-        include-dirs: cbits
-        install-includes: prim_core_compat.h
+     if impl(ghc < 8.4)
+        build-depends: ghc-prim
+        if impl(ghc < 8.2)
+           include-dirs: cbits
+           install-includes: prim_core_compat.h
   if !os(solaris)
       cc-options: -ftree-vectorize
   if arch(i386) || arch(x86_64)

@@ -20,7 +20,7 @@ import qualified GHC.Conc as GHC
 import Control.Prim.Exception
 import Control.Prim.Monad.Internal
 import GHC.Exts
-
+import System.Posix.Types
 
 
 spark :: MonadPrim s m => a -> m a
@@ -45,13 +45,18 @@ runSparks = prim_ loop
 delay :: MonadPrim s m => Int -> m ()
 delay (I# i#) = prim_ (delay# i#)
 
+-- | Wrapper for `waitRead#`. Block and wait for input to become available on the `Fd`
+waitRead :: MonadPrim s m => Fd -> m ()
+waitRead fd =
+  case fromIntegral fd of
+    I# i# -> prim_ (waitRead# i#)
 
-waitRead :: MonadPrim s m => Int -> m ()
-waitRead (I# i#) = prim_ (waitRead# i#)
 
-
+-- | Wrapper for `waitWrite#`. Block and wait until output is possible on the `Fd`
 waitWrite :: MonadPrim s m => Int -> m ()
-waitWrite (I# i#) = prim_ (waitWrite# i#)
+waitWrite fd =
+  case fromIntegral fd of
+    I# i# -> prim_ (waitWrite# i#)
 
 -- | Unlike `Control.Concurrent.forkIO` it does not install any exception handlers on the
 -- action, so you gotta make sure to do it yourself.
