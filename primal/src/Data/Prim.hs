@@ -13,6 +13,9 @@
 --
 module Data.Prim
   ( Prim
+  , Atomic
+  , AtomicCount
+  , AtomicBits
   , MonadPrim
   , RealWorld
   -- * Prim type size
@@ -49,6 +52,7 @@ module Data.Prim
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Data.Prim.Atomic
 import Data.Prim.Class
 import GHC.Base (quotInt,  quotRemInt)
 import GHC.Exts

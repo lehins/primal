@@ -19,13 +19,16 @@ module Foreign.Prim.C
     module Foreign.Prim.C.LtGHC806
   -- * Forward compatibility
   -- * Extra functionality
+  -- ** Atomic
+  , module Foreign.Prim.C.Atomic
+  -- ** Comparison
   , isSameByteArray#
   , isSameMutableByteArray#
   , toOrdering#
   , fromOrdering#
   , memcmpAddr#
   , memcmpByteArray#
-
+  -- ** Setting memory
   , memsetWord8MutableByteArray#
   , memsetWord8Addr#
   , memsetInt8MutableByteArray#
@@ -43,6 +46,7 @@ module Foreign.Prim.C
   , memsetInt64MutableByteArray#
   , memsetInt64Addr#
 
+  -- ** Moving memory
   , memmoveAddr#
   , memmoveMutableByteArray#
   , memmoveMutableByteArrayToAddr#
@@ -52,6 +56,7 @@ module Foreign.Prim.C
 import GHC.Exts
 import GHC.Int
 import GHC.Word
+import Foreign.Prim.C.Atomic
 import Foreign.Prim.C.LtGHC806
 
 -- | Because GC is guaranteed not to move unpinned memory during the unsafe FFI call we

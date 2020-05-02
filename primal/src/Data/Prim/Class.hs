@@ -100,14 +100,14 @@ intPtrToPtr (IntPtr (I# i#)) = Ptr (int2Addr# i#)
 instance Prim P.IntPtr where
   type PrimBase P.IntPtr = IntPtr
   -- Constructor for newtype was not exported
-  toPrim = unsafeCoerce
-  fromPrim = unsafeCoerce
+  toPrimBase = unsafeCoerce
+  fromPrimBase = unsafeCoerce
 
 instance Prim P.WordPtr where
   type PrimBase P.WordPtr = WordPtr
   -- Constructor for newtype was not exported
-  toPrim = unsafeCoerce
-  fromPrim = unsafeCoerce
+  toPrimBase = unsafeCoerce
+  fromPrimBase = unsafeCoerce
 #else
 import Foreign.Ptr
 #endif
@@ -120,13 +120,13 @@ class Prim a where
   type Alignment a :: Nat
   type Alignment a = Alignment (PrimBase a)
 
-  toPrim :: a -> PrimBase a
-  default toPrim :: Coercible a (PrimBase a) => a -> PrimBase a
-  toPrim = coerce
+  toPrimBase :: a -> PrimBase a
+  default toPrimBase :: Coercible a (PrimBase a) => a -> PrimBase a
+  toPrimBase = coerce
 
-  fromPrim :: PrimBase a -> a
-  default fromPrim :: Coercible a (PrimBase a) => PrimBase a -> a
-  fromPrim = coerce
+  fromPrimBase :: PrimBase a -> a
+  default fromPrimBase :: Coercible a (PrimBase a) => PrimBase a -> a
+  fromPrimBase = coerce
 
   sizeOf# :: Proxy# a -> Int
   default sizeOf# :: Prim (PrimBase a) => Proxy# a -> Int
@@ -141,7 +141,7 @@ class Prim a where
 
   indexByteOffByteArray# :: ByteArray# -> Int# -> a
   default indexByteOffByteArray# :: Prim (PrimBase a) => ByteArray# -> Int# -> a
-  indexByteOffByteArray# ba# i# = fromPrim (indexByteOffByteArray# ba# i# :: PrimBase a)
+  indexByteOffByteArray# ba# i# = fromPrimBase (indexByteOffByteArray# ba# i# :: PrimBase a)
   {-# INLINE indexByteOffByteArray# #-}
 
   --
@@ -153,12 +153,12 @@ class Prim a where
   --
   indexByteArray# :: ByteArray# -> Int# -> a
   default indexByteArray# :: Prim (PrimBase a) => ByteArray# -> Int# -> a
-  indexByteArray# ba# i# = fromPrim (indexByteArray# ba# i# :: PrimBase a)
+  indexByteArray# ba# i# = fromPrimBase (indexByteArray# ba# i# :: PrimBase a)
   {-# INLINE indexByteArray# #-}
 
   indexOffAddr# :: Addr# -> Int# -> a
   default indexOffAddr# :: Prim (PrimBase a) => Addr# -> Int# -> a
-  indexOffAddr# addr# i# = fromPrim (indexOffAddr# addr# i# :: PrimBase a)
+  indexOffAddr# addr# i# = fromPrimBase (indexOffAddr# addr# i# :: PrimBase a)
   {-# INLINE indexOffAddr# #-}
 
 
@@ -166,21 +166,21 @@ class Prim a where
   default readByteOffMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readByteOffMutableByteArray# mba# i# s = case readByteOffMutableByteArray# mba# i# s of
-                                             (# s', pa :: PrimBase a #) -> (# s', fromPrim pa #)
+                                             (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
   {-# INLINE readByteOffMutableByteArray# #-}
 
   readMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   default readMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readMutableByteArray# mba# i# s = case readMutableByteArray# mba# i# s of
-                                      (# s', pa :: PrimBase a #) -> (# s', fromPrim pa #)
+                                      (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
   {-# INLINE readMutableByteArray# #-}
 
   readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
   default readOffAddr# ::
     Prim (PrimBase a) => Addr# -> Int# -> State# s -> (# State# s, a #)
   readOffAddr# addr# i# s = case readOffAddr# addr# i# s of
-                              (# s', pa :: PrimBase a #) -> (# s', fromPrim pa #)
+                              (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
   {-# INLINE readOffAddr# #-}
 
 
@@ -188,37 +188,37 @@ class Prim a where
   default writeByteOffMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
   writeByteOffMutableByteArray# mba# i# a =
-    writeByteOffMutableByteArray# mba# i# (toPrim a :: PrimBase a)
+    writeByteOffMutableByteArray# mba# i# (toPrimBase a :: PrimBase a)
   {-# INLINE writeByteOffMutableByteArray# #-}
 
   writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toPrim a :: PrimBase a)
+  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toPrimBase a :: PrimBase a)
   {-# INLINE writeMutableByteArray# #-}
 
   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
   default writeOffAddr# :: Prim (PrimBase a) => Addr# -> Int# -> a -> State# s -> State# s
-  writeOffAddr# mba# i# a = writeOffAddr# mba# i# (toPrim a)
+  writeOffAddr# mba# i# a = writeOffAddr# mba# i# (toPrimBase a)
   {-# INLINE writeOffAddr# #-}
 
   -- TODO: implement
   -- setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   -- default setMutableByteArray# ::
   --   Prim (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  -- setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrim a)
+  -- setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrimBase a)
   -- {-# INLINE setByteOffMutableByteArray# #-}
 
   setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toPrim a)
+  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toPrimBase a)
   {-# INLINE setMutableByteArray# #-}
 
   setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
   default setOffAddr# ::
     Prim (PrimBase a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (toPrim a)
+  setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (toPrimBase a)
   {-# INLINE setOffAddr# #-}
 
 
@@ -688,32 +688,10 @@ int2Bool# i# = isTrue# (i# /=# 0#) -- tagToEnum# (i# /=# 0#) -- (andI# i# 1#)
 
 instance Prim Bool where
   type PrimBase Bool = Int8
-  fromPrim (I8# i#) = int2Bool# i#
-  {-# INLINE fromPrim #-}
-  toPrim b = I8# (bool2Int# b)
-  {-# INLINE toPrim #-}
-  -- sizeOf# _ = SIZEOF_INT8
-  -- {-# INLINE sizeOf# #-}
-  -- alignment# _ = ALIGNMENT_INT8
-  -- {-# INLINE alignment# #-}
-  -- indexByteArray# ba# i# = int2Bool# (indexInt8Array# ba# i#)
-  -- {-# INLINE indexByteArray# #-}
-  -- indexOffAddr# addr# i# = int2Bool# (indexInt8OffAddr# addr# i#)
-  -- {-# INLINE indexOffAddr# #-}
-  -- readMutableByteArray# mba# i# s = case readInt8Array# mba# i# s of
-  --                                      (# s', a# #) -> (# s', int2Bool# a# #)
-  -- {-# INLINE readMutableByteArray# #-}
-  -- readOffAddr# mba# i# s = case readInt8OffAddr# mba# i# s of
-  --                             (# s', a# #) -> (# s', int2Bool# a# #)
-  -- {-# INLINE readOffAddr# #-}
-  -- writeMutableByteArray# mba# i# b = writeInt8Array# mba# i# (bool2Int# b)
-  -- {-# INLINE writeMutableByteArray# #-}
-  -- writeOffAddr# mba# i# b = writeInt8OffAddr# mba# i# (bool2Int# b)
-  -- {-# INLINE writeOffAddr# #-}
-  -- setMutableByteArray# mba# o# n# b = setByteArray# mba# o# n# (bool2Int# b)
-  -- {-# INLINE setMutableByteArray# #-}
-  -- setOffAddr# addr# o# n# b = setOffAddr# addr# o# n# (I8# (bool2Int# b))
-  -- {-# INLINE setOffAddr# #-}
+  fromPrimBase (I8# i#) = int2Bool# i#
+  {-# INLINE fromPrimBase #-}
+  toPrimBase b = I8# (bool2Int# b)
+  {-# INLINE toPrimBase #-}
 
 instance Prim Char where
   type PrimBase Char = Char
@@ -792,8 +770,8 @@ instance Prim (Ptr a) where
 
 instance Prim (FunPtr a) where
   type PrimBase (FunPtr a) = Ptr a
-  toPrim (FunPtr addr#) = Ptr addr#
-  fromPrim (Ptr addr#) = FunPtr addr#
+  toPrimBase (FunPtr addr#) = Ptr addr#
+  fromPrimBase (Ptr addr#) = FunPtr addr#
 
 
 instance Prim (StablePtr a) where
@@ -1032,8 +1010,8 @@ instance Prim a => Prim (Data.Semigroup.Last a) where
   type PrimBase (Data.Semigroup.Last a) = a
 instance (Eq a, Prim a) => Prim (Arg a a) where
   type PrimBase (Arg a a) = (a, a)
-  toPrim (Arg a b) = (a, b)
-  fromPrim (a, b) = Arg a b
+  toPrimBase (Arg a b) = (a, b)
+  fromPrimBase (a, b) = Arg a b
 
 instance Prim (f (g a)) => Prim (Compose f g a) where
   type PrimBase (Compose f g a) = f (g a)
@@ -1048,23 +1026,23 @@ instance Prim a => Prim (Identity a) where
 
 instance Prim Ordering where
   type PrimBase Ordering = Int8
-  toPrim o = I8# (fromOrdering# o)
-  fromPrim (I8# i#) = toOrdering# i#
+  toPrimBase o = I8# (fromOrdering# o)
+  fromPrimBase (I8# i#) = toOrdering# i#
 
 instance Prim IODeviceType where
   type PrimBase IODeviceType = Int8
-  toPrim o = I8# (dataToTag# o)
-  fromPrim (I8# i#) = tagToEnum# i#
+  toPrimBase o = I8# (dataToTag# o)
+  fromPrimBase (I8# i#) = tagToEnum# i#
 
 instance Prim SeekMode where
   type PrimBase SeekMode = Int8
-  toPrim o = I8# (dataToTag# o)
-  fromPrim (I8# i#) = tagToEnum# i#
+  toPrimBase o = I8# (dataToTag# o)
+  fromPrimBase (I8# i#) = tagToEnum# i#
 
 instance Prim BlockReason where
   type PrimBase BlockReason = Int8
-  toPrim o = I8# (dataToTag# o)
-  fromPrim (I8# i#) = tagToEnum# i#
+  toPrimBase o = I8# (dataToTag# o)
+  fromPrimBase (I8# i#) = tagToEnum# i#
 
 
 instance Prim a => Prim (Down a) where
@@ -1087,18 +1065,18 @@ instance Prim Any where
 
 instance Prim Fingerprint where
   type PrimBase Fingerprint = (Word64, Word64)
-  toPrim (Fingerprint a b) = (a, b)
-  fromPrim (a, b) = Fingerprint a b
+  toPrimBase (Fingerprint a b) = (a, b)
+  fromPrimBase (a, b) = Fingerprint a b
 
 instance (Prim a, Eq a) => Prim (Ratio a) where
   type PrimBase (Ratio a) = (a, a)
-  toPrim (a :% b) = (a, b)
-  fromPrim (a, b) = a :% b
+  toPrimBase (a :% b) = (a, b)
+  fromPrimBase (a, b) = a :% b
 
 instance (Prim a, Eq a) => Prim (Complex a) where
   type PrimBase (Complex a) = (a, a)
-  toPrim (a :+ b) = (a, b)
-  fromPrim (a, b) = a :+ b
+  toPrimBase (a :+ b) = (a, b)
+  fromPrimBase (a, b) = a :+ b
 
 instance (Eq a, Prim a) => Prim (a, a) where
   type PrimBase (a, a) = (a, a)
