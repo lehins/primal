@@ -14,7 +14,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.Bytes.Addr
-  ( Addr(..)
+  ( -- * Immutable Addr
+    Addr(..)
   , castAddr
   , toAddr
   , curOffAddr
@@ -30,7 +31,9 @@ module Data.Prim.Bytes.Addr
   , freezeMAddr
   , withPtrAddr
   , withAddrAddr#
+  , withNoHaltPtrAddr
 
+   -- * Mutable MAddr
   , MAddr(..)
   , castMAddr
   , allocMAddr
@@ -46,6 +49,8 @@ module Data.Prim.Bytes.Addr
   , writeByteOffMAddr
 
   , withPtrMAddr
+  , withAddrMAddr#
+  , withNoHaltPtrMAddr
   -- * Prefetch
   -- ** Directly
   , prefetchAddr0
@@ -123,7 +128,7 @@ toAddr b@(Bytes b#) = Addr (byteArrayContents# b#) b
 
 toMAddr :: MBytes 'Pin s -> MAddr a s
 toMAddr mb =
-  case getPtrMBytes mb of
+  case toPtrMBytes mb of
     Ptr addr# -> MAddr addr# mb
 
 allocMAddr :: (MonadPrim s m, Prim a) => Count a -> m (MAddr a s)
@@ -143,7 +148,10 @@ curOffAddr (Addr addr# (Bytes b#)) =
   let count = countSize (I# (addr# `minusAddr#` byteArrayContents# b#))
   in offAsProxy count (Off (unCount count))
 
-countOfAddr :: forall a .Prim a => Addr a -> Count a
+countOfAddr ::
+     forall a. Prim a
+  => Addr a
+  -> Count a
 countOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
 
 getCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
@@ -161,23 +169,37 @@ indexByteOffAddr :: Prim a => Addr a -> Off Word8 -> a
 indexByteOffAddr addr off = unsafeInlineIO $ readByteOffAddr addr off
 
 withPtrAddr :: MonadPrim s m => Addr a -> (Ptr a -> m b) -> m b
-withPtrAddr addr f = withAddrAddr# addr (\addr# -> f (Ptr addr#))
+withPtrAddr addr f = withAddrAddr# addr $ \addr# -> f (Ptr addr#)
+{-# INLINE withPtrAddr #-}
 
 withAddrAddr# :: MonadPrim s m => Addr a -> (Addr# -> m b) -> m b
-withAddrAddr# (Addr addr# mb) f = do
+withAddrAddr# (Addr addr# b) f = do
   a <- f addr#
-  a <$ touch mb
+  a <$ touch b
+{-# INLINE withAddrAddr# #-}
 
+withNoHaltPtrAddr :: MonadUnliftPrim s m => Addr a -> (Ptr a -> m b) -> m b
+withNoHaltPtrAddr (Addr addr# b) f = withUnliftPrim b $ f (Ptr addr#)
+{-# INLINE withNoHaltPtrAddr #-}
 
 curOffMAddr :: Prim a => MAddr a s -> Off a
 curOffMAddr (MAddr addr# mb) =
-  let count = countSize (Ptr addr# `minusPtr` getPtrMBytes mb)
+  let count = countSize (Ptr addr# `minusPtr` toPtrMBytes mb)
   in offAsProxy count (Off (unCount count))
 
 withPtrMAddr :: MonadPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
-withPtrMAddr (MAddr addr# mb) f = do
-  a <- f (Ptr addr#)
+withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
+{-# INLINE withPtrMAddr #-}
+
+withAddrMAddr# :: MonadPrim s m => MAddr a s -> (Addr# -> m b) -> m b
+withAddrMAddr# (MAddr addr# mb) f = do
+  a <- f addr#
   a <$ touch mb
+{-# INLINE withAddrMAddr# #-}
+
+withNoHaltPtrMAddr :: MonadUnliftPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
+withNoHaltPtrMAddr (MAddr addr# mb) f = withUnliftPrim mb $ f (Ptr addr#)
+{-# INLINE withNoHaltPtrMAddr #-}
 
 thawAddr :: MonadPrim s m => Addr a -> m (MAddr a s)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b

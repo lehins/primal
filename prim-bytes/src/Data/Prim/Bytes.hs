@@ -93,11 +93,8 @@ module Data.Prim.Bytes
   -- ** Ptr
   , withPtrMBytes
   , withNoHaltPtrMBytes
-  , getPtrBytes
-  , getPtrMBytes
-  -- ** ForeignPtr
-  , getBytesForeignPtr
-  , getMBytesForeignPtr
+  , toPtrBytes
+  , toPtrMBytes
   -- * Prefetch
   , prefetchBytes0
   , prefetchMBytes0
@@ -183,7 +180,7 @@ isSameBytes (Bytes b1#) (Bytes b2#) = isTrue# (isSameByteArray# b1# b2#)
 
 -- | Perform pointer equality on pinned `Bytes`.
 isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
-isSamePinnedBytes pb1 pb2 = getPtrBytes pb1 == getPtrBytes pb2
+isSamePinnedBytes pb1 pb2 = toPtrBytes pb1 == toPtrBytes pb2
 {-# INLINE isSamePinnedBytes #-}
 
 -- | Check if two mutable bytes pointers refer to the same memory
@@ -674,27 +671,17 @@ setMBytes (MBytes mba#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setMutableByteA
 {-# INLINE setMBytes #-}
 
 
-getPtrBytes :: Bytes 'Pin -> Ptr a
-getPtrBytes (Bytes ba#) = Ptr (byteArrayContents# ba#)
-{-# INLINE getPtrBytes #-}
+toPtrBytes :: Bytes 'Pin -> Ptr a
+toPtrBytes (Bytes ba#) = Ptr (byteArrayContents# ba#)
+{-# INLINE toPtrBytes #-}
 
-getBytesForeignPtr :: Bytes 'Pin -> ForeignPtr a
-getBytesForeignPtr (Bytes ba#) =
-  ForeignPtr (byteArrayContents# ba#) $ PlainPtr (unsafeCoerce# ba#)
-{-# INLINE getBytesForeignPtr #-}
-
-getPtrMBytes :: MBytes 'Pin s -> Ptr a
-getPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
-{-# INLINE getPtrMBytes #-}
-
-getMBytesForeignPtr :: MBytes 'Pin s -> ForeignPtr a
-getMBytesForeignPtr (MBytes mba#) =
-  ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
-{-# INLINE getMBytesForeignPtr #-}
+toPtrMBytes :: MBytes 'Pin s -> Ptr a
+toPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
+{-# INLINE toPtrMBytes #-}
 
 withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
 withPtrMBytes mb f = do
-  res <- f (getPtrMBytes mb)
+  res <- f (toPtrMBytes mb)
   res <$ touch mb
 {-# INLINE withPtrMBytes #-}
 
@@ -703,7 +690,7 @@ withNoHaltPtrMBytes ::
   => MBytes 'Pin s
   -> (Ptr a -> n b)
   -> m b
-withNoHaltPtrMBytes mb f = withPrimBase mb $ f (getPtrMBytes mb)
+withNoHaltPtrMBytes mb f = withPrimBase mb $ f (toPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
 
 prefetchBytes0 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()

@@ -57,3 +57,7 @@ with# a m s =
 withPrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
 withPrimBase a m = prim (with# a (primBase m))
 {-# INLINE withPrimBase #-}
+
+withUnliftPrim :: MonadUnliftPrim s m => a -> m b -> m b
+withUnliftPrim a m = runInPrimBase m (with# a)
+{-# INLINE withUnliftPrim #-}

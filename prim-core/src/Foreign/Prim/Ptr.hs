@@ -21,6 +21,7 @@ module Foreign.Prim.Ptr
   , setOffPtr
   , copyPtrToPtr
   , movePtrToPtr
+  , freeHaskellFunPtr
   , module X
   , WordPtr(..)
   , ptrToWordPtr
@@ -39,21 +40,16 @@ module Foreign.Prim.Ptr
   , prefetchOffPtr3
   ) where
 
-import GHC.Ptr
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
-import Foreign.Prim
-import Foreign.Marshal.Utils (copyBytes)
 import Data.Prim
 import Data.Prim.Class
-import Foreign.Ptr as X hiding
-  ( IntPtr
-  , WordPtr
-  , intPtrToPtr
-  , ptrToIntPtr
-  , ptrToWordPtr
-  , wordPtrToPtr
-  )
+import Foreign.Marshal.Utils (copyBytes)
+import Foreign.Prim
+import qualified Foreign.Ptr as GHC (freeHaskellFunPtr)
+import Foreign.Ptr as X hiding (IntPtr, WordPtr, freeHaskellFunPtr, intPtrToPtr,
+                         ptrToIntPtr, ptrToWordPtr, wordPtrToPtr)
+import GHC.Ptr
 
 setOffPtr ::
      (MonadPrim s m, Prim a)
@@ -151,3 +147,9 @@ prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (fromOff# off))
 prefetchOffPtr3 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
 prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (fromOff# off))
 {-# INLINE prefetchOffPtr3 #-}
+
+-- | Same as `GHC.freeHaskellFunPtr`
+--
+-- @since 0.1.0
+freeHaskellFunPtr :: MonadPrim s m => FunPtr a -> m ()
+freeHaskellFunPtr = unsafeIOToPrim . GHC.freeHaskellFunPtr

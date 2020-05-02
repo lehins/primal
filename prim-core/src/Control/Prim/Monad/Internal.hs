@@ -18,6 +18,7 @@
 --
 module Control.Prim.Monad.Internal
   ( RW
+  , RealWorld
   , MonadPrim(..)
   , MonadPrimBase(..)
   , MonadUnliftPrim(..)

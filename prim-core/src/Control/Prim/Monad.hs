@@ -11,7 +11,7 @@ module Control.Prim.Monad
   , touch
   , evaluate
   , withPrimBase
-  , RealWorld
+  , withUnliftPrim
   , showsType
   ) where
 
