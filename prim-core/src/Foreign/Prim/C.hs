@@ -1,8 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 -- |
 -- Module      : Foreign.Prim.C
@@ -24,6 +22,7 @@ module Foreign.Prim.C
   , isSameByteArray#
   , isSameMutableByteArray#
   , toOrdering#
+  , fromOrdering#
   , memcmpAddr#
   , memcmpByteArray#
 
@@ -75,6 +74,13 @@ toOrdering# =
       if isTrue# (n# <# 0#)
         then LT
         else GT
+
+fromOrdering# :: Ordering -> Int#
+fromOrdering# =
+  \case
+    EQ -> 0#
+    LT -> -1#
+    GT -> 1#
 
 foreign import ccall unsafe "prim_core.c prim_core_memcmp"
   memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int# -> Int#

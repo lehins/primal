@@ -3,6 +3,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -25,6 +26,13 @@ module Data.Prim.Class
   , errorImpossible
   , bool2Int#
   , int2Bool#
+  -- * Backwards compatibility
+  , WordPtr(..)
+  , ptrToWordPtr
+  , wordPtrToPtr
+  , IntPtr(..)
+  , ptrToIntPtr
+  , intPtrToPtr
   ) where
 
 
@@ -32,15 +40,62 @@ module Data.Prim.Class
 #include "HsBaseConfig.h"
 
 import Control.Prim.Monad.Unsafe
-import Foreign.Prim
-import Foreign.Prim.Ptr
+import Foreign.Prim hiding (Any)
+import Foreign.C.Error (Errno(..))
+import Data.Complex
+import GHC.Conc
 import GHC.Stable
+import GHC.Real
+import GHC.IO.Device
+import GHC.Fingerprint.Type
 import GHC.TypeLits as Nats
-import System.Posix.Types
+import Data.Functor.Const
+import Data.Functor.Compose
+import Data.Functor.Identity
+import Data.Monoid
+#if __GLASGOW_HASKELL__ >= 800
+import Data.Semigroup
+#endif /* __GLASGOW_HASKELL__ >= 800 */
+
 #if __GLASGOW_HASKELL__ < 802
 import qualified Foreign.Ptr as P
+import Foreign.Ptr hiding
+  ( IntPtr
+  , WordPtr
+  , intPtrToPtr
+  , ptrToIntPtr
+  , ptrToWordPtr
+  , wordPtrToPtr
+  )
 import Unsafe.Coerce
 #include "prim_core_compat.h"
+
+import Data.Bits (Bits, FiniteBits)
+import Foreign.Storable (Storable)
+
+-- | Replacement for `Foreign.Ptr.IntPtr` with exported constructor.
+newtype IntPtr = IntPtr Int
+  deriving (Eq, Ord, Num, Enum, Storable, Real, Bounded, Integral, Bits, FiniteBits, Read, Show)
+
+-- | Replacement for `Foreign.Ptr.WordPtr` with exported constructor.
+newtype WordPtr = WordPtr Word
+  deriving (Eq, Ord, Num, Enum, Storable, Real, Bounded, Integral, Bits, FiniteBits, Read, Show)
+
+-- | casts a @Ptr@ to a @WordPtr@
+ptrToWordPtr :: Ptr a -> WordPtr
+ptrToWordPtr (Ptr a#) = WordPtr (W# (int2Word# (addr2Int# a#)))
+
+-- | casts a @WordPtr@ to a @Ptr@
+wordPtrToPtr :: WordPtr -> Ptr a
+wordPtrToPtr (WordPtr (W# w#)) = Ptr (int2Addr# (word2Int# w#))
+
+-- | casts a @Ptr@ to an @IntPtr@
+ptrToIntPtr :: Ptr a -> IntPtr
+ptrToIntPtr (Ptr a#) = IntPtr (I# (addr2Int# a#))
+
+-- | casts an @IntPtr@ to a @Ptr@
+intPtrToPtr :: IntPtr -> Ptr a
+intPtrToPtr (IntPtr (I# i#)) = Ptr (int2Addr# i#)
 
 instance Prim P.IntPtr where
   type PrimBase P.IntPtr = IntPtr
@@ -53,6 +108,8 @@ instance Prim P.WordPtr where
   -- Constructor for newtype was not exported
   toPrim = unsafeCoerce
   fromPrim = unsafeCoerce
+#else
+import Foreign.Ptr
 #endif
 
 class Prim a where
@@ -163,6 +220,39 @@ class Prim a where
     Prim (PrimBase a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
   setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (toPrim a)
   {-# INLINE setOffAddr# #-}
+
+
+instance Prim () where
+  type PrimBase () = ()
+  type SizeOf () = 0
+  type Alignment () = 0
+  sizeOf# _ = 0
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 0
+  {-# INLINE alignment# #-}
+  indexByteOffByteArray# _ _ = ()
+  {-# INLINE indexByteOffByteArray# #-}
+  indexByteArray# _ _ = ()
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# _ _ = ()
+  {-# INLINE indexOffAddr# #-}
+  readByteOffMutableByteArray# _ _ s = (# s, () #)
+  {-# INLINE readByteOffMutableByteArray# #-}
+  readMutableByteArray# _ _ s = (# s, () #)
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# _ _ s = (# s, () #)
+  {-# INLINE readOffAddr# #-}
+  writeByteOffMutableByteArray# _ _ () s = s
+  {-# INLINE writeByteOffMutableByteArray# #-}
+  writeMutableByteArray# _ _ () s = s
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# _ _ () s = s
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# _ _ _ () s = s
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# _ _ _ () s = s
+  {-# INLINE setOffAddr# #-}
+
 
 instance Prim Int where
   type PrimBase Int = Int
@@ -824,6 +914,9 @@ instance Prim CDouble where
 instance Prim Fd where
   type PrimBase Fd = CInt
 
+instance Prim Errno where
+  type PrimBase Errno = CInt
+
 
 #if defined(HTYPE_DEV_T)
 instance Prim CDev where
@@ -927,6 +1020,85 @@ instance Prim CNfds where
 #endif /* __GLASGOW_HASKELL__ >= 810 */
 
 #endif /* __GLASGOW_HASKELL__ >= 802 */
+
+#if __GLASGOW_HASKELL__ >= 800
+instance Prim a => Prim (Max a) where
+  type PrimBase (Max a) = a
+instance Prim a => Prim (Min a) where
+  type PrimBase (Min a) = a
+instance Prim a => Prim (Data.Semigroup.First a) where
+  type PrimBase (Data.Semigroup.First a) = a
+instance Prim a => Prim (Data.Semigroup.Last a) where
+  type PrimBase (Data.Semigroup.Last a) = a
+instance (Eq a, Prim a) => Prim (Arg a a) where
+  type PrimBase (Arg a a) = (a, a)
+  toPrim (Arg a b) = (a, b)
+  fromPrim (a, b) = Arg a b
+
+instance Prim (f (g a)) => Prim (Compose f g a) where
+  type PrimBase (Compose f g a) = f (g a)
+
+#endif /* __GLASGOW_HASKELL__ >= 800 */
+
+instance Prim a => Prim (Const a b) where
+  type PrimBase (Const a b) = a
+
+instance Prim a => Prim (Identity a) where
+  type PrimBase (Identity a) = a
+
+instance Prim Ordering where
+  type PrimBase Ordering = Int8
+  toPrim o = I8# (fromOrdering# o)
+  fromPrim (I8# i#) = toOrdering# i#
+
+instance Prim IODeviceType where
+  type PrimBase IODeviceType = Int8
+  toPrim o = I8# (dataToTag# o)
+  fromPrim (I8# i#) = tagToEnum# i#
+
+instance Prim SeekMode where
+  type PrimBase SeekMode = Int8
+  toPrim o = I8# (dataToTag# o)
+  fromPrim (I8# i#) = tagToEnum# i#
+
+instance Prim BlockReason where
+  type PrimBase BlockReason = Int8
+  toPrim o = I8# (dataToTag# o)
+  fromPrim (I8# i#) = tagToEnum# i#
+
+
+instance Prim a => Prim (Down a) where
+  type PrimBase (Down a) = a
+
+instance Prim a => Prim (Dual a) where
+  type PrimBase (Dual a) = a
+
+instance Prim a => Prim (Sum a) where
+  type PrimBase (Sum a) = a
+
+instance Prim a => Prim (Product a) where
+  type PrimBase (Product a) = a
+
+instance Prim All where
+  type PrimBase All = Bool
+
+instance Prim Any where
+  type PrimBase Any = Bool
+
+instance Prim Fingerprint where
+  type PrimBase Fingerprint = (Word64, Word64)
+  toPrim (Fingerprint a b) = (a, b)
+  fromPrim (a, b) = Fingerprint a b
+
+instance (Prim a, Eq a) => Prim (Ratio a) where
+  type PrimBase (Ratio a) = (a, a)
+  toPrim (a :% b) = (a, b)
+  fromPrim (a, b) = a :% b
+
+instance (Prim a, Eq a) => Prim (Complex a) where
+  type PrimBase (Complex a) = (a, a)
+  toPrim (a :+ b) = (a, b)
+  fromPrim (a, b) = a :+ b
 
 instance (Eq a, Prim a) => Prim (a, a) where
   type PrimBase (a, a) = (a, a)
@@ -1069,6 +1241,95 @@ instance (Eq a, Prim a) => Prim (a, a, a) where
   {-# INLINE setMutableByteArray# #-}
   setOffAddr# addr# o# n# a@(a0, a1, a2) s
     | a0 == a1 && a1 == a2 = setOffAddr# addr# (o# *# 3#) (n# *# 3#) a0 s
+    | otherwise = setOffAddr# addr# o# n# a s
+  {-# INLINE setOffAddr# #-}
+
+instance (Eq a, Prim a) => Prim (a, a, a, a) where
+  type PrimBase (a, a, a, a) = (a, a, a, a)
+  type SizeOf (a, a, a, a) = 4 Nats.* SizeOf a
+  type Alignment (a, a, a, a) = 4 Nats.* Alignment a
+  sizeOf# _ = 4 * sizeOf# (proxy# :: Proxy# a)
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 4 * alignment# (proxy# :: Proxy# a)
+  {-# INLINE alignment# #-}
+  indexByteOffByteArray# ba# i# =
+    let i4# = 4# *# i#
+    in ( indexByteOffByteArray# ba# i4#
+       , indexByteOffByteArray# ba# (i4# +# 1#)
+       , indexByteOffByteArray# ba# (i4# +# 2#)
+       , indexByteOffByteArray# ba# (i4# +# 3#)
+       )
+  {-# INLINE indexByteOffByteArray# #-}
+  indexByteArray# ba# i# =
+    let i4# = 4# *# i#
+    in ( indexByteArray# ba# i4#
+       , indexByteArray# ba# (i4# +# 1#)
+       , indexByteArray# ba# (i4# +# 2#)
+       , indexByteArray# ba# (i4# +# 3#)
+       )
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# =
+    let i4# = 4# *# i#
+    in ( indexOffAddr# addr# i4#
+       , indexOffAddr# addr# (i4# +# 1#)
+       , indexOffAddr# addr# (i4# +# 2#)
+       , indexOffAddr# addr# (i4# +# 3#)
+       )
+  {-# INLINE indexOffAddr# #-}
+  readMutableByteArray# mba# i# s =
+    let i4# = 4# *# i#
+    in case readMutableByteArray# mba# i4#         s  of { (# s0, a0 #) ->
+       case readMutableByteArray# mba# (i4# +# 1#) s0 of { (# s1, a1 #) ->
+       case readMutableByteArray# mba# (i4# +# 2#) s1 of { (# s2, a2 #) ->
+       case readMutableByteArray# mba# (i4# +# 3#) s2 of { (# s3, a3 #) ->
+         (# s3, (a0, a1, a2, a3) #)
+       }}}}
+  {-# INLINE readMutableByteArray# #-}
+  readByteOffMutableByteArray# mba# i# s =
+    let i4# = 4# *# i#
+    in case readByteOffMutableByteArray# mba# i4#         s  of { (# s0, a0 #) ->
+       case readByteOffMutableByteArray# mba# (i4# +# 1#) s0 of { (# s1, a1 #) ->
+       case readByteOffMutableByteArray# mba# (i4# +# 2#) s1 of { (# s2, a2 #) ->
+       case readByteOffMutableByteArray# mba# (i4# +# 3#) s2 of { (# s3, a3 #) ->
+         (# s3, (a0, a1, a2, a3) #)
+       }}}}
+  {-# INLINE readByteOffMutableByteArray# #-}
+  readOffAddr# addr# i# s =
+    let i4# = 4# *# i#
+    in case readOffAddr# addr# i4#         s  of { (# s0, a0 #) ->
+       case readOffAddr# addr# (i4# +# 1#) s0 of { (# s1, a1 #) ->
+       case readOffAddr# addr# (i4# +# 2#) s1 of { (# s2, a2 #) ->
+       case readOffAddr# addr# (i4# +# 3#) s2 of { (# s3, a3 #) ->
+         (# s3, (a0, a1, a2, a3) #)
+       }}}}
+  {-# INLINE readOffAddr# #-}
+  writeByteOffMutableByteArray# mba# i# (a0, a1, a2, a3) s =
+    let i4# = 4# *# i#
+    in writeByteOffMutableByteArray# mba# (i4# +# 3#) a3
+       (writeByteOffMutableByteArray# mba# (i4# +# 2#) a2
+        (writeByteOffMutableByteArray# mba# (i4# +# 1#) a1
+         (writeByteOffMutableByteArray# mba# i4# a0 s)))
+  {-# INLINE writeByteOffMutableByteArray# #-}
+  writeMutableByteArray# mba# i# (a0, a1, a2, a3) s =
+    let i4# = 4# *# i#
+    in writeMutableByteArray# mba# (i4# +# 3#) a3
+       (writeMutableByteArray# mba# (i4# +# 2#) a2
+        (writeMutableByteArray# mba# (i4# +# 1#) a1
+         (writeMutableByteArray# mba# i4# a0 s)))
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# addr# i# (a0, a1, a2, a3) s =
+    let i4# = 4# *# i#
+    in writeOffAddr# addr# (i4# +# 3#) a3
+       (writeOffAddr# addr# (i4# +# 2#) a2
+        (writeOffAddr# addr# (i4# +# 1#) a1
+         (writeOffAddr# addr# i4# a0 s)))
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# a@(a0, a1, a2, a3) s
+    | a0 == a1 && a1 == a2 && a2 == a3 = setMutableByteArray# mba# (o# *# 4#) (n# *# 4#) a0 s
+    | otherwise = setMutableByteArrayLoop# mba# o# n# a s
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# a@(a0, a1, a2, a3) s
+    | a0 == a1 && a1 == a2 && a2 == a3 = setOffAddr# addr# (o# *# 4#) (n# *# 4#) a0 s
     | otherwise = setOffAddr# addr# o# n# a s
   {-# INLINE setOffAddr# #-}
 
