@@ -15,7 +15,7 @@ module Control.Prim.Concurrent
   ( module Control.Prim.Concurrent
   ) where
 
-import Control.Exception
+import qualified Control.Exception as GHC
 import qualified GHC.Conc as GHC
 import Control.Prim.Exception
 import Control.Prim.Monad.Internal
@@ -76,7 +76,7 @@ forkOnPrim (I# cap#) action =
 
 
 killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
-killThread tid = throwToPrim tid ThreadKilled
+killThread tid = throwTo tid GHC.ThreadKilled
 
 
 yield :: MonadPrim RW m => m ()

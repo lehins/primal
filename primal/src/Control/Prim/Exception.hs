@@ -17,7 +17,7 @@ module Control.Prim.Exception
   -- , withPrimBase
   -- , with#
 
-import Control.Exception
+import Control.Exception as GHC
 import qualified GHC.Conc as GHC
 import Control.Prim.Monad.Internal
 import Control.Prim.Monad.Unsafe
@@ -27,15 +27,15 @@ import GHC.Exts
 
 ----- Exceptions
 
-throwPrim :: (Exception e, MonadPrim s m) => e -> m a
-throwPrim e = unsafeIOToPrim $ prim (raiseIO# (toException e))
+throw :: (Exception e, MonadPrim s m) => e -> m a
+throw e = unsafeIOToPrim $ prim (raiseIO# (toException e))
 
-catchPrim ::
+catch ::
      forall e a m. (Exception e, MonadUnliftPrim RW m)
   => m a
   -> (e -> m a)
   -> m a
-catchPrim action handler =
+catch action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# e =
@@ -44,23 +44,23 @@ catchPrim action handler =
             Nothing -> raiseIO# e
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAnyPrim ::
+catchAny ::
      forall a m. (MonadUnliftPrim RW m)
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAnyPrim action handler =
+catchAny action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# (SomeException e) = primBase (run (handler e) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAnySyncPrim ::
+catchAnySync ::
      forall a m. (MonadUnliftPrim RW m)
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAnySyncPrim action handler =
+catchAnySync action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# exc@(SomeException e) =
@@ -69,22 +69,22 @@ catchAnySyncPrim action handler =
             Nothing -> primBase (run (handler e) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-maskAsyncExceptionsPrim :: forall a m. MonadUnliftPrim RW m => m a -> m a
-maskAsyncExceptionsPrim action =
+maskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
+maskAsyncExceptions action =
   withRunInPrimBase $ \run -> prim (maskAsyncExceptions# (primBase (run action :: IO a)))
 
-unmaskAsyncExceptionsPrim :: forall a m. MonadUnliftPrim RW m => m a -> m a
-unmaskAsyncExceptionsPrim action =
+unmaskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
+unmaskAsyncExceptions action =
   withRunInPrimBase $ \run -> prim (unmaskAsyncExceptions# (primBase (run action :: IO a)))
 
-maskUninterruptiblePrim :: forall a m. MonadUnliftPrim RW m => m a -> m a
-maskUninterruptiblePrim action =
+maskUninterruptible :: forall a m. MonadUnliftPrim RW m => m a -> m a
+maskUninterruptible action =
   withRunInPrimBase $ \run -> prim (maskUninterruptible# (primBase (run action :: IO a)))
 
 
-getMaskingStatePrim :: MonadPrim s m => m MaskingState
-getMaskingStatePrim = unsafeIOToPrim getMaskingState
+getMaskingState :: MonadPrim RW m => m MaskingState
+getMaskingState = liftPrimBase GHC.getMaskingState
 
 
-throwToPrim :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
-throwToPrim tid = liftPrimBase . GHC.throwTo tid
+throwTo :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
+throwTo tid = liftPrimBase . GHC.throwTo tid

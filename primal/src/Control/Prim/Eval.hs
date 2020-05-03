@@ -36,8 +36,8 @@ touch x = unsafeIOToPrim $ prim_ (touch# x)
 
 -- | An action that evaluates a value to weak head normal form. Same
 -- as `Control.Exception.evaluate`, except it work in a `MonadPrim`
-evaluate :: MonadPrim s m => a -> m a
-evaluate a = prim (seq# a)
+seqPrim :: MonadPrim s m => a -> m a
+seqPrim a = prim (seq# a)
 
 
 -- | Forward compatible operator that will be introduced in some future ghc version.

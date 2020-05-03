@@ -17,6 +17,7 @@ module Data.Prim
   , AtomicCount
   , AtomicBits
   , MonadPrim
+  , RW
   , RealWorld
   -- * Prim type size
   , sizeOf

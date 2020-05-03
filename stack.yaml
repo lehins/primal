@@ -2,6 +2,7 @@ resolver: lts-15.7
 packages:
 - primal
 - primal-bytes
+- primal-pvar
 
 extra-deps:
 - cabal-doctest-1.0.8@sha256:34dff6369d417df2699af4e15f06bc181d495eca9c51efde173deae2053c197c,1491

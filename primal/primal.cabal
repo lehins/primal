@@ -38,6 +38,8 @@ library
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName
+                     , Data.Prim.MVar
+                     , Data.Prim.Ref
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr

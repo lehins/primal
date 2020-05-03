@@ -9,7 +9,7 @@
 module Control.Prim.Monad
   ( module Control.Prim.Monad.Internal
   , touch
-  , evaluate
+  , seqPrim
   , withPrimBase
   , withUnliftPrim
   , showsType

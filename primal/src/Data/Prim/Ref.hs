@@ -9,54 +9,74 @@
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Ref where
+module Data.Prim.Ref
+  ( Ref(..)
+  , newRef
+  , newRefLazy
+  ) where
 
 import Control.Monad (void)
 import Control.Prim.Monad
 import GHC.Exts
-import qualified Data.Prim.Ref.Lazy as Lazy
+import GHC.STRef
+import GHC.IORef
 
--- | This is just like `Data.STRef.STRef`, but with type arguments flipped and is
--- generalized to work in `MonadPrim`
+-- | Mutable variable. This is just like `Data.STRef.STRef`, but with type arguments
+-- flipped and is generalized to work in `MonadPrim`
 data Ref a s = Ref (MutVar# s a)
 
--- | Only compares pointers, so check whether it is exactly the same `Ref` or not.
+-- | Checks whether supplied `Ref`s refer to the exact same `Ref` or not.
 instance Eq (Ref a s) where
   Ref ref1# == Ref ref2# = isTrue# (sameMutVar# ref1# ref2#)
 
-class MutInit f where
-
-  initPrim :: MonadPrim s m => a -> m (f a s)
-
-class MutFunctor f where
-  mapPrim :: MonadPrim s m => (a -> m b) -> f a s -> m (f b s)
-
-  mutPrim :: MonadPrim s m => (a -> m a) -> f a s -> m ()
-
-instance MutFunctor Ref where
-  mapPrim f ref = readRef ref >>= f >>= newRef
-
-  mutPrim f ref = readRef ref >>= f >>= writeRef ref
-
-
-toLazyRef :: Ref a s -> Lazy.Ref a s
-toLazyRef (Ref ref#) = Lazy.Ref ref#
-
-fromLazyRef :: Lazy.Ref a s -> Ref a s
-fromLazyRef (Lazy.Ref ref#) = Ref ref#
 
 newRef :: MonadPrim s m => a -> m (Ref a s)
-newRef !a =
+newRef a = seqPrim a >>= newRefLazy
+
+newRefLazy :: MonadPrim s m => a -> m (Ref a s)
+newRefLazy a =
   prim $ \s ->
     case newMutVar# a s of
       (# s', ref# #) -> (# s', Ref ref# #)
-
 
 readRef :: MonadPrim s m => Ref a s -> m a
 readRef (Ref ref#) = prim (readMutVar# ref#)
 
 writeRef :: MonadPrim s m => Ref a s -> a -> m ()
-writeRef (Ref ref#) !a = prim_ (writeMutVar# ref# a)
+writeRef ref a = seqPrim a >>= writeRefLazy ref
+
+writeRefLazy :: MonadPrim s m => Ref a s -> a -> m ()
+writeRefLazy (Ref ref#) a = prim_ (writeMutVar# ref# a)
+
+modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
+modifyRefM ref f = do
+  a <- readRef ref
+  (a', b) <- f a
+  b <$ writeRef ref a'
+{-# INLINE modifyRefM #-}
+
+modifyRefM_ :: MonadPrim s m => Ref a s -> (a -> m a) -> m ()
+modifyRefM_ ref f = readRef ref >>= f >>= writeRef ref
+{-# INLINE modifyRefM_ #-}
+
+-- | Apply a monadic action to the contents of a mutable variable strictly. Returns the old value.
+--
+-- @since 0.2.0
+fetchModifyRefM :: MonadPrim s m => Ref a s -> (a -> m a) -> m a
+fetchModifyRefM ref f = do
+  a <- readRef ref
+  a <$ (writeRef ref =<< f a)
+{-# INLINE fetchModifyRefM #-}
+
+
+-- | Apply a pure function to the contents of a mutable variable strictly. Returns the old value.
+--
+-- @since 0.2.0
+fetchModifyRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+fetchModifyRef ref f = fetchModifyRefM ref (pure . f)
+{-# INLINE fetchModifyRef #-}
+
+
 
 atomicModifyRef2_ :: MonadPrim s m => Ref a s -> (a -> a) -> m (a, a)
 atomicModifyRef2_ (Ref ref#) f =
@@ -124,3 +144,47 @@ casRef :: MonadPrim s m => Ref a s -> a -> a -> m (Bool, a)
 casRef (Ref ref#) expOld new = prim $ \ s ->
   case casMutVar# ref# expOld new s of
     (# s', success#, actualOld #) -> (# s', (isTrue# success#, actualOld) #)
+
+
+
+atomicModifyRef2Lazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyRef2Lazy (Ref ref#) f =
+  prim $ \s ->
+    case atomicModifyMutVar2# ref# f s of
+      (# s', old, ~(new, b) #) -> (# s', (old, new, b) #)
+
+
+atomicModifyRefLazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
+atomicModifyRefLazy (Ref ref#) f = prim (atomicModifyMutVar# ref# f)
+
+atomicFetchModifyRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+atomicFetchModifyRefLazy (Ref ref#) f =
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', prev, _cur #) -> (# s', prev #)
+
+atomicModifyFetchRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+atomicModifyFetchRefLazy (Ref ref#) f =
+  prim $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', _prev, cur #) -> (# s', cur #)
+
+atomicWriteRefLazy :: MonadPrim s m => Ref b s -> b -> m b
+atomicWriteRefLazy ref x = atomicFetchModifyRefLazy ref (const x)
+
+atomicWriteRefLazy_ :: MonadPrim s m => Ref b s -> b -> m ()
+atomicWriteRefLazy_ ref x = void $ atomicWriteRefLazy ref x
+
+
+
+toSTRef :: Ref a s -> STRef s a
+toSTRef (Ref ref#) = STRef ref#
+
+fromSTRef :: STRef s a -> Ref a s
+fromSTRef (STRef ref#) = Ref ref#
+
+toIORef :: Ref a RW -> IORef a
+toIORef (Ref ref#) = IORef (STRef ref#)
+
+fromIORef :: IORef a -> Ref a RW
+fromIORef (IORef (STRef ref#)) = Ref ref#

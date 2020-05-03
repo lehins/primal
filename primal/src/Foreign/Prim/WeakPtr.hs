@@ -33,14 +33,14 @@ mkWeak :: MonadUnliftPrim RW m => a -> v -> m b -> m (Weak v)
 mkWeak key val finalizer =
   runInPrimBase finalizer $ \f s ->
     case mkWeak# key val f s of
-      (# s1, w #) -> (# s1, Weak w #)
+      (# s', w #) -> (# s', Weak w #)
 
 -- | Similar to `mkWeak`, except it does not require a finalizer.
 mkWeakNoFinalizer :: MonadPrim RW m => a -> v -> m (Weak v)
 mkWeakNoFinalizer key val =
   prim $ \s ->
     case mkWeakNoFinalizer# key val s of
-      (# s1, w #) -> (# s1, Weak w #)
+      (# s', w #) -> (# s', Weak w #)
 
 -- | Same as `System.Mem.Weak.mkWeakPtr`, except it requires a finalizer to be
 -- supplied. For a version without finalizers use `mkWeakPtrNoFinalizer`
