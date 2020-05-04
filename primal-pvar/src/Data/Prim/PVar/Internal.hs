@@ -88,7 +88,7 @@ rawPVar ::
   => m (PVar a s)
 rawPVar =
   prim $ \s# ->
-    case newByteArray# (unI# (sizeOf# (proxy# :: Proxy# a))) s# of
+    case newByteArray# (sizeOf# (proxy# :: Proxy# a)) s# of
       (# s'#, mba# #) -> (# s'#, PVar mba# #)
 {-# INLINE rawPVar #-}
 
@@ -110,7 +110,7 @@ rawPinnedPVar ::
   => m (PVar a s)
 rawPinnedPVar =
   prim $ \s# ->
-    case newPinnedByteArray# (unI# (sizeOf# (proxy# :: Proxy# a))) s# of
+    case newPinnedByteArray# (sizeOf# (proxy# :: Proxy# a)) s# of
       (# s'#, mba# #) -> (# s'#, PVar mba# #)
 {-# INLINE rawPinnedPVar #-}
 
@@ -135,7 +135,7 @@ rawAlignedPinnedPVar ::
 rawAlignedPinnedPVar =
   let dummy = proxy# :: Proxy# a
    in prim $ \s# ->
-        case newAlignedPinnedByteArray# (unI# (sizeOf# dummy)) (unI# (alignment# dummy)) s# of
+        case newAlignedPinnedByteArray# (sizeOf# dummy) (alignment# dummy) s# of
           (# s'#, mba# #) -> (# s'#, PVar mba# #)
 {-# INLINE rawAlignedPinnedPVar #-}
 
@@ -166,7 +166,7 @@ writePVar (PVar mba#) v = prim_ (writeMutableByteArray# mba# 0# v)
 --
 -- @since 0.1.0
 sizeOfPVar :: forall a s. Prim a => PVar a s -> Int
-sizeOfPVar _ = sizeOf# (proxy# :: Proxy# a)
+sizeOfPVar _ = I# (sizeOf# (proxy# :: Proxy# a))
 {-# INLINE sizeOfPVar #-}
 
 -- | Alignment in bytes of the value stored inside of the mutable variable. `PVar` itself is
@@ -174,7 +174,7 @@ sizeOfPVar _ = sizeOf# (proxy# :: Proxy# a)
 --
 -- @since 0.1.0
 alignmentPVar :: forall a s. Prim a => PVar a s -> Int
-alignmentPVar _ = alignment# (proxy# :: Proxy# a)
+alignmentPVar _ = I# (alignment# (proxy# :: Proxy# a))
 {-# INLINE alignmentPVar #-}
 
 

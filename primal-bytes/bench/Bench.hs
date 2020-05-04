@@ -10,7 +10,7 @@ import Data.Proxy
 import Data.Typeable
 import Criterion.Main
 import Data.Prim.Bytes
-import Data.Prim.Ptr
+import Data.Prim.Bytes.Ptr
 import Control.Prim.Monad
 import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
@@ -218,7 +218,7 @@ setBytesBench mb1 mb2 mba a c@(Count n) =
 
 withPtrMBytes_noinline :: MBytes 'Pin s -> (Ptr a -> IO b) -> IO b
 withPtrMBytes_noinline mb f = do
-  res <- f (getPtrMBytes mb)
+  res <- f $ toPtrMBytes mb
   res <$ touch mb
 {-# NOINLINE withPtrMBytes_noinline #-}
 

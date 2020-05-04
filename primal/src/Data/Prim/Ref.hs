@@ -142,7 +142,7 @@ readRef (Ref ref#) = prim (readMutVar# ref#)
 --
 -- ==== Examples
 --
--- >>> ref <- newRef (Left "Initial")
+-- >>> ref <- newRef (Left "Initial" :: Either String String)
 -- >>> swapRef ref (Right "Last")
 -- Left "Initial"
 -- >>> readRef ref
@@ -270,7 +270,7 @@ modifyRefM ref f = do
 -- ==== Examples
 --
 -- >>> ref <- newRef (Just "Some value")
--- >>> modifyRefM ref $ \ mv -> Nothing <$ mapM_ putStrLn mv
+-- >>> modifyRefM_ ref $ \ mv -> Nothing <$ mapM_ putStrLn mv
 -- Some value
 -- >>> readRef ref
 -- Nothing

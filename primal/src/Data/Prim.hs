@@ -65,7 +65,7 @@ import Data.Monoid
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
 sizeOf :: forall a . Prim a => a -> Int
-sizeOf _ = sizeOf# (proxy# :: Proxy# a)
+sizeOf _ = I# (sizeOf# (proxy# :: Proxy# a))
 {-# INLINE sizeOf #-}
 
 -- | Same as `sizeOf`, except that the type can be supplied as a type level argument
@@ -76,7 +76,7 @@ sizeOf _ = sizeOf# (proxy# :: Proxy# a)
 -- 8
 --
 sizeOfType :: forall a . Prim a => Int
-sizeOfType = sizeOf# (proxy# :: Proxy# a)
+sizeOfType = I# (sizeOf# (proxy# :: Proxy# a))
 {-# INLINE sizeOfType #-}
 
 -- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
@@ -87,14 +87,14 @@ sizeOfType = sizeOf# (proxy# :: Proxy# a)
 -- 8
 --
 sizeOfProxy :: forall proxy a . Prim a => proxy a -> Int
-sizeOfProxy _ = sizeOf# (proxy# :: Proxy# a)
+sizeOfProxy _ = I# (sizeOf# (proxy# :: Proxy# a))
 {-# INLINE sizeOfProxy #-}
 
 
 
 -- | Get the size of the dat type in bytes. Argument is not evaluated.
 alignment :: forall a . Prim a => a -> Int
-alignment _ = alignment# (proxy# :: Proxy# a)
+alignment _ = I# (alignment# (proxy# :: Proxy# a))
 {-# INLINE alignment #-}
 
 -- | Same as `alignment`, except that the type can be supplied at the type level
@@ -105,7 +105,7 @@ alignment _ = alignment# (proxy# :: Proxy# a)
 -- 8
 --
 alignmentType :: forall a . Prim a => Int
-alignmentType = alignment# (proxy# :: Proxy# a)
+alignmentType = I# (alignment# (proxy# :: Proxy# a))
 {-# INLINE alignmentType #-}
 
 -- | Same as `alignment`, but argument is a `Proxy` of @a@, instead of the type itself.
@@ -115,7 +115,7 @@ alignmentType = alignment# (proxy# :: Proxy# a)
 -- 8
 --
 alignmentProxy :: forall proxy a . Prim a => proxy a -> Int
-alignmentProxy _ = alignment# (proxy# :: Proxy# a)
+alignmentProxy _ = I# (alignment# (proxy# :: Proxy# a))
 {-# INLINE alignmentProxy #-}
 
 
@@ -227,7 +227,7 @@ quotSizeOfWith px# sz onZero quotWith
   | tySize <= 0 = onZero
   | otherwise = sz `quotWith` tySize
   where
-    tySize = sizeOf# px#
+    tySize = I# (sizeOf# px#)
 {-# INLINE quotSizeOfWith #-}
 
 

@@ -128,13 +128,13 @@ class Prim a where
   default fromPrimBase :: Coercible a (PrimBase a) => PrimBase a -> a
   fromPrimBase = coerce
 
-  sizeOf# :: Proxy# a -> Int
-  default sizeOf# :: Prim (PrimBase a) => Proxy# a -> Int
+  sizeOf# :: Proxy# a -> Int#
+  default sizeOf# :: Prim (PrimBase a) => Proxy# a -> Int#
   sizeOf# _ = sizeOf# (proxy# :: Proxy# (PrimBase a))
   {-# INLINE sizeOf# #-}
 
-  alignment# :: Proxy# a -> Int
-  default alignment# :: Prim (PrimBase a) => Proxy# a -> Int
+  alignment# :: Proxy# a -> Int#
+  default alignment# :: Prim (PrimBase a) => Proxy# a -> Int#
   alignment# _ = alignment# (proxy# :: Proxy# (PrimBase a))
   {-# INLINE alignment# #-}
 
@@ -226,9 +226,9 @@ instance Prim () where
   type PrimBase () = ()
   type SizeOf () = 0
   type Alignment () = 0
-  sizeOf# _ = 0
+  sizeOf# _ = 0#
   {-# INLINE sizeOf# #-}
-  alignment# _ = 0
+  alignment# _ = 0#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# _ _ = ()
   {-# INLINE indexByteOffByteArray# #-}
@@ -258,9 +258,9 @@ instance Prim Int where
   type PrimBase Int = Int
   type SizeOf Int = SIZEOF_HSINT
   type Alignment Int = ALIGNMENT_HSINT
-  sizeOf# _ = SIZEOF_HSINT
+  sizeOf# _ = SIZEOF_HSINT#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSINT
+  alignment# _ = ALIGNMENT_HSINT#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = I# (indexWord8ArrayAsInt# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -297,9 +297,9 @@ instance Prim Int8 where
   type PrimBase Int8 = Int8
   type SizeOf Int8 = SIZEOF_INT8
   type Alignment Int8 = ALIGNMENT_INT8
-  sizeOf# _ = SIZEOF_INT8
+  sizeOf# _ = SIZEOF_INT8#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT8
+  alignment# _ = ALIGNMENT_INT8#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = I8# (indexInt8Array# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -331,9 +331,9 @@ instance Prim Int16 where
   type PrimBase Int16 = Int16
   type SizeOf Int16 = SIZEOF_INT16
   type Alignment Int16 = ALIGNMENT_INT16
-  sizeOf# _ = SIZEOF_INT16
+  sizeOf# _ = SIZEOF_INT16#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT16
+  alignment# _ = ALIGNMENT_INT16#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = I16# (indexWord8ArrayAsInt16# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -365,9 +365,9 @@ instance Prim Int32 where
   type PrimBase Int32 = Int32
   type SizeOf Int32 = SIZEOF_INT32
   type Alignment Int32 = ALIGNMENT_INT32
-  sizeOf# _ = SIZEOF_INT32
+  sizeOf# _ = SIZEOF_INT32#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT32
+  alignment# _ = ALIGNMENT_INT32#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = I32# (indexWord8ArrayAsInt32# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -399,9 +399,9 @@ instance Prim Int64 where
   type PrimBase Int64 = Int64
   type SizeOf Int64 = SIZEOF_INT64
   type Alignment Int64 = ALIGNMENT_INT64
-  sizeOf# _ = SIZEOF_INT64
+  sizeOf# _ = SIZEOF_INT64#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_INT64
+  alignment# _ = ALIGNMENT_INT64#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = I64# (indexWord8ArrayAsInt64# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -434,9 +434,9 @@ instance Prim Word where
   type PrimBase Word = Word
   type SizeOf Word = SIZEOF_HSWORD
   type Alignment Word = ALIGNMENT_HSWORD
-  sizeOf# _ = SIZEOF_HSWORD
+  sizeOf# _ = SIZEOF_HSWORD#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSWORD
+  alignment# _ = ALIGNMENT_HSWORD#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = W# (indexWord8ArrayAsWord# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -473,9 +473,9 @@ instance Prim Word8 where
   type PrimBase Word8 = Word8
   type SizeOf Word8 = SIZEOF_WORD8
   type Alignment Word8 = ALIGNMENT_WORD8
-  sizeOf# _ = SIZEOF_WORD8
+  sizeOf# _ = SIZEOF_WORD8#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_WORD8
+  alignment# _ = ALIGNMENT_WORD8#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = W8# (indexWord8Array# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -507,9 +507,9 @@ instance Prim Word16 where
   type PrimBase Word16 = Word16
   type SizeOf Word16 = SIZEOF_WORD16
   type Alignment Word16 = ALIGNMENT_WORD16
-  sizeOf# _ = SIZEOF_WORD16
+  sizeOf# _ = SIZEOF_WORD16#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_WORD16
+  alignment# _ = ALIGNMENT_WORD16#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = W16# (indexWord8ArrayAsWord16# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -542,9 +542,9 @@ instance Prim Word32 where
   type PrimBase Word32 = Word32
   type SizeOf Word32 = SIZEOF_WORD32
   type Alignment Word32 = ALIGNMENT_WORD32
-  sizeOf# _ = SIZEOF_WORD32
+  sizeOf# _ = SIZEOF_WORD32#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_WORD32
+  alignment# _ = ALIGNMENT_WORD32#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = W32# (indexWord8ArrayAsWord32# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -576,9 +576,9 @@ instance Prim Word64 where
   type PrimBase Word64 = Word64
   type SizeOf Word64 = SIZEOF_WORD64
   type Alignment Word64 = ALIGNMENT_WORD64
-  sizeOf# _ = SIZEOF_WORD64
+  sizeOf# _ = SIZEOF_WORD64#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_WORD64
+  alignment# _ = ALIGNMENT_WORD64#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = W64# (indexWord8ArrayAsWord64# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -611,9 +611,9 @@ instance Prim Float where
   type PrimBase Float = Float
   type SizeOf Float = SIZEOF_FLOAT
   type Alignment Float = ALIGNMENT_FLOAT
-  sizeOf# _ = SIZEOF_FLOAT
+  sizeOf# _ = SIZEOF_FLOAT#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_FLOAT
+  alignment# _ = ALIGNMENT_FLOAT#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = F# (indexWord8ArrayAsFloat# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -646,9 +646,9 @@ instance Prim Double where
   type PrimBase Double = Double
   type SizeOf Double = SIZEOF_DOUBLE
   type Alignment Double = ALIGNMENT_DOUBLE
-  sizeOf# _ = SIZEOF_DOUBLE
+  sizeOf# _ = SIZEOF_DOUBLE#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_DOUBLE
+  alignment# _ = ALIGNMENT_DOUBLE#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = D# (indexWord8ArrayAsDouble# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -697,9 +697,9 @@ instance Prim Char where
   type PrimBase Char = Char
   type SizeOf Char = SIZEOF_HSCHAR
   type Alignment Char = ALIGNMENT_HSCHAR
-  sizeOf# _ = SIZEOF_HSCHAR
+  sizeOf# _ = SIZEOF_HSCHAR#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSCHAR
+  alignment# _ = ALIGNMENT_HSCHAR#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = C# (indexWord8ArrayAsWideChar# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -731,9 +731,9 @@ instance Prim (Ptr a) where
   type PrimBase (Ptr a) = Ptr a
   type SizeOf (Ptr a) = SIZEOF_HSPTR
   type Alignment (Ptr a) = ALIGNMENT_HSPTR
-  sizeOf# _ = SIZEOF_HSINT
+  sizeOf# _ = SIZEOF_HSINT#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSINT
+  alignment# _ = ALIGNMENT_HSINT#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = Ptr (indexWord8ArrayAsAddr# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -778,9 +778,9 @@ instance Prim (StablePtr a) where
   type PrimBase (StablePtr a) = StablePtr a
   type SizeOf (StablePtr a) = SIZEOF_HSSTABLEPTR
   type Alignment (StablePtr a) = ALIGNMENT_HSSTABLEPTR
-  sizeOf# _ = SIZEOF_HSINT
+  sizeOf# _ = SIZEOF_HSINT#
   {-# INLINE sizeOf# #-}
-  alignment# _ = ALIGNMENT_HSINT
+  alignment# _ = ALIGNMENT_HSINT#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = StablePtr (indexWord8ArrayAsStablePtr# ba# i#)
   {-# INLINE indexByteOffByteArray# #-}
@@ -1078,61 +1078,58 @@ instance (Prim a, Eq a) => Prim (Complex a) where
   toPrimBase (a :+ b) = (a, b)
   fromPrimBase (a, b) = a :+ b
 
-unI# :: Int -> Int#
-unI# (I# i#) = i#
-
 instance (Prim a, Prim b) => Prim (a, b) where
   type PrimBase (a, b) = (a, b)
   type SizeOf (a, b) = SizeOf a + SizeOf b
   type Alignment (a, b) = Alignment a + Alignment b
-  sizeOf# _ = sizeOf# (proxy# :: Proxy# a) + sizeOf# (proxy# :: Proxy# b)
+  sizeOf# _ = sizeOf# (proxy# :: Proxy# a) +# sizeOf# (proxy# :: Proxy# b)
   {-# INLINE sizeOf# #-}
   alignment# _ =
-    alignment# (proxy# :: Proxy# a) + alignment# (proxy# :: Proxy# b)
+    alignment# (proxy# :: Proxy# a) +# alignment# (proxy# :: Proxy# b)
   {-# INLINE alignment# #-}
   indexByteArray# ba# i# =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
      in indexByteOffByteArray# ba# i0#
   {-# INLINE indexByteArray# #-}
   indexByteOffByteArray# ba# i0# =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
      in (indexByteOffByteArray# ba# i0#, indexByteOffByteArray# ba# i1#)
   {-# INLINE indexByteOffByteArray# #-}
   indexOffAddr# addr# i# =
-    let addr0# = addr# `plusAddr#` (i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b))))
-        addr1# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# a))
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
+        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
      in ( indexOffAddr# addr0# 0#, indexOffAddr# addr1# 0#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
      in readByteOffMutableByteArray# mba# i0#
   {-# INLINE readMutableByteArray# #-}
   readByteOffMutableByteArray# mba# i0# s =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
      in case readByteOffMutableByteArray# mba# i0# s of
           (# s', a0 #) ->
             case readByteOffMutableByteArray# mba# i1# s' of
               (# s'', a1 #) -> (# s'', (a0, a1) #)
   {-# INLINE readByteOffMutableByteArray# #-}
   readOffAddr# addr# i# s =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b)))
-        i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
+        i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
     in case readOffAddr# (addr# `plusAddr#` i0#) 0# s of
          (# s', a0 #) ->
            case readOffAddr# (addr# `plusAddr#` i1#) 0# s' of
              (# s'', a1 #) -> (# s'', (a0, a1) #)
   {-# INLINE readOffAddr# #-}
   writeByteOffMutableByteArray# mba# i0# (a0, a1) s =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
     in writeByteOffMutableByteArray# mba# i1# a1 (writeByteOffMutableByteArray# mba# i0# a0 s)
   {-# INLINE writeByteOffMutableByteArray# #-}
   writeMutableByteArray# mba# i# a =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
     in writeByteOffMutableByteArray# mba# i0# a
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# addr# i# (a0, a1) s =
-    let addr0# = addr# `plusAddr#` (i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b))))
-        addr1# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# a))
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
+        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
     in writeOffAddr# addr0# 0# a1 (writeOffAddr# addr1# 0# a0 s)
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
@@ -1149,41 +1146,41 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
   type SizeOf (a, b, c) = SizeOf a + SizeOf b + SizeOf c
   type Alignment (a, b, c) = Alignment a + Alignment b + Alignment c
   sizeOf# _ = sizeOf# (proxy# :: Proxy# a)
-            + sizeOf# (proxy# :: Proxy# b)
-            + sizeOf# (proxy# :: Proxy# c)
+           +# sizeOf# (proxy# :: Proxy# b)
+           +# sizeOf# (proxy# :: Proxy# c)
   {-# INLINE sizeOf# #-}
   alignment# _ = alignment# (proxy# :: Proxy# a)
-               + alignment# (proxy# :: Proxy# b)
-               + alignment# (proxy# :: Proxy# c)
+              +# alignment# (proxy# :: Proxy# b)
+              +# alignment# (proxy# :: Proxy# c)
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i0# =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
-        i2# = i1# +# unI# (sizeOf# (proxy# :: Proxy# b))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
+        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
     in ( indexByteOffByteArray# ba# i0#
        , indexByteOffByteArray# ba# i1#
        , indexByteOffByteArray# ba# i2#
        )
   {-# INLINE indexByteOffByteArray# #-}
   indexByteArray# ba# i# =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
     in indexByteOffByteArray# ba# i0#
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c)))
-        i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
-        i2# = i1# +# unI# (sizeOf# (proxy# :: Proxy# b))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
+        i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
+        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
     in ( indexOffAddr# (addr# `plusAddr#` i0#) 0#
        , indexOffAddr# (addr# `plusAddr#` i1#) 0#
        , indexOffAddr# (addr# `plusAddr#` i2#) 0#
        )
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
     in readByteOffMutableByteArray# mba# i0#
   {-# INLINE readMutableByteArray# #-}
   readByteOffMutableByteArray# mba# i0# s =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
-        i2# = i1# +# unI# (sizeOf# (proxy# :: Proxy# b))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
+        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
     in case readByteOffMutableByteArray# mba# i0# s  of { (# s0, a0 #) ->
        case readByteOffMutableByteArray# mba# i1# s0 of { (# s1, a1 #) ->
        case readByteOffMutableByteArray# mba# i2# s1 of { (# s2, a2 #) ->
@@ -1191,9 +1188,9 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
        }}}
   {-# INLINE readByteOffMutableByteArray# #-}
   readOffAddr# addr# i# s =
-    let addr0# = addr#  `plusAddr#` (i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c))))
-        addr1# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# a))
-        addr2# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# b))
+    let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
+        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
+        addr2# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
     in case readOffAddr# addr0# 0# s  of { (# s0, a0 #) ->
        case readOffAddr# addr1# 0# s0 of { (# s1, a1 #) ->
        case readOffAddr# addr2# 0# s1 of { (# s2, a2 #) ->
@@ -1201,20 +1198,20 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
        }}}
   {-# INLINE readOffAddr# #-}
   writeByteOffMutableByteArray# mba# i0# (a0, a1, a2) s =
-    let i1# = i0# +# unI# (sizeOf# (proxy# :: Proxy# a))
-        i2# = i1# +# unI# (sizeOf# (proxy# :: Proxy# b))
+    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
+        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
     in writeByteOffMutableByteArray# mba# i2# a2
        (writeByteOffMutableByteArray# mba# i1# a1
         (writeByteOffMutableByteArray# mba# i0# a0 s))
   {-# INLINE writeByteOffMutableByteArray# #-}
   writeMutableByteArray# mba# i# a s =
-    let i0# = i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c)))
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
     in writeByteOffMutableByteArray# mba# i0# a s
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# addr# i# (a0, a1, a2) s =
-    let addr0# = addr#  `plusAddr#` (i# *# unI# (sizeOf# (proxy# :: Proxy# (a, b, c))))
-        addr1# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# a))
-        addr2# = addr0# `plusAddr#` unI# (sizeOf# (proxy# :: Proxy# b))
+    let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
+        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
+        addr2# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
     in writeOffAddr# addr0# 0# a2
        (writeOffAddr# addr1# 0# a1
         (writeOffAddr# addr2# 0# a0 s))
