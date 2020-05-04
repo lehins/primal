@@ -73,18 +73,17 @@ library
   if arch(i386) || arch(x86_64)
       cc-options: -msse2
 
--- test-suite doctests
---   type:             exitcode-stdio-1.0
---   hs-source-dirs:   tests
---   main-is:          doctests.hs
---   build-depends: base
---                , doctest >=0.15
---                , primal
---                , template-haskell
---   default-language:    Haskell2010
---   ghc-options:        -Wall
---                       -fno-warn-orphans
---                       -threaded
+test-suite doctests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  main-is:          doctests.hs
+  build-depends: base
+               , doctest >=0.15
+               , primal
+               , template-haskell
+  default-language:    Haskell2010
+  ghc-options:        -Wall
+                      -threaded
 
 
 source-repository head

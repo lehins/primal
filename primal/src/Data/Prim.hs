@@ -71,6 +71,7 @@ sizeOf _ = sizeOf# (proxy# :: Proxy# a)
 -- | Same as `sizeOf`, except that the type can be supplied as a type level argument
 --
 -- >>> :set -XTypeApplications
+-- >>> import Data.Prim
 -- >>> sizeOfType @Int64
 -- 8
 --
@@ -80,6 +81,7 @@ sizeOfType = sizeOf# (proxy# :: Proxy# a)
 
 -- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
 --
+-- >>> import Data.Prim
 -- >>> import Data.Proxy
 -- >>> sizeOfProxy (Proxy :: Proxy Int64)
 -- 8
@@ -98,6 +100,7 @@ alignment _ = alignment# (proxy# :: Proxy# a)
 -- | Same as `alignment`, except that the type can be supplied at the type level
 --
 -- >>> :set -XTypeApplications
+-- >>> import Data.Prim
 -- >>> alignmentType @Int64
 -- 8
 --
