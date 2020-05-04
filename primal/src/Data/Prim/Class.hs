@@ -1112,11 +1112,11 @@ instance (Prim a, Prim b) => Prim (a, b) where
               (# s'', a1 #) -> (# s'', (a0, a1) #)
   {-# INLINE readByteOffMutableByteArray# #-}
   readOffAddr# addr# i# s =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
-        i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-    in case readOffAddr# (addr# `plusAddr#` i0#) 0# s of
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
+        addr1# = addr# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
+    in case readOffAddr# addr0# 0# s of
          (# s', a0 #) ->
-           case readOffAddr# (addr# `plusAddr#` i1#) 0# s' of
+           case readOffAddr# addr1# 0# s' of
              (# s'', a1 #) -> (# s'', (a0, a1) #)
   {-# INLINE readOffAddr# #-}
   writeByteOffMutableByteArray# mba# i0# (a0, a1) s =
@@ -1267,6 +1267,170 @@ instance (Prim a, Prim b, Prim c, Prim d, Prim e, Prim f, Prim g, Prim h, Prim i
   {-# INLINE toPrimBase #-}
   fromPrimBase ((a, b, c), (d, e, f), (g, h, i)) = (a, b, c, d, e, f, g, h, i)
   {-# INLINE fromPrimBase #-}
+
+
+instance Prim a => Prim (Maybe a) where
+  type PrimBase (Maybe a) = Maybe a
+  type SizeOf (Maybe a) = 1 + SizeOf a
+  type Alignment (Maybe a) = 1 + Alignment a
+  sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# a)
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 1# +# alignment# (proxy# :: Proxy# a)
+  {-# INLINE alignment# #-}
+  indexByteOffByteArray# ba# i# =
+    case indexInt8Array# ba# i# of
+      0# -> Nothing
+      _  -> Just (indexByteOffByteArray# ba# (i# +# 1#))
+  {-# INLINE indexByteOffByteArray# #-}
+  indexByteArray# ba# i# =
+    indexByteOffByteArray# ba# (i# *# sizeOf# (proxy# :: Proxy# (Maybe a)))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# =
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (Maybe a)))
+    in case indexInt8OffAddr# addr0# 0# of
+      0# -> Nothing
+      _  -> Just (indexOffAddr# (addr0# `plusAddr#` 1#) 0#)
+  {-# INLINE indexOffAddr# #-}
+  readByteOffMutableByteArray# mba# i# s =
+    case readInt8Array# mba# i# s of
+      (# s', 0# #) -> (# s', Nothing #)
+      (# s', _  #) -> case readByteOffMutableByteArray# mba# (i# +# 1#) s' of
+                        (# s'', a #) -> (# s'', Just a #)
+  {-# INLINE readByteOffMutableByteArray# #-}
+  readMutableByteArray# mba# i# =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Maybe a))
+     in readByteOffMutableByteArray# mba# i0#
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# addr# i# s =
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (Maybe a)))
+    in case readInt8OffAddr# addr0# 0# s of
+         (# s', 0# #) -> (# s', Nothing #)
+         (# s', _  #) -> case readOffAddr# (addr0# `plusAddr#` 1#) 0# s' of
+                           (# s'', a #) -> (# s'', Just a #)
+  {-# INLINE readOffAddr# #-}
+  writeByteOffMutableByteArray# mba# i# mVal s =
+    case mVal of
+      Nothing -> setByteArray# mba# i# (sizeOf# (proxy# :: Proxy# (Maybe a))) 0# s
+      Just a  -> writeByteOffMutableByteArray# mba# (i# +# 1#) a (writeInt8Array# mba# i# 1# s)
+  {-# INLINE writeByteOffMutableByteArray# #-}
+  writeMutableByteArray# mba# i# mVal s =
+    let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
+        i0# = i# *# k# -- Not using writeByteOffMutableByteArray# to avoid k# recomputation
+    in case mVal of
+         Nothing -> setByteArray# mba# i0# k# 0# s
+         Just a  -> writeByteOffMutableByteArray# mba# (i0# +# 1#) a (writeInt8Array# mba# i0# 1# s)
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# addr# i# mVal s =
+    let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
+        i0# = i# *# k#
+    in case mVal of
+         Nothing -> setOffAddr# addr# i0# k# (I8# 0#) s
+         Just a  ->
+           writeOffAddr# (addr# `plusAddr#` (i0# +# 1#)) 0# a (writeInt8OffAddr# addr# i0# 1# s)
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# mba# o# n# mVal s =
+    case mVal of
+      Nothing ->
+        let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
+        in setByteArray# mba# (o# *# k#) (n# *# k#) 0# s
+      _       -> setMutableByteArrayLoop# mba# o# n# mVal s
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# addr# o# n# mVal s =
+    case mVal of
+      Nothing ->
+        let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
+        in setOffAddr# addr# (o# *# k#) (n# *# k#) (I8# 0#) s
+      _       ->  setOffAddrLoop# addr# o# n# mVal s
+  {-# INLINE setOffAddr# #-}
+
+max# :: Int# -> Int# -> Int#
+max# x# y# =
+  case x# <# y# of
+    0# -> x#
+    _  -> y#
+{-# INLINE max# #-}
+
+type family MaxOrdering (o :: Ordering) (x :: Nat) (y :: Nat) where
+  MaxOrdering 'LT x y = y
+  MaxOrdering o  x y = x
+
+type MaxOf (x :: Nat) (y :: Nat) = MaxOrdering (CmpNat x y) x y
+
+instance (Prim a, Prim b) => Prim (Either a b) where
+  type PrimBase (Either a b) = Either a b
+  type SizeOf (Either a b) = 1 + MaxOf (SizeOf a) (SizeOf b)
+  type Alignment (Either a b) = 1 + MaxOf (Alignment a) (Alignment b)
+  sizeOf# _ = 1# +# max# (sizeOf# (proxy# :: Proxy# a)) (sizeOf# (proxy# :: Proxy# b))
+  {-# INLINE sizeOf# #-}
+  alignment# _ = 1# +# max# (alignment# (proxy# :: Proxy# a)) (alignment# (proxy# :: Proxy# b))
+  {-# INLINE alignment# #-}
+  indexByteOffByteArray# ba# i# =
+    case indexInt8Array# ba# i# of
+      0# -> Left (indexByteOffByteArray# ba# (i# +# 1#))
+      _  -> Right (indexByteOffByteArray# ba# (i# +# 1#))
+  {-# INLINE indexByteOffByteArray# #-}
+  indexByteArray# ba# i# =
+    indexByteOffByteArray# ba# (i# *# sizeOf# (proxy# :: Proxy# (Either a b)))
+  {-# INLINE indexByteArray# #-}
+  indexOffAddr# addr# i# =
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (Either a b)))
+    in case indexInt8OffAddr# addr0# 0# of
+      0# -> Left (indexOffAddr# (addr0# `plusAddr#` 1#) 0#)
+      _  -> Right (indexOffAddr# (addr0# `plusAddr#` 1#) 0#)
+  {-# INLINE indexOffAddr# #-}
+  readByteOffMutableByteArray# mba# i# s =
+    case readInt8Array# mba# i# s of
+      (# s', 0# #) -> case readByteOffMutableByteArray# mba# (i# +# 1#) s' of
+                        (# s'', a #) -> (# s'', Left a #)
+      (# s', _  #) -> case readByteOffMutableByteArray# mba# (i# +# 1#) s' of
+                        (# s'', a #) -> (# s'', Right a #)
+  {-# INLINE readByteOffMutableByteArray# #-}
+  readMutableByteArray# mba# i# =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Either a b))
+     in readByteOffMutableByteArray# mba# i0#
+  {-# INLINE readMutableByteArray# #-}
+  readOffAddr# addr# i# s =
+    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (Either a b)))
+    in case readInt8OffAddr# addr0# 0# s of
+         (# s', 0# #) -> case readOffAddr# (addr0# `plusAddr#` 1#) 0# s' of
+                           (# s'', a #) -> (# s'', Left a #)
+         (# s', _  #) -> case readOffAddr# (addr0# `plusAddr#` 1#) 0# s' of
+                           (# s'', a #) -> (# s'', Right a #)
+  {-# INLINE readOffAddr# #-}
+  writeByteOffMutableByteArray# mba# i# eVal s =
+    let a# = sizeOf# (proxy# :: Proxy# a)
+        b# = sizeOf# (proxy# :: Proxy# b)
+        i1# = i# +# 1#
+    in case eVal of
+         Left a -> -- TODO: Optimize duplication away
+           setByteArray# mba# (i1# +# a#) (max# 0# (b# -# a#)) 0#
+           (writeByteOffMutableByteArray# mba# i1# a (writeInt8Array# mba# i# 0# s))
+         Right b ->
+           setByteArray# mba# (i1# +# b#) (max# 0# (a# -# b#)) 0#
+           (writeByteOffMutableByteArray# mba# i1# b (writeInt8Array# mba# i# 1# s))
+  {-# INLINE writeByteOffMutableByteArray# #-}
+  writeMutableByteArray# mba# i# eVal s =
+    let k# = sizeOf# (proxy# :: Proxy# (Either a b))
+        i0# = i# *# k#
+    in writeByteOffMutableByteArray# mba# i0# eVal s
+  {-# INLINE writeMutableByteArray# #-}
+  writeOffAddr# addr# i# eVal s =
+    let a# = sizeOf# (proxy# :: Proxy# a)
+        b# = sizeOf# (proxy# :: Proxy# b)
+        addr0# = addr# `plusAddr#` (i# *# (1# +# a# +# b#))
+        addr1# = addr0# `plusAddr#` 1#
+    in case eVal of
+         Left a  ->
+           setOffAddr# addr1# a# (max# 0# (b# -# a#)) (I8# 0#)
+           (writeOffAddr# addr1# 0# a (writeInt8OffAddr# addr0# 0# 0# s))
+         Right b ->
+           setOffAddr# addr1# b# (max# 0# (a# -# b#)) (I8# 0#)
+           (writeOffAddr# addr1# 0# b (writeInt8OffAddr# addr0# 0# 1# s))
+  {-# INLINE writeOffAddr# #-}
+  setMutableByteArray# = setMutableByteArrayLoop#
+  {-# INLINE setMutableByteArray# #-}
+  setOffAddr# = setOffAddrLoop#
+  {-# INLINE setOffAddr# #-}
 
 
 

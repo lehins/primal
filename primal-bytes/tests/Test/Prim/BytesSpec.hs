@@ -286,6 +286,8 @@ spec = do
   primTypeSpec @(Ptr ())
   primTypeSpec @(FunPtr ())
   primTypeSpec @(StablePtr ())
+  primTypeSpec @(Maybe Word)
+  primTypeSpec @(Either Word16 Int8)
   describe "Allocation" $ do
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8

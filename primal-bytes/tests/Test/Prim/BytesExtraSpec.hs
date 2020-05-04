@@ -44,4 +44,4 @@ spec = do
   primBaseTypeSpec @CUIntMax
   primTypeSpec @(Int32, Int16)
   primTypeSpec @((Int32, Int8), (Word64, Int16))
-  primTypeSpec @(Bool, Char, Int)
+  primTypeSpec @(Maybe (Bool, Char, Int))
