@@ -45,3 +45,4 @@ spec = do
   primTypeSpec @(Int32, Int16)
   primTypeSpec @((Int32, Int8), (Word64, Int16))
   primTypeSpec @(Maybe (Bool, Char, Int))
+  primTypeSpec @(Either Word64 Char)
