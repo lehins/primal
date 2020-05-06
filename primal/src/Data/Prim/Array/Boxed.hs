@@ -83,7 +83,8 @@ instance Functor Array where
 
 data MArray a s = MArray (MutableArray# s a)
 
--- | Check if both of the arrays refer to the exact same one. None of the elements are evaluated.
+-- | Check if both of the arrays refer to the exact same one. None of the elements are
+-- evaluated.
 instance Eq (MArray a s) where
   MArray ma1# == MArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
 
@@ -117,8 +118,8 @@ indexArray (Array a#) (I# i#) =
 -- to initialize with a thunk or `newRawArray` that will set each element to an
 -- `UndefinedElement` exception.
 --
--- [Unsafe size] Negative or too large of an array size can fail with `HeapOverflow`
--- asynchronous exception.
+-- [Unsafe size] Negative or too large of an array size can kill the current thread with
+-- `HeapOverflow` asynchronous exception.
 --
 -- ====__Examples__
 --
@@ -135,7 +136,7 @@ newMArray sz a = seqPrim a >>= newMArrayLazy sz
 -- known ahead of time. Or even better try using other creation functions that iterate
 -- over an array and overwrite each element, such as `makeMArray`.
 --
--- [Unsafe size] Negative or too large of an array size can fail with `HeapOverflow`
+-- [Unsafe size] Negative or too large of an array size can kill the current thread with `HeapOverflow`
 -- asynchronous exception.
 --
 -- @since 0.1.0
@@ -150,7 +151,7 @@ newMArrayLazy (Size (I# n#)) a =
 -- when evaluated. This is useful when there is a plan to iterate over the whole array
 -- and write values into each cell monadically or in some index aware fashion.
 --
--- [Unsafe size] Negative or too large of an array size can fail with `HeapOverflow`
+-- [Unsafe size] Negative or too large of an array size can kill the current thread with `HeapOverflow`
 -- asynchronous exception.
 --
 -- ==== __Examples__
@@ -535,7 +536,8 @@ fromListArrayN sz@(Size n) ls =
     go 0 ls
     freezeMArray ma
 
--- | Convert a pure boxed array into a list. It should work fine with GHC built-in list fusion.
+-- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
+-- fusion.
 --
 -- @since 0.1.0
 toListArray :: Array a -> [a]
@@ -577,6 +579,27 @@ createArrayM_ sz f =
   newRawMArray sz >>= \ma -> f ma >> freezeMArray ma
 {-# INLINE createArrayM_ #-}
 
+
+-- | Create a new mutable array of a supplied size by applying a monadic action to indices
+-- of each one of the new elements.
+--
+-- [Unsafe size] Negative or too large of an array size can kill the current thread with
+-- `HeapOverflow` asynchronous exception.
+--
+-- ====__Examples__
+--
+-- >>> import Control.Monad ((>=>))
+-- >>> import Data.Prim.Ref
+-- >>> ref <- newRef "Numbers: "
+-- >>> ma <- makeMArray 5 $ \i -> modifyFetchRef ref (\cur -> cur ++ show i ++ ",")
+-- >>> mapM_ (readMArray ma >=> putStrLn) [0 .. 4]
+-- Numbers: 0,
+-- Numbers: 0,1,
+-- Numbers: 0,1,2,
+-- Numbers: 0,1,2,3,
+-- Numbers: 0,1,2,3,4,
+--
+-- @since 0.1.0
 makeMArray :: MonadPrim s m => Size -> (Int -> m a) -> m (MArray a s)
 makeMArray sz@(Size n) f = do
   ma <- newRawMArray sz
@@ -586,7 +609,9 @@ makeMArray sz@(Size n) f = do
   ma <$ go 0
 {-# INLINE makeMArray #-}
 
-
+-- | Traverse an array with a monadic action.
+--
+-- @since 0.1.0
 traverseArray :: MonadPrim s m => (a -> m b) -> Array a -> m (Array b)
 traverseArray f a = makeArrayM (sizeOfArray a) (f . indexArray a)
 {-# INLINE traverseArray #-}
