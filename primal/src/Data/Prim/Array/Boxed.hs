@@ -98,6 +98,7 @@ sizeOfArray (Array a#) = Size (I# (sizeofArray# a#))
 --
 -- ==== __Examples__
 --
+-- >>> import Data.Prim.Array.Boxed
 -- >>> let a = makeArray 1024 (\i -> [0 .. i])
 -- >>> print $ indexArray a 1
 -- [0,1]
@@ -112,9 +113,9 @@ indexArray (Array a#) (I# i#) =
 {-# INLINE indexArray #-}
 
 -- | Create a mutable boxed array where each element is set to the supplied initial
--- value that is evaluated immediately. See `newMArrayLazy` for an ability to initialize
--- with a thunk or `newRawArray` that will set each element to an `UndefinedElement`
--- exception.
+-- value, which is evaluated immediately before that. See `newMArrayLazy` for an ability
+-- to initialize with a thunk or `newRawArray` that will set each element to an
+-- `UndefinedElement` exception.
 --
 -- [Unsafe size] Negative or too large of an array size can fail with `HeapOverflow`
 -- asynchronous exception.
@@ -189,7 +190,7 @@ sizeOfMArray (MArray ma#) = Size (I# (sizeofMutableArray# ma#))
 -- ==== __Examples__
 --
 -- >>> ma <- makeMArray 10 (pure . ("Element ix: " ++) . show)
--- >>> readMArray 5
+-- >>> readMArray ma 5
 -- "Element ix: 5"
 --
 -- @since 0.1.0
@@ -261,11 +262,11 @@ writeMArrayDeep ma i x = x `deepseq` writeMArrayLazy ma i x
 --
 -- ====__Examples__
 --
--- The correct way to use it is with combining it with somethign like `cloneArray` or
--- `copyArray`, in order to preserve referential transaprency
+-- The correct way to use it is with combining it with something like `cloneArray` or
+-- `copyArray`, in order to preserve referential transperancy
 --
 -- >>> let a = fromListArray [1 .. 5 :: Int]
--- >>> ma <- thawArray $ cloneArray a
+-- >>> ma <- thawArray $ cloneArray a 0 (sizeOfArray a)
 -- >>> writeMArray ma 1 10
 -- >>> freezeMArray ma
 -- Array [1,10,3,4,5]
@@ -276,7 +277,7 @@ writeMArrayDeep ma i x = x `deepseq` writeMArrayLazy ma i x
 -- setting.
 --
 -- >>> ma' <- thawArray a
--- >>> writeMArray ma 0 100000
+-- >>> writeMArray ma' 0 100000
 -- >>> print a
 -- Array [100000,2,3,4,5]
 --
@@ -308,8 +309,7 @@ thawArray (Array a#) = prim $ \s ->
 -- >>> ma <- thawCopyArray a 1 3
 -- >>> writeMArray ma 1 10
 -- >>> freezeMArray ma
--- >>> freezeMArray ma
--- Array [2,10,3]
+-- Array [2,10,4]
 -- >>> print a
 -- Array [1,2,3,4,5]
 --
@@ -437,7 +437,7 @@ copyMArray (MArray maSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) 
 {-# INLINE copyMArray #-}
 
 
--- | Compare and swap operation that can be used as a concurrency primitive for
+-- | Compare-and-swap operation that can be used as a concurrency primitive for
 -- implementing atomic operations on the mutable array. Returns a boolean value, which
 -- indicates the success or failure of the update, as well as the current value at the
 -- supplied index. In case of success current value returned will be the newly supplied
@@ -462,7 +462,7 @@ copyMArray (MArray maSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) 
 -- value currently in the array cell
 --
 -- >>> expected <- readMArray ma 2
--- r@(_, currentValue) <- casMArray ma 2 expected 1000
+-- >>> r@(_, currentValue) <- casMArray ma 2 expected 1000
 -- >>> freezeMArray ma
 -- Array [0,10,1000,30,40]
 -- >>> r
@@ -535,13 +535,14 @@ fromListArrayN sz@(Size n) ls =
     go 0 ls
     freezeMArray ma
 
--- | Convert a pure boxed array into a list. It shoule work fine with GHC built-in list fusion.
+-- | Convert a pure boxed array into a list. It should work fine with GHC built-in list fusion.
 --
 -- @since 0.1.0
 toListArray :: Array a -> [a]
 toListArray ba = build (\ c n -> foldrArray c n ba)
 {-# INLINE toListArray #-}
 
+-- | Strict right fold
 foldrArray :: (a -> b -> b) -> b -> Array a -> b
 foldrArray c nil a = go 0
   where
