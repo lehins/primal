@@ -81,7 +81,7 @@ instance Eq (Ref a s) where
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> import Debug.Trace
 -- >>> import Data.Prim.Ref
@@ -99,7 +99,7 @@ newRef a = seqPrim a >>= newRefLazy
 
 -- | Create a new mutable variable. Initial value stays unevaluated.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- In below example you will see that initial value is never evaluated.
 --
@@ -124,7 +124,7 @@ newRefLazy a =
 
 -- | Read contents of the mutable variable
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> import Data.Prim.Ref
 -- >>> ref <- newRef "Hello World!"
@@ -140,7 +140,7 @@ readRef (Ref ref#) = prim (readMutVar# ref#)
 -- | Swap a value of a mutable variable with a new one, while retrieving the old one. New
 -- value is evaluated prior to it being written to the variable.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> ref <- newRef (Left "Initial" :: Either String String)
 -- >>> swapRef ref (Right "Last")
@@ -158,7 +158,7 @@ swapRef ref x = fetchModifyRef ref . const =<< seqPrim x
 -- exception, original value in the mutable variable will not be affected. Another great
 -- benfit of this over `writeRefLazy` is that it helps avoiding memory leaks.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> ref <- newRef "Original value"
 -- >>> import Control.Exception
@@ -176,7 +176,7 @@ writeRef ref a = seqPrim a >>= writeRefLazy ref
 
 -- | Write a value into a mutable variable lazily.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> ref <- newRef "Original value"
 -- >>> import Debug.Trace
@@ -225,7 +225,7 @@ modifyFetchRef ref f = modifyFetchRefM ref (pure . f)
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the old value.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> ref1 <- newRef (10 :: Int)
 -- >>> ref2 <- newRef (201 :: Int)
@@ -255,7 +255,7 @@ modifyRefLazy ref f = modifyRefLazyM ref (pure . f)
 -- return value of type @b@, but the ne value written into the mutable variable is
 -- evaluated to WHNF.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
 modifyRefM ref f = do
@@ -267,7 +267,7 @@ modifyRefM ref f = do
 
 -- | Modify value of a mutable variable with a monadic action. Result is written strictly.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> ref <- newRef (Just "Some value")
 -- >>> modifyRefM_ ref $ \ mv -> Nothing <$ mapM_ putStrLn mv
@@ -282,7 +282,7 @@ modifyRefM_ ref f = readRef ref >>= f >>= writeRef ref
 
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the old value.
 --
--- ==== Examples
+-- ==== __Examples__
 --
 -- >>> refName <- newRef "My name is: "
 -- >>> refMyName <- newRef "Alexey"
