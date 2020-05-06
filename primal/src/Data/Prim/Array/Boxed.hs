@@ -15,6 +15,7 @@
 module Data.Prim.Array.Boxed
   ( Array(..)
   , MArray(..)
+  , Size(..)
   -- * Immutable
   , makeArray
   , makeArrayM
@@ -36,6 +37,11 @@ module Data.Prim.Array.Boxed
   , writeMArrayDeep
   -- *** Atomic
   , casMArray
+  , atomicModifyFetchMArray
+  , atomicFetchModifyMArray
+  , atomicModifyMArray
+  , atomicModifyMArray_
+  , atomicModifyMArray2
   -- *
   , thawArray
   , thawCopyArray
@@ -440,9 +446,12 @@ copyMArray (MArray maSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) 
 
 -- | Compare-and-swap operation that can be used as a concurrency primitive for
 -- implementing atomic operations on the mutable array. Returns a boolean value, which
--- indicates the success or failure of the update, as well as the current value at the
--- supplied index. In case of success current value returned will be the newly supplied
--- done, otherwise it will still be the old one.
+-- indicates `True` for success and `False` otherwise for the update, as well as the
+-- current value at the supplied index. In case of success current value returned will
+-- be the newly supplied one, otherwise it will still be the old one. Note that there is
+-- no `Eq` constraint on the element, that is because compare operation is done on a
+-- thunk reference reference, not the value itself, in other words the expected value
+-- must be the exact same one.
 --
 -- [Unsafe index] Negative or larger than array size can fail with unchecked exception
 --
@@ -491,6 +500,76 @@ casMArray (MArray ma#) (I# i#) expected new =
     case casArray# ma# i# expected new s of
       (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
 {-# INLINE casMArray #-}
+
+
+atomicModifyMArray# :: MonadPrim s m => MArray a s -> Int -> (a -> (# a, b #)) -> m b
+atomicModifyMArray# ma@(MArray ma#) i@(I# i#) f = do
+  current0 <- readMArray ma i
+  prim $
+    let go expected s =
+          case f expected of
+            (# new, artifact #) ->
+              case casArray# ma# i# expected new s of
+                (# s', 0#, _ #) -> (# s', artifact #)
+                (# s', _, actual #) -> go actual s'
+     in go current0
+{-# INLINE atomicModifyMArray# #-}
+
+
+atomicModifyFetchMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+atomicModifyFetchMArray ma i f =
+  atomicModifyMArray# ma i (\a -> let a' = f a in (# a', a' #))
+{-# INLINE atomicModifyFetchMArray #-}
+
+-- atomicModifyFetchMArray ma@(MArray ma#) i@(I# i#) f = do
+--   current0 <- readMArray ma i
+--   prim $ \s0 ->
+--     let go expected s =
+--           case casArray# ma# i# expected (f expected) s of
+--             (# s', 0#, actual #) -> go actual s'
+--             (# s', _, current #) -> (# s', current #)
+--     in go current0 s0
+  -- let go e =
+  --       casMArray ma i e (f e) >>= \case
+  --         (True, new) -> pure new
+  --         (_, current) -> go current
+  --  in readMArray ma i >>= go
+
+atomicFetchModifyMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+atomicFetchModifyMArray ma i f =
+  atomicModifyMArray# ma i (\a -> (# f a, a #))
+{-# INLINE atomicFetchModifyMArray #-}
+  -- let go e =
+  --       casMArray ma i e (f e) >>= \case
+  --         (True, _new) -> pure e
+  --         (_, current) -> go current
+  --  in readMArray ma i >>= go
+
+
+
+atomicModifyMArray :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m b
+atomicModifyMArray ma i f =
+  atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
+{-# INLINE atomicModifyMArray #-}
+  -- let go e =
+  --       let (new, artifact) = f e
+  --        in casMArray ma i e new >>= \case
+  --             (True, _new) -> pure artifact
+  --             (_, current) -> go current
+  --  in readMArray ma i >>= go
+
+
+atomicModifyMArray_ :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m ()
+atomicModifyMArray_ ma i f =
+  atomicModifyMArray# ma i (\a -> let a' = f a in (# a', () #))
+{-# INLINE atomicModifyMArray_ #-}
+
+
+atomicModifyMArray2 :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyMArray2 ma i f =
+  atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
+{-# INLINE atomicModifyMArray2 #-}
+
 
 -- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
 -- to being written into the newly created array. In order to allocate the array ahead
