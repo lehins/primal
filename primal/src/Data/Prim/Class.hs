@@ -199,7 +199,7 @@ class Prim a where
 
   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
   default writeOffAddr# :: Prim (PrimBase a) => Addr# -> Int# -> a -> State# s -> State# s
-  writeOffAddr# mba# i# a = writeOffAddr# mba# i# (toPrimBase a)
+  writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toPrimBase a)
   {-# INLINE writeOffAddr# #-}
 
   -- TODO: implement
@@ -220,7 +220,7 @@ class Prim a where
   setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
   default setOffAddr# ::
     Prim (PrimBase a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  setOffAddr# mba# i# n# a = setOffAddr# mba# i# n# (toPrimBase a)
+  setOffAddr# addr# i# n# a = setOffAddr# addr# i# n# (toPrimBase a)
   {-# INLINE setOffAddr# #-}
 
 

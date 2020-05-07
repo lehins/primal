@@ -1,7 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
@@ -13,8 +15,10 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array.Boxed
-  ( Array(..)
-  , MArray(..)
+  ( Array
+  , BoxedArray(..)
+  , MArray
+  , BoxedMArray(..)
   , Size(..)
   -- * Immutable
   , makeArray
@@ -48,7 +52,7 @@ module Data.Prim.Array.Boxed
   , freezeMArray
   , freezeCopyMArray
   , copyArray
-  , copyMArray
+  , moveMArray
   , cloneArray
   , cloneMArray
   -- * List
@@ -65,34 +69,71 @@ import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Monad.ST
 import Control.Prim.Monad
 import GHC.Exts
+import Data.Prim.Array.Internal (Size(..))
+import qualified Data.Prim.Array.Internal as I
 
-newtype Size = Size Int
-  deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
+data BoxedArray a = Array (Array# a)
 
-data Array a = Array (Array# a)
+type Array a = BoxedArray a
 
-instance Show a => Show (Array a) where
+instance Show a => Show (BoxedArray a) where
   showsPrec n arr
     | n > 1 = ('(' :) . inner . (')' :)
     | otherwise = inner
     where
       inner = ("Array " ++) . shows (toList arr)
 
-instance IsList (Array a) where
+instance IsList (BoxedArray a) where
   type Item (Array a) = a
   fromList = fromListArray
   fromListN n = fromListArrayN (Size n)
   toList = toListArray
 
-instance Functor Array where
+instance Functor BoxedArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-data MArray a s = MArray (MutableArray# s a)
+data BoxedMArray a s = MArray (MutableArray# s a)
+
+type MArray a s = BoxedMArray a s
+
 
 -- | Check if both of the arrays refer to the exact same one. None of the elements are
 -- evaluated.
-instance Eq (MArray a s) where
+instance Eq (BoxedMArray a s) where
   MArray ma1# == MArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
+
+
+instance I.MArray BoxedMArray a where
+  type IArray BoxedMArray = BoxedArray
+  sizeOfArray = sizeOfArray
+  {-# INLINE sizeOfArray #-}
+  getSizeOfMArray = pure . sizeOfMArray
+  {-# INLINE getSizeOfMArray #-}
+  thawArray = thawArray
+  {-# INLINE thawArray #-}
+  thawCopyArray = thawCopyArray
+  {-# INLINE thawCopyArray #-}
+  freezeMArray = freezeMArray
+  {-# INLINE freezeMArray #-}
+  freezeCopyMArray = freezeCopyMArray
+  {-# INLINE freezeCopyMArray #-}
+  newRawMArray = newRawMArray
+  {-# INLINE newRawMArray #-}
+  readMArray = readMArray
+  {-# INLINE readMArray #-}
+  writeMArray = writeMArray
+  {-# INLINE writeMArray #-}
+  newMArray = newMArray
+  {-# INLINE newMArray #-}
+  copyArray = copyArray
+  {-# INLINE copyArray #-}
+  moveMArray = moveMArray
+  {-# INLINE moveMArray #-}
+  cloneArray = cloneArray
+  {-# INLINE cloneArray #-}
+  cloneMArray = cloneMArray
+  {-# INLINE cloneMArray #-}
+
 
 
 sizeOfArray :: Array a -> Size
@@ -298,11 +339,11 @@ thawArray (Array a#) = prim $ \s ->
 -- | Make a copy of a subsection of an immutable array and then convert the result into
 -- a mutable array.
 --
--- > a' <- thawCopyArray a i n >>= freezeMArray
+-- > ma' <- thawCopyArray a i n
 --
 -- Is equivalent to:
 --
--- > a' <- newRawMArray n >>= \ma -> copyArray a i ma 0 n >> freezeMArray ma
+-- > ma' <- newRawMArray n >>= \ma -> ma <$ copyArray a i ma 0 n
 --
 -- [Unsafe offset] Offset cannot be negative or larger than the size of an array,
 -- otherwise it can result in an unchecked exception
@@ -431,7 +472,7 @@ copyArray (Array aSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) =
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-copyMArray ::
+moveMArray ::
      MonadPrim s m
   => MArray a s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
@@ -439,9 +480,9 @@ copyMArray ::
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-copyMArray (MArray maSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) =
+moveMArray (MArray maSrc#) (I# oSrc#) (MArray maDst#) (I# oDst#) (Size (I# n#)) =
   prim_ (copyMutableArray# maSrc# oSrc# maDst# oDst# n#)
-{-# INLINE copyMArray #-}
+{-# INLINE moveMArray #-}
 
 
 -- | Compare-and-swap operation that can be used as a concurrency primitive for
@@ -604,58 +645,36 @@ fromListArrayN ::
      Size -- ^ Expected @n@ size of a list
   -> [a]
   -> Array a
-fromListArrayN sz@(Size n) ls =
-  runST $ do
-    ma <- newRawMArray sz
-    let go i =
-          \case
-            x:xs
-              | i < n -> writeMArray ma i x >> go (i + 1) xs
-            _ -> pure ()
-    go 0 ls
-    freezeMArray ma
+fromListArrayN = I.fromListArrayN
+{-# INLINE fromListArrayN #-}
 
 -- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
 -- fusion.
 --
 -- @since 0.1.0
 toListArray :: Array a -> [a]
-toListArray ba = build (\ c n -> foldrArray c n ba)
+toListArray = I.toListArray
 {-# INLINE toListArray #-}
 
 -- | Strict right fold
 foldrArray :: (a -> b -> b) -> b -> Array a -> b
-foldrArray c nil a = go 0
-  where
-    Size k = sizeOfArray a
-    go i
-      | i == k = nil
-      | otherwise =
-        let !v = indexArray a i
-         in v `c` go (i + 1)
-{-# INLINE[0] foldrArray #-}
+foldrArray = I.foldrArray
+{-# INLINE foldrArray #-}
 
 makeArray :: Size -> (Int -> a) -> Array a
-makeArray sz f = runST $ makeArrayM sz (pure . f)
+makeArray = I.makeArray
 {-# INLINE makeArray #-}
 
 makeArrayM :: MonadPrim s m => Size -> (Int -> m a) -> m (Array a)
-makeArrayM sz@(Size n) f =
-  createArrayM_ sz $ \ma ->
-    let go i
-          | i < n = f i >>= writeMArray ma i >> go (i + 1)
-          | otherwise = pure ()
-     in go 0
+makeArrayM = I.makeArrayM
 {-# INLINE makeArrayM #-}
 
 createArrayM :: MonadPrim s m => Size -> (MArray a s -> m b) -> m (b, Array a)
-createArrayM sz f =
-  newRawMArray sz >>= \ma -> f ma >>= \b -> (,) b <$> freezeMArray ma
+createArrayM = I.createArrayM
 {-# INLINE createArrayM #-}
 
 createArrayM_ :: MonadPrim s m => Size -> (MArray a s -> m b) -> m (Array a)
-createArrayM_ sz f =
-  newRawMArray sz >>= \ma -> f ma >> freezeMArray ma
+createArrayM_ = I.createArrayM_
 {-# INLINE createArrayM_ #-}
 
 
@@ -680,17 +699,12 @@ createArrayM_ sz f =
 --
 -- @since 0.1.0
 makeMArray :: MonadPrim s m => Size -> (Int -> m a) -> m (MArray a s)
-makeMArray sz@(Size n) f = do
-  ma <- newRawMArray sz
-  let go i
-        | i < n = f i >>= writeMArray ma i >> go (i + 1)
-        | otherwise = pure ()
-  ma <$ go 0
+makeMArray = I.makeMArray
 {-# INLINE makeMArray #-}
 
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
 traverseArray :: MonadPrim s m => (a -> m b) -> Array a -> m (Array b)
-traverseArray f a = makeArrayM (sizeOfArray a) (f . indexArray a)
+traverseArray = I.traverseArray
 {-# INLINE traverseArray #-}

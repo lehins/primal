@@ -75,7 +75,6 @@ module Data.Prim.Bytes
   , withCloneMBytesST_
   , loadListMBytes
   , copyBytesToMBytes
-  , copyMBytesToMBytes
   , moveMBytesToMBytes
   -- ** Moving data
   -- * Size
@@ -322,7 +321,7 @@ cloneMBytes :: (MonadPrim s m, Typeable p) => MBytes p s -> m (MBytes p s)
 cloneMBytes mb = do
   n <- getCountOfMBytes mb
   mb' <- allocMBytes (n :: Count Word8)
-  mb' <$ copyMBytesToMBytes mb 0 mb' 0 n
+  mb' <$ moveMBytesToMBytes mb 0 mb' 0 n
 {-# INLINE cloneMBytes #-}
 
 
@@ -407,9 +406,9 @@ callocAlignedMBytes n = do
 
 
 getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Int
-getSizeOfMBytes (MBytes ba#) =
+getSizeOfMBytes (MBytes mba#) =
   prim $ \s ->
-    case getSizeofMutableByteArray# ba# s of
+    case getSizeofMutableByteArray# mba# s of
       (# s', n# #) -> (# s', I# n# #)
 {-# INLINE getSizeOfMBytes #-}
 
@@ -475,24 +474,24 @@ copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
   copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
 {-# INLINE copyBytesToMBytes #-}
 
-copyMBytesToMBytes ::
-     (MonadPrim s m, Prim a) => MBytes ps s-> Off a -> MBytes pd s -> Off a -> Count a -> m ()
-copyMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
-  prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
-{-# INLINE copyMBytesToMBytes #-}
-
-
 moveMBytesToMBytes ::
-  (MonadPrim s m, Prim a) => MBytes ps s -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+     (MonadPrim s m, Prim a) => MBytes ps s-> Off a -> MBytes pd s -> Off a -> Count a -> m ()
 moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
-  unsafeIOToPrim $
-  memmoveMutableByteArray#
-    src#
-    (fromOff# srcOff)
-    dst#
-    (fromOff# dstOff)
-    (fromCount# c)
+  prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
 {-# INLINE moveMBytesToMBytes #-}
+
+
+-- moveMBytesToMBytes ::
+--   (MonadPrim s m, Prim a) => MBytes ps s -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+-- moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
+--   unsafeIOToPrim $
+--   memmoveMutableByteArray#
+--     src#
+--     (fromOff# srcOff)
+--     dst#
+--     (fromOff# dstOff)
+--     (fromCount# c)
+-- {-# INLINE moveMBytesToMBytes #-}
 
 
 sizeOfBytes :: Bytes p -> Int
@@ -664,7 +663,7 @@ ensurePinnedMBytes mb =
     Nothing  -> do
       n8 :: Count Word8 <- getCountOfMBytes mb
       pmb <- allocPinnedMBytes n8
-      pmb <$ copyMBytesToMBytes mb 0 pmb 0 n8
+      pmb <$ moveMBytesToMBytes mb 0 pmb 0 n8
 {-# INLINE ensurePinnedMBytes #-}
 
 toPinnedBytes :: Bytes p -> Maybe (Bytes 'Pin)

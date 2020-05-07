@@ -1,6 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 -- |
 -- Module      : Test.Prim.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -10,7 +16,9 @@
 -- Portability : non-portable
 --
 
-module Test.Prim.Array where
+module Test.Prim.Array
+  ( module Test.Prim.Array
+  ) where
 
 import Control.Prim.Monad
 import Data.Prim
@@ -19,110 +27,57 @@ import Data.Prim.Atomic
 import Test.Hspec
 import Test.QuickCheck
 import Data.Kind
-import Data.Prim.Array.Boxed (Size(..))
+import Data.Prim.Array.Internal
 import qualified Data.Prim.Ref as Ref
 import qualified Data.Prim.Array.Boxed as Boxed
 import qualified Data.Prim.Bytes.Addr as Addr
 
-class NoConstraint a
-instance NoConstraint a
 
-class Mut mut where
-  type Elt mut :: * -> Constraint
-  type Elt mut = NoConstraint
+class MRef mut a where
 
-  newMut :: (Elt mut a, MonadPrim s m) => a -> m (mut a s)
-  newMut a = do
-    mut <- newRawMut
-    mut <$ writeMut mut a
+  newMRef :: MonadPrim s m => a -> m (mut a s)
+  newMRef a = newRawMRef >>= \mut -> mut <$ writeMRef mut a
 
-  newRawMut :: (Elt mut a, MonadPrim s m) => m (mut a s)
+  newRawMRef :: MonadPrim s m => m (mut a s)
 
-  readMut :: (Elt mut a, MonadPrim s m) => mut a s -> m a
+  readMRef :: MonadPrim s m => mut a s -> m a
 
-  writeMut :: (Elt mut a, MonadPrim s m) => mut a s -> a -> m ()
+  writeMRef :: MonadPrim s m => mut a s -> a -> m ()
+
+class MRefLazy mut a where
+
+  newMRefLazy :: MonadPrim s m => a -> m (mut a s)
+
+  writeMRefLazy :: MonadPrim s m => mut a s -> a -> m ()
 
 
-class Mut mut => MutAtomic mut where
-  type EltAtomic mut :: * -> Constraint
-  type EltAtomic mut = NoConstraint
+class MRef mut a => AtomicMRef mut a where
 
-  atomicReadMut :: (EltAtomic mut a, MonadPrim s m) => mut a s -> m a
+  atomicReadMRef :: MonadPrim s m => mut a s -> m a
 
-  atomicWriteMut :: (EltAtomic mut a, MonadPrim s m) => mut a s -> a -> m ()
+  atomicWriteMRef :: MonadPrim s m => mut a s -> a -> m ()
 
-  casMut :: MonadPrim s m => mut a s -> a -> a -> m (Bool, a)
-
-class Mut mut => MutArray mut where
-  type Frozen mut = (r :: Type -> Type) | r -> mut
-
-  getSizeOfMArray :: (Elt mut a, MonadPrim s m) => mut a s -> m Size
-
-  thawArray :: (Elt mut a, MonadPrim s m) => Frozen mut a -> m (mut a s)
-
-  -- thawCopyArray
-  -- freezeCopyMArray
-
-  freezeMArray :: (Elt mut a, MonadPrim s m) => mut a s -> m (Frozen mut a)
-
-  newMArray :: (Elt mut a, MonadPrim s m) => Size -> a -> m (mut a s)
-  newMArray n a = do
-    ma <- newRawMArray n
-    ma <$ setMArray ma 0 n a
-
-  newRawMArray :: (Elt mut a, MonadPrim s m) => Size -> m (mut a s)
-
-  readMArray :: (Elt mut a, MonadPrim s m) => mut a s -> Int -> m a
-
-  writeMArray :: (Elt mut a, MonadPrim s m) => mut a s -> Int -> a -> m ()
-
-  setMArray :: (Elt mut a, MonadPrim s m) => mut a s -> Int -> Size -> a -> m ()
-  setMArray ma i0 (Size n0) x =
-    let n = n0 + i0
-        go i | i < n = writeMArray ma i x >> go (i + 1)
-             | otherwise = pure ()
-    in go i0
-
-  -- copyArray
-  -- copyMArray
-  -- cloneArray
-  -- cloneMArray
+  casMRef :: MonadPrim s m => mut a s -> a -> a -> m (Bool, a)
 
 
 
 
-instance Mut Boxed.MArray where
-  newMut = Boxed.newMArray 1
-  newRawMut = Boxed.newRawMArray 1
-  readMut ma = Boxed.readMArray ma 0
-  writeMut ma = Boxed.writeMArray ma 0
-
-instance MutArray Boxed.MArray where
-  type Frozen Boxed.MArray = Boxed.Array
-
-  getSizeOfMArray = pure . Boxed.sizeOfMArray
-
-  thawArray = Boxed.thawArray
-
-  freezeMArray = Boxed.freezeMArray
-
-  newMArray = Boxed.newMArray
-
-  newRawMArray = Boxed.newRawMArray
-
-  readMArray = Boxed.readMArray
-
-  writeMArray = Boxed.writeMArray
 
 
-instance Mut Addr.MAddr where
-  type Elt Addr.MAddr = Prim
-  newRawMut = Addr.allocMAddr 1
-  readMut = Addr.readMAddr
-  writeMut = Addr.writeMAddr
+instance MRef Boxed.BoxedMArray a where
+  newMRef = Boxed.newMArray 1
+  newRawMRef = Boxed.newRawMArray 1
+  readMRef ma = Boxed.readMArray ma 0
+  writeMRef ma = Boxed.writeMArray ma 0
 
-instance MutArray Addr.MAddr where
-  type Frozen Addr.MAddr = Addr.Addr
+
+instance Prim a => MRef Addr.MAddr a where
+  newRawMRef = Addr.allocMAddr 1
+  readMRef = Addr.readMAddr
+  writeMRef = Addr.writeMAddr
+
+instance Prim a => MArray Addr.MAddr a where
+  type IArray Addr.MAddr = Addr.Addr
 
   getSizeOfMArray = fmap coerce . Addr.getCountOfMAddr
 
@@ -138,18 +93,46 @@ instance MutArray Addr.MAddr where
 
   setMArray m i o x = Addr.setMAddr m (coerce i) (coerce o) x
 
+type family BestRep r1 r2 where
+  BestRep Addr.MAddr Addr.MAddr = Addr.MAddr
+  BestRep r1 r2 = r1
 
---data PRef a s where
+type family Rep a :: Type -> Type -> Type where
+  Rep Int = Addr.MAddr
+  Rep Word = Addr.MAddr
+  Rep (Maybe a) = Rep a
+  Rep (Either a b) = BestRep (Rep a) (Rep b)
+  Rep (a, b) = BestRep (Rep a) (Rep b)
+  Rep (a, b, c) = BestRep (BestRep (Rep a) (Rep b)) (Rep c)
+  Rep (a, b, c, d) = BestRep (Rep (a, b)) (Rep (c, d))
+  Rep a = Ref.Ref
+
+newtype PRef a s = PRef (Rep a a s)
+
+instance MRef (Rep a) a => MRef PRef a where
+  newRawMRef = PRef <$> newRawMRef
+  readMRef (PRef ref) = readMRef ref
+  writeMRef (PRef ref) = writeMRef ref
+
+class MRef (Rep a) a => PrimRef a
+
+instance MRef (Rep a) a => PrimRef a
+
+
+newPRef ::
+     forall a m s. (MonadPrim s m, PrimRef a)
+  => a -- ^ A value to initialize the PRef with
+  -> m (PRef a s)
+newPRef = newMRef
 
 data NEMArrayIx ma a s = MArrayIx !Int !(ma a s)
 
 
-instance MutArray ma => Mut (NEMArrayIx ma) where
-  type Elt (NEMArrayIx ma) = Elt ma
-  newMut a = MArrayIx 0 <$> newMut a
-  newRawMut = MArrayIx 0 <$> newRawMut
-  readMut (MArrayIx i ma) = readMArray ma i
-  writeMut (MArrayIx i ma) = writeMArray ma i
+instance MArray ma a => MRef (NEMArrayIx ma) a where
+  newMRef a = MArrayIx 0 <$> newMArray 1 a
+  newRawMRef = MArrayIx 0 <$> newRawMArray 1
+  readMRef (MArrayIx i ma) = readMArray ma i
+  writeMRef (MArrayIx i ma) = writeMArray ma i
 
 
 

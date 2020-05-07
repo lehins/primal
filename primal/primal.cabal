@@ -36,6 +36,8 @@ library
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
                      , Data.Prim.Array.Boxed
+                     , Data.Prim.Array.Internal
+                     , Data.Prim.Array.Unboxed
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName

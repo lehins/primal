@@ -13,12 +13,15 @@ module Control.Prim.Monad
   , withPrimBase
   , withUnliftPrim
   , showsType
+  -- * Re-export
+  , module Control.Monad
   ) where
 
 import GHC.Exts
 import Control.Prim.Eval
 import Control.Prim.Monad.Internal
 import Data.Typeable
+import Control.Monad
 
 -- | Helper function that converts a type into a string
 showsType :: Typeable t => proxy t -> ShowS
