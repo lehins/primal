@@ -209,12 +209,14 @@ class Prim a where
   -- setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrimBase a)
   -- {-# INLINE setByteOffMutableByteArray# #-}
 
+  -- | Set the region of MutableByteArray to the same value. Offset is in number of elements
   setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setMutableByteArray# ::
     Prim (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toPrimBase a)
   {-# INLINE setMutableByteArray# #-}
 
+  -- | Set the region of memory to the same value. Offset is in number of elements
   setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
   default setOffAddr# ::
     Prim (PrimBase a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s

@@ -13,12 +13,16 @@
 module Test.Prim.Array where
 
 import Control.Prim.Monad
+import Data.Prim
+import Data.Coerce
 import Data.Prim.Atomic
 import Test.Hspec
 import Test.QuickCheck
 import Data.Kind
 import Data.Prim.Array.Boxed (Size(..))
+import qualified Data.Prim.Ref as Ref
 import qualified Data.Prim.Array.Boxed as Boxed
+import qualified Data.Prim.Bytes.Addr as Addr
 
 class NoConstraint a
 instance NoConstraint a
@@ -62,6 +66,9 @@ class Mut mut => MutArray mut where
   freezeMArray :: (Elt mut a, MonadPrim s m) => mut a s -> m (Frozen mut a)
 
   newMArray :: (Elt mut a, MonadPrim s m) => Size -> a -> m (mut a s)
+  newMArray n a = do
+    ma <- newRawMArray n
+    ma <$ setMArray ma 0 n a
 
   newRawMArray :: (Elt mut a, MonadPrim s m) => Size -> m (mut a s)
 
@@ -69,11 +76,19 @@ class Mut mut => MutArray mut where
 
   writeMArray :: (Elt mut a, MonadPrim s m) => mut a s -> Int -> a -> m ()
 
-  -- setMArray
+  setMArray :: (Elt mut a, MonadPrim s m) => mut a s -> Int -> Size -> a -> m ()
+  setMArray ma i0 (Size n0) x =
+    let n = n0 + i0
+        go i | i < n = writeMArray ma i x >> go (i + 1)
+             | otherwise = pure ()
+    in go i0
+
   -- copyArray
   -- copyMArray
   -- cloneArray
   -- cloneMArray
+
+
 
 
 instance Mut Boxed.MArray where
@@ -100,6 +115,31 @@ instance MutArray Boxed.MArray where
   writeMArray = Boxed.writeMArray
 
 
+instance Mut Addr.MAddr where
+  type Elt Addr.MAddr = Prim
+  newRawMut = Addr.allocMAddr 1
+  readMut = Addr.readMAddr
+  writeMut = Addr.writeMAddr
+
+instance MutArray Addr.MAddr where
+  type Frozen Addr.MAddr = Addr.Addr
+
+  getSizeOfMArray = fmap coerce . Addr.getCountOfMAddr
+
+  thawArray = Addr.thawAddr
+
+  freezeMArray = Addr.freezeMAddr
+
+  newRawMArray sz = Addr.allocMAddr (coerce sz)
+
+  readMArray m i = Addr.readOffMAddr m (coerce i)
+
+  writeMArray m i = Addr.writeOffMAddr m (coerce i)
+
+  setMArray m i o x = Addr.setMAddr m (coerce i) (coerce o) x
+
+
+--data PRef a s where
 
 data NEMArrayIx ma a s = MArrayIx !Int !(ma a s)
 

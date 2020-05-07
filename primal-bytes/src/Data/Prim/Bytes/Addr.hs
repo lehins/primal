@@ -39,6 +39,7 @@ module Data.Prim.Bytes.Addr
   , castMAddr
   , allocMAddr
   , callocMAddr
+  , setMAddr
   , curOffMAddr
   , getCountOfMAddr
   , plusOffMAddr
@@ -263,17 +264,16 @@ writeMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> a -> m ()
 writeMAddr maddr = writeOffMAddr maddr 0
 
 writeOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> a -> m ()
-writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a = do
-  prim_ (writeOffAddr# addr# off# a)
-  touch mb
-
+writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
+  prim_ (writeOffAddr# addr# off# a) >> touch mb
 
 writeByteOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off Word8 -> a -> m ()
-writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a = do
-  prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a)
-  touch mb
+writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
+  prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a) >> touch mb
 
-
+setMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> Count a -> a -> m ()
+setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
+  prim_ (setOffAddr# addr# off# n# a) >> touch mb
 
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
