@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 -- |
 -- Module      : Foreign.Prim
 -- Copyright   : (c) Alexey Kuleshevich 2020

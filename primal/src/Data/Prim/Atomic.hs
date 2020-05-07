@@ -35,7 +35,6 @@ module Data.Prim.Atomic
 
 import Control.Prim.Monad.Unsafe
 import Data.Bits
-import Data.Functor.Const
 import Data.Functor.Identity
 import Data.Monoid
 import Data.Prim.Class
@@ -44,6 +43,7 @@ import Foreign.Prim hiding (Any)
 import GHC.Conc
 import GHC.IO.Device
 #if __GLASGOW_HASKELL__ >= 800
+import Data.Functor.Const
 import Data.Semigroup
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
@@ -1337,12 +1337,11 @@ instance Atomic a => Atomic (Min a)
 instance Atomic a => Atomic (Data.Semigroup.First a)
 instance Atomic a => Atomic (Data.Semigroup.Last a)
 
-
-#endif /* __GLASGOW_HASKELL__ >= 800 */
-
 instance Atomic a => Atomic (Const a b)
 instance AtomicCount a => AtomicCount (Const a b)
 instance AtomicBits a => AtomicBits (Const a b)
+
+#endif /* __GLASGOW_HASKELL__ >= 800 */
 
 instance Atomic a => Atomic (Identity a)
 instance AtomicCount a => AtomicCount (Identity a)

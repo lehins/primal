@@ -49,11 +49,11 @@ import GHC.Real
 import GHC.IO.Device
 import GHC.Fingerprint.Type
 import GHC.TypeLits as Nats
-import Data.Functor.Const
 import Data.Functor.Compose
 import Data.Functor.Identity
 import Data.Monoid
 #if __GLASGOW_HASKELL__ >= 800
+import Data.Functor.Const
 import Data.Semigroup
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
@@ -68,7 +68,7 @@ import Foreign.Ptr hiding
   , wordPtrToPtr
   )
 import Unsafe.Coerce
-#include "prim_core_compat.h"
+#include "primal_compat.h"
 
 import Data.Bits (Bits, FiniteBits)
 import Foreign.Storable (Storable)

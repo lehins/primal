@@ -5,8 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
-{-# OPTIONS_HADDOCK hide, not-home #-}
 -- |
 -- Module      : Foreign.Prim.C.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020
