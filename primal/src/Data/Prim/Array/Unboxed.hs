@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -71,8 +72,6 @@ import Data.Prim.Array.Internal (Size(..))
 import qualified Data.Prim.Array.Internal as I
 import Foreign.Prim
 
-data UnboxedArray a = Array ByteArray#
-
 type Array a = UnboxedArray a
 
 instance (Prim a, Show a) => Show (UnboxedArray a) where
@@ -98,9 +97,17 @@ type MArray a s = UnboxedMArray a s
 instance Eq (UnboxedMArray a s) where
   MArray ma1# == MArray ma2# = isTrue# (sameMutableByteArray# ma1# ma2#)
 
+#if __GLASGOW_HASKELL__ >= 800
+data UnboxedArray a = Array ByteArray#
 
 instance Prim a => I.MArray UnboxedMArray a where
   type IArray UnboxedMArray = UnboxedArray
+#else
+type UnboxedArray a = I.IArray UnboxedMArray a
+
+instance Prim a => I.MArray UnboxedMArray a where
+  data IArray UnboxedMArray a = Array ByteArray#
+#endif
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
   indexArray = indexArray

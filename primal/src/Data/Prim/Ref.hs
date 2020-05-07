@@ -62,9 +62,8 @@ module Data.Prim.Ref
   , fromIORef
   ) where
 
-import Control.Monad (void)
 import Control.Prim.Monad
-import GHC.Exts
+import Foreign.Prim
 import GHC.STRef
 import GHC.IORef
 

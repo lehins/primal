@@ -36,6 +36,7 @@ library
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
                      , Data.Prim.Array.Boxed
+                     , Data.Prim.Array.Boxed.Small
                      , Data.Prim.Array.Internal
                      , Data.Prim.Array.Unboxed
                      , Data.Prim.Atomic

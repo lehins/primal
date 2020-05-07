@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
@@ -59,14 +57,13 @@ module Foreign.Prim.C.LtGHC806
   , readWord8ArrayAsWord#
   , writeWord8ArrayAsWord#
 
+  , atomicModifyMutVar_#
+  , atomicModifyMutVar2#
   , module Foreign.Prim.C.LtGHC802
   ) where
 
 import GHC.Exts
 import Foreign.Prim.C.LtGHC802
-
--- ghc-8.6 (i.e. 806 version) introduced these new functions, for versions before we
--- use their re-implementations in C:
 #if __GLASGOW_HASKELL__ < 806
 
 import GHC.Int
@@ -75,7 +72,40 @@ import Foreign.Prim.StablePtr
 import Control.Prim.Monad.Unsafe
 
 #include "MachDeps.h"
+#endif
 
+
+#if __GLASGOW_HASKELL__ <= 806
+
+-- | Slightly slower reimplementation of newer primops using the old `atomicModifyMutVar#`
+--
+-- Modify the contents of a `MutVar#`, returning the previous contents and the result of
+-- applying the given function to the previous contents.
+--
+-- /__Warning:__/ this can fail with an unchecked exception.
+atomicModifyMutVar_# :: MutVar# s a -> (a -> a) -> State# s -> (# State# s, a, a #)
+atomicModifyMutVar_# ref# f s =
+  case atomicModifyMutVar# ref# (\a -> let a' = f a in (a', (a', a))) s of
+    (# s', (prev, cur) #) -> (# s', prev, cur #)
+{-# INLINE atomicModifyMutVar_# #-}
+
+-- | Slightly slower reimplementation of newer primops using the old `atomicModifyMutVar#`
+--
+-- Modify the contents of a `MutVar#`, returning the previous contents and the result of
+-- applying the given function to the previous contents.
+--
+-- /__Warning:__/ this can fail with an unchecked exception.
+atomicModifyMutVar2# :: MutVar# s a -> (a -> (a, b)) -> State# s -> (# State# s, a, (a, b) #)
+atomicModifyMutVar2# ref# f s =
+  case atomicModifyMutVar# ref# (\a -> let (a', b) = f a in (a', (a', a, b))) s of
+    (# s', (prev, cur, artifact) #) -> (# s', prev, (cur, artifact) #)
+{-# INLINE atomicModifyMutVar2# #-}
+
+#endif
+
+-- ghc-8.6 (i.e. 806 version) introduced these new functions, for versions before we
+-- use their re-implementations in C:
+#if __GLASGOW_HASKELL__ < 806
 
 indexWord8ArrayAsChar# :: ByteArray# -> Int# -> Char#
 indexWord8ArrayAsChar# = indexCharArray#

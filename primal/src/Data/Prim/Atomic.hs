@@ -5,8 +5,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+#if __GLASGOW_HASKELL__ < 800
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 -- |
 -- Module      : Data.Prim.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -1341,6 +1345,9 @@ instance Atomic a => Atomic (Const a b)
 instance AtomicCount a => AtomicCount (Const a b)
 instance AtomicBits a => AtomicBits (Const a b)
 
+#else
+
+deriving instance Bits a => Bits (Identity a)
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
 instance Atomic a => Atomic (Identity a)

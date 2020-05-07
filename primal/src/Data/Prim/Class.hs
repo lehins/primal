@@ -59,14 +59,6 @@ import Data.Semigroup
 
 #if __GLASGOW_HASKELL__ < 802
 import qualified Foreign.Ptr as P
-import Foreign.Ptr hiding
-  ( IntPtr
-  , WordPtr
-  , intPtrToPtr
-  , ptrToIntPtr
-  , ptrToWordPtr
-  , wordPtrToPtr
-  )
 import Unsafe.Coerce
 #include "primal_compat.h"
 
@@ -1015,13 +1007,13 @@ instance (Eq a, Prim a) => Prim (Arg a a) where
   toPrimBase (Arg a b) = (a, b)
   fromPrimBase (a, b) = Arg a b
 
-instance Prim (f (g a)) => Prim (Compose f g a) where
-  type PrimBase (Compose f g a) = f (g a)
+instance Prim a => Prim (Const a b) where
+  type PrimBase (Const a b) = a
 
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
-instance Prim a => Prim (Const a b) where
-  type PrimBase (Const a b) = a
+instance Prim (f (g a)) => Prim (Compose f g a) where
+  type PrimBase (Compose f g a) = f (g a)
 
 instance Prim a => Prim (Identity a) where
   type PrimBase (Identity a) = a

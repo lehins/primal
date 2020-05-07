@@ -1,9 +1,16 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+#if __GLASGOW_HASKELL__ >= 800
 {-# LANGUAGE TypeFamilyDependencies #-}
+#else
+{-# LANGUAGE FunctionalDependencies #-}
+#endif
 -- |
 -- Module      : Data.Prim.Array.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -34,9 +41,13 @@ import GHC.Exts
 newtype Size = Size Int
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
-
+#if __GLASGOW_HASKELL__ >= 800
 class MArray mut a where
   type IArray mut = (r :: * -> *) | r -> mut
+#else
+class MArray mut a where
+  data IArray mut :: * -> *
+#endif
 
   sizeOfArray :: IArray mut a -> Size
 
@@ -154,13 +165,13 @@ fromListArray xs = fromListArrayN (Size (length xs)) xs
 --
 -- @since 0.1.0
 fromListArrayN ::
-     MArray mut a
+     forall mut a. MArray mut a
   => Size -- ^ Expected @n@ size of a list
   -> [a]
   -> IArray mut a
 fromListArrayN sz@(Size n) ls =
   runST $ do
-    ma <- newRawMArray sz
+    ma :: mut a s <- newRawMArray sz
     let go i =
           \case
             x:xs
