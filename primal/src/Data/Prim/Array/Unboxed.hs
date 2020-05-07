@@ -1,8 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,9 +16,11 @@
 --
 module Data.Prim.Array.Unboxed
   ( Array
-  , UnboxedArray(..)
+  , pattern Array
+  , UnboxedArray
   , MArray
-  , UnboxedMArray(..)
+  , pattern MArray
+  , UnboxedMArray
   , Size(..)
   -- * Immutable
   , makeArray
@@ -308,7 +308,7 @@ writeMArray (MArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 -- @since 0.1.0
 thawArray :: MonadPrim s m => Array a -> m (MArray a s)
 thawArray (Array a#) = prim $ \s ->
-  case thawByteArray# a# s of
+  case unsafeThawByteArray# a# s of
     (# s', ma# #) -> (# s', MArray ma# #)
 {-# INLINE thawArray #-}
 

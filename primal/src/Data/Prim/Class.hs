@@ -20,8 +20,6 @@
 --
 module Data.Prim.Class
   ( Prim(..)
-  , thawByteArray#
-  , mutableByteArrayContents#
   , setMutableByteArrayLoop#
   , errorImpossible
   , bool2Int#
@@ -1426,15 +1424,6 @@ instance (Prim a, Prim b) => Prim (Either a b) where
   setOffAddr# = setOffAddrLoop#
   {-# INLINE setOffAddr# #-}
 
-
-
-thawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
-thawByteArray# ba# s = (# s, unsafeCoerce# ba# #)
-{-# INLINE thawByteArray# #-}
-
-mutableByteArrayContents# :: MutableByteArray# s -> Addr#
-mutableByteArrayContents# mba# = byteArrayContents# (unsafeCoerce# mba#)
-{-# INLINE mutableByteArrayContents# #-}
 
 -- | A loop that uses `writeMutableByteArray#` to set the values in the region. It is a
 -- suboptimal way to fill the memory with a single value that is why it is only provided

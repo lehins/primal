@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Foreign.Prim
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -9,8 +10,12 @@
 -- Portability : non-portable
 --
 module Foreign.Prim
-  ( -- * Re-exports
-    module Foreign.C.Types
+  ( -- * Missing primitives
+    unsafeThawByteArray#
+  , mutableByteArrayContents#
+  , unsafeThawArrayArray#
+    -- * Re-exports
+  , module Foreign.C.Types
   , module System.Posix.Types
   , module GHC.Exts
 #if __GLASGOW_HASKELL__ < 804
@@ -39,3 +44,17 @@ import GHC.Prim
   , mkWeakNoFinalizer#
   )
 #endif
+
+
+unsafeThawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
+unsafeThawByteArray# ba# s = (# s, unsafeCoerce# ba# #)
+{-# INLINE unsafeThawByteArray# #-}
+
+mutableByteArrayContents# :: MutableByteArray# s -> Addr#
+mutableByteArrayContents# mba# = byteArrayContents# (unsafeCoerce# mba#)
+{-# INLINE mutableByteArrayContents# #-}
+
+
+unsafeThawArrayArray# :: ArrayArray# -> State# s -> (# State# s, MutableArrayArray# s #)
+unsafeThawArrayArray# ba# s = (# s, unsafeCoerce# ba# #)
+{-# INLINE unsafeThawArrayArray# #-}
