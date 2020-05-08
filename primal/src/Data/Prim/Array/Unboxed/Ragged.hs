@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MagicHash #-}
@@ -18,32 +19,30 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array.Unboxed.Ragged
-  (--  Array
-  -- , pattern Array
-  -- , RaggedArray
-  -- , MArray
-  -- , pattern MArray
-  -- , RaggedMArray
-  -- , Size(..)
-  -- -- * Immutable
+  ( Array
+  , pattern Array
+  , RaggedArray
+  , MArray
+  , pattern MArray
+  , RaggedMArray
+  , Size(..)
+  -- * Immutable
   -- , makeArray
   -- , makeArrayM
-  -- , sizeOfArray
-  -- , indexArray
-  -- -- * Mutable
-  -- -- ** Create
+  , sizeOfArray
+  , indexArray
+  -- * Mutable
+  -- ** Create
   -- , newMArray
-  -- , newRawMArray
+  , newRawMArray
   -- , newMArrayLazy
   -- , makeMArray
   -- , createArrayM
   -- , createArrayM_
-  -- , sizeOfMArray
-  -- -- ** Access
-  -- , readMArray
-  -- , writeMArray
-  -- , writeMArrayLazy
-  -- , writeMArrayDeep
+  , sizeOfMArray
+  -- ** Access
+  , readMArray
+  , writeMArray
   -- -- *** Atomic
   -- , casMArray
   -- , atomicModifyFetchMArray
@@ -80,29 +79,18 @@ import Foreign.Prim
 import GHC.TypeLits
 
 
--- -- | Check if both of the arrays refer to the exact same one. None of the elements are
--- -- evaluated.
--- instance Eq (RaggedMArray a s) where
---   MArray ma1# == MArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
+-- | Check if both of the arrays refer to the exact same one. None of the elements are
+-- evaluated.
+instance Eq (RaggedMArray n a s) where
+  MArray ma1# == MArray ma2# = isTrue# (sameMutableArrayArray# ma1# ma2#)
 
--- data RArray (n :: Nat) a where
---   UArray :: ArrayArray# -> RArray 0 (U.Array a)
-  --RArray :: ArrayArray# -> RArray n (Elt n a)
-type Array n a = RaggedArray n a
+type Array = RaggedArray
 
 data RaggedArray (n :: Nat) a = Array ArrayArray#
 
-type MArray n a s = RaggedMArray n a s
+type MArray = RaggedMArray
 
 data RaggedMArray (n :: Nat) a s = MArray (MutableArrayArray# s)
-
--- type family Elt n :: * -> * where
---   Elt 0 = U.UnboxedArray
---   Elt n = REArray (n - 1)
-
--- data RMArray (n :: Nat) a s where
---   UMArray :: MutableArrayArray# s -> RMArray 0 (U.MArray a s) s
---   RMArray :: MutableArrayArray# s -> RMArray n (RMArray (n-1) a s) s
 
 
 instance I.MArray (RaggedMArray 0) (U.UnboxedArray a) where
@@ -173,6 +161,11 @@ newRawMArray (Size (I# n#)) =
     case newArrayArray# n# s of
       (# s', ma# #) -> (# s', MArray ma# #)
 {-# INLINE newRawMArray #-}
+
+-- Better interface:
+-- newRawMArrayI :: (I.MArray (MArray n) a, MonadPrim s m) => Size -> m (MArray n a s)
+-- newRawMArrayI = I.newRawMArray
+-- {-# INLINE newRawMArrayI #-}
 
 
 thawArray :: MonadPrim s m => Array n a -> m (MArray n a s)

@@ -53,13 +53,13 @@ module Data.Prim.Array.Unboxed
   , moveMArray
   , cloneArray
   , cloneMArray
-  -- -- * List
-  -- , fromListArray
-  -- , fromListArrayN
-  -- , toListArray
-  -- -- * Helpers
-  -- , foldrArray
-  -- , traverseArray
+  -- * List
+  , fromListArray
+  , fromListArrayN
+  , toListArray
+  -- * Helpers
+  , foldrArray
+  , traverseArray
   ) where
 
 import Control.DeepSeq
