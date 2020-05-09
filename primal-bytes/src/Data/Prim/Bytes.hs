@@ -430,7 +430,7 @@ freezeMBytes (MBytes mba#) =
 thawBytes :: MonadPrim s m => Bytes p -> m (MBytes p s)
 thawBytes (Bytes ba#) =
   prim $ \s ->
-    case thawByteArray# ba# s of
+    case unsafeThawByteArray# ba# s of
       (# s', mba# #) -> (# s', MBytes mba# #)
 {-# INLINE thawBytes #-}
 

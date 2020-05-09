@@ -104,17 +104,18 @@ data SmallBoxedArray a = Array (SmallArray# a)
 instance Functor SmallBoxedArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray SmallBoxedMArray a where
-  type IArray SmallBoxedMArray = SmallBoxedArray
+instance I.MArray (SmallBoxedMArray a) where
+  type IArray (SmallBoxedMArray a) = SmallBoxedArray a
 #else
 type SmallBoxedArray a = I.IArray SmallBoxedMArray a
 
 instance Functor (I.IArray SmallBoxedMArray) where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray SmallBoxedMArray a where
-  data IArray SmallBoxedMArray a = Array (SmallArray# a)
+instance I.MArray (SmallBoxedMArray a) where
+  data IArray (SmallBoxedMArray a) = Array (SmallArray# a)
 #endif
+  type Elt (SmallBoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfArray

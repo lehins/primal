@@ -93,8 +93,10 @@ type MArray = RaggedMArray
 data RaggedMArray (n :: Nat) a s = MArray (MutableArrayArray# s)
 
 
-instance I.MArray (RaggedMArray 0) (U.UnboxedArray a) where
-  type IArray (RaggedMArray 0) = RaggedArray 0
+instance {-# OVERLAPPING #-} I.MArray (RaggedMArray 0 a) where
+  type IArray (RaggedMArray 0 a) = RaggedArray 0 a
+  type Elt (RaggedMArray 0 a) = RaggedElt 0 a
+
   indexArray = indexUnboxedArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfArray
@@ -115,9 +117,15 @@ instance I.MArray (RaggedMArray 0) (U.UnboxedArray a) where
   {-# INLINE copyArray #-}
   moveMArray = moveMArray
   {-# INLINE moveMArray #-}
-instance (KnownNat n, 1 <= n, k ~ (n - 1)) =>
-         I.MArray (RaggedMArray n) (RaggedArray k a) where
-  type IArray (RaggedMArray n) = RaggedArray n
+
+type family RaggedElt n a where
+  RaggedElt 0 a = U.UnboxedArray a
+  RaggedElt n a = RaggedArray (n - 1) a
+
+instance (KnownNat n, 1 <= n, RaggedElt n a ~ RaggedArray (n - 1) a) =>
+         I.MArray (RaggedMArray n a) where
+  type IArray (RaggedMArray n a) = RaggedArray n a
+  type Elt (RaggedMArray n a) = RaggedElt n a
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
   indexArray = indexArray
@@ -148,9 +156,14 @@ indexUnboxedArray :: Array 0 b -> Int -> U.Array a
 indexUnboxedArray (Array a#) (I# i#) = U.Array (indexByteArrayArray# a# i#)
 {-# INLINE indexUnboxedArray #-}
 
-indexArray :: (KnownNat n, 1 <= n, b ~ Array (n - 1) a) => Array n b -> Int -> Array (n - 1) a
+indexArray :: (KnownNat n, 1 <= n) => Array n a -> Int -> Array (n - 1) a
 indexArray (Array a#) (I# i#) = Array (indexArrayArrayArray# a# i#)
 {-# INLINE indexArray #-}
+
+
+indexArrayI :: I.MArray (RaggedMArray n a) => RaggedArray n a -> Int -> RaggedElt n a
+indexArrayI = I.indexArray
+{-# INLINE indexArrayI #-}
 
 -- |
 --
@@ -218,10 +231,10 @@ readMArray (MArray ma#) (I# i#) =
 {-# INLINE readMArray #-}
 
 readFrozenMArray ::
-     (KnownNat n, 1 <= n, arr ~ Array (n - 1) a, MonadPrim s m)
-  => MArray n arr s
+     (KnownNat n, 1 <= n, MonadPrim s m)
+  => MArray n a s
   -> Int
-  -> m arr
+  -> m (Array (n - 1) a)
 readFrozenMArray (MArray ma#) (I# i#) =
   prim $ \s ->
     case readArrayArrayArray# ma# i# s of
@@ -274,20 +287,20 @@ readUnboxedFrozenMArray (MArray ma#) (I# i#) =
 --
 -- @since 0.1.0
 writeMArray ::
-     (KnownNat n, 1 <= n, marr ~ MArray (n - 1) a s, MonadPrim s m)
-  => MArray n marr s
+     (KnownNat n, 1 <= n, MonadPrim s m)
+  => MArray n a s
   -> Int
-  -> marr
+  -> MArray (n - 1) a s
   -> m ()
 writeMArray (MArray ma#) (I# i#) (MArray e#) =
   prim_ (writeMutableArrayArrayArray# ma# i# e#)
 {-# INLINE writeMArray #-}
 
 writeFrozenMArray ::
-     (KnownNat n, 1 <= n, arr ~ Array (n - 1) a, MonadPrim s m)
-  => MArray n arr s
+     (KnownNat n, 1 <= n, MonadPrim s m)
+  => MArray n a s
   -> Int
-  -> arr
+  -> Array (n - 1) a
   -> m ()
 writeFrozenMArray (MArray ma#) (I# i#) (Array e#) =
   prim_ (writeArrayArrayArray# ma# i# e#)

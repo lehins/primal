@@ -100,14 +100,15 @@ instance Eq (UnboxedMArray a s) where
 #if __GLASGOW_HASKELL__ >= 800
 data UnboxedArray a = Array ByteArray#
 
-instance Prim a => I.MArray UnboxedMArray a where
-  type IArray UnboxedMArray = UnboxedArray
+instance Prim a => I.MArray (UnboxedMArray a) where
+  type IArray (UnboxedMArray a) = UnboxedArray a
 #else
 type UnboxedArray a = I.IArray UnboxedMArray a
 
-instance Prim a => I.MArray UnboxedMArray a where
-  data IArray UnboxedMArray a = Array ByteArray#
+instance Prim a => I.MArray (UnboxedMArray a) where
+  data IArray (UnboxedMArray a) = Array ByteArray#
 #endif
+  type Elt (UnboxedMArray a) = a
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
   indexArray = indexArray

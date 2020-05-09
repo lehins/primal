@@ -76,8 +76,9 @@ instance Prim a => MRef Addr.MAddr a where
   readMRef = Addr.readMAddr
   writeMRef = Addr.writeMAddr
 
-instance Prim a => MArray Addr.MAddr a where
-  type IArray Addr.MAddr = Addr.Addr
+instance Prim a => MArray (Addr.MAddr a) where
+  type IArray (Addr.MAddr a) = Addr.Addr a
+  type Elt (Addr.MAddr a) = a
 
   getSizeOfMArray = fmap coerce . Addr.getCountOfMAddr
 
@@ -128,7 +129,7 @@ newPRef = newMRef
 data NEMArrayIx ma a s = MArrayIx !Int !(ma a s)
 
 
-instance MArray ma a => MRef (NEMArrayIx ma) a where
+instance (a ~ Elt (ma a), MArray (ma a)) => MRef (NEMArrayIx ma) a where
   newMRef a = MArrayIx 0 <$> newMArray 1 a
   newRawMRef = MArrayIx 0 <$> newRawMArray 1
   readMRef (MArrayIx i ma) = readMArray ma i

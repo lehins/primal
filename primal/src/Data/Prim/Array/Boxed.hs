@@ -105,17 +105,18 @@ data BoxedArray a = Array (Array# a)
 instance Functor BoxedArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray BoxedMArray a where
-  type IArray BoxedMArray = BoxedArray
+instance I.MArray (BoxedMArray a) where
+  type IArray (BoxedMArray a) = BoxedArray a
 #else
 type BoxedArray a = I.IArray BoxedMArray a
 
 instance Functor (I.IArray BoxedMArray) where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray BoxedMArray a where
-  data IArray BoxedMArray a = Array (Array# a)
+instance I.MArray (BoxedMArray a) where
+  data IArray (BoxedMArray a) = Array (Array# a)
 #endif
+  type Elt (BoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfArray
