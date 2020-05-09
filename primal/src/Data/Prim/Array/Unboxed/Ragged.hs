@@ -93,9 +93,9 @@ type MArray = RaggedMArray
 data RaggedMArray (n :: Nat) a s = MArray (MutableArrayArray# s)
 
 
-instance {-# OVERLAPPING #-} I.MArray (RaggedMArray 0 a) where
-  type IArray (RaggedMArray 0 a) = RaggedArray 0 a
-  type Elt (RaggedMArray 0 a) = RaggedElt 0 a
+instance {-# OVERLAPPING #-} I.MArray (RaggedMArray 0 (U.UnboxedArray a)) where
+  type IArray (RaggedMArray 0 (U.UnboxedArray a)) = RaggedArray 0 (U.UnboxedArray a)
+  type Elt (RaggedMArray 0 (U.UnboxedArray a)) = RaggedElt 0 (U.UnboxedArray a)
 
   indexArray = indexUnboxedArray
   {-# INLINE indexArray #-}
@@ -119,7 +119,7 @@ instance {-# OVERLAPPING #-} I.MArray (RaggedMArray 0 a) where
   {-# INLINE moveMArray #-}
 
 type family RaggedElt n a where
-  RaggedElt 0 a = U.UnboxedArray a
+  RaggedElt 0 a = a
   RaggedElt n a = RaggedArray (n - 1) a
 
 instance (KnownNat n, 1 <= n, RaggedElt n a ~ RaggedArray (n - 1) a) =>
