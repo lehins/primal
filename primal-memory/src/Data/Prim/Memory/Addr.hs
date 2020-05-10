@@ -7,14 +7,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Bytes
+-- Module      : Data.Prim.Memory.Addr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Bytes.Addr
+module Data.Prim.Memory.Addr
   ( -- * Immutable Addr
     Addr(..)
   , castAddr
@@ -102,7 +102,7 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Atomic
-import Data.Prim.Bytes
+import Data.Prim.Memory.Bytes
 import Data.Prim.Class
 import Foreign.Prim
 import Foreign.Ptr

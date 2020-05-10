@@ -1,4 +1,4 @@
-module Test.Prim.Common
+module Test.Prim.Memory.Common
   ( module X
   ) where
 

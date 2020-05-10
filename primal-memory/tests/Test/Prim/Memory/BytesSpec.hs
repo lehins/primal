@@ -1,18 +1,24 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Prim.BytesSpec
-  ( module Test.Prim.BytesSpec
-  , module Data.Prim.Bytes
+module Test.Prim.Memory.BytesSpec
+  ( module Test.Prim.Memory.BytesSpec
+  , module Data.Prim.Memory.Bytes
   ) where
 
+import Data.Complex
+import Data.Ratio
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Monad
@@ -21,57 +27,21 @@ import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
 import Data.Monoid
-import Data.Prim.Bytes
+import Data.Functor.Identity
+import Data.Prim.Memory.Bytes
 import qualified Data.Primitive.ByteArray as BA
 import Data.Typeable
-import Foreign.Prim
+import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
 import Foreign.Storable
+import GHC.Conc
+import GHC.IO.Device
+import GHC.Fingerprint.Type
 import Numeric
 import System.Timeout
-import Test.Prim.Common
+import Test.Prim.Memory.Common
 
-instance Arbitrary (Ptr a) where
-  arbitrary = intPtrToPtr <$> arbitrary
-
-instance Arbitrary (FunPtr a) where
-  arbitrary = castPtrToFunPtr <$> arbitrary
-
-instance Arbitrary (StablePtr a) where
-  arbitrary = castPtrToStablePtr <$> arbitrary
-
-instance Arbitrary IntPtr where
-  arbitrary = IntPtr <$> arbitrary
-
-instance Arbitrary WordPtr where
-  arbitrary = WordPtr <$> arbitrary
-
-instance NFData IntPtr where
-  rnf (IntPtr _) = ()
-
-instance NFData WordPtr where
-  rnf (WordPtr _) = ()
-
-instance Arbitrary CBool where
-  arbitrary = CBool <$> arbitrary
-
-instance Arbitrary (Off a) where
-  arbitrary = Off . getNonNegative <$> arbitrary
-
-instance Arbitrary (Count a) where
-  arbitrary = Count . getNonNegative <$> arbitrary
-
-instance Arbitrary BA.ByteArray where
-  arbitrary = toByteArray <$> (arbitrary :: Gen (Bytes 'Pin))
-
-instance Typeable p => Arbitrary (Bytes p) where
-  arbitrary = do
-    NonNegative n <- arbitrary
-    xs :: [Word8] <- vectorOf n arbitrary
-    pure $
-      createBytesST_ (Count n :: Count Word8) $ \mb ->
-        zipWithM_ (writeMBytes mb) [0 ..] xs
 
 data NEBytes p a = NEBytes (Off a) [a] (Bytes p)
   deriving (Eq)
@@ -269,25 +239,20 @@ spec :: Spec
 spec = do
   primBinarySpec @'Pin
   primBinarySpec @'Inc
-  primTypeSpec @Word
-  primTypeSpec @Word8
-  primTypeSpec @Word16
-  primTypeSpec @Word32
-  primTypeSpec @Word64
-  primTypeSpec @Int
-  primTypeSpec @Int8
-  primTypeSpec @Int16
-  primTypeSpec @Int32
-  primTypeSpec @Int64
-  primTypeSpec @Char
-  primTypeSpec @Bool
-  primTypeSpec @IntPtr
-  primTypeSpec @WordPtr
-  primTypeSpec @(Ptr ())
-  primTypeSpec @(FunPtr ())
-  primTypeSpec @(StablePtr ())
-  primTypeSpec @(Maybe Word)
-  primTypeSpec @(Either Word16 Int8)
+  primTypeSpec @(Identity Word)
+  primTypeSpec @(Down Word8)
+  primTypeSpec @(Dual Word16)
+  primTypeSpec @(Sum Word32)
+  primTypeSpec @(Product Word64)
+  primTypeSpec @(Ratio Int)
+  primTypeSpec @(Complex Float)
+  primTypeSpec @Double
+  primTypeSpec @Ordering
+  primTypeSpec @SeekMode
+  primTypeSpec @(Int8, Int16)
+  primTypeSpec @(Int32, Int64, Char)
+  primTypeSpec @((), Ptr (), FunPtr (), StablePtr ())
+  primTypeSpec @(All, Any, Fingerprint, IntPtr, WordPtr)
   describe "Allocation" $ do
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8
@@ -348,3 +313,128 @@ prop_WorkArounBugGHC18061 alloc withPtr (Positive n) =
         unless (x == 0xDEADBEEF) $
           error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
 {-# INLINE prop_WorkArounBugGHC18061 #-}
+
+
+
+
+---- Orphans
+
+
+instance NFData BlockReason where
+  rnf br = seq br ()
+instance Arbitrary BlockReason where
+  arbitrary =
+    elements
+      [ BlockedOnMVar
+      , BlockedOnBlackHole
+      , BlockedOnException
+      , BlockedOnSTM
+      , BlockedOnForeignCall
+      , BlockedOnOther
+      ]
+
+
+deriving instance NFData CDev
+deriving instance Arbitrary CDev
+
+deriving instance NFData CUid
+deriving instance Arbitrary CUid
+
+deriving instance NFData CCc
+deriving instance Arbitrary CCc
+
+deriving instance NFData CSpeed
+deriving instance Arbitrary CSpeed
+
+deriving instance NFData CMode
+deriving instance Arbitrary CMode
+
+deriving instance NFData CTcflag
+deriving instance Arbitrary CTcflag
+
+deriving instance NFData COff
+deriving instance Arbitrary COff
+
+deriving instance NFData CRLim
+deriving instance Arbitrary CRLim
+
+deriving instance NFData CPid
+deriving instance Arbitrary CPid
+
+deriving instance NFData CBlkSize
+deriving instance Arbitrary CBlkSize
+
+deriving instance NFData CSsize
+deriving instance Arbitrary CSsize
+
+deriving instance NFData CGid
+deriving instance Arbitrary CGid
+
+deriving instance NFData CNlink
+deriving instance Arbitrary CNlink
+
+deriving instance NFData CBlkCnt
+deriving instance Arbitrary CBlkCnt
+
+deriving instance NFData CClockId
+deriving instance Arbitrary CClockId
+
+deriving instance NFData CFsBlkCnt
+deriving instance Arbitrary CFsBlkCnt
+
+deriving instance NFData CFsFilCnt
+deriving instance Arbitrary CFsFilCnt
+
+deriving instance NFData CId
+deriving instance Arbitrary CId
+
+instance Arbitrary Fingerprint where
+  arbitrary = Fingerprint <$> arbitrary <*> arbitrary
+
+instance NFData SeekMode where
+  rnf sm = seq sm ()
+instance Arbitrary SeekMode where
+  arbitrary = elements [toEnum 0 .. ]
+
+instance Arbitrary (Ptr a) where
+  arbitrary = intPtrToPtr <$> arbitrary
+
+instance Arbitrary (FunPtr a) where
+  arbitrary = castPtrToFunPtr <$> arbitrary
+
+instance Arbitrary (StablePtr a) where
+  arbitrary = castPtrToStablePtr <$> arbitrary
+
+instance Arbitrary IntPtr where
+  arbitrary = IntPtr <$> arbitrary
+
+instance Arbitrary WordPtr where
+  arbitrary = WordPtr <$> arbitrary
+
+deriving instance NFData IntPtr
+
+deriving instance NFData WordPtr
+
+deriving instance Arbitrary CBool
+
+deriving instance Arbitrary a => Arbitrary (Down a)
+
+instance a ~ b => Arbitrary (a :~: b) where
+  arbitrary = pure Refl
+
+instance Arbitrary (Off a) where
+  arbitrary = Off . getNonNegative <$> arbitrary
+
+instance Arbitrary (Count a) where
+  arbitrary = Count . getNonNegative <$> arbitrary
+
+instance Arbitrary BA.ByteArray where
+  arbitrary = toByteArray <$> (arbitrary :: Gen (Bytes 'Pin))
+
+instance Typeable p => Arbitrary (Bytes p) where
+  arbitrary = do
+    NonNegative n <- arbitrary
+    xs :: [Word8] <- vectorOf n arbitrary
+    pure $
+      createBytesST_ (Count n :: Count Word8) $ \mb ->
+        zipWithM_ (writeMBytes mb) [0 ..] xs

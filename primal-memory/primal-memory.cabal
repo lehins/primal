@@ -1,4 +1,4 @@
-name:                primal-bytes
+name:                primal-memory
 version:             0.1.0.0
 synopsis:            Short description
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
@@ -29,14 +29,13 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Bytes
-                     , Data.Prim.Bytes.Addr
-                     , Data.Prim.Bytes.ByteString
-                     , Data.Prim.Bytes.Ptr
-                     , Data.Prim.Bytes.ForeignPtr
+  exposed-modules:     Data.Prim.Memory.Bytes
+                     , Data.Prim.Memory.Addr
+                     , Data.Prim.Memory.ByteString
+                     , Data.Prim.Memory.Ptr
+                     , Data.Prim.Memory.ForeignPtr
   other-modules:
-  build-depends:       array
-                     , base >= 4.8 && < 5
+  build-depends:       base >= 4.8 && < 5
                      , bytestring
                      , deepseq
                      , primal
@@ -61,15 +60,15 @@ test-suite tests
   hs-source-dirs:     tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Common
-                    , Test.Prim.BytesSpec
-                    , Test.Prim.BytesExtraSpec
-                    , Test.Prim.Bytes.PtrSpec
+                    , Test.Prim.Memory.Common
+                    , Test.Prim.Memory.BytesSpec
+                    , Test.Prim.Memory.BytesExtraSpec
+                    , Test.Prim.Memory.PtrSpec
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
-                    , primal-bytes
+                    , primal-memory
                     , primitive
                     , hspec
                     , QuickCheck
@@ -85,15 +84,15 @@ test-suite tests-O0
   hs-source-dirs:     tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Common
-                    , Test.Prim.BytesSpec
-                    , Test.Prim.BytesExtraSpec
-                    , Test.Prim.Bytes.PtrSpec
+                    , Test.Prim.Memory.Common
+                    , Test.Prim.Memory.BytesSpec
+                    , Test.Prim.Memory.BytesExtraSpec
+                    , Test.Prim.Memory.PtrSpec
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
-                    , primal-bytes
+                    , primal-memory
                     , primitive
                     , hspec
                     , QuickCheck
@@ -116,7 +115,7 @@ benchmark bench
   build-depends:       base
                      , criterion
                      , primal
-                     , primal-bytes
+                     , primal-memory
                      , primitive
                      , deepseq
                      , random
@@ -133,7 +132,7 @@ benchmark convert
   build-depends:       base
                      , criterion
                      , primal
-                     , primal-bytes
+                     , primal-memory
                      , primitive
                      , deepseq
                      , random

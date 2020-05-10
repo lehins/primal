@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -41,7 +42,8 @@ import Control.Prim.Monad.Unsafe
 import Foreign.Prim hiding (Any)
 import Foreign.C.Error (Errno(..))
 import Data.Complex
-import GHC.Conc
+import Data.Type.Equality
+--import GHC.Conc
 import GHC.Stable
 import GHC.Real
 import GHC.IO.Device
@@ -244,6 +246,11 @@ instance Prim () where
   {-# INLINE setMutableByteArray# #-}
   setOffAddr# _ _ _ () s = s
   {-# INLINE setOffAddr# #-}
+
+instance a ~ b => Prim (a :~: b) where
+  type PrimBase (a :~: b) = ()
+  toPrimBase Refl = ()
+  fromPrimBase () = Refl
 
 
 instance Prim Int where
@@ -943,6 +950,11 @@ instance Prim CRLim where
 
 #if __GLASGOW_HASKELL__ >= 802
 
+instance a ~ b => Prim (a :~~: b) where
+  type PrimBase (a :~~: b) = ()
+  toPrimBase HRefl = ()
+  fromPrimBase () = HRefl
+
 #if defined(HTYPE_BLKSIZE_T)
 instance Prim CBlkSize where
   type PrimBase CBlkSize = HTYPE_BLKSIZE_T
@@ -1000,8 +1012,8 @@ instance Prim a => Prim (Data.Semigroup.First a) where
   type PrimBase (Data.Semigroup.First a) = a
 instance Prim a => Prim (Data.Semigroup.Last a) where
   type PrimBase (Data.Semigroup.Last a) = a
-instance (Eq a, Prim a) => Prim (Arg a a) where
-  type PrimBase (Arg a a) = (a, a)
+instance (Prim a, Prim b) => Prim (Arg a b) where
+  type PrimBase (Arg a b) = (a, b)
   toPrimBase (Arg a b) = (a, b)
   fromPrimBase (a, b) = Arg a b
 
@@ -1021,20 +1033,28 @@ instance Prim Ordering where
   toPrimBase o = I8# (fromOrdering# o)
   fromPrimBase (I8# i#) = toOrdering# i#
 
-instance Prim IODeviceType where
-  type PrimBase IODeviceType = Int8
-  toPrimBase o = I8# (dataToTag# o)
-  fromPrimBase (I8# i#) = tagToEnum# i#
+-- instance Prim IODeviceType where
+--   type PrimBase IODeviceType = Int8
+--   toPrimBase o = I8# (dataToTag# o)
+--   fromPrimBase (I8# i#) = tagToEnum# i#
 
 instance Prim SeekMode where
   type PrimBase SeekMode = Int8
-  toPrimBase o = I8# (dataToTag# o)
-  fromPrimBase (I8# i#) = tagToEnum# i#
+  toPrimBase = \case
+    AbsoluteSeek -> 0
+    RelativeSeek -> 1
+    SeekFromEnd  -> 2
+  {-# INLINE toPrimBase #-}
+  fromPrimBase = \case
+    0 -> AbsoluteSeek
+    1 -> RelativeSeek
+    _ -> SeekFromEnd
+  {-# INLINE fromPrimBase #-}
 
-instance Prim BlockReason where
-  type PrimBase BlockReason = Int8
-  toPrimBase o = I8# (dataToTag# o)
-  fromPrimBase (I8# i#) = tagToEnum# i#
+-- instance Prim BlockReason where
+--   type PrimBase BlockReason = Int8
+--   toPrimBase o = I8# (dataToTag# o)
+--   fromPrimBase (I8# i#) = tagToEnum# i#
 
 
 instance Prim a => Prim (Down a) where

@@ -10,14 +10,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Bytes
+-- Module      : Data.Prim.Memory.Bytes
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Bytes
+module Data.Prim.Memory.Bytes
   ( Bytes(..)
   , cloneBytes
   , emptyBytes
@@ -135,7 +135,6 @@ import Control.DeepSeq
 import Control.Monad
 import Control.Monad.ST
 import Control.Prim.Monad
-import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.Prim

@@ -1356,11 +1356,11 @@ instance AtomicBits a => AtomicBits (Identity a)
 
 instance Atomic Ordering
 
-instance Atomic IODeviceType
+-- instance Atomic IODeviceType
 
 instance Atomic SeekMode
 
-instance Atomic BlockReason
+-- instance Atomic BlockReason
 
 instance Atomic a => Atomic (Down a)
 instance AtomicCount a => AtomicCount (Down a)

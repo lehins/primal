@@ -1,14 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
 -- |
--- Module      : Data.Prim.BYtes.ForeignPtr
+-- Module      : Data.Prim.Bytes.ForeignPtr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Bytes.ForeignPtr
+module Data.Prim.Memory.ForeignPtr
   ( ForeignPtr(..)
   , withForeignPtr
   , withNoHaltForeignPtr
@@ -28,8 +28,8 @@ import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Foreign.Prim
 import GHC.ForeignPtr
-import Data.Prim.Bytes
-import Data.Prim.Bytes.Addr
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Addr
 
 
 withForeignPtr :: MonadPrim s m => ForeignPtr a -> (Ptr a -> m b) -> m b

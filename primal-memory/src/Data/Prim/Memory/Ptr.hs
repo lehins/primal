@@ -8,14 +8,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Bytes.Ptr
+-- Module      : Data.Prim.Memory.Ptr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Bytes.Ptr
+module Data.Prim.Memory.Ptr
   ( module Foreign.Prim.Ptr
 
   , copyPtrToMBytes
@@ -30,7 +30,7 @@ module Data.Prim.Bytes.Ptr
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
-import Data.Prim.Bytes
+import Data.Prim.Memory.Bytes
 import Data.Prim.Class
 import Foreign.Prim
 import Foreign.Prim.Ptr

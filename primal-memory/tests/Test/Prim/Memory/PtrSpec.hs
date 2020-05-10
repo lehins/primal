@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Prim.Bytes.PtrSpec
+module Test.Prim.Memory.PtrSpec
   ( spec
   , primPtrSpec
   ) where
@@ -11,10 +11,11 @@ module Test.Prim.Bytes.PtrSpec
 import Control.DeepSeq
 import Control.Monad
 import Control.Prim.Monad
-import Data.Prim.Bytes.Ptr
+import Data.Prim.Memory.Ptr
 import Data.Typeable
-import Test.Prim.BytesSpec hiding (spec)
-import Test.Prim.Common
+import Test.Prim.Memory.BytesSpec hiding (spec)
+import Test.Prim.Memory.Common
+
 
 primPtrSpec ::
      forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
@@ -116,23 +117,3 @@ spec = do
   primPtrSpec @WordPtr
   primPtrSpec @(Ptr ())
   primPtrSpec @(FunPtr ())
-  -- primPtrSpec @CBool
-  -- primPtrSpec @CChar
-  -- primPtrSpec @CSChar
-  -- primPtrSpec @CUChar
-  -- primPtrSpec @CShort
-  -- primPtrSpec @CUShort
-  -- primPtrSpec @CInt
-  -- primPtrSpec @CUInt
-  -- primPtrSpec @CLong
-  -- primPtrSpec @CULong
-  -- primPtrSpec @CPtrdiff
-  -- primPtrSpec @CSize
-  -- primPtrSpec @CWchar
-  -- primPtrSpec @CSigAtomic
-  -- primPtrSpec @CLLong
-  -- primPtrSpec @CULLong
-  -- primPtrSpec @CIntPtr
-  -- primPtrSpec @CUIntPtr
-  -- primPtrSpec @CIntMax
-  -- primPtrSpec @CUIntMax

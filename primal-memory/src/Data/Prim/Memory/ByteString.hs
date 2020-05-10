@@ -1,14 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
 -- |
--- Module      : Data.Prim.Bytes.ByteString
+-- Module      : Data.Prim.Memory.ByteString
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Bytes.ByteString
+module Data.Prim.Memory.ByteString
   (
   -- * Conversion
   -- ** ByteString
@@ -26,9 +26,9 @@ import Data.ByteString.Short.Internal
 import Data.Prim
 
 
-import Data.Prim.Bytes
-import Data.Prim.Bytes.Addr
-import Data.Prim.Bytes.ForeignPtr
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Addr
+import Data.Prim.Memory.ForeignPtr
 
 -- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
 --

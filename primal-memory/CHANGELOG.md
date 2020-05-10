@@ -1,4 +1,4 @@
-# Changelog for primal-bytes
+# Changelog for primal-memory
 
 ## 0.1.0.0
 

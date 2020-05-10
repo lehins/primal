@@ -7,12 +7,12 @@ module Main (main) where
 
 import GHC.Exts
 import Criterion.Main
-import Data.Prim.Bytes
-import Data.Prim.Bytes.Ptr
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Ptr
 import Control.Prim.Monad
 import qualified Foreign.ForeignPtr as GHC
 import Foreign.Storable
-import Data.Prim.Bytes.ForeignPtr
+import Data.Prim.Memory.ForeignPtr
 import qualified Data.Primitive.ByteArray as BA
 
 main :: IO ()
