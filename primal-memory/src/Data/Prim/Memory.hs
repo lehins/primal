@@ -10,23 +10,24 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Access
+-- Module      : Data.Prim.Memory
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Access where
+module Data.Prim.Memory where
 
 
 import Data.ByteString.Internal hiding (toForeignPtr)
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
-import Data.Prim.Bytes
-import Data.Prim.Bytes.Addr
-import Data.Prim.Ptr
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Addr
+import Data.Prim.Memory.Ptr
+import Data.Prim.Memory.ForeignPtr
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import GHC.Exts hiding (getSizeofMutableByteArray#, isByteArrayPinned#,

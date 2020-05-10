@@ -22,15 +22,12 @@ module Test.Prim.Array
 
 import Control.Prim.Monad
 import Data.Prim
-import Data.Coerce
-import Data.Prim.Atomic
-import Test.Hspec
-import Test.QuickCheck
 import Data.Kind
 import Data.Prim.Array.Internal
 import qualified Data.Prim.Ref as Ref
 import qualified Data.Prim.Array.Boxed as Boxed
-import qualified Data.Prim.Bytes.Addr as Addr
+import qualified Data.Prim.Array.Unboxed as Unboxed
+import qualified Data.Prim.Memory.Addr as Addr
 
 
 class MRef mut a where
@@ -62,13 +59,17 @@ class MRef mut a => AtomicMRef mut a where
 
 
 
-
-
 instance MRef Boxed.BoxedMArray a where
   newMRef = Boxed.newMArray 1
   newRawMRef = Boxed.newRawMArray 1
   readMRef ma = Boxed.readMArray ma 0
   writeMRef ma = Boxed.writeMArray ma 0
+
+instance Prim a => MRef Unboxed.UnboxedMArray a where
+  newMRef = Unboxed.newMArray 1
+  newRawMRef = Unboxed.newRawMArray 1
+  readMRef ma = Unboxed.readMArray ma 0
+  writeMRef ma = Unboxed.writeMArray ma 0
 
 
 instance Prim a => MRef Addr.MAddr a where
@@ -76,52 +77,34 @@ instance Prim a => MRef Addr.MAddr a where
   readMRef = Addr.readMAddr
   writeMRef = Addr.writeMAddr
 
-instance Prim a => MArray (Addr.MAddr a) where
-  type IArray (Addr.MAddr a) = Addr.Addr a
-  type Elt (Addr.MAddr a) = a
+type family BestPRep r1 r2 where
+  BestPRep Addr.MAddr Addr.MAddr = Addr.MAddr
+  BestPRep r1 r2 = r1
 
-  getSizeOfMArray = fmap coerce . Addr.getCountOfMAddr
+type family PRep a :: Type -> Type -> Type where
+  PRep Int = Addr.MAddr
+  PRep Word = Addr.MAddr
+  PRep (Maybe a) = PRep a
+  PRep (Either a b) = BestPRep (PRep a) (PRep b)
+  PRep (a, b) = BestPRep (PRep a) (PRep b)
+  PRep (a, b, c) = BestPRep (BestPRep (PRep a) (PRep b)) (PRep c)
+  PRep (a, b, c, d) = BestPRep (PRep (a, b)) (PRep (c, d))
+  PRep a = Ref.Ref
 
-  thawArray = Addr.thawAddr
+newtype PRef a s = PRef (PRep a a s)
 
-  freezeMArray = Addr.freezeMAddr
-
-  newRawMArray sz = Addr.allocMAddr (coerce sz)
-
-  readMArray m i = Addr.readOffMAddr m (coerce i)
-
-  writeMArray m i = Addr.writeOffMAddr m (coerce i)
-
-  setMArray m i o x = Addr.setMAddr m (coerce i) (coerce o) x
-
-type family BestRep r1 r2 where
-  BestRep Addr.MAddr Addr.MAddr = Addr.MAddr
-  BestRep r1 r2 = r1
-
-type family Rep a :: Type -> Type -> Type where
-  Rep Int = Addr.MAddr
-  Rep Word = Addr.MAddr
-  Rep (Maybe a) = Rep a
-  Rep (Either a b) = BestRep (Rep a) (Rep b)
-  Rep (a, b) = BestRep (Rep a) (Rep b)
-  Rep (a, b, c) = BestRep (BestRep (Rep a) (Rep b)) (Rep c)
-  Rep (a, b, c, d) = BestRep (Rep (a, b)) (Rep (c, d))
-  Rep a = Ref.Ref
-
-newtype PRef a s = PRef (Rep a a s)
-
-instance MRef (Rep a) a => MRef PRef a where
+instance MRef (PRep a) a => MRef PRef a where
   newRawMRef = PRef <$> newRawMRef
   readMRef (PRef ref) = readMRef ref
   writeMRef (PRef ref) = writeMRef ref
 
-class MRef (Rep a) a => PrimRef a
+class MRef (PRep a) a => PrimRep a
 
-instance MRef (Rep a) a => PrimRef a
+instance MRef (PRep a) a => PrimRep a
 
 
 newPRef ::
-     forall a m s. (MonadPrim s m, PrimRef a)
+     forall a m s. (MonadPrim s m, PrimRep a)
   => a -- ^ A value to initialize the PRef with
   -> m (PRef a s)
 newPRef = newMRef
