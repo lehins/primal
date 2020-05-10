@@ -5,15 +5,14 @@
 module Test.Prim.Memory.BytesExtraSpec (spec) where
 
 import Data.Typeable
-import Test.Prim.Memory.Common
+import Data.Semigroup
+import Test.Prim.Memory.Common hiding (Arg)
 import Test.Prim.Memory.BytesSpec (primTypeSpec)
 import Foreign.Prim
 
 spec :: Spec
 spec = do
-
   primTypeSpec @CUIntPtr
-  primTypeSpec @(Arg CIntMax CUIntMax)
   primTypeSpec @(String :~: String, CDev)
   primTypeSpec @(CMode, COff, CPid)
   primTypeSpec @(Maybe CNlink)
@@ -38,3 +37,10 @@ spec = do
                 , CLong
                 , CULong
                 )
+
+
+  primTypeSpec @(Arg CIntMax CUIntMax)
+
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Arg a b) where
+  arbitrary = Arg <$> arbitrary <*> arbitrary

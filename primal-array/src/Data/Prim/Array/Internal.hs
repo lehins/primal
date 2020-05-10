@@ -1,10 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
@@ -33,10 +34,9 @@ module Data.Prim.Array.Internal
 
 import Control.Monad.ST
 import Control.Prim.Monad
+import Data.Prim.Memory.Addr
+import Data.Prim.Memory.Bytes
 import GHC.Exts
-
-newtype Size = Size Int
-  deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 class MArray mut where
   type IArray mut = (r :: *) | r -> mut
@@ -125,6 +125,83 @@ class MArray mut where
     in go i0
   {-# INLINE setMArray #-}
 
+
+instance Typeable p => MArray (MBytes p) where
+  type IArray (MBytes p) = Bytes p
+  type Elt (MBytes p) = Word8
+
+  sizeOfArray = sizeOfBytes
+  {-# INLINE sizeOfArray #-}
+
+  indexArray a i = indexBytes a (coerce i)
+  {-# INLINE indexArray #-}
+
+  getSizeOfMArray = getSizeOfMBytes
+  {-# INLINE getSizeOfMArray #-}
+
+  thawArray = thawBytes
+  {-# INLINE thawArray #-}
+
+  freezeMArray = freezeMBytes
+  {-# INLINE freezeMArray #-}
+
+  newRawMArray n = allocMBytes (coerce n :: Count Word8)
+  {-# INLINE newRawMArray #-}
+
+  writeMArray ma i = writeMBytes ma (coerce i)
+  {-# INLINE writeMArray #-}
+
+  readMArray ma i = readMBytes ma (coerce i)
+  {-# INLINE readMArray #-}
+
+  copyArray as os mad od n =
+    copyBytesToMBytes as (coerce os) mad (coerce od) (coerce n :: Count Word8)
+  {-# INLINE copyArray #-}
+
+  moveMArray mas os mad od n =
+    moveMBytesToMBytes mas (coerce os) mad (coerce od) (coerce n :: Count Word8)
+  {-# INLINE moveMArray #-}
+
+  setMArray ma i sz = setMBytes ma (coerce i) (coerce sz)
+  {-# INLINE setMArray #-}
+
+
+instance Prim e => MArray (MAddr e) where
+  type IArray (MAddr e) = Addr e
+  type Elt (MAddr e) = e
+
+  sizeOfArray = coerce . countOfAddr
+  {-# INLINE sizeOfArray #-}
+
+  indexArray a i = indexOffAddr a (coerce i)
+  {-# INLINE indexArray #-}
+
+  getSizeOfMArray = fmap coerce . getCountOfMAddr
+  {-# INLINE getSizeOfMArray #-}
+
+  thawArray = thawAddr
+  {-# INLINE thawArray #-}
+
+  freezeMArray = freezeMAddr
+  {-# INLINE freezeMArray #-}
+
+  newRawMArray = allocMAddr . coerce
+  {-# INLINE newRawMArray #-}
+
+  writeMArray ma i = writeOffMAddr ma (coerce i)
+  {-# INLINE writeMArray #-}
+
+  readMArray ma i = readOffMAddr ma (coerce i)
+  {-# INLINE readMArray #-}
+
+  copyArray as os mad od n = copyAddrToMAddr as (coerce os) mad (coerce od) (coerce n)
+  {-# INLINE copyArray #-}
+
+  moveMArray mas os mad od n = moveMAddrToMAddr mas (coerce os) mad (coerce od) (coerce n)
+  {-# INLINE moveMArray #-}
+
+  setMArray ma i sz = setMAddr ma (coerce i) (coerce sz)
+  {-# INLINE setMArray #-}
 
 
 

@@ -24,8 +24,6 @@ module Data.Prim.Memory.ByteString
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.Prim
-
-
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ForeignPtr
@@ -40,7 +38,7 @@ toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countOfAddr addr)
 --
 -- @since 0.1.0
 toByteStringBytes :: Bytes 'Pin -> ByteString
-toByteStringBytes b = PS (toForeignPtrBytes b) 0 (sizeOfBytes b)
+toByteStringBytes b = PS (toForeignPtrBytes b) 0 (coerce (sizeOfBytes b))
 
 -- | /O(1)/ - Cast an immutable `ByteString` to `Addr`. Also returns the original length of
 -- ByteString, which will be less or equal to `countOfAddr` in the produced `Addr`. 

@@ -125,6 +125,7 @@ module Data.Prim.Memory.Bytes
   , prefetchBytes3
   , prefetchMBytes3
   , module Data.Prim
+  , module Data.Typeable
   -- * Helpers
   -- * Experimental
   -- , fillPinnedMBytesWord64LE
@@ -211,7 +212,7 @@ isSameMBytes (MBytes mb1#) (MBytes mb2#) =
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 =
   isSameBytes b1 b2 ||
-  (lenEq && memcmpBytes b1 0 b2 0 (Count n1 :: Count Word8) == EQ)
+  (lenEq && memcmpBytes b1 0 b2 0 (coerce n1 :: Count Word8) == EQ)
    --(lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
   where
     n1 = sizeOfBytes b1
@@ -404,18 +405,18 @@ callocAlignedMBytes n = do
 {-# INLINE callocAlignedMBytes #-}
 
 
-getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Int
+getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Size
 getSizeOfMBytes (MBytes mba#) =
   prim $ \s ->
     case getSizeofMutableByteArray# mba# s of
-      (# s', n# #) -> (# s', I# n# #)
+      (# s', n# #) -> (# s', Size (I# n#) #)
 {-# INLINE getSizeOfMBytes #-}
 
 
 -- | Fill the mutable array with zeros efficiently.
 zeroMBytes :: MonadPrim s m => MBytes p s -> m ()
 zeroMBytes mba@(MBytes mba#) = do
-  I# n# <- getSizeOfMBytes mba
+  Size (I# n#) <- getSizeOfMBytes mba
   prim_ (setByteArray# mba# 0# n# 0#)
 {-# INLINE zeroMBytes #-}
 
@@ -493,14 +494,14 @@ moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
 -- {-# INLINE moveMBytesToMBytes #-}
 
 
-sizeOfBytes :: Bytes p -> Int
-sizeOfBytes (Bytes ba#) = I# (sizeofByteArray# ba#)
+sizeOfBytes :: Bytes p -> Size
+sizeOfBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 {-# INLINE sizeOfBytes #-}
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemOfBytes`
 countOfBytes :: forall a p. Prim a => Bytes p -> Count a
-countOfBytes b = countSize (sizeOfBytes b)
+countOfBytes = countSize . coerce . sizeOfBytes
 {-# INLINE countOfBytes #-}
 
 -- | Get the count of elements of type @a@ that can fit into bytes as well as the slack
@@ -508,7 +509,7 @@ countOfBytes b = countSize (sizeOfBytes b)
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 countRemOfBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
-countRemOfBytes b = countRemSize (sizeOfBytes b)
+countRemOfBytes = countRemSize . coerce . sizeOfBytes
 {-# INLINE countRemOfBytes #-}
 
 
@@ -516,7 +517,7 @@ countRemOfBytes b = countRemSize (sizeOfBytes b)
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
 -- of leftover bytes use `countRemOfBytes`
 getCountOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
-getCountOfMBytes b = countSize <$> getSizeOfMBytes b
+getCountOfMBytes b = countSize . coerce <$> getSizeOfMBytes b
 {-# INLINE getCountOfMBytes #-}
 
 -- | Get the number of elements of type @a@ that can fit into bytes as well as the slack
@@ -524,7 +525,7 @@ getCountOfMBytes b = countSize <$> getSizeOfMBytes b
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 getCountRemOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a, Int)
-getCountRemOfMBytes b = countRemSize <$> getSizeOfMBytes b
+getCountRemOfMBytes b = countRemSize . coerce <$> getSizeOfMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 
 -- | It is only guaranteed to convert the whole memory to a list whenever the size of

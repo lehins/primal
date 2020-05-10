@@ -27,6 +27,7 @@ module Data.Prim
   , alignment
   , alignmentType
   , alignmentProxy
+  , Size(..)
   , Count(..)
   , fromCount
   , countWord8
@@ -49,6 +50,7 @@ module Data.Prim
   , Ptr
   , ForeignPtr
   , module Data.Monoid
+  , module Data.Coerce
   ) where
 
 import Control.DeepSeq
@@ -61,11 +63,14 @@ import Data.Word
 import Data.Int
 import Foreign.ForeignPtr (ForeignPtr)
 import Data.Monoid
+import Data.Coerce
 
+newtype Size = Size { unSize :: Int }
+  deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
-sizeOf :: forall a . Prim a => a -> Int
-sizeOf _ = I# (sizeOf# (proxy# :: Proxy# a))
+sizeOf :: forall a . Prim a => a -> Size
+sizeOf _ = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
 {-# INLINE sizeOf #-}
 
 -- | Same as `sizeOf`, except that the type can be supplied as a type level argument
@@ -75,8 +80,8 @@ sizeOf _ = I# (sizeOf# (proxy# :: Proxy# a))
 -- >>> sizeOfType @Int64
 -- 8
 --
-sizeOfType :: forall a . Prim a => Int
-sizeOfType = I# (sizeOf# (proxy# :: Proxy# a))
+sizeOfType :: forall a . Prim a => Size
+sizeOfType = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
 {-# INLINE sizeOfType #-}
 
 -- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
@@ -86,8 +91,8 @@ sizeOfType = I# (sizeOf# (proxy# :: Proxy# a))
 -- >>> sizeOfProxy (Proxy :: Proxy Int64)
 -- 8
 --
-sizeOfProxy :: forall proxy a . Prim a => proxy a -> Int
-sizeOfProxy _ = I# (sizeOf# (proxy# :: Proxy# a))
+sizeOfProxy :: forall proxy a . Prim a => proxy a -> Size
+sizeOfProxy _ = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
 {-# INLINE sizeOfProxy #-}
 
 
@@ -137,8 +142,8 @@ fromCountInt8# (Count (I# n#)) = n#
 
 fromCount# :: Prim a => Count a -> Int#
 fromCount# c@(Count (I# n#)) =
-  case sizeOfProxy c of
-    (I# sz#) -> sz# *# n#
+  case coerce (sizeOfProxy c) of
+    I# sz# -> sz# *# n#
 {-# INLINE[0] fromCount# #-}
 {-# RULES
 "fromCountWord8#" fromCount# = fromCountWord8#
@@ -170,8 +175,8 @@ fromOffInt8# (Off (I# o#)) = o#
 
 fromOff# :: Prim a => Off a -> Int#
 fromOff# o@(Off (I# o#)) =
-  case sizeOfProxy o of
-    (I# sz#) -> sz# *# o#
+  case coerce (sizeOfProxy o) of
+    I# sz# -> sz# *# o#
 {-# INLINE[0] fromOff# #-}
 {-# RULES
 "fromOffWord8#" fromOff# = fromOffWord8#

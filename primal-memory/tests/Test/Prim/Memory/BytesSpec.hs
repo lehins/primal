@@ -30,7 +30,6 @@ import Data.Monoid
 import Data.Functor.Identity
 import Data.Prim.Memory.Bytes
 import qualified Data.Primitive.ByteArray as BA
-import Data.Typeable
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
@@ -224,7 +223,7 @@ primBinarySpec = do
       prop "toList" $ \(NEBytes _ xs b :: NEBytes p Word8) -> xs === toList b
       prop "fromList . toList" $ \(b :: Bytes p) -> b === fromList (toList b)
       prop "fromListN . toList" $ \(b :: Bytes p) ->
-        b === fromListN (sizeOfBytes b) (toList b)
+        b === fromListN (coerce (sizeOfBytes b)) (toList b)
     describe "Show" $
       prop "fromList . toList" $ \(b :: Bytes p) ->
         show b ===

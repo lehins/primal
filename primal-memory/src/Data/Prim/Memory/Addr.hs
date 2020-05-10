@@ -49,6 +49,8 @@ module Data.Prim.Memory.Addr
   , writeMAddr
   , writeOffMAddr
   , writeByteOffMAddr
+  , copyAddrToMAddr
+  , moveMAddrToMAddr
 
   , withPtrMAddr
   , withAddrMAddr#
@@ -103,9 +105,9 @@ import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
-import Foreign.Ptr
 
 
 data Addr a = Addr
@@ -270,6 +272,23 @@ writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
 writeByteOffMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off Word8 -> a -> m ()
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
   prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a) >> touch mb
+
+
+copyAddrToMAddr ::
+     (MonadPrim s m, Prim a) => Addr a -> Off a -> MAddr a s -> Off a -> Count a -> m ()
+copyAddrToMAddr src srcOff dst dstOff c =
+  withPtrAddr src $ \ srcPtr ->
+    withPtrMAddr dst $ \ dstPtr ->
+      copyPtrToPtr srcPtr srcOff dstPtr dstOff c
+{-# INLINE copyAddrToMAddr #-}
+
+moveMAddrToMAddr ::
+     (MonadPrim s m, Prim a) => MAddr a s -> Off a -> MAddr a s -> Off a -> Count a -> m ()
+moveMAddrToMAddr src srcOff dst dstOff c =
+  withPtrMAddr src $ \ srcPtr ->
+    withPtrMAddr dst $ \ dstPtr ->
+      movePtrToPtr srcPtr srcOff dstPtr dstOff c
+{-# INLINE moveMAddrToMAddr #-}
 
 setMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> Count a -> a -> m ()
 setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
