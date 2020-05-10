@@ -99,7 +99,6 @@ instance Eq (BoxedMArray a s) where
   MArray ma1# == MArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
 
 
-#if __GLASGOW_HASKELL__ >= 800
 data BoxedArray a = Array (Array# a)
 
 instance Functor BoxedArray where
@@ -107,15 +106,6 @@ instance Functor BoxedArray where
 
 instance I.MArray (BoxedMArray a) where
   type IArray (BoxedMArray a) = BoxedArray a
-#else
-type BoxedArray a = I.IArray BoxedMArray a
-
-instance Functor (I.IArray BoxedMArray) where
-  fmap f a = runST $ traverseArray (pure . f) a
-
-instance I.MArray (BoxedMArray a) where
-  data IArray (BoxedMArray a) = Array (Array# a)
-#endif
   type Elt (BoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}

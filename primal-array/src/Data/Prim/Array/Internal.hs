@@ -7,11 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-#if __GLASGOW_HASKELL__ >= 800
 {-# LANGUAGE TypeFamilyDependencies #-}
-#else
-{-# LANGUAGE FunctionalDependencies #-}
-#endif
 -- |
 -- Module      : Data.Prim.Array.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -42,15 +38,9 @@ import GHC.Exts
 newtype Size = Size Int
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
-#if __GLASGOW_HASKELL__ >= 800
 class MArray mut where
   type IArray mut = (r :: *) | r -> mut
   type Elt mut :: *
-#else
-class MArray mut where
-  data IArray mut :: *
-  type Elt mut :: *
-#endif
 
   sizeOfArray :: IArray mut -> Size
 

@@ -44,7 +44,7 @@ import Data.Monoid
 import Data.Prim.Class
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
-import GHC.Conc
+--import GHC.Conc
 import GHC.IO.Device
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const

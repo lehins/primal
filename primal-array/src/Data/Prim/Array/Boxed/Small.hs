@@ -98,7 +98,6 @@ instance Eq (SmallBoxedMArray a s) where
 
 type Array a = SmallBoxedArray a
 
-#if __GLASGOW_HASKELL__ >= 800
 data SmallBoxedArray a = Array (SmallArray# a)
 
 instance Functor SmallBoxedArray where
@@ -106,15 +105,6 @@ instance Functor SmallBoxedArray where
 
 instance I.MArray (SmallBoxedMArray a) where
   type IArray (SmallBoxedMArray a) = SmallBoxedArray a
-#else
-type SmallBoxedArray a = I.IArray SmallBoxedMArray a
-
-instance Functor (I.IArray SmallBoxedMArray) where
-  fmap f a = runST $ traverseArray (pure . f) a
-
-instance I.MArray (SmallBoxedMArray a) where
-  data IArray (SmallBoxedMArray a) = Array (SmallArray# a)
-#endif
   type Elt (SmallBoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}

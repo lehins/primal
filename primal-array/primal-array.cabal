@@ -13,8 +13,7 @@ build-type:          Custom
 extra-source-files:  README.md
                    , CHANGELOG.md
 cabal-version:       1.18
-tested-with:         GHC == 7.10.3
-                   , GHC == 8.0.2
+tested-with:         GHC == 8.0.2
                    , GHC == 8.2.2
                    , GHC == 8.4.3
                    , GHC == 8.4.4
@@ -40,9 +39,10 @@ library
                      , Data.Prim.Array.Unboxed.Ragged
 
   other-modules:
-  build-depends:       base >= 4.8 && < 5
+  build-depends:       base >= 4.9 && < 5
+                     , deepseq
                      , primal
-                     , primal-bytes
+                     , primal-memory
 
   default-language:    Haskell2010
   ghc-options:         -Wall

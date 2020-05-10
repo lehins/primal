@@ -1,8 +1,7 @@
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -97,17 +96,10 @@ type MArray a s = UnboxedMArray a s
 instance Eq (UnboxedMArray a s) where
   MArray ma1# == MArray ma2# = isTrue# (sameMutableByteArray# ma1# ma2#)
 
-#if __GLASGOW_HASKELL__ >= 800
 data UnboxedArray a = Array ByteArray#
 
 instance Prim a => I.MArray (UnboxedMArray a) where
   type IArray (UnboxedMArray a) = UnboxedArray a
-#else
-type UnboxedArray a = I.IArray UnboxedMArray a
-
-instance Prim a => I.MArray (UnboxedMArray a) where
-  data IArray (UnboxedMArray a) = Array ByteArray#
-#endif
   type Elt (UnboxedMArray a) = a
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
