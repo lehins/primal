@@ -33,10 +33,16 @@ custom-setup
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Array
+                     , Data.Prim.Array.Boxed
+                     , Data.Prim.Array.Boxed.Small
+                     , Data.Prim.Array.Internal
+                     , Data.Prim.Array.Unboxed
+                     , Data.Prim.Array.Unboxed.Ragged
 
   other-modules:
   build-depends:       base >= 4.8 && < 5
                      , primal
+                     , primal-bytes
 
   default-language:    Haskell2010
   ghc-options:         -Wall

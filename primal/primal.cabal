@@ -35,11 +35,6 @@ library
                      , Control.Prim.Monad
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
-                     , Data.Prim.Array.Boxed
-                     , Data.Prim.Array.Boxed.Small
-                     , Data.Prim.Array.Internal
-                     , Data.Prim.Array.Unboxed
-                     , Data.Prim.Array.Unboxed.Ragged
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName
