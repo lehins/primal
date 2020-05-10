@@ -64,13 +64,13 @@ instance MonadPrim RealWorld m => PtrAccess m (ForeignPtr a) where
 
 instance PtrAccess m (Bytes 'Pin) where
   withPtrAccess b f = do
-    !res <- f $ getPtrBytes b
+    !res <- f $ toPtrBytes b
     res <$ touch b
-  toForeignPtr = pure . getBytesForeignPtr
+  toForeignPtr = pure . toForeignPtrBytes
 
 instance MonadPrim s m => PtrAccess m (MBytes 'Pin s) where
   withPtrAccess = withPtrMBytes
-  toForeignPtr = pure . getMBytesForeignPtr
+  toForeignPtr = pure . toForeignPtrMBytes
 
 instance MonadPrim s m => PtrAccess m ByteString where
   withPtrAccess (PS ps s _) f = withForeignPtrPrim ps $ \ptr -> f (ptr `plusPtr` s)
@@ -150,14 +150,14 @@ instance ReadAccess (Mem (Bytes p)) where
 
 instance ReadAccess (MBytes p) where
   readPrim = readMBytes
-  copyToMBytes = copyMBytesToMBytes
+  copyToMBytes = moveMBytesToMBytes -- TODO: possibly freeze first and copy (benchmark)
   copyToPtr = copyMBytesToPtr
 
 instance WriteAccess (MBytes p) where
   writePrim = writeMBytes
   moveToPtr = moveMBytesToPtr
   moveToMBytes = moveMBytesToMBytes
-  copy = copyMBytesToMBytes
+  copy = moveMBytesToMBytes
   move = moveMBytesToMBytes
   set = setMBytes
 
