@@ -124,6 +124,8 @@ instance MemRead ByteString where
 instance MemRead (ForeignPtr a) where
   memIndexOff fptr i = unsafeInlineIO $ withForeignPtrPrim fptr ((`readOffPtr` i) . castPtr)
   {-# INLINE memIndexOff #-}
+  memIndexByteOff fptr i = unsafeInlineIO $ withForeignPtrPrim fptr ((`readByteOffPtr` i) . castPtr)
+  {-# INLINE memIndexByteOff #-}
   memCopyToMBytes fptr srcOff mb dstOff c =
     withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
   {-# INLINE memCopyToMBytes #-}
@@ -135,27 +137,44 @@ newtype MemState a s = MemState { unMemState :: a }
 
 instance MemWrite (MemState (ForeignPtr a)) where
   memReadOff (MemState fptr) i = withForeignPtrPrim fptr $ \ptr -> readOffPtr (castPtr ptr) i
+  {-# INLINE memReadOff #-}
+  memReadByteOff (MemState fptr) i =
+    withForeignPtrPrim fptr $ \ptr -> readByteOffPtr (castPtr ptr) i
+  {-# INLINE memReadByteOff #-}
   memWriteOff (MemState fptr) i a = withForeignPtrPrim fptr $ \ptr -> writeOffPtr (castPtr ptr) i a
+  {-# INLINE memWriteOff #-}
+  memWriteByteOff (MemState fptr) i a =
+    withForeignPtrPrim fptr $ \ptr -> writeByteOffPtr (castPtr ptr) i a
+  {-# INLINE memWriteByteOff #-}
   memMoveToPtr (MemState fsrc) srcOff dstPtr dstOff c =
     withForeignPtrPrim fsrc $ \srcPtr -> movePtrToPtr (castPtr srcPtr) srcOff dstPtr dstOff c
+  {-# INLINE memMoveToPtr #-}
   memMoveToMBytes (MemState fsrc) srcOff dst dstOff c =
     withForeignPtrPrim fsrc $ \srcPtr -> movePtrToMBytes (castPtr srcPtr) srcOff dst dstOff c
+  {-# INLINE memMoveToMBytes #-}
   memCopy (MemState fsrc) srcOff (MemState fdst) dstOff c =
     withForeignPtrPrim fsrc $ \srcPtr ->
       withForeignPtrPrim fdst $ \dstPtr ->
          copyPtrToPtr (castPtr srcPtr) srcOff (castPtr dstPtr) dstOff c
+  {-# INLINE memCopy #-}
   memMove (MemState fsrc) srcOff (MemState fdst) dstOff c =
     withForeignPtrPrim fsrc $ \srcPtr ->
       withForeignPtrPrim fdst $ \dstPtr ->
          movePtrToPtr (castPtr srcPtr) srcOff (castPtr dstPtr) dstOff c
+  {-# INLINE memMove #-}
   memSet (MemState fptr) off c a = withForeignPtrPrim fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
+  {-# INLINE memSet #-}
 
 
 instance MemRead (Bytes p) where
   memIndexOff = indexBytes
+  {-# INLINE memIndexOff #-}
   memIndexByteOff = indexByteOffBytes
+  {-# INLINE memIndexByteOff #-}
   memCopyToMBytes = copyBytesToMBytes
+  {-# INLINE memCopyToMBytes #-}
   memCopyToPtr = copyBytesToPtr
+  {-# INLINE memCopyToPtr #-}
 
 
 instance MemWrite (MBytes p) where
@@ -168,73 +187,86 @@ instance MemWrite (MBytes p) where
   memWriteByteOff = writeByteOffMBytes
   {-# INLINE memWriteByteOff #-}
   memMoveToPtr = moveMBytesToPtr
+  {-# INLINE memMoveToPtr #-}
   memMoveToMBytes = moveMBytesToMBytes
+  {-# INLINE memMoveToMBytes #-}
   memCopy = moveMBytesToMBytes
+  {-# INLINE memCopy #-}
   memMove = moveMBytesToMBytes
+  {-# INLINE memMove #-}
   memSet = setMBytes
+  {-# INLINE memSet #-}
 
-class MemWrite r => MemAlloc r where
-  type Frozen r :: *
-  memSizeOf :: MonadPrim s m => r s -> m (Count Word8)
-
-  memAlloc :: MonadPrim s m => Count Word8 -> m (r s)
-
-  thaw :: MonadPrim s m => Frozen r -> m (r s)
-
-  freeze :: MonadPrim s m => r s -> m (Frozen r)
 
 instance MemRead (Addr a) where
   memIndexOff a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
+  {-# INLINE memIndexOff #-}
   memIndexByteOff a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
+  {-# INLINE memIndexByteOff #-}
   memCopyToMBytes a si mb di c =
     withPtrAddr a $ \ptr -> copyPtrToMBytes (castPtr ptr) si mb di c
+  {-# INLINE memCopyToMBytes #-}
   memCopyToPtr a si mb di c =
     withPtrAddr a $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
+  {-# INLINE memCopyToPtr #-}
 
 instance MemWrite (MAddr a) where
   memReadOff a = readOffMAddr (castMAddr a)
+  {-# INLINE memReadOff #-}
   memReadByteOff a = readByteOffMAddr (castMAddr a)
+  {-# INLINE memReadByteOff #-}
   memWriteOff a = writeOffMAddr (castMAddr a)
   {-# INLINE memWriteOff #-}
   memWriteByteOff a = writeByteOffMAddr (castMAddr a)
   {-# INLINE memWriteByteOff #-}
   memMoveToPtr src srcOff dstPtr dstOff c =
-    withPtrMAddr src $ \ srcPtr ->
-      movePtrToPtr (castPtr srcPtr) srcOff dstPtr dstOff c
+    withAddrMAddr# src $ \ srcAddr# ->
+      movePtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
   {-# INLINE memMoveToPtr #-}
   memMoveToMBytes src srcOff dst dstOff c =
-    withPtrMAddr src $ \ srcPtr ->
-      movePtrToMBytes (castPtr srcPtr) srcOff dst dstOff c
+    withAddrMAddr# src $ \ srcAddr# ->
+      movePtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
   {-# INLINE memMoveToMBytes #-}
   memCopy src srcOff dst = moveMAddrToMAddr (castMAddr src) srcOff (castMAddr dst)
+  {-# INLINE memCopy #-}
   memMove src srcOff dst = moveMAddrToMAddr (castMAddr src) srcOff (castMAddr dst)
+  {-# INLINE memMove #-}
   memSet maddr = setMAddr (castMAddr maddr)
+  {-# INLINE memSet #-}
 
 
--- instance MemAlloc (MAddr a) where
---   type Frozen (MAddr a) = Addr a
+class MemWrite r => MemAlloc r where
+  type Frozen r :: *
+  memSizeOf :: MonadPrim s m => r s -> m Size
+
+  memAlloc :: (MonadPrim s m, Prim a) => Count a -> m (r s)
+
+  thaw :: MonadPrim s m => Frozen r -> m (r s)
+
+  freeze :: MonadPrim s m => r s -> m (Frozen r)
 
 
+instance MemAlloc (MAddr a) where
+  type Frozen (MAddr a) = Addr a
 
-alloc :: (MemAlloc r, MonadPrim s m, Prim p) => Count p -> m (r s)
-alloc = memAlloc . countWord8
+  --memSizeOf = sizeOfMAddr
 
-calloc ::
+memCalloc ::
      (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
-calloc n = do
-  m <- alloc n
+memCalloc n = do
+  m <- memAlloc n
   m <$ memSet m 0 (countWord8 n) (0 :: Word8)
 
 
 newST :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, Frozen r)
 newST n f = runST $ do
-  m <- calloc n
+  m <- memCalloc n
   res <- f m
   i <- freeze m
   pure (res, i)
 
 newST_ :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> Frozen r
-newST_ n f = runST (calloc n >>= \m -> f m >> freeze m)
+newST_ n f = runST (memCalloc n >>= \m -> f m >> freeze m)
 
 
 -- instance Typeable p => MemAlloc (Mem (Bytes p)) where
@@ -246,7 +278,7 @@ newST_ n f = runST (calloc n >>= \m -> f m >> freeze m)
 
 instance Typeable p => MemAlloc (MBytes p) where
   type Frozen (MBytes p) = Bytes p
-  memSizeOf = getCountOfMBytes
+  memSizeOf = getSizeOfMBytes
   memAlloc = allocMBytes
   thaw = thawBytes
   freeze = freezeMBytes
@@ -283,9 +315,13 @@ instance Typeable p => MemAlloc (MBytes p) where
 -- cloneBytes b = withCopyMBytes_ b pure
 -- {-# INLINE cloneBytes #-}
 
-clone :: (MemAlloc r, MemWrite r, MonadPrim s m) => r s -> m (r s)
+memByteCountOf :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
+memByteCountOf = fmap coerce . memSizeOf
+{-# INLINE memByteCountOf #-}
+
+clone :: (MemAlloc r, MonadPrim s m) => r s -> m (r s)
 clone mb = do
-  n <- memSizeOf mb
+  n <- memByteCountOf mb
   mb' <- memAlloc n
   mb' <$ memCopy mb 0 mb' 0 n
 {-# INLINE clone #-}
