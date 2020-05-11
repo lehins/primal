@@ -20,6 +20,7 @@ module Data.Prim.Memory.Addr
   , castAddr
   , toAddr
   , curOffAddr
+  , sizeOfAddr
   , countOfAddr
   , plusOffAddr
   , indexAddr
@@ -41,6 +42,7 @@ module Data.Prim.Memory.Addr
   , callocMAddr
   , setMAddr
   , curOffMAddr
+  , getSizeOfMAddr
   , getCountOfMAddr
   , plusOffMAddr
   , readMAddr
@@ -181,10 +183,15 @@ countOfAddr ::
   -> Count a
 countOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
 
+sizeOfAddr :: Addr a -> Size
+sizeOfAddr = (coerce :: Count Word8 -> Size) . countOfAddr . castAddr
+
 getCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
 getCountOfMAddr maddr@(MAddr _ mb) =
   subtract (coerce (curOffMAddr maddr)) <$> getCountOfMBytes mb
 
+getSizeOfMAddr :: MonadPrim s m => MAddr a s -> m Size
+getSizeOfMAddr = fmap (coerce :: Count Word8 -> Size) . getCountOfMAddr . castMAddr
 
 indexAddr :: Prim a => Addr a -> a
 indexAddr addr = indexOffAddr addr 0

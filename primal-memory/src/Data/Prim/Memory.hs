@@ -236,58 +236,90 @@ instance MemWrite (MAddr a) where
 
 
 class MemWrite r => MemAlloc r where
-  type Frozen r :: *
+  type MemFrozen r :: *
   memSizeOf :: MonadPrim s m => r s -> m Size
 
-  memAlloc :: (MonadPrim s m, Prim a) => Count a -> m (r s)
+  memRawAlloc :: MonadPrim s m => Size -> m (r s)
 
-  thaw :: MonadPrim s m => Frozen r -> m (r s)
+  memThaw :: MonadPrim s m => MemFrozen r -> m (r s)
 
-  freeze :: MonadPrim s m => r s -> m (Frozen r)
+  memFreeze :: MonadPrim s m => r s -> m (MemFrozen r)
 
 
 instance MemAlloc (MAddr a) where
-  type Frozen (MAddr a) = Addr a
+  type MemFrozen (MAddr a) = Addr a
 
-  --memSizeOf = sizeOfMAddr
+  memSizeOf = getSizeOfMAddr
 
-memCalloc ::
+  memRawAlloc = fmap castMAddr . allocMAddr . (coerce :: Size -> Count Word8)
+
+
+-- | Allocate enough memory for number of elements. Memory is not initialized and may
+-- contain garbage. Use `memAllocZero` if clean memory is needed.
+--
+-- [Unsafe Count] Negative element count will result in unpredictable behavior
+--
+-- @since 0.1.0
+memAlloc :: (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
+memAlloc n = memRawAlloc (coerce (countWord8 n))
+
+
+-- | Same as `memAlloc`, but also use @memset@ to initialize all the new memory to zeros.
+--
+-- [Unsafe Count] Negative element count will result in unpredictable behavior
+--
+-- @since 0.1.0
+memAllocZero ::
      (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
-memCalloc n = do
+memAllocZero n = do
   m <- memAlloc n
   m <$ memSet m 0 (countWord8 n) (0 :: Word8)
 
 
-newST :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, Frozen r)
+newST :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, MemFrozen r)
 newST n f = runST $ do
-  m <- memCalloc n
+  m <- memAllocZero n
   res <- f m
-  i <- freeze m
+  i <- memFreeze m
   pure (res, i)
 
-newST_ :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> Frozen r
-newST_ n f = runST (memCalloc n >>= \m -> f m >> freeze m)
+newST_ :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> MemFrozen r
+newST_ n f = runST (memAllocZero n >>= \m -> f m >> memFreeze m)
 
 
 -- instance Typeable p => MemAlloc (Mem (Bytes p)) where
---   type Frozen (Mem (Bytes p)) = Bytes p
+--   type MemFrozen (Mem (Bytes p)) = Bytes p
 --   memSizeOf = pure . countOfBytes . coerce
 --   memAlloc = fmap Mem . freezeMBytes <=< memAlloc
 --   thaw = pure . Mem
 --   freeze = pure . unMem
 
 instance Typeable p => MemAlloc (MBytes p) where
-  type Frozen (MBytes p) = Bytes p
+  type MemFrozen (MBytes p) = Bytes p
   memSizeOf = getSizeOfMBytes
-  memAlloc = allocMBytes
-  thaw = thawBytes
-  freeze = freezeMBytes
+  memRawAlloc = allocMBytes . (coerce :: Size -> Count Word8)
+  memThaw = thawBytes
+  memFreeze = freezeMBytes
 
--- -- instance MonadPrim s m => MemAlloc m (MBytes 'Pin s) where
--- --   memAlloc = allocPinnedMBytes
 
--- instance MemAlloc IO (ForeignPtr a) where
---   memAlloc = mallocForeignPtrBytes . coerce
+
+-- loadListInternal :: (MonadPrim s m, Prim a) => Count a -> Int -> [a] -> r s -> m Ordering
+-- loadListInternal (Count n) slack ys mb = do
+--   let go [] !i = pure (compare i n <> compare 0 slack)
+--       go (x:xs) !i
+--         | i < n = writeOffMBytes mb (Off i) x >> go xs (i + 1)
+--         | otherwise = pure GT
+--   go ys 0
+-- {-# INLINE loadListInternal #-}
+
+-- -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
+-- -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
+-- -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
+-- memLoadList :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
+-- memLoadList ys mb = do
+--   (c :: Count a, slack) <- getCountRemOfMBytes mb
+--   loadListInternal c slack ys mb
+-- {-# INLINE loadListMBytes #-}
 
 -- fromListBytesN ::
 --   forall a p . (Prim a, Typeable p)
@@ -314,6 +346,17 @@ instance Typeable p => MemAlloc (MBytes p) where
 -- cloneBytes :: (MonadPrim s m, MemAlloc m (MBytes p s)) => Bytes p' -> m (Bytes p)
 -- cloneBytes b = withCopyMBytes_ b pure
 -- {-# INLINE cloneBytes #-}
+
+
+memCountOf :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
+memCountOf = fmap (countSize . coerce) . memSizeOf
+{-# INLINE memCountOf #-}
+
+
+memCountOfRem :: (MemAlloc r, MonadPrim s m, Prim a) => r s -> m (Count a, Int)
+memCountOfRem = fmap (countRemSize . coerce) . memSizeOf
+{-# INLINE memCountOfRem #-}
+
 
 memByteCountOf :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
 memByteCountOf = fmap coerce . memSizeOf
