@@ -82,9 +82,9 @@ module Data.Prim.Memory.Bytes
   , getCountOfMBytes
   , getCountRemOfMBytes
   -- * Access
-  , readMBytes
+  , readOffMBytes
   , readByteOffMBytes
-  , writeMBytes
+  , writeOffMBytes
   , writeByteOffMBytes
   , setMBytes
   , zeroMBytes
@@ -171,7 +171,7 @@ instance Typeable p => IsList (Bytes p) where
 -- is a function that will convert one byte.
 --
 -- >>> mb <- newPinnedMBytes (Count 5 :: Count Int)
--- >>> mapM_ (\i -> writeMBytes mb (pred i) i) [1 .. 5]
+-- >>> mapM_ (\i -> writeOffMBytes mb (pred i) i) [1 .. 5]
 -- >>> foldr ($) "" . showsBytesHex <$> freezeMBytes mb
 -- "01000000000000000200000000000000030000000000000004000000000000000500000000000000"
 --
@@ -267,7 +267,7 @@ isEmptyBytes b = sizeOfBytes b == 0
 singletonBytes :: forall a p. (Prim a, Typeable p) => a -> Bytes p
 singletonBytes a = runST $ do
   mb <- allocMBytes (1 :: Count a)
-  writeMBytes mb 0 a
+  writeOffMBytes mb 0 a
   freezeMBytes mb
 {-# INLINE singletonBytes #-}
 
@@ -551,7 +551,7 @@ loadListInternal :: (MonadPrim s m, Prim a) => Count a -> Int -> [a] -> MBytes p
 loadListInternal (Count n) slack ys mb = do
   let go [] !i = pure (compare i n <> compare 0 slack)
       go (x:xs) !i
-        | i < n = writeMBytes mb (Off i) x >> go xs (i + 1)
+        | i < n = writeOffMBytes mb (Off i) x >> go xs (i + 1)
         | otherwise = pure GT
   go ys 0
 {-# INLINE loadListInternal #-}
@@ -614,19 +614,19 @@ concatBytes xs = do
     foldM_ load 0 xs
 {-# INLINE concatBytes #-}
 
-readMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
-readMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)
-{-# INLINE readMBytes #-}
+readOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
+readOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)
+{-# INLINE readOffMBytes #-}
 
-readByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
+readByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off Word8 -> m a
 readByteOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readByteOffMutableByteArray# mba# i#)
 {-# INLINE readByteOffMBytes #-}
 
-writeMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
-writeMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeMutableByteArray# mba# i# a)
-{-# INLINE writeMBytes #-}
+writeOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
+writeOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeMutableByteArray# mba# i# a)
+{-# INLINE writeOffMBytes #-}
 
-writeByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
+writeByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off Word8 -> a -> m ()
 writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeByteOffMutableByteArray# mba# i# a)
 {-# INLINE writeByteOffMBytes #-}
 

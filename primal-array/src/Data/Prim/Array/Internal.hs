@@ -148,10 +148,10 @@ instance Typeable p => MArray (MBytes p) where
   newRawMArray n = allocMBytes (coerce n :: Count Word8)
   {-# INLINE newRawMArray #-}
 
-  writeMArray ma i = writeMBytes ma (coerce i)
+  writeMArray ma i = writeOffMBytes ma (coerce i)
   {-# INLINE writeMArray #-}
 
-  readMArray ma i = readMBytes ma (coerce i)
+  readMArray ma i = readOffMBytes ma (coerce i)
   {-# INLINE readMArray #-}
 
   copyArray as os mad od n =

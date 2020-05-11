@@ -58,7 +58,7 @@ instance (Prim a, Arbitrary a, Typeable p) => Arbitrary (NEBytes p a) where
     pure $
       NEBytes (Off i) xs $
       createBytesST_ (Count n :: Count a) $ \mb ->
-        zipWithM_ (writeMBytes mb) [0 ..] xs
+        zipWithM_ (writeOffMBytes mb) [0 ..] xs
 
 
 toByteArray :: Bytes p -> BA.ByteArray
@@ -85,9 +85,9 @@ primSpec = do
         Count n :: Count a <- getCountOfMBytes mb
         let c = Count (n - o)
         setMBytes mb off c a
-        zipWithM_ (\i x -> readMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
+        zipWithM_ (\i x -> readOffMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
-            readMBytes mb (Off i) `shouldReturn` a
+            readOffMBytes mb (Off i) `shouldReturn` a
     describe "List" $ do
       prop "toListBytes" $ \(NEBytes _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
       prop "toListBytes+fromBytes" $ \(NEBytes _ xs b :: NEBytes p a) ->
@@ -98,10 +98,10 @@ primSpec = do
         (Count n :: Count a, r) <- getCountRemOfMBytes mb
         loadListMBytes xs mb >>= \case
           GT ->
-            zipWithM_ (\i x -> readMBytes mb (Off i :: Off a) `shouldReturn` x) [0.. n - 1] xs
+            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off a) `shouldReturn` x) [0.. n - 1] xs
           elt -> do
             when (elt == EQ) $ r `shouldBe` 0
-            zipWithM_ (\i x -> readMBytes mb (i :: Off a) `shouldReturn` x) [0..] xs
+            zipWithM_ (\i x -> readOffMBytes mb (i :: Off a) `shouldReturn` x) [0..] xs
       prop "fromListBytesN" $ \(NEBytes (Off i) xs b :: NEBytes p a) (Positive n') -> do
         let n = Count $ length xs
             (order, b') = fromListBytesN n xs
@@ -436,4 +436,4 @@ instance Typeable p => Arbitrary (Bytes p) where
     xs :: [Word8] <- vectorOf n arbitrary
     pure $
       createBytesST_ (Count n :: Count Word8) $ \mb ->
-        zipWithM_ (writeMBytes mb) [0 ..] xs
+        zipWithM_ (writeOffMBytes mb) [0 ..] xs
