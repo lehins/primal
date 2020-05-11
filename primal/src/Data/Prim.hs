@@ -49,6 +49,7 @@ module Data.Prim
   , module Data.Int
   , Ptr
   , ForeignPtr
+  , Typeable
   , module Data.Monoid
   , module Data.Coerce
   ) where
@@ -64,6 +65,7 @@ import Data.Int
 import Foreign.ForeignPtr (ForeignPtr)
 import Data.Monoid
 import Data.Coerce
+import Data.Typeable
 
 newtype Size = Size { unSize :: Int }
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)

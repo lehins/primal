@@ -106,7 +106,7 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Atomic
-import Data.Prim.Memory.Bytes
+import {-# SOURCE #-} Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
@@ -186,7 +186,7 @@ byteCountAddr = countAddr . castAddr
 
 getCountMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
 getCountMAddr maddr@(MAddr _ mb) =
-  subtract (coerce (curOffMAddr maddr)) <$> getCountOfMBytes mb
+  subtract (coerce (curOffMAddr maddr)) <$> getCountMBytes mb
 
 getByteCountMAddr :: MonadPrim s m => MAddr a s -> m (Count Word8)
 getByteCountMAddr = getCountMAddr . castMAddr

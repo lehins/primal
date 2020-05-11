@@ -29,7 +29,8 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Memory.Bytes
+  exposed-modules:     Data.Prim.Memory
+                     , Data.Prim.Memory.Bytes
                      , Data.Prim.Memory.Addr
                      , Data.Prim.Memory.ByteString
                      , Data.Prim.Memory.Ptr

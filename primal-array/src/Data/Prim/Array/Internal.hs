@@ -133,7 +133,7 @@ instance Typeable p => MArray (MBytes p) where
   sizeOfArray = coerce . byteCountBytes
   {-# INLINE sizeOfArray #-}
 
-  indexArray a i = indexBytes a (coerce i)
+  indexArray a i = indexOffBytes a (coerce i)
   {-# INLINE indexArray #-}
 
   getSizeOfMArray = fmap coerce . getByteCountMBytes

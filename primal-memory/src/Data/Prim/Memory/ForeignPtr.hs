@@ -12,6 +12,7 @@ module Data.Prim.Memory.ForeignPtr
   ( ForeignPtr(..)
   , withForeignPtr
   , withNoHaltForeignPtr
+  , plusForeignPtr
   -- * Conversion
   -- ** Addr
   , toForeignPtrAddr
@@ -28,7 +29,7 @@ import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Foreign.Prim
 import GHC.ForeignPtr
-import Data.Prim.Memory.Bytes
+import {-# SOURCE #-} Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Addr
 
 

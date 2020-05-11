@@ -26,7 +26,7 @@ module Data.Prim.Memory.ByteString
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.Prim
-import Data.Prim.Memory.Bytes
+import {-# SOURCE #-} Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ForeignPtr
 

@@ -5,6 +5,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -40,11 +41,11 @@ module Data.Prim.Memory.Bytes
   , toPinnedMBytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
-  , indexBytes
+  , indexOffBytes
   , indexByteOffBytes
   , byteCountBytes
   , countBytes
-  , countRemOfBytes
+  , countRemBytes
   , memcmpBytes
   , compareBytes
   , fromListBytes
@@ -52,7 +53,6 @@ module Data.Prim.Memory.Bytes
   , fromListBytesN_
   , toListBytes
   , concatBytes
-  , foldrBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -80,7 +80,7 @@ module Data.Prim.Memory.Bytes
   -- ** Moving data
   -- * Size
   , getByteCountMBytes
-  , getCountOfMBytes
+  , getCountMBytes
   , getCountRemOfMBytes
   -- * Access
   , readOffMBytes
@@ -142,6 +142,7 @@ import Data.List as List
 import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Class
+import Data.Prim.Memory
 import Data.Proxy
 import Data.Typeable
 import Foreign.Prim
@@ -153,6 +154,12 @@ import Numeric (showHex)
 data Pinned = Pin | Inc
 
 data Bytes (p :: Pinned) = Bytes ByteArray#
+type role Bytes phantom
+
+data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
+type role MBytes phantom nominal
+
+
 
 instance NFData (Bytes p) where
   rnf (Bytes _) = ()
@@ -167,6 +174,14 @@ instance Typeable p => IsList (Bytes p) where
   fromList = fromListBytes
   fromListN n = fromListBytesN_ (Count n)
   toList = toListBytes
+
+instance Eq (Bytes p) where
+  (==) = eqBytes
+
+instance NFData (MBytes p s) where
+  rnf (MBytes _) = ()
+
+
 
 -- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
 -- is a function that will convert one byte.
@@ -184,9 +199,6 @@ showsBytesHex b = map toHex (toListBytes b :: [Word8])
          then ('0' :)
          else id) .
       showHex b8
-
-instance Eq (Bytes p) where
-  (==) = eqBytes
 
 relaxPinned :: Bytes p -> Bytes 'Inc
 relaxPinned = coerce
@@ -220,11 +232,6 @@ eqBytes b1 b2 =
     lenEq = n1 == byteCountBytes b2
 {-# INLINE eqBytes #-}
 
-data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
-
-instance NFData (MBytes p s) where
-  rnf (MBytes _) = ()
-
 ---- Pure
 
 
@@ -238,9 +245,9 @@ compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
 {-# INLINE compareBytes #-}
 
-indexBytes :: Prim a => Bytes p -> Off a -> a
-indexBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
-{-# INLINE indexBytes #-}
+indexOffBytes :: Prim a => Bytes p -> Off a -> a
+indexOffBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
+{-# INLINE indexOffBytes #-}
 
 indexByteOffBytes :: Prim a => Bytes p -> Off Word8 -> a
 indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
@@ -320,7 +327,7 @@ cloneBytes b = runST $ thawBytes b >>= cloneMBytes >>= freezeMBytes
 
 cloneMBytes :: (MonadPrim s m, Typeable p) => MBytes p s -> m (MBytes p s)
 cloneMBytes mb = do
-  n <- getCountOfMBytes mb
+  n <- getCountMBytes mb
   mb' <- allocMBytes (n :: Count Word8)
   mb' <$ moveMBytesToMBytes mb 0 mb' 0 n
 {-# INLINE cloneMBytes #-}
@@ -465,7 +472,7 @@ withCloneMBytesST_ b f = runST $ withCloneMBytes_ b f
 
 
 copyBytesToMBytes ::
-     (MonadPrim s m, Prim a) => Bytes p -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+     (MonadPrim s m, Prim a) => Bytes ps -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
 copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ $
   copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
@@ -496,7 +503,7 @@ byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 {-# INLINE byteCountBytes #-}
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
--- count of leftover bytes use `countRemOfBytes`
+-- count of leftover bytes use `countRemBytes`
 countBytes :: forall a p. Prim a => Bytes p -> Count a
 countBytes = fromByteCount . byteCountBytes
 {-# INLINE countBytes #-}
@@ -505,17 +512,17 @@ countBytes = fromByteCount . byteCountBytes
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-countRemOfBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
-countRemOfBytes = fromByteCountRem . byteCountBytes
-{-# INLINE countRemOfBytes #-}
+countRemBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
+countRemBytes = fromByteCountRem . byteCountBytes
+{-# INLINE countRemBytes #-}
 
 
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
--- of leftover bytes use `countRemOfBytes`
-getCountOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
-getCountOfMBytes b = fromByteCount <$> getByteCountMBytes b
-{-# INLINE getCountOfMBytes #-}
+-- of leftover bytes use `countRemBytes`
+getCountMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
+getCountMBytes b = fromByteCount <$> getByteCountMBytes b
+{-# INLINE getCountMBytes #-}
 
 -- | Get the number of elements of type @a@ that can fit into bytes as well as the slack
 -- number of bytes that would be leftover in case when total number of bytes available is
@@ -529,29 +536,12 @@ getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
 toListBytes :: Prim a => Bytes p -> [a]
-toListBytes ba = build (\ c n -> foldrBytes c n ba)
+toListBytes = toListMem
 {-# INLINE toListBytes #-}
 
-foldrBytes :: forall a b p . Prim a => (a -> b -> b) -> b -> Bytes p -> b
-foldrBytes c nil bs = go 0
-  where
-    Count k = countBytes bs :: Count a
-    go i
-      | i == k = nil
-      | otherwise =
-        let !v = indexBytes bs (Off i)
-         in v `c` go (i + 1)
-{-# INLINE[0] foldrBytes #-}
-
-
-loadListInternal :: (MonadPrim s m, Prim a) => Count a -> Int -> [a] -> MBytes p s -> m Ordering
-loadListInternal (Count n) slack ys mb = do
-  let go [] !i = pure (compare i n <> compare 0 slack)
-      go (x:xs) !i
-        | i < n = writeOffMBytes mb (Off i) x >> go xs (i + 1)
-        | otherwise = pure GT
-  go ys 0
-{-# INLINE loadListInternal #-}
+toListSlackBytes :: Prim a => Bytes p -> ([a], Maybe (Bytes 'Inc))
+toListSlackBytes = toListSlackMem
+{-# INLINE toListSlackBytes #-}
 
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
@@ -564,16 +554,12 @@ loadListMBytes ys mb = do
 
 loadListMBytes_ :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
 loadListMBytes_ ys mb = do
-  c :: Count a <- getCountOfMBytes mb
+  c :: Count a <- getCountMBytes mb
   void $ loadListInternal c 0 ys mb
 {-# INLINE loadListMBytes_ #-}
 
-fromListBytesN_ ::
-     forall a p. (Prim a, Typeable p)
-  => Count a
-  -> [a]
-  -> Bytes p
-fromListBytesN_ n xs = createBytesST_ n (loadListMBytes_ xs)
+fromListBytesN_ :: (Prim a, Typeable p) => Count a -> [a] -> Bytes p
+fromListBytesN_ = fromListMemN_
 {-# INLINE fromListBytesN_ #-}
 
 -- | If the list is bigger than the supplied @`Count` a@ then `GT` ordering will be
@@ -583,11 +569,11 @@ fromListBytesN_ n xs = createBytesST_ n (loadListMBytes_ xs)
 -- allocated memory, since no attempt is made to zero it out. Exact match obviously
 -- results in an `EQ`.
 fromListBytesN ::
-     forall a p. (Prim a, Typeable p)
+     (Prim a, Typeable p)
   => Count a
   -> [a]
   -> (Ordering, Bytes p)
-fromListBytesN n xs = createBytesST n (loadListMBytes xs)
+fromListBytesN = fromListMemN
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
@@ -597,18 +583,8 @@ fromListBytes ::
 fromListBytes xs = fromListBytesN_ (Count (length xs)) xs
 {-# INLINE fromListBytes #-}
 
-
-concatBytes ::
-     forall p p'. Typeable p
-  => [Bytes p']
-  -> Bytes p
-concatBytes xs = do
-  let c = Foldable.foldl' (\acc b -> acc + countBytes b) 0 xs
-  createBytesST_ (c :: Count Word8) $ \mb -> do
-    let load i b = do
-          let cb@(Count n) = countBytes b :: Count Word8
-          (i + Off n) <$ copyBytesToMBytes b 0 mb i cb
-    foldM_ load 0 xs
+concatBytes :: Typeable p => [Bytes p'] -> Bytes p
+concatBytes = concatMem
 {-# INLINE concatBytes #-}
 
 readOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
@@ -658,7 +634,7 @@ ensurePinnedMBytes mb =
   case toPinnedMBytes mb of
     Just pmb -> pure pmb
     Nothing  -> do
-      n8 :: Count Word8 <- getCountOfMBytes mb
+      n8 :: Count Word8 <- getCountMBytes mb
       pmb <- allocPinnedMBytes n8
       pmb <$ moveMBytesToMBytes mb 0 pmb 0 n8
 {-# INLINE ensurePinnedMBytes #-}
