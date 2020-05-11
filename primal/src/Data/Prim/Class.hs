@@ -948,6 +948,25 @@ instance Prim CRLim where
   type PrimBase CRLim = HTYPE_RLIM_T
 #endif
 
+#if __GLASGOW_HASKELL__ >= 800
+
+
+instance Prim a => Prim (Max a) where
+  type PrimBase (Max a) = a
+instance Prim a => Prim (Min a) where
+  type PrimBase (Min a) = a
+instance Prim a => Prim (Data.Semigroup.First a) where
+  type PrimBase (Data.Semigroup.First a) = a
+instance Prim a => Prim (Data.Semigroup.Last a) where
+  type PrimBase (Data.Semigroup.Last a) = a
+instance (Prim a, Prim b) => Prim (Arg a b) where
+  type PrimBase (Arg a b) = (a, b)
+  toPrimBase (Arg a b) = (a, b)
+  fromPrimBase (a, b) = Arg a b
+
+instance Prim a => Prim (Const a b) where
+  type PrimBase (Const a b) = a
+
 #if __GLASGOW_HASKELL__ >= 802
 
 instance a ~ b => Prim (a :~~: b) where
@@ -1001,24 +1020,14 @@ instance Prim CNfds where
 
 #endif /* __GLASGOW_HASKELL__ >= 810 */
 
+#if __GLASGOW_HASKELL__ >= 806
+instance Prim (f a) => Prim (Ap f a) where
+  type PrimBase (Ap f a) = f a
+#endif /* __GLASGOW_HASKELL__ >= 806 */
+
+
 #endif /* __GLASGOW_HASKELL__ >= 802 */
 
-#if __GLASGOW_HASKELL__ >= 800
-instance Prim a => Prim (Max a) where
-  type PrimBase (Max a) = a
-instance Prim a => Prim (Min a) where
-  type PrimBase (Min a) = a
-instance Prim a => Prim (Data.Semigroup.First a) where
-  type PrimBase (Data.Semigroup.First a) = a
-instance Prim a => Prim (Data.Semigroup.Last a) where
-  type PrimBase (Data.Semigroup.Last a) = a
-instance (Prim a, Prim b) => Prim (Arg a b) where
-  type PrimBase (Arg a b) = (a, b)
-  toPrimBase (Arg a b) = (a, b)
-  fromPrimBase (a, b) = Arg a b
-
-instance Prim a => Prim (Const a b) where
-  type PrimBase (Const a b) = a
 
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
@@ -1027,6 +1036,9 @@ instance Prim (f (g a)) => Prim (Compose f g a) where
 
 instance Prim a => Prim (Identity a) where
   type PrimBase (Identity a) = a
+
+instance Prim (f a) => Prim (Alt f a) where
+  type PrimBase (Alt f a) = f a
 
 instance Prim Ordering where
   type PrimBase Ordering = Int8

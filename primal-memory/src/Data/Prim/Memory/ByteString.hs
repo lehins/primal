@@ -12,11 +12,13 @@ module Data.Prim.Memory.ByteString
   (
   -- * Conversion
   -- ** ByteString
-    toByteStringAddr
+    ByteString(..)
+  , toByteStringAddr
   , toByteStringBytes
   , fromByteStringAddr
   , fromByteStringMAddr
   -- ** ShortByteString
+  , ShortByteString(..)
   , toShortByteStringBytes
   , fromShortByteStringBytes
   ) where
@@ -74,7 +76,7 @@ toShortByteStringBytes (Bytes ba#) = SBS ba#
 -- @since 0.1.0
 fromShortByteStringBytes :: ShortByteString -> Bytes 'Inc
 fromShortByteStringBytes (SBS ba#) = Bytes ba#
-
+{-# INLINE fromShortByteStringBytes #-}
 
 byteStringConvertError :: a
 byteStringConvertError =

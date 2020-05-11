@@ -21,11 +21,11 @@
 module Data.Prim.Memory where
 
 
-import Data.ByteString.Internal hiding (toForeignPtr)
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Ptr
 import Data.Prim.Memory.ForeignPtr
@@ -127,18 +127,23 @@ instance MemRead ByteString where
     withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
   {-# INLINE copyToPtrMem #-}
 
--- instance MemRead (ForeignPtr a) where
---   indexOffMem fptr i = unsafeInlineIO $ withForeignPtrPrim fptr ((`readOffPtr` i) . castPtr)
---   {-# INLINE indexOffMem #-}
---   indexByteOffMem fptr i = unsafeInlineIO $ withForeignPtrPrim fptr ((`readByteOffPtr` i) . castPtr)
---   {-# INLINE indexByteOffMem #-}
---   copyToMBytesMem fptr srcOff mb dstOff c =
---     withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
---   {-# INLINE copyToMBytesMem #-}
---   copyToPtrMem fptr srcOff dstPtr dstOff c =
---     withForeignPtrPrim fptr $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
---   {-# INLINE copyToPtrMem #-}
 
+
+instance MemRead ShortByteString where
+  byteCountMem = byteCountMem . fromShortByteStringBytes
+  {-# INLINE byteCountMem #-}
+  indexOffMem sbs = indexOffMem (fromShortByteStringBytes sbs)
+  {-# INLINE indexOffMem #-}
+  indexByteOffMem sbs = indexByteOffMem (fromShortByteStringBytes sbs)
+  {-# INLINE indexByteOffMem #-}
+  copyToMBytesMem sbs = copyToMBytesMem (fromShortByteStringBytes sbs)
+  {-# INLINE copyToMBytesMem #-}
+  copyToPtrMem sbs = copyToPtrMem (fromShortByteStringBytes sbs)
+  {-# INLINE copyToPtrMem #-}
+
+-- | A wrapper that adds a phantom state token to type that either doesn't have one or it
+-- designed to work in IO. For that reason using this wrapper doesn't make it safe to use
+-- in `ST` for example, but it is sometimes desired, so `MemState` makes it possible.
 newtype MemState a s = MemState { unMemState :: a }
 
 instance MemWrite (MemState (ForeignPtr a)) where
@@ -171,6 +176,8 @@ instance MemWrite (MemState (ForeignPtr a)) where
 
 
 instance MemRead (Bytes p) where
+  byteCountMem = byteCountBytes
+  {-# INLINE byteCountMem #-}
   indexOffMem = indexBytes
   {-# INLINE indexOffMem #-}
   indexByteOffMem = indexByteOffBytes
@@ -301,13 +308,6 @@ createMemST n f = runST $ do
 createMemST_ :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> FrozenMem r
 createMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 
-
--- instance Typeable p => MemAlloc (Mem (Bytes p)) where
---   type FrozenMem (Mem (Bytes p)) = Bytes p
---   getByteCountMem = pure . countOfBytes . coerce
---   allocMem = fmap Mem . freezeMBytes <=< allocMem
---   thaw = pure . Mem
---   freeze = pure . unMem
 
 instance Typeable p => MemAlloc (MBytes p) where
   type FrozenMem (MBytes p) = Bytes p
