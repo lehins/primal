@@ -32,16 +32,16 @@ import Data.Prim.Memory.ForeignPtr
 --
 -- @since 0.1.0
 toByteStringAddr :: Addr Word8 -> ByteString
-toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countOfAddr addr))
+toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
 
 -- | /O(1)/ - Cast an immutable `Bytes` to an immutable `ByteString`
 --
 -- @since 0.1.0
 toByteStringBytes :: Bytes 'Pin -> ByteString
-toByteStringBytes b = PS (toForeignPtrBytes b) 0 (coerce (sizeOfBytes b))
+toByteStringBytes b = PS (toForeignPtrBytes b) 0 (coerce (byteCountBytes b))
 
 -- | /O(1)/ - Cast an immutable `ByteString` to `Addr`. Also returns the original length of
--- ByteString, which will be less or equal to `countOfAddr` in the produced `Addr`. 
+-- ByteString, which will be less or equal to `countOfAddr` in the produced `Addr`.
 --
 -- @since 0.1.0
 fromByteStringAddr :: ByteString -> (Addr Word8, Count Word8)

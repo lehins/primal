@@ -217,7 +217,7 @@ getSizeOfMArray ::
 getSizeOfMArray (MArray ma#) =
   prim $ \s ->
     case getSizeofMutableByteArray# ma# s of
-      (# s', n# #) -> (# s', coerce (countSize (I# n#) :: Count a) #)
+      (# s', n# #) -> (# s', coerce (fromByteCount (Count (I# n#)) :: Count a) #)
 {-# INLINE getSizeOfMArray #-}
 
 

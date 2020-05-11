@@ -42,8 +42,8 @@ module Data.Prim.Memory.Bytes
   , ensurePinnedMBytes
   , indexBytes
   , indexByteOffBytes
-  , sizeOfBytes
-  , countOfBytes
+  , byteCountBytes
+  , countBytes
   , countRemOfBytes
   , memcmpBytes
   , compareBytes
@@ -79,7 +79,7 @@ module Data.Prim.Memory.Bytes
   , moveMBytesToMBytes
   -- ** Moving data
   -- * Size
-  , getSizeOfMBytes
+  , getByteCountMBytes
   , getCountOfMBytes
   , getCountRemOfMBytes
   -- * Access
@@ -216,8 +216,8 @@ eqBytes b1 b2 =
   (lenEq && memcmpBytes b1 0 b2 0 (coerce n1 :: Count Word8) == EQ)
    --(lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
   where
-    n1 = sizeOfBytes b1
-    lenEq = n1 == sizeOfBytes b2
+    n1 = byteCountBytes b1
+    lenEq = n1 == byteCountBytes b2
 {-# INLINE eqBytes #-}
 
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
@@ -262,7 +262,7 @@ emptyBytes = castBytes $ runST $ allocUnpinnedMBytes (0 :: Count Word8) >>= free
 {-# INLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool
-isEmptyBytes b = sizeOfBytes b == 0
+isEmptyBytes b = byteCountBytes b == 0
 {-# INLINE isEmptyBytes #-}
 
 singletonBytes :: forall a p. (Prim a, Typeable p) => a -> Bytes p
@@ -385,39 +385,35 @@ allocAlignedMBytes ::
 allocAlignedMBytes c =
   prim $ \s ->
     case alignmentProxy c of
-      I# a# ->
+      Count (I# a#) ->
         case newAlignedPinnedByteArray# (fromCount# c) a# s of
           (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocAlignedMBytes #-}
 
 callocMBytes :: (MonadPrim s m, Prim a, Typeable p) => Count a -> m (MBytes p s)
-callocMBytes n = do
-  mb <- allocMBytes n
-  mb <$ setMBytes mb 0 (countWord8 n) (0 :: Word8)
+callocMBytes n = allocMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE callocMBytes #-}
 
 callocAlignedMBytes ::
      (MonadPrim s m, Prim a)
   => Count a -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-callocAlignedMBytes n = do
-  mb <- allocAlignedMBytes n
-  mb <$ setMBytes mb 0 (countWord8 n) (0 :: Word8)
+callocAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE callocAlignedMBytes #-}
 
 
-getSizeOfMBytes :: MonadPrim s m => MBytes p s -> m Size
-getSizeOfMBytes (MBytes mba#) =
+getByteCountMBytes :: MonadPrim s m => MBytes p s -> m (Count Word8)
+getByteCountMBytes (MBytes mba#) =
   prim $ \s ->
     case getSizeofMutableByteArray# mba# s of
-      (# s', n# #) -> (# s', Size (I# n#) #)
-{-# INLINE getSizeOfMBytes #-}
+      (# s', n# #) -> (# s', Count (I# n#) #)
+{-# INLINE getByteCountMBytes #-}
 
 
 -- | Fill the mutable array with zeros efficiently.
 zeroMBytes :: MonadPrim s m => MBytes p s -> m ()
 zeroMBytes mba@(MBytes mba#) = do
-  Size (I# n#) <- getSizeOfMBytes mba
+  Count (I# n#) <- getByteCountMBytes mba
   prim_ (setByteArray# mba# 0# n# 0#)
 {-# INLINE zeroMBytes #-}
 
@@ -495,22 +491,22 @@ moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
 -- {-# INLINE moveMBytesToMBytes #-}
 
 
-sizeOfBytes :: Bytes p -> Size
-sizeOfBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
-{-# INLINE sizeOfBytes #-}
+byteCountBytes :: Bytes p -> Count Word8
+byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
+{-# INLINE byteCountBytes #-}
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemOfBytes`
-countOfBytes :: forall a p. Prim a => Bytes p -> Count a
-countOfBytes = countSize . coerce . sizeOfBytes
-{-# INLINE countOfBytes #-}
+countBytes :: forall a p. Prim a => Bytes p -> Count a
+countBytes = fromByteCount . byteCountBytes
+{-# INLINE countBytes #-}
 
 -- | Get the count of elements of type @a@ that can fit into bytes as well as the slack
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 countRemOfBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
-countRemOfBytes = countRemSize . coerce . sizeOfBytes
+countRemOfBytes = fromByteCountRem . byteCountBytes
 {-# INLINE countRemOfBytes #-}
 
 
@@ -518,7 +514,7 @@ countRemOfBytes = countRemSize . coerce . sizeOfBytes
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
 -- of leftover bytes use `countRemOfBytes`
 getCountOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
-getCountOfMBytes b = countSize . coerce <$> getSizeOfMBytes b
+getCountOfMBytes b = fromByteCount <$> getByteCountMBytes b
 {-# INLINE getCountOfMBytes #-}
 
 -- | Get the number of elements of type @a@ that can fit into bytes as well as the slack
@@ -526,7 +522,7 @@ getCountOfMBytes b = countSize . coerce <$> getSizeOfMBytes b
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 getCountRemOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a, Int)
-getCountRemOfMBytes b = countRemSize . coerce <$> getSizeOfMBytes b
+getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 
 -- | It is only guaranteed to convert the whole memory to a list whenever the size of
@@ -539,7 +535,7 @@ toListBytes ba = build (\ c n -> foldrBytes c n ba)
 foldrBytes :: forall a b p . Prim a => (a -> b -> b) -> b -> Bytes p -> b
 foldrBytes c nil bs = go 0
   where
-    Count k = countOfBytes bs :: Count a
+    Count k = countBytes bs :: Count a
     go i
       | i == k = nil
       | otherwise =
@@ -607,10 +603,10 @@ concatBytes ::
   => [Bytes p']
   -> Bytes p
 concatBytes xs = do
-  let c = Foldable.foldl' (\acc b -> acc + countOfBytes b) 0 xs
+  let c = Foldable.foldl' (\acc b -> acc + countBytes b) 0 xs
   createBytesST_ (c :: Count Word8) $ \mb -> do
     let load i b = do
-          let cb@(Count n) = countOfBytes b :: Count Word8
+          let cb@(Count n) = countBytes b :: Count Word8
           (i + Off n) <$ copyBytesToMBytes b 0 mb i cb
     foldM_ load 0 xs
 {-# INLINE concatBytes #-}
@@ -651,7 +647,7 @@ ensurePinnedBytes b =
     Just pb -> pb
     Nothing ->
       runST $ do
-        let n8 = countOfBytes b :: Count Word8
+        let n8 = byteCountBytes b
         pmb <- allocPinnedMBytes n8
         copyBytesToMBytes b 0 pmb 0 n8
         freezeMBytes pmb

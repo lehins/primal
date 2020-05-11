@@ -24,8 +24,8 @@ primPtrSpec = do
   let ptrTypeName = ("Ptr " ++) . showsType (Proxy :: Proxy a) $ ""
   let countIntersect (NEBytes i1 _ b1 :: NEBytes 'Pin a) (NEBytes i2 _ b2 :: NEBytes 'Pin a) =
         min
-          (countOfBytes b1 - Count (unOff i1))
-          (countOfBytes b2 - Count (unOff i2))
+          (countBytes b1 - Count (unOff i1))
+          (countBytes b2 - Count (unOff i2))
   describe ptrTypeName $ do
     describe "memset" $ do
       prop "empty" $ \(a :: a) -> do
@@ -44,7 +44,7 @@ primPtrSpec = do
             [0 ..]
             (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
-          readMBytes mb (Off i) `shouldReturn` a
+          readOffMBytes mb (Off i) `shouldReturn` a
     describe "moveMBytesToPtr" $ do
       prop "copyBytesToPtr" $ \n1@(NEBytes i1 _ b1) n2@(NEBytes i2 _ b2) -> do
         let c = countIntersect n1 n2
@@ -57,13 +57,13 @@ primPtrSpec = do
         bx <- freezeMBytes mb2x
         bx `shouldBe` by
       prop "movePtrToPtr" $ \(NEBytes i xs b :: NEBytes 'Pin a) -> do
-        let c = countOfBytes b - Count (unOff i)
+        let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> movePtrToPtr ptr i ptr 0 c
         b' <- freezeMBytes mb
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
       prop "movePtrToMBytes" $ \(NEBytes i xs b :: NEBytes 'Pin a) -> do
-        let c = countOfBytes b - Count (unOff i)
+        let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> movePtrToMBytes ptr i mb 0 c
         b' <- freezeMBytes mb
@@ -91,13 +91,13 @@ primPtrSpec = do
         withPtrMBytes mb $ \ptr -> do
           readOffPtr ptr i `shouldReturn` (xs !! unOff i)
           writePtr (plusOffPtr ptr i) a
-        readMBytes mb i `shouldReturn` a
+        readOffMBytes mb i `shouldReturn` a
       prop "writeOffPtr" $ \(NEBytes i xs b :: NEBytes 'Pin a) (a :: a) -> do
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> do
           readPtr (plusOffPtr ptr i) `shouldReturn` (xs !! unOff i)
           writeOffPtr ptr i a
-        readMBytes mb i `shouldReturn` a
+        readOffMBytes mb i `shouldReturn` a
 
 spec :: Spec
 spec = do

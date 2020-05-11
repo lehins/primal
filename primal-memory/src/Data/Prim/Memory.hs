@@ -78,7 +78,7 @@ instance MonadPrim s m => PtrAccess m ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
 
 class MemRead r where
-  sizeOfMem :: r -> Size
+  byteCountMem :: r -> Count Word8
 
   indexOffMem :: Prim a => r -> Off a -> a
 
@@ -114,8 +114,8 @@ class MemWrite r where
 
 
 instance MemRead ByteString where
-  sizeOfMem (PS _ _ c) = Size c
-  {-# INLINE sizeOfMem #-}
+  byteCountMem (PS _ _ c) = Count c
+  {-# INLINE byteCountMem #-}
   indexOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readOffPtr` i)
   {-# INLINE indexOffMem #-}
   indexByteOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readByteOffPtr` i)
@@ -203,8 +203,8 @@ instance MemWrite (MBytes p) where
 
 
 instance MemRead (Addr a) where
-  sizeOfMem = sizeOfAddr
-  {-# INLINE sizeOfMem #-}
+  byteCountMem = byteCountAddr
+  {-# INLINE byteCountMem #-}
   indexOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
   {-# INLINE indexOffMem #-}
   indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
@@ -248,9 +248,9 @@ instance MemWrite (MAddr a) where
 class (MemRead (FrozenMem r), MemWrite r) => MemAlloc r where
   type FrozenMem r = (f :: *) | f -> r
 
-  getSizeOfMem :: MonadPrim s m => r s -> m Size
+  getByteCountMem :: MonadPrim s m => r s -> m (Count Word8)
 
-  allocRawMem :: MonadPrim s m => Size -> m (r s)
+  allocRawMem :: MonadPrim s m => Count Word8 -> m (r s)
 
   thawMem :: MonadPrim s m => FrozenMem r -> m (r s)
 
@@ -260,9 +260,9 @@ class (MemRead (FrozenMem r), MemWrite r) => MemAlloc r where
 instance MemAlloc (MAddr a) where
   type FrozenMem (MAddr a) = Addr a
 
-  getSizeOfMem = getSizeOfMAddr
+  getByteCountMem = getByteCountMAddr
 
-  allocRawMem = fmap castMAddr . allocMAddr . (coerce :: Size -> Count Word8)
+  allocRawMem = fmap castMAddr . allocMAddr
 
   thawMem = thawAddr
 
@@ -276,7 +276,7 @@ instance MemAlloc (MAddr a) where
 --
 -- @since 0.1.0
 allocMem :: (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
-allocMem n = allocRawMem (coerce (countWord8 n))
+allocMem n = allocRawMem (toByteCount n)
 
 
 -- | Same as `allocMem`, but also use @memset@ to initialize all the new memory to zeros.
@@ -288,7 +288,7 @@ allocZeroMem ::
      (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
 allocZeroMem n = do
   m <- allocMem n
-  m <$ setMem m 0 (countWord8 n) (0 :: Word8)
+  m <$ setMem m 0 (toByteCount n) (0 :: Word8)
 
 
 createMemST :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, FrozenMem r)
@@ -304,15 +304,15 @@ createMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 
 -- instance Typeable p => MemAlloc (Mem (Bytes p)) where
 --   type FrozenMem (Mem (Bytes p)) = Bytes p
---   getSizeOfMem = pure . countOfBytes . coerce
+--   getByteCountMem = pure . countOfBytes . coerce
 --   allocMem = fmap Mem . freezeMBytes <=< allocMem
 --   thaw = pure . Mem
 --   freeze = pure . unMem
 
 instance Typeable p => MemAlloc (MBytes p) where
   type FrozenMem (MBytes p) = Bytes p
-  getSizeOfMem = getSizeOfMBytes
-  allocRawMem = allocMBytes . (coerce :: Size -> Count Word8)
+  getByteCountMem = getByteCountMBytes
+  allocRawMem = allocMBytes
   thawMem = thawBytes
   freezeMem = freezeMBytes
 
@@ -339,7 +339,7 @@ toListSlackMem ba = (build (\c n -> foldrCountMem k c n ba), slack)
         runST $ do
           let rc = Count r :: Count Word8
           mb <- allocUnpinnedMBytes rc
-          copyToMBytesMem ba (coerce (countWord8 k)) mb 0 rc
+          copyToMBytesMem ba (coerce (toByteCount k :: Count Word8) :: Off Word8) mb 0 rc
           freezeMBytes mb
 {-# INLINE toListSlackMem #-}
 
@@ -385,10 +385,10 @@ sameAsProxy _ = id
 
 concatFrozenMem :: MemAlloc r => [FrozenMem r] -> FrozenMem r
 concatFrozenMem xs = do
-  let c = Foldable.foldl' (\ !acc b -> acc + sizeOfMem b) 0 xs
+  let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
   createMemST_ (coerce c :: Count Word8) $ \mb -> do
     let load i b = do
-          let cb@(Count n) = coerce (sizeOfMem b) :: Count Word8
+          let cb@(Count n) = coerce (byteCountMem b) :: Count Word8
           (i + Off n) <$ copyMem b 0 mb i cb
     foldM_ load 0 xs
 {-# INLINE concatFrozenMem #-}
@@ -417,29 +417,29 @@ convertMem a = runST $ allocCopyMem a >>= freezeMem
 
 
 byteCountOfMem :: MemRead r => r -> Count Word8
-byteCountOfMem = coerce . sizeOfMem
+byteCountOfMem = byteCountMem
 {-# INLINE byteCountOfMem #-}
 
 countOfMem :: (MemRead r, Prim a) => r -> Count a
-countOfMem = countSize . coerce . sizeOfMem
+countOfMem = fromByteCount . byteCountMem
 {-# INLINE countOfMem #-}
 
 countOfRemMem :: (MemRead r, Prim a) => r -> (Count a, Int)
-countOfRemMem = countRemSize . coerce . sizeOfMem
+countOfRemMem = fromByteCountRem . byteCountMem
 {-# INLINE countOfRemMem #-}
 
 getCountOfMem :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
-getCountOfMem = fmap (countSize . coerce) . getSizeOfMem
+getCountOfMem = fmap (fromByteCount . coerce) . getByteCountMem
 {-# INLINE getCountOfMem #-}
 
 
 getCountOfRemMem :: (MemAlloc r, MonadPrim s m, Prim a) => r s -> m (Count a, Int)
-getCountOfRemMem = fmap (countRemSize . coerce) . getSizeOfMem
+getCountOfRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
 {-# INLINE getCountOfRemMem #-}
 
 
 getByteCountOfMem :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
-getByteCountOfMem = fmap coerce . getSizeOfMem
+getByteCountOfMem = fmap coerce . getByteCountMem
 {-# INLINE getByteCountOfMem #-}
 
 clone :: (MemAlloc r, MonadPrim s m) => r s -> m (r s)
@@ -457,7 +457,7 @@ clone mb = do
 --   -> (MBytes p s -> m a)
 --   -> m (a, Bytes p)
 -- withCopyMBytes b f = do
---   let n = getSizeOfMem b
+--   let n = getByteCountMem b
 --   mb <- allocMem n
 --   copyBytesToMBytes8 b 0 mb 0 (Count n)
 --   applyFreezeMBytes f mb

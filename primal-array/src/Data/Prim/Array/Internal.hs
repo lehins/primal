@@ -130,13 +130,13 @@ instance Typeable p => MArray (MBytes p) where
   type IArray (MBytes p) = Bytes p
   type Elt (MBytes p) = Word8
 
-  sizeOfArray = sizeOfBytes
+  sizeOfArray = coerce . byteCountBytes
   {-# INLINE sizeOfArray #-}
 
   indexArray a i = indexBytes a (coerce i)
   {-# INLINE indexArray #-}
 
-  getSizeOfMArray = getSizeOfMBytes
+  getSizeOfMArray = fmap coerce . getByteCountMBytes
   {-# INLINE getSizeOfMArray #-}
 
   thawArray = thawBytes
@@ -170,13 +170,13 @@ instance Prim e => MArray (MAddr e) where
   type IArray (MAddr e) = Addr e
   type Elt (MAddr e) = e
 
-  sizeOfArray = coerce . countOfAddr
+  sizeOfArray = coerce . countAddr
   {-# INLINE sizeOfArray #-}
 
   indexArray a i = indexOffAddr a (coerce i)
   {-# INLINE indexArray #-}
 
-  getSizeOfMArray = fmap coerce . getCountOfMAddr
+  getSizeOfMArray = fmap coerce . getCountMAddr
   {-# INLINE getSizeOfMArray #-}
 
   thawArray = thawAddr

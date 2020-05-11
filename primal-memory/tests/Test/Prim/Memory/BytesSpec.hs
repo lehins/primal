@@ -125,7 +125,7 @@ primSpec = do
     describe "moveMBytesToMBytes" $ do
       prop "copyBytesToMBytes" $
         \(NEBytes i1 _ b1 :: NEBytes p a) (NEBytes i2 _ b2 :: NEBytes p a) -> do
-          let c = min (countOfBytes b1 - Count (unOff i1)) (countOfBytes b2 - Count (unOff i2))
+          let c = min (countBytes b1 - Count (unOff i1)) (countBytes b2 - Count (unOff i2))
           mb2x <- thawBytes b2
           copyBytesToMBytes b1 i1 mb2x i2 c
           by <- withCloneMBytes_ b2 $ \ mb2y -> do
@@ -134,7 +134,7 @@ primSpec = do
           bx <- freezeMBytes mb2x
           bx `shouldBe` by
       prop "moveInside" $ \(NEBytes i xs b :: NEBytes p a) -> do
-        let c = countOfBytes b - Count (unOff i)
+        let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         moveMBytesToMBytes mb i mb 0 c
         b' <- freezeMBytes mb
@@ -169,7 +169,7 @@ primBinarySpec = do
   describe bytesTypeName $ do
     describe "calloc" $ do
       prop "callocMBytes" $ \(b :: Bytes p) -> do
-        mb0 <- callocMBytes (countOfBytes b :: Count Word8)
+        mb0 <- callocMBytes (countBytes b :: Count Word8)
         mb <- thawBytes b
         zeroMBytes mb
         b0 <- freezeMBytes mb
@@ -178,7 +178,7 @@ primBinarySpec = do
       prop "Bytes" $ \(b :: Bytes p) -> do
         let bc = cloneBytes b
         bc `shouldBe` b
-        unless (sizeOfBytes b == 0) $ isSameBytes b bc `shouldBe` False
+        unless (byteCountBytes b == 0) $ isSameBytes b bc `shouldBe` False
     describe "isSameBytes" $ do
       prop "True" $ \(b :: Bytes p) -> isSameBytes b b .&&. b == b
       it "(empty) True" $
@@ -223,7 +223,7 @@ primBinarySpec = do
       prop "toList" $ \(NEBytes _ xs b :: NEBytes p Word8) -> xs === toList b
       prop "fromList . toList" $ \(b :: Bytes p) -> b === fromList (toList b)
       prop "fromListN . toList" $ \(b :: Bytes p) ->
-        b === fromListN (coerce (sizeOfBytes b)) (toList b)
+        b === fromListN (coerce (byteCountBytes b)) (toList b)
     describe "Show" $
       prop "fromList . toList" $ \(b :: Bytes p) ->
         show b ===
@@ -278,7 +278,7 @@ spec = do
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocAlignedMBytes n) True
       prop "callocAlignedMBytes" $ \(b :: Bytes 'Pin) -> do
-        mb0 <- callocAlignedMBytes (countOfBytes b :: Count Word8)
+        mb0 <- callocAlignedMBytes (byteCountBytes b)
         mb <- thawBytes b
         zeroMBytes mb
         b0 <- freezeMBytes mb

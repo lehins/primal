@@ -13,6 +13,10 @@
 module Foreign.Prim.Ptr
   ( module GHC.Ptr
   , plusOffPtr
+  , plusByteOffPtr
+  , minusByteCountPtr
+  , minusCountPtr
+  , minusCountRemPtr
   , readPtr
   , readOffPtr
   , readByteOffPtr
@@ -115,9 +119,31 @@ writePtr :: (MonadPrim s m, Prim a) => Ptr a -> a -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
+-- | Count how many bytes is between the two pointers by subtracting the addresses.
+minusByteCountPtr :: Prim a => Ptr a -> Ptr a -> Count Word8
+minusByteCountPtr (Ptr xaddr#) (Ptr yaddr#) = Count (I# (xaddr# `minusAddr#` yaddr#))
+{-# INLINE minusByteCountPtr #-}
+
+plusByteOffPtr :: Prim a => Ptr a -> Off Word8 -> Ptr a
+plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
+{-# INLINE plusByteOffPtr #-}
+
+
 plusOffPtr :: Prim a => Ptr a -> Off a -> Ptr a
 plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
 {-# INLINE plusOffPtr #-}
+
+-- | Count how many elements of type @a@ canb fit between the two addresses
+minusCountPtr :: Prim a => Ptr a -> Ptr a -> Count a
+minusCountPtr (Ptr xaddr#) (Ptr yaddr#) =
+  fromByteCount (Count (I# (xaddr# `minusAddr#` yaddr#)))
+{-# INLINE minusCountPtr #-}
+
+-- | Same as `minusCountPtr`, but will also return the slack that is left over
+minusCountRemPtr :: Prim a => Ptr a -> Ptr a -> (Count a, Int)
+minusCountRemPtr (Ptr xaddr#) (Ptr yaddr#) =
+  fromByteCountRem (Count (I# (xaddr# `minusAddr#` yaddr#)))
+{-# INLINE minusCountRemPtr #-}
 
 copyPtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
 copyPtrToPtr srcPtr srcOff dstPtr dstOff c =

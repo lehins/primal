@@ -20,8 +20,8 @@ module Data.Prim.Memory.Addr
   , castAddr
   , toAddr
   , curOffAddr
-  , sizeOfAddr
-  , countOfAddr
+  , byteCountAddr
+  , countAddr
   , plusOffAddr
   , indexAddr
   , indexOffAddr
@@ -42,8 +42,8 @@ module Data.Prim.Memory.Addr
   , callocMAddr
   , setMAddr
   , curOffMAddr
-  , getSizeOfMAddr
-  , getCountOfMAddr
+  , getByteCountMAddr
+  , getCountMAddr
   , plusOffMAddr
   , readMAddr
   , readOffMAddr
@@ -128,8 +128,8 @@ instance Eq (Addr a) where
     where
       a1' = castAddr a1 :: Addr Word8
       a2' = castAddr a2 :: Addr Word8
-      c1' = countOfAddr a1'
-      c2' = countOfAddr a2'
+      c1' = countAddr a1'
+      c2' = countAddr a2'
 
 castAddr :: Addr a -> Addr b
 castAddr = coerce
@@ -173,25 +173,23 @@ plusOffMAddr :: Prim a => MAddr a s -> Off a -> MAddr a s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` fromOff# off) mb
 
 curOffAddr :: Prim a => Addr a -> Off a
-curOffAddr (Addr addr# (Bytes b#)) =
-  let count = countSize (I# (addr# `minusAddr#` byteArrayContents# b#))
-  in offAsProxy count (Off (unCount count))
+curOffAddr a@(Addr addr# b) = coerce (countAsProxy a (Ptr addr# `minusCountPtr` toPtrBytes b))
 
-countOfAddr ::
+countAddr ::
      forall a. Prim a
   => Addr a
   -> Count a
-countOfAddr addr@(Addr _ b) = countOfBytes b - coerce (curOffAddr addr)
+countAddr addr@(Addr _ b) = countBytes b - coerce (curOffAddr addr)
 
-sizeOfAddr :: Addr a -> Size
-sizeOfAddr = (coerce :: Count Word8 -> Size) . countOfAddr . castAddr
+byteCountAddr :: Addr a -> Count Word8
+byteCountAddr = countAddr . castAddr
 
-getCountOfMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
-getCountOfMAddr maddr@(MAddr _ mb) =
+getCountMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> m (Count a)
+getCountMAddr maddr@(MAddr _ mb) =
   subtract (coerce (curOffMAddr maddr)) <$> getCountOfMBytes mb
 
-getSizeOfMAddr :: MonadPrim s m => MAddr a s -> m Size
-getSizeOfMAddr = fmap (coerce :: Count Word8 -> Size) . getCountOfMAddr . castMAddr
+getByteCountMAddr :: MonadPrim s m => MAddr a s -> m (Count Word8)
+getByteCountMAddr = getCountMAddr . castMAddr
 
 indexAddr :: Prim a => Addr a -> a
 indexAddr addr = indexOffAddr addr 0
@@ -216,10 +214,9 @@ withNoHaltPtrAddr :: MonadUnliftPrim s m => Addr a -> (Ptr a -> m b) -> m b
 withNoHaltPtrAddr (Addr addr# b) f = withUnliftPrim b $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrAddr #-}
 
-curOffMAddr :: Prim a => MAddr a s -> Off a
+curOffMAddr :: forall a s . Prim a => MAddr a s -> Off a
 curOffMAddr (MAddr addr# mb) =
-  let count = countSize (Ptr addr# `minusPtr` toPtrMBytes mb)
-  in offAsProxy count (Off (unCount count))
+  coerce ((Ptr addr# :: Ptr a) `minusCountPtr` toPtrMBytes mb)
 
 withPtrMAddr :: MonadPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
