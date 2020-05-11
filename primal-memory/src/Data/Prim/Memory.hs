@@ -317,6 +317,43 @@ instance Typeable p => MemAlloc (MBytes p) where
   freezeMem = freezeMBytes
 
 
+
+-- | It is only guaranteed to convert the whole memory to a list whenever the size of
+-- allocated memory is exactly divisible by the size of the element, otherwise there will
+-- be some slack left unaccounted for.
+toListMem :: (MemRead r, Prim a) => r -> [a]
+toListMem ba = build (\ c n -> foldrCountMem (countOfMem ba) c n ba)
+{-# INLINE toListMem #-}
+
+
+-- | Same as `toListMem`, except if there is some slack at the end of the memory that
+-- didn't fit in a list it will be copied over into the new small `Bytes` chunk
+toListSlackMem :: (MemRead r, Prim a) => r -> ([a], Maybe (Bytes 'Inc))
+toListSlackMem ba = (build (\c n -> foldrCountMem k c n ba), slack)
+  where
+    (k, r) = countOfRemMem ba
+    slack
+      | r < 0 = Nothing
+      | otherwise =
+        Just $
+        runST $ do
+          let rc = Count r :: Count Word8
+          mb <- allocUnpinnedMBytes rc
+          copyToMBytesMem ba (coerce (countWord8 k)) mb 0 rc
+          freezeMBytes mb
+{-# INLINE toListSlackMem #-}
+
+foldrCountMem :: (MemRead r, Prim a) => Count a -> (a -> b -> b) -> b -> r -> b
+foldrCountMem (Count k) c nil bs = go 0
+  where
+    go i
+      | i == k = nil
+      | otherwise =
+        let !v = indexOffMem bs (Off i)
+         in v `c` go (i + 1)
+{-# INLINE[0] foldrCountMem #-}
+
+
 loadListInternal :: (MemWrite r, MonadPrim s m, Prim a) => Count a -> Int -> [a] -> r s -> m Ordering
 loadListInternal (Count n) slack ys mb = do
   let go [] !i = pure (compare i n <> compare 0 slack)
@@ -358,26 +395,25 @@ concatFrozenMem xs = do
 
 
 
-convertMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
-convertMem a = do
+allocCopyMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
+allocCopyMem a = do
   let n = byteCountOfMem a
   mem <- allocMem n
   mem <$ copyMem a 0 mem 0 n
+{-# INLINE allocCopyMem #-}
+
+freezeCopyMem :: (MemAlloc a, MonadPrim s m) => a s -> m (FrozenMem a)
+freezeCopyMem = freezeMem >=> allocCopyMem >=> freezeMem
+{-# INLINE freezeCopyMem #-}
+
+thawCopyMem :: (MemAlloc a, MonadPrim s m) => FrozenMem a -> m (a s)
+thawCopyMem = allocCopyMem
+{-# INLINE thawCopyMem #-}
+
+convertMem :: (MemRead r, MemAlloc a) => r -> FrozenMem a
+convertMem a = runST $ allocCopyMem a >>= freezeMem
 {-# INLINE convertMem #-}
 
-
-
-
--- fromListBytesN ::
---   forall a p . (Prim a, Typeable p)
---   => Int
---   -> [a]
---   -> (Ordering, Bytes p)
--- fromListBytesN n xs = runST $ do
---   mb <- alloc (Count n :: Count a)
---   res <- loadListMBytes xs mb
---   (,) res <$> freezeMBytes mb
--- {-# INLINE fromListBytesN #-}
 
 
 byteCountOfMem :: MemRead r => r -> Count Word8
@@ -387,6 +423,10 @@ byteCountOfMem = coerce . sizeOfMem
 countOfMem :: (MemRead r, Prim a) => r -> Count a
 countOfMem = countSize . coerce . sizeOfMem
 {-# INLINE countOfMem #-}
+
+countOfRemMem :: (MemRead r, Prim a) => r -> (Count a, Int)
+countOfRemMem = countRemSize . coerce . sizeOfMem
+{-# INLINE countOfRemMem #-}
 
 getCountOfMem :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
 getCountOfMem = fmap (countSize . coerce) . getSizeOfMem

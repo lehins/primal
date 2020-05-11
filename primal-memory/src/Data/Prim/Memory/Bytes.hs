@@ -61,6 +61,7 @@ module Data.Prim.Memory.Bytes
   , allocMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
+  , allocUnpinnedMBytes
   , callocMBytes
   , callocAlignedMBytes
   , shrinkMBytes
