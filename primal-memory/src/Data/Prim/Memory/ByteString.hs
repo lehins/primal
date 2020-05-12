@@ -28,7 +28,7 @@ import Data.ByteString.Short.Internal
 import Data.Prim
 import {-# SOURCE #-} Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.ForeignPtr
+--import Data.Prim.Memory.ForeignPtr
 
 -- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
 --

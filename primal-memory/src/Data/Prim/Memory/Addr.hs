@@ -57,6 +57,11 @@ module Data.Prim.Memory.Addr
   , withPtrMAddr
   , withAddrMAddr#
   , withNoHaltPtrMAddr
+  , toForeignPtrAddr
+  , toForeignPtrMAddr
+  , fromForeignPtrAddr
+  , fromForeignPtrMAddr
+
   -- * Atomic
   , casOffMAddr
   , atomicModifyOffMAddr
@@ -110,6 +115,7 @@ import {-# SOURCE #-} Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
+import GHC.ForeignPtr
 
 
 data Addr a = Addr
@@ -221,6 +227,42 @@ curOffMAddr (MAddr addr# mb) =
 withPtrMAddr :: MonadPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
 {-# INLINE withPtrMAddr #-}
+
+
+
+toForeignPtrAddr :: Addr a -> ForeignPtr a
+toForeignPtrAddr (Addr addr# (Bytes ba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# ba#))
+
+
+toForeignPtrMAddr :: MAddr a s -> ForeignPtr a
+toForeignPtrMAddr (MAddr addr# (MBytes mba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#))
+
+-- | Discarding the original `ForeignPtr` will trigger finalizers that were attached to
+-- it, because `Addr` does not retain any finalizers. This is a unsafe cast therefore
+-- modification of `ForeignPtr` will be reflected in resulting immutable `Addr`. Pointer
+-- created with @malloc@ cannot be converted to `Addr` and will result in `Nothing`
+--
+-- @since 0.1.0
+fromForeignPtrAddr :: ForeignPtr a -> Maybe (Addr a)
+fromForeignPtrAddr (ForeignPtr addr# c) =
+  case c of
+    PlainPtr mba#    -> Just (Addr addr# (unsafeInlineIO (freezeMBytes (MBytes mba#))))
+    MallocPtr mba# _ -> Just (Addr addr# (unsafeInlineIO (freezeMBytes (MBytes mba#))))
+    _                -> Nothing
+
+-- | Discarding the original ForeignPtr will trigger finalizers that were attached to it,
+-- because `MAddr` does not retain any finalizers. Pointer created with @malloc@ cannot be
+-- converted to `MAddr` and will result in `Nothing`
+--
+-- @since 0.1.0
+fromForeignPtrMAddr :: ForeignPtr a -> Maybe (MAddr a s)
+fromForeignPtrMAddr (ForeignPtr addr# c) =
+  case c of
+    PlainPtr mba#    -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+    MallocPtr mba# _ -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+    _                -> Nothing
+
+
 
 withAddrMAddr# :: MonadPrim s m => MAddr a s -> (Addr# -> m b) -> m b
 withAddrMAddr# (MAddr addr# mb) f = do

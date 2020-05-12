@@ -90,10 +90,14 @@ module Data.Prim.Memory.Bytes
   , setMBytes
   , zeroMBytes
   -- ** Ptr
+  , withPtrBytes
+  , withNoHaltPtrBytes
   , withPtrMBytes
   , withNoHaltPtrMBytes
   , toPtrBytes
   , toPtrMBytes
+  , toForeignPtrBytes
+  , toForeignPtrMBytes
   -- * Atomic
   , casMBytes
   , atomicModifyMBytes
@@ -144,6 +148,7 @@ import Data.Prim.Atomic
 import Data.Prim.Class
 import Data.Prim.Memory
 import Data.Proxy
+import GHC.ForeignPtr
 import Data.Typeable
 import Foreign.Prim
 import Numeric (showHex)
@@ -672,19 +677,39 @@ toPtrMBytes :: MBytes 'Pin s -> Ptr a
 toPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
 {-# INLINE toPtrMBytes #-}
 
+-- | Pointer access to immutable `Bytes` should be for read only purposes, but it is
+-- not enforced. Any mutation will break referential transparency
+withPtrBytes :: MonadPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
+withPtrBytes b f = do
+  res <- f (toPtrBytes b)
+  res <$ touch b
+{-# INLINE withPtrBytes #-}
+
+-- | Same as `withPtrBytes`, but is suitable for actions that don't terminate
+withNoHaltPtrBytes :: MonadUnliftPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
+withNoHaltPtrBytes b f = withUnliftPrim b $ f (toPtrBytes b)
+{-# INLINE withNoHaltPtrBytes #-}
+
 withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
 withPtrMBytes mb f = do
   res <- f (toPtrMBytes mb)
   res <$ touch mb
 {-# INLINE withPtrMBytes #-}
 
-withNoHaltPtrMBytes ::
-     (MonadPrimBase s n, MonadPrim s m)
-  => MBytes 'Pin s
-  -> (Ptr a -> n b)
-  -> m b
-withNoHaltPtrMBytes mb f = withPrimBase mb $ f (toPtrMBytes mb)
+withNoHaltPtrMBytes :: (MonadUnliftPrim s m) => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withNoHaltPtrMBytes mb f = withUnliftPrim mb $ f (toPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
+
+toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr a
+toForeignPtrBytes (Bytes ba#) =
+  ForeignPtr (byteArrayContents# ba#) (PlainPtr (unsafeCoerce# ba#))
+{-# INLINE toForeignPtrBytes #-}
+
+
+toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr a
+toForeignPtrMBytes (MBytes mba#) =
+  ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
+{-# INLINE toForeignPtrMBytes #-}
 
 
 

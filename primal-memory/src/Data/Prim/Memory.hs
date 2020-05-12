@@ -63,38 +63,6 @@ import Data.Foldable as Foldable
 import Data.List as List
 import Data.Kind
 
--- | Access to a pointer is only safe in Haskell with pinned memory, which also means that
--- it can always be converted to a `ForeignPtr`.
-class PtrAccess m p where
-  withPtrAccess :: MonadPrim s m => p -> (Ptr a -> m b) -> m b
-  withPtrAccess p action = toForeignPtr p >>= (`withForeignPtr` action)
-
-  toForeignPtr :: MonadPrim s m => p -> m (ForeignPtr a)
-
-withNoHaltPtrAccess ::
-     (MonadUnliftPrim s m, PtrAccess m p) => p -> (Ptr a -> m b) -> m b
-withNoHaltPtrAccess p f = do
-  ForeignPtr addr# ptrContents <- toForeignPtr p
-  withUnliftPrim ptrContents $ f (Ptr addr#)
-
-instance PtrAccess m (ForeignPtr a) where
-  withPtrAccess p f = withForeignPtr p (f . castPtr)
-  toForeignPtr = pure . coerce
-
-instance PtrAccess m (Bytes 'Pin) where
-  withPtrAccess b f = do
-    !res <- f $ toPtrBytes b
-    res <$ touch b
-  toForeignPtr = pure . toForeignPtrBytes
-
-instance MonadPrim s m => PtrAccess m (MBytes 'Pin s) where
-  withPtrAccess = withPtrMBytes
-  toForeignPtr = pure . toForeignPtrMBytes
-
-instance MonadPrim s m => PtrAccess m ByteString where
-  withPtrAccess (PS ps s _) f = withForeignPtr ps $ \ptr -> f (ptr `plusPtr` s)
-  toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
-
 class MemRead r where
   byteCountMem :: r -> Count Word8
 

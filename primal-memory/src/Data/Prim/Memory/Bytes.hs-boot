@@ -35,7 +35,12 @@ module Data.Prim.Memory.Bytes
   , writeByteOffMBytes
   , toPtrBytes
   , toPtrMBytes
+  , withPtrBytes
   , withPtrMBytes
+  , withNoHaltPtrBytes
+  , withNoHaltPtrMBytes
+  , toForeignPtrBytes
+  , toForeignPtrMBytes
   ) where
 
 import Data.Prim
@@ -60,6 +65,7 @@ freezeMBytes :: MonadPrim s m => MBytes p s -> m (Bytes p)
 
 indexOffBytes :: Prim a => Bytes p -> Off a -> a
 indexByteOffBytes :: Prim a => Bytes p -> Off Word8 -> a
+
 countBytes :: Prim a => Bytes p -> Count a
 byteCountBytes :: Bytes p -> Count Word8
 getCountMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
@@ -79,4 +85,10 @@ writeByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off Word8 -> a ->
 
 toPtrBytes :: Bytes 'Pin -> Ptr a
 toPtrMBytes :: MBytes 'Pin s -> Ptr a
+withPtrBytes :: MonadPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
 withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withNoHaltPtrBytes :: MonadUnliftPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
+withNoHaltPtrMBytes :: MonadUnliftPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+
+toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr a
+toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr a
