@@ -35,7 +35,7 @@ library
                      , Data.Prim.Memory.ByteString
                      , Data.Prim.Memory.Ptr
                      , Data.Prim.Memory.ForeignPtr
-  other-modules:
+  other-modules:       Data.Prim.Memory.Bytes.Internal
   build-depends:       base >= 4.8 && < 5
                      , bytestring
                      , deepseq

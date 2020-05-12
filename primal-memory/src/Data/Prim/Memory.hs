@@ -28,7 +28,7 @@ import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.Prim
 import Data.Prim.Memory.Addr
-import {-# SOURCE #-} Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)
@@ -351,7 +351,7 @@ instance Typeable p => MemAlloc (MBytes p) where
 toListMem :: (MemRead r, Prim a) => r -> [a]
 toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 {-# INLINE toListMem #-}
-
+{-# SPECIALIZE toListMem :: Prim a => Bytes p -> [a] #-}
 
 -- | Same as `toListMem`, except if there is some slack at the end of the memory that
 -- didn't fit in a list it will be copied over into the new small `Bytes` chunk
@@ -390,7 +390,7 @@ loadListInternal (Count n) slack ys mb = do
   go ys 0
 {-# INLINE loadListInternal #-}
 
-loadListInternal_ :: (MemWrite r, MonadPrim s m, Prim a) => Count a -> [a] -> r s -> m ()
+loadListInternal_ :: (MemWrite r, MonadPrim s m, Prim e) => Count e -> [e] -> r s -> m ()
 loadListInternal_ (Count n) ys mb =
   let go [] _     = pure ()
       go (x:xs) i = when (i < n) $ writeOffMem mb (Off i) x >> go xs (i + 1)
@@ -400,13 +400,13 @@ loadListInternal_ (Count n) ys mb =
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
-loadListMem :: (MonadPrim s m, MemAlloc r, Prim a) => [a] -> r s -> m Ordering
+loadListMem :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m Ordering
 loadListMem ys mb = do
   (c, slack) <- getCountRemMem mb
   loadListInternal (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMem #-}
 
-loadListMem_ :: (MonadPrim s m, MemAlloc r, Prim a) => [a] -> r s -> m ()
+loadListMem_ :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m ()
 loadListMem_ ys mb = do
   c <- getCountMem mb
   loadListInternal_ (countAsProxy ys c) ys mb
@@ -629,3 +629,7 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 --             writeOffMAddr maddr' (Off i) =<< f =<< readOffMAddr maddr (Off i)
 --             go (i + 1)
 --     maddr' <$ go 0
+
+
+---
+-- Bytes orphans

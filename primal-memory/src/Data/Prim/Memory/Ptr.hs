@@ -32,7 +32,7 @@ module Data.Prim.Memory.Ptr
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
-import {-# SOURCE #-} Data.Prim.Memory.Bytes (Bytes(..), MBytes(..))
+import Data.Prim.Memory.Bytes.Internal (Bytes(..), MBytes(..))
 import Data.Prim.Class
 import Foreign.Prim
 import Foreign.Prim.Ptr

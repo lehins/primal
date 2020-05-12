@@ -26,7 +26,7 @@ module Data.Prim.Memory.ByteString
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.Prim
-import {-# SOURCE #-} Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , Pinned(..)
   , byteCountBytes

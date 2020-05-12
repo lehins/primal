@@ -111,7 +111,7 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Atomic
-import {-# SOURCE #-} Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)

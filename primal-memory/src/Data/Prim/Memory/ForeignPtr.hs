@@ -28,7 +28,17 @@ import Control.Prim.Monad
 import Data.Prim
 import Foreign.Prim
 import GHC.ForeignPtr
-import {-# SOURCE #-} Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Bytes.Internal
+  ( Bytes
+  , MBytes
+  , Pinned(..)
+  , toForeignPtrBytes
+  , toForeignPtrMBytes
+  , withNoHaltPtrBytes
+  , withNoHaltPtrMBytes
+  , withPtrBytes
+  , withPtrMBytes
+  )
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ByteString
 
