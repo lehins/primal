@@ -31,7 +31,6 @@ import qualified Data.List as List
 import Data.Monoid
 import Data.Functor.Identity
 import Data.Prim.Memory.Bytes
-import qualified Data.Primitive.ByteArray as BA
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
@@ -41,58 +40,10 @@ import GHC.Fingerprint.Type
 import Numeric
 import System.Timeout
 import Test.Prim
-import Data.Prim.Memory
-
-data Mem a e = Mem [e] (FrozenMem a)
-
-instance (MemRead (FrozenMem a), Eq e) => Eq (Mem a e) where
-  Mem xs1 m1 == Mem xs2 m2 = xs1 == xs2 && eqMem m1 m2
-
-instance (Show e, Prim e, MemAlloc a) => Show (Mem a e) where
-  show (Mem xs bs) =
-    "(Mem " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
-
-instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (Mem a e) where
-  arbitrary = do
-    NonNegative n <- arbitrary
-    xs :: [e] <- vectorOf n arbitrary
-    pure $
-      Mem xs $
-      createMemST_ (Count n :: Count e) $ \mem ->
-        zipWithM_ (writeOffMem mem) [0 ..] xs
-
-data NEMem a e = NEMem (Off e) [e] (FrozenMem a)
-
-instance (MemRead (FrozenMem a), Eq e) => Eq (NEMem a e) where
-  NEMem o1 xs1 m1 == NEMem o2 xs2 m2 = o1 == o2 && xs1 == xs2 && eqMem m1 m2
-
-instance (Show e, Prim e, MemAlloc a) => Show (NEMem a e) where
-  show (NEMem o xs bs) =
-    "(NEMem " ++ show o ++ " " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
-
-instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (NEMem a e) where
-  arbitrary = do
-    Positive n <- arbitrary
-    NonNegative k <- arbitrary
-    let i = k `mod` n
-    xs :: [e] <- vectorOf n arbitrary
-    pure $
-      NEMem (Off i) xs $
-      createMemST_ (Count n :: Count e) $ \mem ->
-        zipWithM_ (writeOffMem mem) [0 ..] xs
-
-
+import Test.Prim.Memory
 
 
 type NEBytes p e = NEMem (MBytes p) e
-
-instance Typeable p => Arbitrary (Bytes p) where
-  arbitrary = do
-    Mem (_ :: [Word8]) b <- arbitrary
-    pure b
-
-toByteArray :: Bytes p -> BA.ByteArray
-toByteArray (Bytes ba) = BA.ByteArray ba
 
 primSpec ::
      forall (p :: Pinned) a.

@@ -4,6 +4,7 @@
 
 module Test.Prim.Memory
   ( module Test.Prim.Memory
+  , module Data.Prim.Memory
   ) where
 
 import Control.Monad
@@ -52,15 +53,15 @@ instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (NEMem a e) where
         zipWithM_ (writeOffMem mem) [0 ..] xs
 
 
--- instance Typeable p => Arbitrary (Bytes p) where
---   arbitrary = do
---     Mem (_ :: [Word8]) b <- arbitrary
---     pure b
+instance Typeable p => Arbitrary (Bytes p) where
+  arbitrary = do
+    Mem (_ :: [Word8]) b <- arbitrary
+    pure b
 
--- instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
---   arbitrary = do
---     Mem (_ :: [e]) b <- arbitrary
---     pure b
+instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
+  arbitrary = do
+    Mem (_ :: [e]) b <- arbitrary
+    pure b
 
 
 -- primSpec ::
