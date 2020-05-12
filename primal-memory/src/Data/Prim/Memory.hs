@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
@@ -11,6 +10,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      : Data.Prim.Memory
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -27,7 +27,6 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.Prim
-import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
@@ -41,6 +40,7 @@ import Data.Prim.Memory.Bytes.Internal
   , getByteCountMBytes
   , indexByteOffBytes
   , indexOffBytes
+  , isSameBytes
   , moveMBytesToMBytes
   , readByteOffMBytes
   , readOffMBytes
@@ -49,10 +49,15 @@ import Data.Prim.Memory.Bytes.Internal
   , writeByteOffMBytes
   , writeOffMBytes
   )
+import Data.List as List
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Ptr
 import Foreign.Prim
+import Numeric (showHex)
+import qualified Data.Semigroup as Semigroup
+
+
 
 class MemRead r where
   byteCountMem :: r -> Count Word8
@@ -215,72 +220,6 @@ instance MemWrite (MBytes p) where
   {-# INLINE setMem #-}
   copyMem = copyToMBytesMem
   {-# INLINE copyMem #-}
-
-
-
-instance MemAlloc (MAddr a) where
-  type FrozenMem (MAddr a) = Addr a
-
-  getByteCountMem = getByteCountMAddr
-  {-# INLINE getByteCountMem #-}
-  allocRawMem = fmap castMAddr . allocMAddr
-  {-# INLINE allocRawMem #-}
-  thawMem = thawAddr
-  {-# INLINE thawMem #-}
-  freezeMem = freezeMAddr
-  {-# INLINE freezeMem #-}
-
-
-instance MemRead (Addr a) where
-  byteCountMem = byteCountAddr
-  {-# INLINE byteCountMem #-}
-  indexOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
-  {-# INLINE indexByteOffMem #-}
-  copyToMBytesMem a si mb di c =
-    withPtrAddr a $ \ptr -> copyPtrToMBytes (castPtr ptr) si mb di c
-  {-# INLINE copyToMBytesMem #-}
-  copyToPtrMem a si mb di c =
-    withPtrAddr a $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
-  {-# INLINE copyToPtrMem #-}
-  compareByteOffToPtrMem addr off1 ptr2 off2 c =
-    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem addr off1 bytes off2 c =
-    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem1 off1 addr off2 c =
-    unsafeInlineIO $ withPtrAccess addr $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffMem #-}
-
-instance MemWrite (MAddr a) where
-  readOffMem a = readOffMAddr (castMAddr a)
-  {-# INLINE readOffMem #-}
-  readByteOffMem a = readByteOffMAddr (castMAddr a)
-  {-# INLINE readByteOffMem #-}
-  writeOffMem a = writeOffMAddr (castMAddr a)
-  {-# INLINE writeOffMem #-}
-  writeByteOffMem a = writeByteOffMAddr (castMAddr a)
-  {-# INLINE writeByteOffMem #-}
-  moveToPtrMem src srcOff dstPtr dstOff c =
-    withAddrMAddr# src $ \ srcAddr# ->
-      movePtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
-  {-# INLINE moveToPtrMem #-}
-  moveToMBytesMem src srcOff dst dstOff c =
-    withAddrMAddr# src $ \ srcAddr# ->
-      movePtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
-  {-# INLINE moveToMBytesMem #-}
-  copyMem src srcOff dst dstOff c =
-    withAddrMAddr# dst $ \ dstAddr# ->
-      copyToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE copyMem #-}
-  moveMem src srcOff dst dstOff c =
-    withAddrMAddr# dst $ \ dstAddr# ->
-      moveToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE moveMem #-}
-  setMem maddr = setMAddr (castMAddr maddr)
-  {-# INLINE setMem #-}
 
 
 class (MemRead (FrozenMem r), MemWrite r) => MemAlloc r where
@@ -519,57 +458,6 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 
 
 
--- import Data.ByteString (ByteString)
--- import Data.ByteString.Builder.Prim (word32LE, word64LE)
--- import Data.ByteString.Builder.Prim.Internal (runF)
--- import Data.ByteString.Unsafe
--- import Data.ByteString.Internal
--- import Data.Proxy
-
--- -- | Writing 8 bytes at a time in a Little-endian order gives us platform portability
--- fillPinnedMBytesWord64LE :: MonadPrim s m => g -> (g -> (Word64, g)) -> MBytes 'Pin s -> m g
--- fillPinnedMBytesWord64LE = fillPinnedMBytesWith (\a -> unsafeIOToPrim . runF word64LE a)
--- {-# INLINE fillPinnedMBytesWord64LE #-}
-
--- -- | Writing 4 bytes at a time in a Little-endian order gives us platform portability
--- fillPinnedMBytesWord32LE :: MonadPrim s m => g -> (g -> (Word32, g)) -> MBytes 'Pin s -> m g
--- fillPinnedMBytesWord32LE = fillPinnedMBytesWith (\a -> unsafeIOToPrim . runF word32LE a)
--- {-# INLINE fillPinnedMBytesWord32LE #-}
-
--- fillPinnedMBytesWith ::
---      forall a g s m. (MonadPrim s m, Prim a)
---   => (a -> Ptr Word8 -> m ())
---   -> g
---   -> (g -> (a, g))
---   -> MBytes 'Pin s
---   -> m g
--- fillPinnedMBytesWith f g0 gen64 mb =
---   withMBytesPtr mb $ \ptr0 -> do
---     (c@(Count n64 :: Count a), nrem64) <- getCountRemOfMBytes mb
---     let sz = sizeOfProxy c
---     let go g i ptr
---           | i < n64 = do
---             let (w64, g') = gen64 g
---             f w64 ptr
---             go g' (i + 1) (ptr `plusPtr` sz)
---           | otherwise = return (g, ptr)
---     (g, ptr') <- go g0 0 ptr0
---     if nrem64 == 0
---       then pure g
---       else do
---         let (w64, g') = gen64 g
---         -- In order to not mess up the byte order we write generated Word64 into a temporary
---         -- pointer and then copy only the missing bytes over to the array. It is tempting to
---         -- simply generate as many bytes as we still need using smaller type (eg. Word16),
---         -- but that would result in an inconsistent tail when total the length is slightly
---         -- varied.
---         w64mb <- newPinnedMBytes (Count 1 :: Count a)
---         writeOffMBytes w64mb 0 w64
---         withMBytesPtr w64mb (f w64)
---         copyMBytesToPtr8 w64mb 0 ptr' 0 (Count nrem64)
---         pure g'
--- {-# INLINE fillPinnedMBytesWith #-}
-
 
 -- class NoConstraint a
 -- instance NoConstraint a
@@ -631,5 +519,49 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 --     maddr' <$ go 0
 
 
----
--- Bytes orphans
+-------------------
+-- Bytes orphans --
+-------------------
+
+
+
+instance Show (Bytes p) where
+  show b =
+    Foldable.foldr' ($) "]" $
+    ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsHexMem b))
+
+instance Typeable p => IsList (Bytes p) where
+  type Item (Bytes p) = Word8
+  fromList = fromListMem
+  fromListN n = fromListMemN_ (Count n)
+  toList = toListMem
+
+instance Eq (Bytes p) where
+  b1 == b2 = isSameBytes b1 b2 || eqMem b1 b2
+
+instance Ord (Bytes p) where
+  compare b1 b2 =
+    compare n (byteCountBytes b2) <> compareByteOffBytes b1 0 b2 0 n
+    where
+      n = byteCountBytes b1
+
+-- instance Typeable p => Semigroup.Semigroup (Bytes p) where
+
+
+
+-- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
+-- is a function that will convert one byte.
+--
+-- >>> mb <- newPinnedMBytes (Count 5 :: Count Int)
+-- >>> mapM_ (\i -> writeOffMBytes mb (pred i) i) [1 .. 5]
+-- >>> foldr ($) "" . showsBytesHex <$> freezeMBytes mb
+-- "01000000000000000200000000000000030000000000000004000000000000000500000000000000"
+--
+showsHexMem :: MemRead r => r -> [ShowS]
+showsHexMem b = map toHex (toListMem b :: [Word8])
+  where
+    toHex b8 =
+      (if b8 <= 0x0f
+         then ('0' :)
+         else id) .
+      showHex b8

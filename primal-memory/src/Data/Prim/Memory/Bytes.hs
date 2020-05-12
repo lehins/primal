@@ -2,10 +2,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -22,6 +20,7 @@ module Data.Prim.Memory.Bytes
   ( Bytes(..)
   , cloneBytes
   , emptyBytes
+  , eqBytes
   , singletonBytes
   , isEmptyBytes
   , createBytes
@@ -67,7 +66,6 @@ module Data.Prim.Memory.Bytes
   , callocAlignedMBytes
   , shrinkMBytes
   , resizeMBytes
-  , showsBytesHex
   , coerceStateMBytes
   -- ** Modifying data
   , cloneMBytes
@@ -134,89 +132,26 @@ module Data.Prim.Memory.Bytes
   , module Data.Prim
   , module Data.Typeable
   -- * Helpers
-  -- * Experimental
-  -- , fillPinnedMBytesWord64LE
-  -- , fillPinnedMBytesWith
   ) where
 
-import Control.DeepSeq
 import Control.Monad
 import Control.Monad.ST
 import Control.Prim.Monad
-import Data.Foldable as Foldable
-import Data.List as List
 import Data.Prim
 import Data.Prim.Atomic
-import Data.Prim.Class
 import Data.Prim.Memory
 import Data.Prim.Memory.Bytes.Internal
 import Data.Proxy
-import GHC.ForeignPtr
 import Data.Typeable
 import Foreign.Prim
-import Numeric (showHex)
-import qualified Data.Semigroup as Semigroup
-
-
-
-instance Show (Bytes p) where
-  show b =
-    Foldable.foldr' ($) "]" $
-    ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsBytesHex b))
-
-instance Typeable p => IsList (Bytes p) where
-  type Item (Bytes p) = Word8
-  fromList = fromListBytes
-  fromListN n = fromListBytesN_ (Count n)
-  toList = toListBytes
-
-instance Eq (Bytes p) where
-  (==) = eqBytes
-
-instance Ord (Bytes p) where
-  compare b1 b2 =
-    compare n (byteCountBytes b2) <> compareByteOffBytes b1 0 b2 0 n
-    where
-      n = byteCountBytes b1
-
--- instance Typeable p => Semigroup.Semigroup (Bytes p) where
 
 
 
 
-
--- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
--- is a function that will convert one byte.
---
--- >>> mb <- newPinnedMBytes (Count 5 :: Count Int)
--- >>> mapM_ (\i -> writeOffMBytes mb (pred i) i) [1 .. 5]
--- >>> foldr ($) "" . showsBytesHex <$> freezeMBytes mb
--- "01000000000000000200000000000000030000000000000004000000000000000500000000000000"
---
-showsBytesHex :: Bytes p -> [ShowS]
-showsBytesHex b = map toHex (toListBytes b :: [Word8])
-  where
-    toHex b8 =
-      (if b8 <= 0x0f
-         then ('0' :)
-         else id) .
-      showHex b8
 
 relaxPinned :: Bytes p -> Bytes 'Inc
 relaxPinned = coerce
 
--- | Check if two byte arrays refer to pinned memory and compare their pointers.
-isSameBytes :: Bytes p1 -> Bytes p2 -> Bool
-isSameBytes (Bytes b1#) (Bytes b2#) = isTrue# (isSameByteArray# b1# b2#)
-{-# INLINE[0] isSameBytes #-}
-{-# RULES
-"isSamePinnedBytes" isSameBytes = isSamePinnedBytes
-  #-}
-
--- | Perform pointer equality on pinned `Bytes`.
-isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
-isSamePinnedBytes pb1 pb2 = toPtrBytes pb1 == toPtrBytes pb2
-{-# INLINE isSamePinnedBytes #-}
 
 -- | Check if two mutable bytes pointers refer to the same memory
 isSameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool

@@ -39,7 +39,6 @@ import Data.Prim.Memory.Bytes.Internal
   , withPtrBytes
   , withPtrMBytes
   )
-import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ByteString
 
 
@@ -71,6 +70,10 @@ instance PtrAccess s (ForeignPtr a) where
 instance PtrAccess s ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusForeignPtr` s)
   {-# INLINE toForeignPtr #-}
+  withPtrAccess = withPtrByteString
+  {-# INLINE withPtrAccess #-}
+  withNoHaltPtrAccess = withNoHaltPtrByteString
+  {-# INLINE withNoHaltPtrAccess #-}
 
 instance PtrAccess s (Bytes 'Pin) where
   toForeignPtr = pure . toForeignPtrBytes
@@ -86,22 +89,6 @@ instance PtrAccess s (MBytes 'Pin s) where
   withPtrAccess = withPtrMBytes
   {-# INLINE withPtrAccess #-}
   withNoHaltPtrAccess = withNoHaltPtrMBytes
-  {-# INLINE withNoHaltPtrAccess #-}
-
-instance PtrAccess s (Addr a) where
-  toForeignPtr = pure . toForeignPtrAddr . castAddr
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess addr = withPtrAddr (castAddr addr)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess addr = withNoHaltPtrAddr (castAddr addr)
-  {-# INLINE withNoHaltPtrAccess #-}
-
-instance PtrAccess s (MAddr a s) where
-  toForeignPtr = pure . toForeignPtrMAddr . castMAddr
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess maddr = withPtrMAddr (castMAddr maddr)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess maddr = withNoHaltPtrMAddr (castMAddr maddr)
   {-# INLINE withNoHaltPtrAccess #-}
 
 

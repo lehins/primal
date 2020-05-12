@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -61,6 +62,11 @@ module Data.Prim.Memory.Addr
   , toForeignPtrMAddr
   , fromForeignPtrAddr
   , fromForeignPtrMAddr
+  -- * Conversion
+  -- ** ByteString
+  , toByteStringAddr
+  , fromByteStringAddr
+  , fromByteStringMAddr
 
   -- * Atomic
   , casOffMAddr
@@ -106,6 +112,8 @@ module Data.Prim.Memory.Addr
 
   ) where
 
+import Data.ByteString.Internal
+import Data.ByteString.Short.Internal
 import Control.DeepSeq
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
@@ -128,7 +136,9 @@ import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
 import GHC.ForeignPtr
-
+import Data.Prim.Memory
+import Data.Prim.Memory.ByteString
+import Data.Prim.Memory.ForeignPtr
 
 data Addr a = Addr
   { addrAddr# :: Addr#
@@ -141,25 +151,13 @@ data MAddr a s = MAddr
   }
 
 instance Eq (Addr a) where
-  a1 == a2 =
-    isSameAddr a1 a2 || (c1' == c2' && memcmpAddr a1' 0 a2' 0 c1' == EQ)
-    where
-      a1' = castAddr a1 :: Addr Word8
-      a2' = castAddr a2 :: Addr Word8
-      c1' = countAddr a1'
-      c2' = countAddr a2'
+  a1 == a2 = isSameAddr a1 a2 || eqMem a1 a2
 
 castAddr :: Addr a -> Addr b
 castAddr = coerce
 
 castMAddr :: MAddr a s -> MAddr b s
 castMAddr = coerce
-
-memcmpAddr :: Prim a => Addr a -> Off a -> Addr a -> Off a -> Count a -> Ordering
-memcmpAddr a1 o1 a2 o2 c = unsafeInlineIO $
-  withAddrAddr# a1 $ \ addr1# ->
-    withAddrAddr# a2 $ \ addr2# ->
-      pure $ toOrdering# (memcmpAddr# addr1# (fromOff# o1) addr2# (fromOff# o2) (fromCount# c))
 
 isSameAddr :: Addr a -> Addr a -> Bool
 isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
@@ -258,8 +256,8 @@ toForeignPtrMAddr (MAddr addr# (MBytes mba#)) = ForeignPtr addr# (PlainPtr (unsa
 fromForeignPtrAddr :: ForeignPtr a -> Maybe (Addr a)
 fromForeignPtrAddr (ForeignPtr addr# c) =
   case c of
-    PlainPtr mba#    -> Just (Addr addr# (unsafeInlineIO (freezeMBytes (MBytes mba#))))
-    MallocPtr mba# _ -> Just (Addr addr# (unsafeInlineIO (freezeMBytes (MBytes mba#))))
+    PlainPtr mba#    -> Just (Addr addr# (unsafePerformIO (freezeMBytes (MBytes mba#))))
+    MallocPtr mba# _ -> Just (Addr addr# (unsafePerformIO (freezeMBytes (MBytes mba#))))
     _                -> Nothing
 
 -- | Discarding the original ForeignPtr will trigger finalizers that were attached to it,
@@ -285,6 +283,93 @@ withAddrMAddr# (MAddr addr# mb) f = do
 withNoHaltPtrMAddr :: MonadUnliftPrim s m => MAddr a s -> (Ptr a -> m b) -> m b
 withNoHaltPtrMAddr (MAddr addr# mb) f = withUnliftPrim mb $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrMAddr #-}
+
+
+
+instance PtrAccess s (Addr a) where
+  toForeignPtr = pure . toForeignPtrAddr . castAddr
+  {-# INLINE toForeignPtr #-}
+  withPtrAccess addr = withPtrAddr (castAddr addr)
+  {-# INLINE withPtrAccess #-}
+  withNoHaltPtrAccess addr = withNoHaltPtrAddr (castAddr addr)
+  {-# INLINE withNoHaltPtrAccess #-}
+
+instance PtrAccess s (MAddr a s) where
+  toForeignPtr = pure . toForeignPtrMAddr . castMAddr
+  {-# INLINE toForeignPtr #-}
+  withPtrAccess maddr = withPtrMAddr (castMAddr maddr)
+  {-# INLINE withPtrAccess #-}
+  withNoHaltPtrAccess maddr = withNoHaltPtrMAddr (castMAddr maddr)
+  {-# INLINE withNoHaltPtrAccess #-}
+
+
+
+
+instance MemAlloc (MAddr a) where
+  type FrozenMem (MAddr a) = Addr a
+
+  getByteCountMem = getByteCountMAddr
+  {-# INLINE getByteCountMem #-}
+  allocRawMem = fmap castMAddr . allocMAddr
+  {-# INLINE allocRawMem #-}
+  thawMem = thawAddr
+  {-# INLINE thawMem #-}
+  freezeMem = freezeMAddr
+  {-# INLINE freezeMem #-}
+
+
+instance MemRead (Addr a) where
+  byteCountMem = byteCountAddr
+  {-# INLINE byteCountMem #-}
+  indexOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
+  {-# INLINE indexOffMem #-}
+  indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
+  {-# INLINE indexByteOffMem #-}
+  copyToMBytesMem a si mb di c =
+    withPtrAddr a $ \ptr -> copyPtrToMBytes (castPtr ptr) si mb di c
+  {-# INLINE copyToMBytesMem #-}
+  copyToPtrMem a si mb di c =
+    withPtrAddr a $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
+  {-# INLINE copyToPtrMem #-}
+  compareByteOffToPtrMem addr off1 ptr2 off2 c =
+    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem addr off1 bytes off2 c =
+    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem1 off1 addr off2 c =
+    unsafeInlineIO $ withPtrAccess addr $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffMem #-}
+
+instance MemWrite (MAddr a) where
+  readOffMem a = readOffMAddr (castMAddr a)
+  {-# INLINE readOffMem #-}
+  readByteOffMem a = readByteOffMAddr (castMAddr a)
+  {-# INLINE readByteOffMem #-}
+  writeOffMem a = writeOffMAddr (castMAddr a)
+  {-# INLINE writeOffMem #-}
+  writeByteOffMem a = writeByteOffMAddr (castMAddr a)
+  {-# INLINE writeByteOffMem #-}
+  moveToPtrMem src srcOff dstPtr dstOff c =
+    withAddrMAddr# src $ \ srcAddr# ->
+      movePtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
+  {-# INLINE moveToPtrMem #-}
+  moveToMBytesMem src srcOff dst dstOff c =
+    withAddrMAddr# src $ \ srcAddr# ->
+      movePtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
+  {-# INLINE moveToMBytesMem #-}
+  copyMem src srcOff dst dstOff c =
+    withAddrMAddr# dst $ \ dstAddr# ->
+      copyToPtrMem src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE copyMem #-}
+  moveMem src srcOff dst dstOff c =
+    withAddrMAddr# dst $ \ dstAddr# ->
+      moveToPtrMem src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE moveMem #-}
+  setMem maddr = setMAddr (castMAddr maddr)
+  {-# INLINE setMem #-}
+
+
 
 thawAddr :: MonadPrim s m => Addr a -> m (MAddr a s)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
@@ -351,6 +436,44 @@ moveMAddrToMAddr src srcOff dst dstOff c =
 setMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> Off a -> Count a -> a -> m ()
 setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
   prim_ (setOffAddr# addr# off# n# a) >> touch mb
+
+
+
+-- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
+--
+-- @since 0.1.0
+toByteStringAddr :: Addr Word8 -> ByteString
+toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
+
+-- -- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
+-- --
+-- -- @since 0.1.0
+-- toShortByteStringAddr :: Addr Word8 -> ByteString
+-- toShortByteStringAddr (Addr _ ( = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
+
+-- | /O(1)/ - Cast an immutable `ByteString` to `Addr`. Also returns the original length of
+-- ByteString, which will be less or equal to `countOfAddr` in the produced `Addr`.
+--
+-- @since 0.1.0
+fromByteStringAddr :: ByteString -> (Addr Word8, Count Word8)
+fromByteStringAddr (PS fptr i n) =
+  case fromForeignPtrAddr fptr of
+    Just addr -> (addr `plusOffAddr` Off i, Count n)
+    Nothing -> byteStringConvertError "It was allocated outside of 'bytestring' package"
+
+-- | /O(1)/ - Cast an immutable `ByteString` to a mutable `MAddr`. Also returns the
+-- original length of ByteString, which will be less or equal to `getCountOfMAddr` in the
+-- produced `MAddr`.
+--
+-- __Unsafe__ - Further modification of `MAddr` will affect the source `ByteString`
+--
+-- @since 0.1.0
+fromByteStringMAddr :: ByteString -> (MAddr Word8 s, Count Word8)
+fromByteStringMAddr (PS fptr i n) =
+  case fromForeignPtrMAddr fptr of
+    Just maddr -> (maddr `plusOffMAddr` Off i, Count n)
+    Nothing -> byteStringConvertError "It was allocated outside of 'bytestring' package"
+
 
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied

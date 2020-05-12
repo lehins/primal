@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -22,6 +21,8 @@ module Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)
+  , isSameBytes
+  , isSamePinnedBytes
   , allocMBytes
   , allocUnpinnedMBytes
   , allocPinnedMBytes
@@ -51,10 +52,13 @@ module Data.Prim.Memory.Bytes.Internal
   , withNoHaltPtrMBytes
   , toForeignPtrBytes
   , toForeignPtrMBytes
+  , fromForeignPtrBytes
+  , byteStringConvertError
   ) where
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Class
 import Data.Proxy
@@ -292,4 +296,41 @@ toForeignPtrMBytes (MBytes mba#) =
   ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE toForeignPtrMBytes #-}
 
+
+-- | Discarding the `ForeignPtr` will trigger all if there are any associated
+-- Haskell finalizers.
+fromForeignPtrBytes :: ForeignPtr a -> Either String (Bytes 'Pin)
+fromForeignPtrBytes (ForeignPtr addr# content) =
+  case content of
+    PlainPtr mbaRW# -> checkConvert mbaRW#
+    MallocPtr mbaRW# _ -> checkConvert mbaRW#
+    _ -> Left "Cannot convert a C allocated pointer"
+  where
+    checkConvert mba# =
+      let !b@(Bytes ba#) = unsafePerformIO (freezeMBytes (MBytes mba#))
+       in if isTrue# (byteArrayContents# ba# `eqAddr#` addr#)
+            then Right b
+            else Left
+                   "ForeignPtr does not point to the beginning of the associated MutableByteArray#"
+{-# INLINE fromForeignPtrBytes #-}
+
+
+-- | Check if two byte arrays refer to pinned memory and compare their pointers.
+isSameBytes :: Bytes p1 -> Bytes p2 -> Bool
+isSameBytes (Bytes b1#) (Bytes b2#) = isTrue# (isSameByteArray# b1# b2#)
+{-# INLINE[0] isSameBytes #-}
+{-# RULES
+"isSamePinnedBytes" isSameBytes = isSamePinnedBytes
+  #-}
+
+-- | Perform pointer equality on pinned `Bytes`.
+isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
+isSamePinnedBytes pb1 pb2 = toPtrBytes pb1 == toPtrBytes pb2
+{-# INLINE isSamePinnedBytes #-}
+
+
+
+byteStringConvertError :: String -> a
+byteStringConvertError msg = error $ "Cannot convert 'ByteString'. " ++ msg
+{-# NOINLINE byteStringConvertError #-}
 
