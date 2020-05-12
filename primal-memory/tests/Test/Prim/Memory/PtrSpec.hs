@@ -11,10 +11,11 @@ module Test.Prim.Memory.PtrSpec
 import Control.DeepSeq
 import Control.Monad
 import Control.Prim.Monad
+import Data.Prim.Memory
 import Data.Prim.Memory.Ptr
 import Data.Typeable
 import Test.Prim.Memory.BytesSpec hiding (spec)
-import Test.Prim.Memory.Common
+import Test.Prim
 
 
 primPtrSpec ::
@@ -22,7 +23,7 @@ primPtrSpec ::
   => Spec
 primPtrSpec = do
   let ptrTypeName = ("Ptr " ++) . showsType (Proxy :: Proxy a) $ ""
-  let countIntersect (NEBytes i1 _ b1 :: NEBytes 'Pin a) (NEBytes i2 _ b2 :: NEBytes 'Pin a) =
+  let countIntersect (NEMem i1 _ b1 :: NEBytes 'Pin a) (NEMem i2 _ b2 :: NEBytes 'Pin a) =
         min
           (countBytes b1 - Count (unOff i1))
           (countBytes b2 - Count (unOff i2))
@@ -33,9 +34,9 @@ primPtrSpec = do
         withPtrMBytes mb $ \ptr -> setOffPtr ptr 0 0 a
         b <- freezeMBytes mb
         toListBytes b `shouldBe` ([] :: [a])
-      prop "non-empty" $ \(NEBytes off@(Off o) xs b :: NEBytes 'Pin a) (a :: a) -> do
+      prop "non-empty" $ \(NEMem off@(Off o) xs b :: NEBytes 'Pin a) (a :: a) -> do
         mb <- thawBytes b
-        Count n :: Count a <- getCountOfMBytes mb
+        Count n :: Count a <- getCountMBytes mb
         let c = Count (n - o)
         withPtrMBytes mb $ \ptr -> do
           setOffPtr ptr off c a
@@ -46,7 +47,7 @@ primPtrSpec = do
         forM_ [o .. unCount c - 1] $ \i ->
           readOffMBytes mb (Off i) `shouldReturn` a
     describe "moveMBytesToPtr" $ do
-      prop "copyBytesToPtr" $ \n1@(NEBytes i1 _ b1) n2@(NEBytes i2 _ b2) -> do
+      prop "copyBytesToPtr" $ \n1@(NEMem i1 _ b1) n2@(NEMem i2 _ b2) -> do
         let c = countIntersect n1 n2
         mb2x <- thawBytes b2
         withPtrMBytes mb2x $ \xptr -> copyBytesToPtr b1 i1 xptr i2 c
@@ -56,20 +57,20 @@ primPtrSpec = do
             withPtrMBytes mb2y $ \yptr -> moveMBytesToPtr mb1 i1 yptr i2 c
         bx <- freezeMBytes mb2x
         bx `shouldBe` by
-      prop "movePtrToPtr" $ \(NEBytes i xs b :: NEBytes 'Pin a) -> do
+      prop "movePtrToPtr" $ \(NEMem i xs b :: NEBytes 'Pin a) -> do
         let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> movePtrToPtr ptr i ptr 0 c
         b' <- freezeMBytes mb
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
-      prop "movePtrToMBytes" $ \(NEBytes i xs b :: NEBytes 'Pin a) -> do
+      prop "movePtrToMBytes" $ \(NEMem i xs b :: NEBytes 'Pin a) -> do
         let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> movePtrToMBytes ptr i mb 0 c
         b' <- freezeMBytes mb
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
     describe "copyToPtr" $
-      prop "copyMBytesToPtr" $ \n1@(NEBytes i1 xs b1) n2@(NEBytes i2 _ b2) -> do
+      prop "copyMBytesToPtr" $ \n1@(NEMem i1 xs b1) n2@(NEMem i2 _ b2) -> do
         let c = countIntersect n1 n2
         mb1 <- thawBytes b1
         mb2x <- thawBytes b2
@@ -78,21 +79,21 @@ primPtrSpec = do
         take (unCount c) (drop (unOff i2) (toListBytes bx)) `shouldBe`
           take (unCount c) (drop (unOff i1) xs)
     describe "PtrAccess" $ do
-      prop "readPtr" $ \ (NEBytes _ xs b :: NEBytes 'Pin a) -> do
+      prop "readPtr" $ \ (NEMem _ xs b :: NEBytes 'Pin a) -> do
         x <- thawBytes b >>= \mb -> withPtrMBytes mb readPtr
-        x `shouldBe` indexBytes b 0
+        x `shouldBe` indexOffBytes b 0
         x `shouldBe` head xs
-      prop "readOffPtr" $ \ (NEBytes i xs b :: NEBytes 'Pin a) -> do
+      prop "readOffPtr" $ \ (NEMem i xs b :: NEBytes 'Pin a) -> do
         x <- thawBytes b >>= \mb -> withPtrMBytes mb (`readOffPtr` i)
-        x `shouldBe` indexBytes b i
+        x `shouldBe` indexOffBytes b i
         x `shouldBe` (xs !! unOff i)
-      prop "writePtr" $ \(NEBytes i xs b :: NEBytes 'Pin a) (a :: a) -> do
+      prop "writePtr" $ \(NEMem i xs b :: NEBytes 'Pin a) (a :: a) -> do
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> do
           readOffPtr ptr i `shouldReturn` (xs !! unOff i)
           writePtr (plusOffPtr ptr i) a
         readOffMBytes mb i `shouldReturn` a
-      prop "writeOffPtr" $ \(NEBytes i xs b :: NEBytes 'Pin a) (a :: a) -> do
+      prop "writeOffPtr" $ \(NEMem i xs b :: NEBytes 'Pin a) (a :: a) -> do
         mb <- thawBytes b
         withPtrMBytes mb $ \ptr -> do
           readPtr (plusOffPtr ptr i) `shouldReturn` (xs !! unOff i)

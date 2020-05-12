@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -11,6 +12,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Prim.Memory.BytesSpec
   ( module Test.Prim.Memory.BytesSpec
@@ -34,32 +36,60 @@ import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
 import Foreign.Storable
-import GHC.Conc
 import GHC.IO.Device
 import GHC.Fingerprint.Type
 import Numeric
 import System.Timeout
-import Test.Prim.Memory.Common
+import Test.Prim
+import Data.Prim.Memory
 
+data Mem a e = Mem [e] (FrozenMem a)
 
-data NEBytes p a = NEBytes (Off a) [a] (Bytes p)
-  deriving (Eq)
+instance (MemRead (FrozenMem a), Eq e) => Eq (Mem a e) where
+  Mem xs1 m1 == Mem xs2 m2 = xs1 == xs2 && eqMem m1 m2
 
-instance (Show a, Prim a) => Show (NEBytes p a) where
-  show (NEBytes o xs bs) =
-    "(NEBytes " ++ show o ++ " " ++ show xs ++ " " ++ show (toListBytes bs :: [a]) ++ ")"
+instance (Show e, Prim e, MemAlloc a) => Show (Mem a e) where
+  show (Mem xs bs) =
+    "(Mem " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
 
-instance (Prim a, Arbitrary a, Typeable p) => Arbitrary (NEBytes p a) where
+instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (Mem a e) where
+  arbitrary = do
+    NonNegative n <- arbitrary
+    xs :: [e] <- vectorOf n arbitrary
+    pure $
+      Mem xs $
+      createMemST_ (Count n :: Count e) $ \mem ->
+        zipWithM_ (writeOffMem mem) [0 ..] xs
+
+data NEMem a e = NEMem (Off e) [e] (FrozenMem a)
+
+instance (MemRead (FrozenMem a), Eq e) => Eq (NEMem a e) where
+  NEMem o1 xs1 m1 == NEMem o2 xs2 m2 = o1 == o2 && xs1 == xs2 && eqMem m1 m2
+
+instance (Show e, Prim e, MemAlloc a) => Show (NEMem a e) where
+  show (NEMem o xs bs) =
+    "(NEMem " ++ show o ++ " " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
+
+instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (NEMem a e) where
   arbitrary = do
     Positive n <- arbitrary
     NonNegative k <- arbitrary
     let i = k `mod` n
-    xs :: [a] <- vectorOf n arbitrary
+    xs :: [e] <- vectorOf n arbitrary
     pure $
-      NEBytes (Off i) xs $
-      createBytesST_ (Count n :: Count a) $ \mb ->
-        zipWithM_ (writeOffMBytes mb) [0 ..] xs
+      NEMem (Off i) xs $
+      createMemST_ (Count n :: Count e) $ \mem ->
+        zipWithM_ (writeOffMem mem) [0 ..] xs
 
+
+
+
+type NEBytes p e = NEMem (MBytes p) e
+
+instance Typeable p => Arbitrary (Bytes p) where
+  arbitrary = do
+    Mem (_ :: [Word8]) b <- arbitrary
+    pure b
 
 toByteArray :: Bytes p -> BA.ByteArray
 toByteArray (Bytes ba) = BA.ByteArray ba
@@ -80,17 +110,17 @@ primSpec = do
         setMBytes mb 0 0 a
         b <- freezeMBytes mb
         toListBytes b `shouldBe` ([] :: [a])
-      prop "non-empty" $ \(NEBytes off@(Off o) xs b :: NEBytes p a) (a :: a) -> do
+      prop "non-empty" $ \(NEMem off@(Off o) xs b :: NEBytes p a) (a :: a) -> do
         mb <- thawBytes b
-        Count n :: Count a <- getCountOfMBytes mb
+        Count n :: Count a <- getCountMBytes mb
         let c = Count (n - o)
         setMBytes mb off c a
         zipWithM_ (\i x -> readOffMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
             readOffMBytes mb (Off i) `shouldReturn` a
     describe "List" $ do
-      prop "toListBytes" $ \(NEBytes _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
-      prop "toListBytes+fromBytes" $ \(NEBytes _ xs b :: NEBytes p a) ->
+      prop "toListBytes" $ \(NEMem _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
+      prop "toListBytes+fromBytes" $ \(NEMem _ xs b :: NEBytes p a) ->
         let xs' = toListBytes b :: [a]
         in xs' === xs .&&. fromListBytes xs' === b
       prop "loadListMBytes" $ \ (xs :: [a]) (b :: Bytes p) -> do
@@ -102,7 +132,7 @@ primSpec = do
           elt -> do
             when (elt == EQ) $ r `shouldBe` 0
             zipWithM_ (\i x -> readOffMBytes mb (i :: Off a) `shouldReturn` x) [0..] xs
-      prop "fromListBytesN" $ \(NEBytes (Off i) xs b :: NEBytes p a) (Positive n') -> do
+      prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p a) (Positive n') -> do
         let n = Count $ length xs
             (order, b') = fromListBytesN n xs
             (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
@@ -121,10 +151,10 @@ primSpec = do
     describe "Allocation" $ do
       prop "resizeMBytes" $ prop_resizeMBytes @p @a
       prop "singletonBytes" $ \(a :: a) ->
-        indexBytes (singletonBytes a :: Bytes p) 0 === a
+        indexOffBytes (singletonBytes a :: Bytes p) 0 === a
     describe "moveMBytesToMBytes" $ do
       prop "copyBytesToMBytes" $
-        \(NEBytes i1 _ b1 :: NEBytes p a) (NEBytes i2 _ b2 :: NEBytes p a) -> do
+        \(NEMem i1 _ b1 :: NEBytes p a) (NEMem i2 _ b2 :: NEBytes p a) -> do
           let c = min (countBytes b1 - Count (unOff i1)) (countBytes b2 - Count (unOff i2))
           mb2x <- thawBytes b2
           copyBytesToMBytes b1 i1 mb2x i2 c
@@ -133,7 +163,7 @@ primSpec = do
             moveMBytesToMBytes mb1 i1 mb2y i2 c
           bx <- freezeMBytes mb2x
           bx `shouldBe` by
-      prop "moveInside" $ \(NEBytes i xs b :: NEBytes p a) -> do
+      prop "moveInside" $ \(NEMem i xs b :: NEBytes p a) -> do
         let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         moveMBytesToMBytes mb i mb 0 c
@@ -145,7 +175,7 @@ prop_resizeMBytes ::
   => NEBytes p a
   -> NonNegative Int
   -> Property
-prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
+prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
   monadicIO $
   run $ do
     mb <- thawBytes $ cloneBytes b
@@ -220,7 +250,7 @@ primBinarySpec = do
         mb' <- ensurePinnedMBytes mb
         isPinnedMBytes mb' `shouldBe` True
     describe "IsList" $ do
-      prop "toList" $ \(NEBytes _ xs b :: NEBytes p Word8) -> xs === toList b
+      prop "toList" $ \(NEMem _ xs b :: NEBytes p Word8) -> xs === toList b
       prop "fromList . toList" $ \(b :: Bytes p) -> b === fromList (toList b)
       prop "fromListN . toList" $ \(b :: Bytes p) ->
         b === fromListN (coerce (byteCountBytes b)) (toList b)
@@ -313,127 +343,3 @@ prop_WorkArounBugGHC18061 alloc withPtr (Positive n) =
           error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
 {-# INLINE prop_WorkArounBugGHC18061 #-}
 
-
-
-
----- Orphans
-
-
-instance NFData BlockReason where
-  rnf br = seq br ()
-instance Arbitrary BlockReason where
-  arbitrary =
-    elements
-      [ BlockedOnMVar
-      , BlockedOnBlackHole
-      , BlockedOnException
-      , BlockedOnSTM
-      , BlockedOnForeignCall
-      , BlockedOnOther
-      ]
-
-
-deriving instance NFData CDev
-deriving instance Arbitrary CDev
-
-deriving instance NFData CUid
-deriving instance Arbitrary CUid
-
-deriving instance NFData CCc
-deriving instance Arbitrary CCc
-
-deriving instance NFData CSpeed
-deriving instance Arbitrary CSpeed
-
-deriving instance NFData CMode
-deriving instance Arbitrary CMode
-
-deriving instance NFData CTcflag
-deriving instance Arbitrary CTcflag
-
-deriving instance NFData COff
-deriving instance Arbitrary COff
-
-deriving instance NFData CRLim
-deriving instance Arbitrary CRLim
-
-deriving instance NFData CPid
-deriving instance Arbitrary CPid
-
-deriving instance NFData CBlkSize
-deriving instance Arbitrary CBlkSize
-
-deriving instance NFData CSsize
-deriving instance Arbitrary CSsize
-
-deriving instance NFData CGid
-deriving instance Arbitrary CGid
-
-deriving instance NFData CNlink
-deriving instance Arbitrary CNlink
-
-deriving instance NFData CBlkCnt
-deriving instance Arbitrary CBlkCnt
-
-deriving instance NFData CClockId
-deriving instance Arbitrary CClockId
-
-deriving instance NFData CFsBlkCnt
-deriving instance Arbitrary CFsBlkCnt
-
-deriving instance NFData CFsFilCnt
-deriving instance Arbitrary CFsFilCnt
-
-deriving instance NFData CId
-deriving instance Arbitrary CId
-
-instance Arbitrary Fingerprint where
-  arbitrary = Fingerprint <$> arbitrary <*> arbitrary
-
-instance NFData SeekMode where
-  rnf sm = seq sm ()
-instance Arbitrary SeekMode where
-  arbitrary = elements [toEnum 0 .. ]
-
-instance Arbitrary (Ptr a) where
-  arbitrary = intPtrToPtr <$> arbitrary
-
-instance Arbitrary (FunPtr a) where
-  arbitrary = castPtrToFunPtr <$> arbitrary
-
-instance Arbitrary (StablePtr a) where
-  arbitrary = castPtrToStablePtr <$> arbitrary
-
-instance Arbitrary IntPtr where
-  arbitrary = IntPtr <$> arbitrary
-
-instance Arbitrary WordPtr where
-  arbitrary = WordPtr <$> arbitrary
-
-deriving instance NFData IntPtr
-
-deriving instance NFData WordPtr
-
-deriving instance Arbitrary CBool
-
-deriving instance Arbitrary a => Arbitrary (Down a)
-
-instance a ~ b => Arbitrary (a :~: b) where
-  arbitrary = pure Refl
-
-instance Arbitrary (Off a) where
-  arbitrary = Off . getNonNegative <$> arbitrary
-
-instance Arbitrary (Count a) where
-  arbitrary = Count . getNonNegative <$> arbitrary
-
-instance Arbitrary BA.ByteArray where
-  arbitrary = toByteArray <$> (arbitrary :: Gen (Bytes 'Pin))
-
-instance Typeable p => Arbitrary (Bytes p) where
-  arbitrary = do
-    NonNegative n <- arbitrary
-    xs :: [Word8] <- vectorOf n arbitrary
-    pure $
-      createBytesST_ (Count n :: Count Word8) $ \mb ->
-        zipWithM_ (writeOffMBytes mb) [0 ..] xs

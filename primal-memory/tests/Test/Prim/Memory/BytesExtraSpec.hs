@@ -6,7 +6,7 @@ module Test.Prim.Memory.BytesExtraSpec (spec) where
 
 import Data.Typeable
 import Data.Semigroup
-import Test.Prim.Memory.Common hiding (Arg)
+import Test.Prim hiding (Arg)
 import Test.Prim.Memory.BytesSpec (primTypeSpec)
 import Foreign.Prim
 

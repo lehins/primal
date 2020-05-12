@@ -44,24 +44,14 @@ import {-# SOURCE #-} Data.Prim.Memory.Bytes
   , readByteOffMBytes
   , writeOffMBytes
   , writeByteOffMBytes
-  , toPtrBytes
-  , withPtrMBytes
   )
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Ptr
 import Data.Prim.Memory.ForeignPtr
-import Foreign.Ptr
-import GHC.Exts hiding
-  ( getSizeofMutableByteArray#
-  , isByteArrayPinned#
-  , isMutableByteArrayPinned#
-  )
+import Foreign.Prim
 import Control.Monad.ST
-import Data.Typeable
 import Data.Foldable as Foldable
-import Data.List as List
-import Data.Kind
 
 class MemRead r where
   byteCountMem :: r -> Count Word8
@@ -76,6 +66,11 @@ class MemRead r where
   -- | Source and target can't refer to the same memory chunks
   copyToPtrMem :: (MonadPrim s m, Prim a) => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
+  -- compareToPtrMem :: Prim a => r -> Off Word8 -> Ptr a -> Off Word8 -> Count a -> Ordering
+
+  -- compareToBytesMem :: Prim a => r -> Off Word8 -> Bytes p -> Off Word8 -> Count a -> Ordering
+
+  -- compareMem :: (MemRead r', Prim a) => r' -> Off Word8 -> r -> Off Word8 -> Count a -> Ordering
 
 class MemWrite r where
   readOffMem :: (MonadPrim s m, Prim a) => r s -> Off a -> m a
@@ -438,6 +433,17 @@ clone mb = do
   mb' <$ moveMem mb 0 mb' 0 n
 {-# INLINE clone #-}
 
+-- TODO: reimplement using `compareMem`
+eqMem :: (MemRead r1, MemRead r2) => r1 -> r2 -> Bool
+eqMem b1 b2 = n1 == n2 && go 0
+  where
+    go i
+      | i < n = indexOffMem b1 i == indexOffMem b2 i && go (i + 1)
+      | otherwise = True
+    n = Off n1 :: Off Word8
+    Count n1 = byteCountMem b1
+    Count n2 = byteCountMem b2
+{-# INLINE eqMem #-}
 
 
 -- withCopyMBytes ::

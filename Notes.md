@@ -9,3 +9,10 @@ foreign import ccall unsafe "primitive-memops.h hsprimitive_memmove"
   coerces, it will not report as the same.
 
 reallyUnsafePtrEquality# (unsafeCoerce# ba1 :: ()) (unsafeCoerce# ba2 :: ())
+
+
+`primitive` limitations:
+
+* `Prim` class: inability to index/read/write with Byte offset
+* Lack of backwards compatibility (eg, isPinnedByteArray only works on ghc-8.2 and up)
+* Lack of unified interface

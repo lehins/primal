@@ -61,7 +61,8 @@ test-suite tests
   hs-source-dirs:     tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.Common
+                    , Test.Prim
+                    , Test.Prim.Common
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
@@ -70,6 +71,7 @@ test-suite tests
                     , deepseq
                     , primal
                     , primal-memory
+                    --, primal-test
                     , primitive
                     , hspec
                     , QuickCheck
@@ -85,7 +87,8 @@ test-suite tests-O0
   hs-source-dirs:     tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.Common
+                    , Test.Prim
+                    , Test.Prim.Common
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
@@ -94,6 +97,7 @@ test-suite tests-O0
                     , deepseq
                     , primal
                     , primal-memory
+                    --, primal-test
                     , primitive
                     , hspec
                     , QuickCheck

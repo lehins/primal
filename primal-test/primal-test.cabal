@@ -32,20 +32,24 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Test.Prim.Atomic
-                     , Test.Prim.Array
+  exposed-modules:     Test.Prim
+                     , Test.Prim.Atomic
+                     --, Test.Prim.Array
+                     , Test.Prim.Memory
+                     --, Test.Prim.Memory.Bytes
 
-  other-modules:
+  other-modules:       Test.Prim.Common
   build-depends:       base >= 4.8 && < 5
+                     , deepseq
                      , primal
-                     , primal-array
-                     , primal-bytes
+                     --, primal-array
+                     , primal-memory
                      , hspec
                      , QuickCheck
                      , genvalidity
 
   default-language:    Haskell2010
-  ghc-options:         -Wall
+  ghc-options:         -Wall -fno-warn-orphans
 
 
 -- test-suite tests
