@@ -52,6 +52,11 @@ instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (NEMem a e) where
       createMemST_ (Count n :: Count e) $ \mem ->
         zipWithM_ (writeOffMem mem) [0 ..] xs
 
+neMemCountBefore :: NEMem a e -> Count e
+neMemCountBefore (NEMem (Off i) _ _) = Count i
+
+neMemCountAfter :: NEMem a e -> Count e
+neMemCountAfter (NEMem (Off i) xs _) = Count (length xs - i)
 
 instance Typeable p => Arbitrary (Bytes p) where
   arbitrary = do
@@ -62,6 +67,53 @@ instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
   arbitrary = do
     Mem (_ :: [e]) b <- arbitrary
     pure b
+
+
+prop_emptyMem ::
+     forall a e. (Arbitrary e, Show e, Prim e, Eq e, MemAlloc a)
+  => Mem a e
+  -> Property
+prop_emptyMem (Mem xs fm') = propIO $ do
+  let zc = 0 :: Count e
+  m' <- thawMem fm'
+  m :: a RW <- allocMem zc
+  -- Check zero set and no element evaluation
+  setMem m 0 0 (error "prop_emptyMem: Should not have been evaluated" :: e)
+  getCountMem m `shouldReturn` (0 :: Count e)
+  getCountRemMem m `shouldReturn` (0 :: Count e, 0)
+  getByteCountMem m `shouldReturn` 0
+  -- Check zero move
+  moveMem m 0 m' 0 zc
+  toListMem fm' `shouldBe` xs
+  fm <- freezeMem m
+  -- Check zero copy
+  copyMem fm 0 m' 0 zc
+  toListMem fm' `shouldBe` xs
+  -- Ensure zero frozen count
+  byteCountMem fm `shouldBe` 0
+  countMem fm `shouldBe` (0 :: Count e)
+  countRemMem fm `shouldBe` (0 :: Count e, 0)
+  toListMem fm `shouldBe` ([] :: [e])
+
+
+prop_setMem ::
+     forall a e. (Arbitrary e, Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> e
+  -> NonNegative (Count e)
+  -> Property
+prop_setMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
+  propIO $ do
+    m <- thawMem fm
+    Count n :: Count e <- getCountMem m
+    let c = Count (n - o)
+        c'@(Count ci') = max 0 (c - k)
+    setMem m off c' e
+    fm' <- freezeMem m
+    let xs' = toListMem fm' :: [e]
+    take o xs' `shouldBe` take o xs
+    take ci' (drop o xs') `shouldBe` replicate ci' e
+    drop ci' (drop o xs') `shouldBe` drop ci' (drop o xs)
 
 
 -- primSpec ::

@@ -305,7 +305,7 @@ instance Typeable p => MemAlloc (MBytes p) where
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
 toListMem :: (MemRead r, Prim a) => r -> [a]
-toListMem ba = build (\ c n -> foldrCountMem (countOfMem ba) c n ba)
+toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 {-# INLINE toListMem #-}
 
 
@@ -314,7 +314,7 @@ toListMem ba = build (\ c n -> foldrCountMem (countOfMem ba) c n ba)
 toListSlackMem :: (MemRead r, Prim a) => r -> ([a], Maybe (Bytes 'Inc))
 toListSlackMem ba = (build (\c n -> foldrCountMem k c n ba), slack)
   where
-    (k, r) = countOfRemMem ba
+    (k, r) = countRemMem ba
     slack
       | r < 0 = Nothing
       | otherwise =
@@ -351,7 +351,7 @@ loadListInternal (Count n) slack ys mb = do
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
 loadListMem :: (MonadPrim s m, MemAlloc r, Prim a) => [a] -> r s -> m Ordering
 loadListMem ys mb = do
-  (c, slack) <- getCountOfRemMem mb
+  (c, slack) <- getCountRemMem mb
   loadListInternal (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMem #-}
 
@@ -381,7 +381,7 @@ concatMem xs = do
 
 allocCopyMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
 allocCopyMem a = do
-  let n = byteCountOfMem a
+  let n = byteCountMem a
   mem <- allocMem n
   mem <$ copyMem a 0 mem 0 n
 {-# INLINE allocCopyMem #-}
@@ -398,37 +398,27 @@ convertMem :: (MemRead r, MemAlloc a) => r -> FrozenMem a
 convertMem a = runST $ allocCopyMem a >>= freezeMem
 {-# INLINE convertMem #-}
 
+countMem :: (MemRead r, Prim e) => r -> Count e
+countMem = fromByteCount . byteCountMem
+{-# INLINE countMem #-}
+
+countRemMem :: (MemRead r, Prim e) => r -> (Count e, Int)
+countRemMem = fromByteCountRem . byteCountMem
+{-# INLINE countRemMem #-}
+
+getCountMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e)
+getCountMem = fmap (fromByteCount . coerce) . getByteCountMem
+{-# INLINE getCountMem #-}
 
 
-byteCountOfMem :: MemRead r => r -> Count Word8
-byteCountOfMem = byteCountMem
-{-# INLINE byteCountOfMem #-}
+getCountRemMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e, Int)
+getCountRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
+{-# INLINE getCountRemMem #-}
 
-countOfMem :: (MemRead r, Prim a) => r -> Count a
-countOfMem = fromByteCount . byteCountMem
-{-# INLINE countOfMem #-}
-
-countOfRemMem :: (MemRead r, Prim a) => r -> (Count a, Int)
-countOfRemMem = fromByteCountRem . byteCountMem
-{-# INLINE countOfRemMem #-}
-
-getCountOfMem :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
-getCountOfMem = fmap (fromByteCount . coerce) . getByteCountMem
-{-# INLINE getCountOfMem #-}
-
-
-getCountOfRemMem :: (MemAlloc r, MonadPrim s m, Prim a) => r s -> m (Count a, Int)
-getCountOfRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
-{-# INLINE getCountOfRemMem #-}
-
-
-getByteCountOfMem :: (MemAlloc r, MonadPrim s m) => r s -> m (Count Word8)
-getByteCountOfMem = fmap coerce . getByteCountMem
-{-# INLINE getByteCountOfMem #-}
 
 clone :: (MemAlloc r, MonadPrim s m) => r s -> m (r s)
 clone mb = do
-  n <- getByteCountOfMem mb
+  n <- getByteCountMem mb
   mb' <- allocMem n
   mb' <$ moveMem mb 0 mb' 0 n
 {-# INLINE clone #-}
@@ -559,7 +549,7 @@ eqMem b1 b2 = n1 == n2 && go 0
 
 -- instance MFunctor MAddr where
 --   mmap f maddr = do
---     Count n <- getCountOfMAddr maddr
+--     Count n <- getCountMAddr maddr
 --     maddr' <- allocMAddr (Count n)
 --     let go i =
 --           when (i < n) $ do
@@ -569,7 +559,7 @@ eqMem b1 b2 = n1 == n2 && go 0
 
 -- instance MTraverse MAddr where
 --   mmapM f maddr = do
---     Count n <- getCountOfMAddr maddr
+--     Count n <- getCountMAddr maddr
 --     maddr' <- allocMAddr (Count n)
 --     let go i =
 --           when (i < n) $ do
