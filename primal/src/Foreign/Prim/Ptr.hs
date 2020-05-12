@@ -26,6 +26,8 @@ module Foreign.Prim.Ptr
   , setOffPtr
   , copyPtrToPtr
   , movePtrToPtr
+  , comparePtrToPtr
+  , compareByteOffPtrToPtr
   , freeHaskellFunPtr
   , module X
   , WordPtr(..)
@@ -164,6 +166,20 @@ movePtrToPtr (Ptr srcAddr#) srcOff (Ptr dstAddr#) dstOff c =
     (fromOff# dstOff)
     (fromCount# c)
 {-# INLINE movePtrToPtr #-}
+
+-- | Compare memory between two pointers. Offsets and count is in number of elements,
+-- instead of byte count. Use `compareByteOffPtrToPtr` when offset in bytes is required.
+comparePtrToPtr :: Prim a => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> Ordering
+comparePtrToPtr (Ptr addr1#) off1 (Ptr addr2#) off2 c =
+  toOrdering# (memcmpAddr# addr1# (fromOff# off1) addr2# (fromOff# off2) (fromCount# c))
+{-# INLINE comparePtrToPtr #-}
+
+-- | Same as `comparePtrToPtr`, except offset is in bytes instead of number of elements.
+compareByteOffPtrToPtr ::
+     Prim a => Ptr a -> Off Word8 -> Ptr a -> Off Word8 -> Count a -> Ordering
+compareByteOffPtrToPtr (Ptr addr1#) (Off (I# off1#)) (Ptr addr2#) (Off (I# off2#)) c =
+  toOrdering# (memcmpAddr# addr1# off1# addr2# off2# (fromCount# c))
+{-# INLINE compareByteOffPtrToPtr #-}
 
 
 

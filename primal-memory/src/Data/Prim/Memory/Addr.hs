@@ -112,6 +112,18 @@ import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Atomic
 import {-# SOURCE #-} Data.Prim.Memory.Bytes
+  ( Bytes(..)
+  , MBytes(..)
+  , Pinned(..)
+  , allocAlignedMBytes
+  , callocAlignedMBytes
+  , countBytes
+  , freezeMBytes
+  , getCountMBytes
+  , thawBytes
+  , toPtrBytes
+  , toPtrMBytes
+  )
 import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim

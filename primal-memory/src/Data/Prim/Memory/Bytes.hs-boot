@@ -16,12 +16,14 @@ module Data.Prim.Memory.Bytes
   , Pinned(..)
   , allocMBytes
   , allocUnpinnedMBytes
+  , allocPinnedMBytes
   , allocAlignedMBytes
   , callocAlignedMBytes
   , freezeMBytes
   , thawBytes
   , indexOffBytes
   , indexByteOffBytes
+  , compareByteOffBytes
   , byteCountBytes
   , countBytes
   , getCountMBytes
@@ -45,7 +47,6 @@ module Data.Prim.Memory.Bytes
 
 import Data.Prim
 import Control.Prim.Monad
-import Foreign.Ptr (Ptr)
 import GHC.Exts (ByteArray#, MutableByteArray#)
 
 data Bytes (p :: Pinned) = Bytes ByteArray#
@@ -57,6 +58,7 @@ data Pinned = Pin | Inc
 
 allocMBytes :: (Typeable p, Prim a, MonadPrim s m) => Count a -> m (MBytes p s)
 allocUnpinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
+allocPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 allocAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 callocAlignedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
 
@@ -65,6 +67,7 @@ freezeMBytes :: MonadPrim s m => MBytes p s -> m (Bytes p)
 
 indexOffBytes :: Prim a => Bytes p -> Off a -> a
 indexByteOffBytes :: Prim a => Bytes p -> Off Word8 -> a
+compareByteOffBytes :: Prim a => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count a -> Ordering
 
 countBytes :: Prim a => Bytes p -> Count a
 byteCountBytes :: Bytes p -> Count Word8

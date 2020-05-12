@@ -6,11 +6,11 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE RoleAnnotations #-}
 -- |
 -- Module      : Data.Prim.Memory
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -22,36 +22,37 @@
 module Data.Prim.Memory where
 
 
+import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
+import Data.Foldable as Foldable
 import Data.Prim
+import Data.Prim.Memory.Addr
 import {-# SOURCE #-} Data.Prim.Memory.Bytes
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)
   , allocMBytes
   , allocUnpinnedMBytes
-  , freezeMBytes
-  , thawBytes
-  , indexOffBytes
-  , indexByteOffBytes
   , byteCountBytes
-  , getByteCountMBytes
-  , setMBytes
-  , moveMBytesToMBytes
+  , compareByteOffBytes
   , copyBytesToMBytes
-  , readOffMBytes
+  , freezeMBytes
+  , getByteCountMBytes
+  , indexByteOffBytes
+  , indexOffBytes
+  , moveMBytesToMBytes
   , readByteOffMBytes
-  , writeOffMBytes
+  , readOffMBytes
+  , setMBytes
+  , thawBytes
   , writeByteOffMBytes
+  , writeOffMBytes
   )
 import Data.Prim.Memory.ByteString
-import Data.Prim.Memory.Addr
-import Data.Prim.Memory.Ptr
 import Data.Prim.Memory.ForeignPtr
+import Data.Prim.Memory.Ptr
 import Foreign.Prim
-import Control.Monad.ST
-import Data.Foldable as Foldable
 
 class MemRead r where
   byteCountMem :: r -> Count Word8
@@ -66,11 +67,13 @@ class MemRead r where
   -- | Source and target can't refer to the same memory chunks
   copyToPtrMem :: (MonadPrim s m, Prim a) => r -> Off a -> Ptr a -> Off a -> Count a -> m ()
 
-  -- compareToPtrMem :: Prim a => r -> Off Word8 -> Ptr a -> Off Word8 -> Count a -> Ordering
+  compareByteOffToPtrMem ::
+    (MonadPrim s m, Prim a) => r -> Off Word8 -> Ptr a -> Off Word8 -> Count a -> m Ordering
 
-  -- compareToBytesMem :: Prim a => r -> Off Word8 -> Bytes p -> Off Word8 -> Count a -> Ordering
+  compareByteOffToBytesMem ::
+    (MonadPrim s m, Prim a) => r -> Off Word8 -> Bytes p -> Off Word8 -> Count a -> m Ordering
 
-  -- compareMem :: (MemRead r', Prim a) => r' -> Off Word8 -> r -> Off Word8 -> Count a -> Ordering
+  compareByteOffMem :: (MemRead r', Prim a) => r' -> Off Word8 -> r -> Off Word8 -> Count a -> Ordering
 
 class MemWrite r where
   readOffMem :: (MonadPrim s m, Prim a) => r s -> Off a -> m a
@@ -102,11 +105,20 @@ instance MemRead ByteString where
   indexByteOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readByteOffPtr` i)
   {-# INLINE indexByteOffMem #-}
   copyToMBytesMem bs srcOff mb dstOff c =
-    withPtrAccess bs $ \(Ptr p#) -> copyPtrToMBytes (Ptr p#) srcOff mb dstOff c
+    withPtrAccess bs $ \srcPtr -> copyPtrToMBytes srcPtr srcOff mb dstOff c
   {-# INLINE copyToMBytesMem #-}
   copyToPtrMem bs srcOff dstPtr dstOff c =
-    withPtrAccess bs $ \(Ptr p#) -> copyPtrToPtr (Ptr p#) srcOff dstPtr dstOff c
+    withPtrAccess bs $ \srcPtr -> copyPtrToPtr srcPtr srcOff dstPtr dstOff c
   {-# INLINE copyToPtrMem #-}
+  compareByteOffToPtrMem bs off1 ptr2 off2 c =
+    withPtrAccess bs $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem bs off1 bytes off2 c =
+    withPtrAccess bs $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem1 off1 bs off2 c =
+    unsafeInlineIO $ withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffMem #-}
 
 
 
@@ -121,6 +133,12 @@ instance MemRead ShortByteString where
   {-# INLINE copyToMBytesMem #-}
   copyToPtrMem sbs = copyToPtrMem (fromShortByteStringBytes sbs)
   {-# INLINE copyToPtrMem #-}
+  compareByteOffToPtrMem sbs = compareByteOffToPtrMem (fromShortByteStringBytes sbs)
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem sbs = compareByteOffToBytesMem (fromShortByteStringBytes sbs)
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem off1 sbs = compareByteOffMem mem off1 (fromShortByteStringBytes sbs)
+  {-# INLINE compareByteOffMem #-}
 
 -- | A wrapper that adds a phantom state token to type that either doesn't have one or it
 -- designed to work in IO. For that reason using this wrapper doesn't make it safe to use
@@ -167,6 +185,15 @@ instance MemRead (Bytes p) where
   {-# INLINE copyToMBytesMem #-}
   copyToPtrMem = copyBytesToPtr
   {-# INLINE copyToPtrMem #-}
+  compareByteOffToPtrMem bytes1 off1 ptr2 off2 c =
+    pure $ compareByteOffBytesToPtr bytes1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem bytes1 off1 bytes2 off2 c =
+    pure $ compareByteOffBytes bytes1 off1 bytes2 off2 c
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem1 off1 bs off2 c =
+    unsafeInlineIO $ compareByteOffToBytesMem mem1 off1 bs off2 c
+  {-# INLINE compareByteOffMem #-}
 
 
 instance MemWrite (MBytes p) where
@@ -217,6 +244,15 @@ instance MemRead (Addr a) where
   copyToPtrMem a si mb di c =
     withPtrAddr a $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
   {-# INLINE copyToPtrMem #-}
+  compareByteOffToPtrMem addr off1 ptr2 off2 c =
+    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem addr off1 bytes off2 c =
+    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem1 off1 addr off2 c =
+    unsafeInlineIO $ withPtrAccess addr $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
+  {-# INLINE compareByteOffMem #-}
 
 instance MemWrite (MAddr a) where
   readOffMem a = readOffMAddr (castMAddr a)
@@ -267,6 +303,7 @@ class (MemRead (FrozenMem r), MemWrite r) => MemAlloc r where
 -- @since 0.1.0
 allocMem :: (MemAlloc r, MonadPrim s m, Prim a) => Count a -> m (r s)
 allocMem n = allocRawMem (toByteCount n)
+{-# INLINE allocMem #-}
 
 
 -- | Same as `allocMem`, but also use @memset@ to initialize all the new memory to zeros.
@@ -279,6 +316,7 @@ allocZeroMem ::
 allocZeroMem n = do
   m <- allocMem n
   m <$ setMem m 0 (toByteCount n) (0 :: Word8)
+{-# INLINE allocZeroMem #-}
 
 
 createMemST :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> (b, FrozenMem r)
@@ -287,17 +325,23 @@ createMemST n f = runST $ do
   res <- f m
   i <- freezeMem m
   pure (res, i)
+{-# INLINE createMemST #-}
 
 createMemST_ :: (MemAlloc r, Prim a) => Count a -> (forall s . r s -> ST s b) -> FrozenMem r
 createMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
+{-# INLINE createMemST_ #-}
 
 
 instance Typeable p => MemAlloc (MBytes p) where
   type FrozenMem (MBytes p) = Bytes p
   getByteCountMem = getByteCountMBytes
+  {-# INLINE getByteCountMem #-}
   allocRawMem = allocMBytes
+  {-# INLINE allocRawMem #-}
   thawMem = thawBytes
+  {-# INLINE thawMem #-}
   freezeMem = freezeMBytes
+  {-# INLINE freezeMem #-}
 
 
 
@@ -346,6 +390,13 @@ loadListInternal (Count n) slack ys mb = do
   go ys 0
 {-# INLINE loadListInternal #-}
 
+loadListInternal_ :: (MemWrite r, MonadPrim s m, Prim a) => Count a -> [a] -> r s -> m ()
+loadListInternal_ (Count n) ys mb =
+  let go [] _     = pure ()
+      go (x:xs) i = when (i < n) $ writeOffMem mb (Off i) x >> go xs (i + 1)
+   in go ys 0
+{-# INLINE loadListInternal_ #-}
+
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
@@ -355,16 +406,34 @@ loadListMem ys mb = do
   loadListInternal (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMem #-}
 
+loadListMem_ :: (MonadPrim s m, MemAlloc r, Prim a) => [a] -> r s -> m ()
+loadListMem_ ys mb = do
+  c <- getCountMem mb
+  loadListInternal_ (countAsProxy ys c) ys mb
+{-# INLINE loadListMem_ #-}
+
+
 fromListMemN :: (MemAlloc r, Prim a) => Count a -> [a] -> (Ordering, FrozenMem r)
-fromListMemN n xs = createMemST n $ \mem -> loadListMem xs mem
+fromListMemN n xs = createMemST n (loadListMem xs)
+{-# INLINE fromListMemN #-}
 
 fromListMemN_ :: (MemAlloc r, Prim a) => Count a -> [a] -> FrozenMem r
-fromListMemN_ n xs = createMemST_ n $ \mem -> loadListMem xs mem
-
+fromListMemN_ n xs = createMemST_ n (loadListMem_ xs)
+{-# INLINE fromListMemN_ #-}
 
 fromListMem :: (MemAlloc r, Prim a) => [a] -> FrozenMem r
-fromListMem xs = createMemST_ (countAsProxy xs (coerce (length xs))) $ \mem -> loadListMem xs mem
+fromListMem xs = createMemST_ (countAsProxy xs (coerce (length xs))) (loadListMem_ xs)
+{-# INLINE fromListMem #-}
 
+
+appendMem :: (MemRead r1, MemRead r2, MemAlloc a) => r1 -> r2 -> FrozenMem a
+appendMem r1 r2 =
+  createMemST_ (n1 + n2) $ \mem -> do
+    copyMem r1 0 mem 0 n1
+    copyMem r2 (coerce n1) mem (coerce n1) n2
+  where
+    n1 = byteCountMem r1
+    n2 = byteCountMem r2
 
 
 concatMem :: (MemRead r, MemAlloc a) => [r] -> FrozenMem a
@@ -372,7 +441,7 @@ concatMem xs = do
   let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
   createMemST_ (coerce c :: Count Word8) $ \mb -> do
     let load i b = do
-          let cb@(Count n) = coerce (byteCountMem b) :: Count Word8
+          let cb@(Count n) = byteCountMem b :: Count Word8
           (i + Off n) <$ copyMem b 0 mb i cb
     foldM_ load 0 xs
 {-# INLINE concatMem #-}
@@ -423,16 +492,10 @@ clone mb = do
   mb' <$ moveMem mb 0 mb' 0 n
 {-# INLINE clone #-}
 
--- TODO: reimplement using `compareMem`
 eqMem :: (MemRead r1, MemRead r2) => r1 -> r2 -> Bool
-eqMem b1 b2 = n1 == n2 && go 0
+eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
   where
-    go i
-      | i < n = indexOffMem b1 i == indexOffMem b2 i && go (i + 1)
-      | otherwise = True
-    n = Off n1 :: Off Word8
-    Count n1 = byteCountMem b1
-    Count n2 = byteCountMem b2
+    n = byteCountMem b1
 {-# INLINE eqMem #-}
 
 

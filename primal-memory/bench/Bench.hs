@@ -87,7 +87,7 @@ main = do
             , benchIndex (Proxy :: Proxy Char) b1 ba
             , bgroup
                 "Bool"
-                [bench "Bytes" $ whnf (indexBytes b1) (Off 125 :: Off Bool)]
+                [bench "Bytes" $ whnf (indexOffBytes b1) (Off 125 :: Off Bool)]
             ]
         , bgroup
             "read"
@@ -98,7 +98,7 @@ main = do
             , benchRead (Proxy :: Proxy Char) mb1 mba
             , bgroup
                 "Bool" -- TODO: try out FFI
-                [bench "Bytes" $ whnfIO (readMBytes mb1 (Off 125 :: Off Bool))]
+                [bench "Bytes" $ whnfIO (readOffMBytes mb1 (Off 125 :: Off Bool))]
             ]
         , bgroup
             "peek"
@@ -125,7 +125,7 @@ benchIndex ::
 benchIndex px b ba =
   bgroup
     (showsType px "")
-    [ bench "Bytes" $ whnf (indexBytes b) (Off i :: Off a)
+    [ bench "Bytes" $ whnf (indexOffBytes b) (Off i :: Off a)
     , bench "ByteArray" $ whnf (BA.indexByteArray ba :: Int -> a) i
     ]
   where i = 100
@@ -139,7 +139,7 @@ benchRead ::
 benchRead px mb mba =
   bgroup
     (showsType px "")
-    [ bench "Bytes" $ whnfIO (readMBytes mb (Off i :: Off a))
+    [ bench "Bytes" $ whnfIO (readOffMBytes mb (Off i :: Off a))
     , bench "ByteArray" $ whnfIO (BA.readByteArray mba i :: IO a)
     ]
   where i = 100

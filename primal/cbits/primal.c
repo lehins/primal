@@ -7,9 +7,7 @@ HsInt primal_ptreq(HsWord8 *ptr1, HsWord8 *ptr2){
 }
 
 HsInt8 primal_memcmp(HsWord8 *ptr1, HsInt offset1, HsWord8 *ptr2, HsInt offset2, HsInt n){
-  ptr1+= offset1;
-  ptr2+= offset2;
-  return memcmp(ptr1, ptr2, n);
+  return memcmp(ptr1 + offset1, ptr2 + offset2, n);
 }
 
 void primal_memmove(HsWord8 *src, HsInt src_offset, HsWord8 *dst, HsInt dst_offset, HsInt n){

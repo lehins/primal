@@ -27,7 +27,9 @@ module Foreign.Prim.C
   , toOrdering#
   , fromOrdering#
   , memcmpAddr#
+  , memcmpAddrByteArray#
   , memcmpByteArray#
+  , memcmpByteArrayAddr#
   -- ** Setting memory
   , memsetWord8MutableByteArray#
   , memsetWord8Addr#
@@ -90,7 +92,11 @@ fromOrdering# =
 foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int# -> Int#
 foreign import ccall unsafe "primal.c primal_memcmp"
+  memcmpAddrByteArray# :: Addr# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
+foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpByteArray# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
+foreign import ccall unsafe "primal.c primal_memcmp"
+  memcmpByteArrayAddr# :: ByteArray# -> Int# -> Addr# -> Int# -> Int# -> Int#
 
 foreign import ccall unsafe "primal.c primal_memset8"
   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()

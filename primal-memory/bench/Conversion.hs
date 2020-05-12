@@ -113,7 +113,7 @@ bytesAction (Count n) mb = go 0
   where
     go i
       | i < n = do
-        writeMBytes mb (Off i) (123 :: a)
+        writeOffMBytes mb (Off i) (123 :: a)
         go (i + 1)
       | otherwise = pure ()
 

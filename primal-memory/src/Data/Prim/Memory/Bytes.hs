@@ -46,12 +46,13 @@ module Data.Prim.Memory.Bytes
   , byteCountBytes
   , countBytes
   , countRemBytes
-  , memcmpBytes
   , compareBytes
+  , compareByteOffBytes
   , fromListBytes
   , fromListBytesN
   , fromListBytesN_
   , toListBytes
+  , toListSlackBytes
   , concatBytes
   -- * Mutable
   -- ** To/From immutable
@@ -75,6 +76,7 @@ module Data.Prim.Memory.Bytes
   , withCloneMBytesST
   , withCloneMBytesST_
   , loadListMBytes
+  , loadListMBytes_
   , copyBytesToMBytes
   , moveMBytesToMBytes
   -- ** Moving data
@@ -152,9 +154,10 @@ import GHC.ForeignPtr
 import Data.Typeable
 import Foreign.Prim
 import Numeric (showHex)
+import qualified Data.Semigroup as Semigroup
 
 
--- | Memory can either be Pinned or Inconclusive. Use eith `toPinnedBytes` or
+-- | Memory can either be `Pin`ned or `Inc`onclusive. Use eith `toPinnedBytes` or
 -- `toPinnedMBytes` to get a conclusive answer for the latter case.
 data Pinned = Pin | Inc
 
@@ -163,7 +166,6 @@ type role Bytes phantom
 
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes phantom nominal
-
 
 
 instance NFData (Bytes p) where
@@ -182,6 +184,15 @@ instance Typeable p => IsList (Bytes p) where
 
 instance Eq (Bytes p) where
   (==) = eqBytes
+
+instance Ord (Bytes p) where
+  compare b1 b2 =
+    compare n (byteCountBytes b2) <> compareByteOffBytes b1 0 b2 0 n
+    where
+      n = byteCountBytes b1
+
+-- instance Typeable p => Semigroup.Semigroup (Bytes p) where
+  
 
 instance NFData (MBytes p s) where
   rnf (MBytes _) = ()
@@ -223,32 +234,32 @@ isSamePinnedBytes pb1 pb2 = toPtrBytes pb1 == toPtrBytes pb2
 
 -- | Check if two mutable bytes pointers refer to the same memory
 isSameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool
-isSameMBytes (MBytes mb1#) (MBytes mb2#) =
-  isTrue# (sameMutableByteArray# mb1# mb2#)
+isSameMBytes (MBytes mb1#) (MBytes mb2#) = isTrue# (sameMutableByteArray# mb1# mb2#)
 {-# INLINE isSameMBytes #-}
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
-eqBytes b1 b2 =
-  isSameBytes b1 b2 ||
-  (lenEq && memcmpBytes b1 0 b2 0 (coerce n1 :: Count Word8) == EQ)
-   --(lenEq && isTrue# (memcmpByteArray# ba1# 0# ba2# 0# len# ==# 0# ))
-  where
-    n1 = byteCountBytes b1
-    lenEq = n1 == byteCountBytes b2
+eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
 {-# INLINE eqBytes #-}
 
 ---- Pure
 
-
-memcmpBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
-memcmpBytes (Bytes ba1#) off1 (Bytes ba2#) off2 c =
-  toOrdering# (memcmpByteArray# ba1# (fromOff# off1) ba2# (fromOff# off2) (fromCount# c))
-{-# INLINE memcmpBytes #-}
+-- -- This works exactly the same as `compareBytes` except it is implemented with FFI
+-- -- call instead of a primop. It will probably prove to be useless and will be removed in
+-- -- the future.
+-- memcmpBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
+-- memcmpBytes (Bytes ba1#) off1 (Bytes ba2#) off2 c =
+--   toOrdering# (memcmpByteArray# ba1# (fromOff# off1) ba2# (fromOff# off2) (fromCount# c))
+-- {-# INLINE memcmpBytes #-}
 
 compareBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
 {-# INLINE compareBytes #-}
+
+compareByteOffBytes :: Prim a => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count a -> Ordering
+compareByteOffBytes (Bytes b1#) (Off (I# off1#)) (Bytes b2#) (Off (I# off2#)) c =
+  toOrdering# (compareByteArrays# b1# off1# b2# off2# (fromCount# c))
+{-# INLINE compareByteOffBytes #-}
 
 indexOffBytes :: Prim a => Bytes p -> Off a -> a
 indexOffBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
@@ -541,8 +552,20 @@ getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
 toListBytes :: Prim a => Bytes p -> [a]
-toListBytes = toListMem
+toListBytes --ba = build (\ c n -> foldrCountBytes (countBytes ba) c n ba)
+  = toListMem
 {-# INLINE toListBytes #-}
+
+-- foldrCountBytes :: Prim a => Count a -> (a -> b -> b) -> b -> Bytes p -> b
+-- foldrCountBytes (Count k) c nil bs = go 0
+--   where
+--     go i
+--       | i == k = nil
+--       | otherwise =
+--         let !v = indexOffBytes bs (Off i)
+--          in v `c` go (i + 1)
+-- {-# INLINE[0] foldrCountBytes #-}
+
 
 toListSlackBytes :: Prim a => Bytes p -> ([a], Maybe (Bytes 'Inc))
 toListSlackBytes = toListSlackMem
@@ -551,16 +574,16 @@ toListSlackBytes = toListSlackMem
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
-loadListMBytes :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
+loadListMBytes :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
-  (c :: Count a, slack) <- getCountRemOfMBytes mb
-  loadListInternal c slack ys mb
+  (c, slack) <- getCountRemOfMBytes mb
+  loadListInternal (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMBytes #-}
 
-loadListMBytes_ :: forall a p s m . (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
+loadListMBytes_ :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
 loadListMBytes_ ys mb = do
-  c :: Count a <- getCountMBytes mb
-  void $ loadListInternal c 0 ys mb
+  c <- getCountMBytes mb
+  void $ loadListInternal (countAsProxy ys c) 0 ys mb
 {-# INLINE loadListMBytes_ #-}
 
 fromListBytesN_ :: (Prim a, Typeable p) => Count a -> [a] -> Bytes p
