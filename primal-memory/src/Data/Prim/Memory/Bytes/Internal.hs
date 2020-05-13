@@ -67,10 +67,12 @@ import Data.Typeable
 import Foreign.Prim
 
 
--- | Memory can either be `Pin`ned or `Inc`onclusive. Use eith `toPinnedBytes` or
--- `toPinnedMBytes` to get a conclusive answer for the latter case.
+-- | Memory can either be @`Pin`ned@ or @`Inc`onclusive@. Use either
+-- `Data.Prim.Memory.Bytes.toPinnedBytes` or `Data.Prim.Memory.Bytes.toPinnedMBytes` to
+-- get a conclusive type.
 data Pinned = Pin | Inc
 
+-- | An immutable region of memory which was allocated either as pinned or unpinned.
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes phantom
 

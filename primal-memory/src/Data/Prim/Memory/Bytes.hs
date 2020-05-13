@@ -167,12 +167,12 @@ eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
 -- -- This works exactly the same as `compareBytes` except it is implemented with FFI
 -- -- call instead of a primop. It will probably prove to be useless and will be removed in
 -- -- the future.
--- memcmpBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
+-- memcmpBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
 -- memcmpBytes (Bytes ba1#) off1 (Bytes ba2#) off2 c =
 --   toOrdering# (memcmpByteArray# ba1# (fromOff# off1) ba2# (fromOff# off2) (fromCount# c))
 -- {-# INLINE memcmpBytes #-}
 
-compareBytes :: Prim a => Bytes p1 -> Off a -> Bytes p2 -> Off a -> Count a -> Ordering
+compareBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
 {-# INLINE compareBytes #-}
@@ -196,9 +196,9 @@ isEmptyBytes :: Bytes p -> Bool
 isEmptyBytes b = byteCountBytes b == 0
 {-# INLINE isEmptyBytes #-}
 
-singletonBytes :: forall a p. (Prim a, Typeable p) => a -> Bytes p
+singletonBytes :: forall e p. (Prim e, Typeable p) => e -> Bytes p
 singletonBytes a = runST $ do
-  mb <- allocMBytes (1 :: Count a)
+  mb <- allocMBytes (1 :: Count e)
   writeOffMBytes mb 0 a
   freezeMBytes mb
 {-# INLINE singletonBytes #-}
@@ -207,7 +207,7 @@ singletonBytes a = runST $ do
 
 
 shrinkMBytes ::
-     (MonadPrim s m, Prim a) => MBytes p s -> Count a -> m ()
+     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m ()
 shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
 {-# INLINE shrinkMBytes #-}
 
@@ -218,7 +218,7 @@ shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizeMBytes ::
-     (MonadPrim s m, Prim a) => MBytes p s -> Count a -> m (MBytes 'Inc s)
+     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
 resizeMBytes (MBytes mb#) c =
   prim $ \s ->
     case resizeMutableByteArray# mb# (fromCount# c) s of
@@ -238,7 +238,7 @@ cloneMBytes mb = do
 
 
 copyBytesToMBytes ::
-     (MonadPrim s m, Prim a) => Bytes ps -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+     (MonadPrim s m, Prim e) => Bytes ps -> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ $
   copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
@@ -246,7 +246,7 @@ copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
 
 
 moveMBytesToMBytes ::
-     (MonadPrim s m, Prim a) => MBytes ps s-> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+     (MonadPrim s m, Prim e) => MBytes ps s-> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
 {-# INLINE moveMBytesToMBytes #-}
@@ -254,8 +254,8 @@ moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
 -- | Allocated memory is not cleared, so make sure to fill it in properly, otherwise you
 -- might find some garbage there.
 createBytes ::
-     forall p a b s m. (Prim a, Typeable p, MonadPrim s m)
-  => Count a
+     forall p e b s m. (Prim e, Typeable p, MonadPrim s m)
+  => Count e
   -> (MBytes p s -> m b)
   -> m (b, Bytes p)
 createBytes n f = do
@@ -265,30 +265,30 @@ createBytes n f = do
 {-# INLINE createBytes #-}
 
 createBytes_ ::
-     forall p a b s m. (Prim a, Typeable p, MonadPrim s m)
-  => Count a
+     forall p e b s m. (Prim e, Typeable p, MonadPrim s m)
+  => Count e
   -> (MBytes p s -> m b)
   -> m (Bytes p)
 createBytes_ n f = allocMBytes n >>= \mb -> f mb >> freezeMBytes mb
 {-# INLINE createBytes_ #-}
 
 createBytesST ::
-     forall p a b. (Prim a, Typeable p)
-  => Count a
+     forall p e b. (Prim e, Typeable p)
+  => Count e
   -> (forall s . MBytes p s -> ST s b)
   -> (b, Bytes p)
 createBytesST n f = runST $ createBytes n f
 {-# INLINE createBytesST #-}
 
 createBytesST_ ::
-     forall p a b. (Prim a, Typeable p)
-  => Count a
+     forall p e b. (Prim e, Typeable p)
+  => Count e
   -> (forall s. MBytes p s -> ST s b)
   -> Bytes p
 createBytesST_ n f =  runST $ createBytes_ n f
 {-# INLINE createBytesST_ #-}
 
-callocMBytes :: (MonadPrim s m, Prim a, Typeable p) => Count a -> m (MBytes p s)
+callocMBytes :: (MonadPrim s m, Prim e, Typeable p) => Count e -> m (MBytes p s)
 callocMBytes n = allocMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE callocMBytes #-}
 
@@ -339,7 +339,7 @@ withCloneMBytesST_ b f = runST $ withCloneMBytes_ b f
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-countRemBytes :: forall a p. Prim a => Bytes p -> (Count a, Int)
+countRemBytes :: forall e p. Prim e => Bytes p -> (Count e, Int)
 countRemBytes = fromByteCountRem . byteCountBytes
 {-# INLINE countRemBytes #-}
 
@@ -349,37 +349,37 @@ countRemBytes = fromByteCountRem . byteCountBytes
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-getCountRemOfMBytes :: forall a p s m. (MonadPrim s m, Prim a) => MBytes p s -> m (Count a, Int)
+getCountRemOfMBytes :: forall e p s m. (MonadPrim s m, Prim e) => MBytes p s -> m (Count e, Int)
 getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 
 -- | It is only guaranteed to convert the whole memory to a list whenever the size of
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
-toListBytes :: Prim a => Bytes p -> [a]
+toListBytes :: Prim e => Bytes p -> [e]
 toListBytes = toListMem
 {-# INLINE toListBytes #-}
 
-toListSlackBytes :: Prim a => Bytes p -> ([a], [Word8])
+toListSlackBytes :: Prim e => Bytes p -> ([e], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
-loadListMBytes :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
+loadListMBytes :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
   (c, slack) <- getCountRemOfMBytes mb
   loadListMemN (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMBytes #-}
 
-loadListMBytes_ :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
+loadListMBytes_ :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m ()
 loadListMBytes_ ys mb = do
   c <- getCountMBytes mb
   loadListMemN_ (countAsProxy ys c) ys mb
 {-# INLINE loadListMBytes_ #-}
 
-fromListBytesN_ :: (Prim a, Typeable p) => Count a -> [a] -> Bytes p
+fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
 fromListBytesN_ = fromListMemN_
 {-# INLINE fromListBytesN_ #-}
 
@@ -390,16 +390,16 @@ fromListBytesN_ = fromListMemN_
 -- allocated memory, since no attempt is made to zero it out. Exact match obviously
 -- results in an `EQ`.
 fromListBytesN ::
-     (Prim a, Typeable p)
-  => Count a
-  -> [a]
+     (Prim e, Typeable p)
+  => Count e
+  -> [e]
   -> (Ordering, Bytes p)
 fromListBytesN = fromListMemN
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
-     forall a p. (Prim a, Typeable p)
-  => [a]
+     forall e p. (Prim e, Typeable p)
+  => [e]
   -> Bytes p
 fromListBytes xs = fromListBytesN_ (Count (length xs)) xs
 {-# INLINE fromListBytes #-}
@@ -466,12 +466,12 @@ toPinnedMBytes (MBytes mb#)
 --
 -- @since 0.1.0
 casMBytes ::
-     (MonadPrim s m, Atomic a)
+     (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> a -- ^ Expected old value
-  -> a -- ^ New value
-  -> m a
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m e
 casMBytes (MBytes mba#) (Off (I# i#)) old new = prim $ casMutableByteArray# mba# i# old new
 {-# INLINE casMBytes #-}
 
@@ -483,10 +483,10 @@ casMBytes (MBytes mba#) (Off (I# i#)) old new = prim $ casMutableByteArray# mba#
 --
 -- @since 0.1.0
 atomicModifyMBytes ::
-     (MonadPrim s m, Atomic a)
+     (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> (a, b)) -- ^ Function that is applied to the old value and returns new value
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> (e, b)) -- ^ Function that is applied to the old value and returns new value
                    -- and some artifact of computation @__b__@
   -> m b
 atomicModifyMBytes (MBytes mba#) (Off (I# i#)) f =
@@ -504,10 +504,10 @@ atomicModifyMBytes (MBytes mba#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicModifyMBytes_ ::
-     (MonadPrim s m, Atomic a)
+     (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns new value.
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns new value.
   -> m ()
 atomicModifyMBytes_ (MBytes mba#) (Off (I# i#)) f =
   prim_ $ atomicModifyMutableByteArray_# mba# i# f
@@ -522,11 +522,11 @@ atomicModifyMBytes_ (MBytes mba#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicFetchModifyMBytes ::
-     (MonadPrim s m, Atomic a)
+     (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns the new value
-  -> m a
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
+  -> m e
 atomicFetchModifyMBytes (MBytes mba#) (Off (I# i#)) f =
   prim $ atomicFetchModifyMutableByteArray# mba# i# f
 {-# INLINE atomicFetchModifyMBytes #-}
@@ -540,11 +540,11 @@ atomicFetchModifyMBytes (MBytes mba#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicModifyFetchMBytes ::
-     (MonadPrim s m, Atomic a)
+     (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns the new value
-  -> m a
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
+  -> m e
 atomicModifyFetchMBytes (MBytes mba#) (Off (I# i#)) f =
   prim $ atomicModifyFetchMutableByteArray# mba# i# f
 {-# INLINE atomicModifyFetchMBytes #-}
@@ -562,11 +562,11 @@ atomicModifyFetchMBytes (MBytes mba#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicFetchAddMBytes ::
-     (MonadPrim s m, AtomicCount a)
+     (MonadPrim s m, AtomicCount e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchAddMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchAddMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchAddMBytes #-}
@@ -579,11 +579,11 @@ atomicFetchAddMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicAddFetchMBytes ::
-     (MonadPrim s m, AtomicCount a)
+     (MonadPrim s m, AtomicCount e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicAddFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicAddFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicAddFetchMBytes #-}
@@ -598,11 +598,11 @@ atomicAddFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchSubMBytes ::
-     (MonadPrim s m, AtomicCount a)
+     (MonadPrim s m, AtomicCount e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchSubMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchSubMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchSubMBytes #-}
@@ -615,11 +615,11 @@ atomicFetchSubMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicSubFetchMBytes ::
-     (MonadPrim s m, AtomicCount a)
+     (MonadPrim s m, AtomicCount e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicSubFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicSubFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicSubFetchMBytes #-}
@@ -634,11 +634,11 @@ atomicSubFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchAndMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchAndMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchAndMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchAndMBytes #-}
@@ -651,11 +651,11 @@ atomicFetchAndMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicAndFetchMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicAndFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicAndFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicAndFetchMBytes #-}
@@ -671,11 +671,11 @@ atomicAndFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchNandMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchNandMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchNandMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchNandMBytes #-}
@@ -689,11 +689,11 @@ atomicFetchNandMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicNandFetchMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicNandFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicNandFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicNandFetchMBytes #-}
@@ -709,11 +709,11 @@ atomicNandFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchOrMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchOrMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchOrMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchOrMBytes #-}
@@ -726,11 +726,11 @@ atomicFetchOrMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicOrFetchMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicOrFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicOrFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicOrFetchMBytes #-}
@@ -745,11 +745,11 @@ atomicOrFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchXorMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicFetchXorMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicFetchXorMutableByteArray# mba# i# a)
 {-# INLINE atomicFetchXorMBytes #-}
@@ -762,11 +762,11 @@ atomicFetchXorMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicXorFetchMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> a
-  -> m a
+  -> Off e
+  -> e
+  -> m e
 atomicXorFetchMBytes (MBytes mba#) (Off (I# i#)) a =
   prim (atomicXorFetchMutableByteArray# mba# i# a)
 {-# INLINE atomicXorFetchMBytes #-}
@@ -783,10 +783,10 @@ atomicXorFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchNotMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> m a
+  -> Off e
+  -> m e
 atomicFetchNotMBytes (MBytes mba#) (Off (I# i#)) =
   prim (atomicFetchNotMutableByteArray# mba# i#)
 {-# INLINE atomicFetchNotMBytes #-}
@@ -799,10 +799,10 @@ atomicFetchNotMBytes (MBytes mba#) (Off (I# i#)) =
 --
 -- @since 0.1.0
 atomicNotFetchMBytes ::
-     (MonadPrim s m, AtomicBits a)
+     (MonadPrim s m, AtomicBits e)
   => MBytes p s
-  -> Off a
-  -> m a
+  -> Off e
+  -> m e
 atomicNotFetchMBytes (MBytes mba#) (Off (I# i#)) =
   prim (atomicNotFetchMutableByteArray# mba# i#)
 {-# INLINE atomicNotFetchMBytes #-}
@@ -810,35 +810,35 @@ atomicNotFetchMBytes (MBytes mba#) (Off (I# i#)) =
 
 
 
-prefetchBytes0 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes0 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
 prefetchBytes0 (Bytes b#) off = prim_ (prefetchByteArray0# b# (fromOff# off))
 {-# INLINE prefetchBytes0 #-}
 
-prefetchMBytes0 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes0 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
 prefetchMBytes0 (MBytes mb#) off = prim_ (prefetchMutableByteArray0# mb# (fromOff# off))
 {-# INLINE prefetchMBytes0 #-}
 
-prefetchBytes1 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes1 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
 prefetchBytes1 (Bytes b#) off = prim_ (prefetchByteArray1# b# (fromOff# off))
 {-# INLINE prefetchBytes1 #-}
 
-prefetchMBytes1 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes1 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
 prefetchMBytes1 (MBytes mb#) off = prim_ (prefetchMutableByteArray1# mb# (fromOff# off))
 {-# INLINE prefetchMBytes1 #-}
 
-prefetchBytes2 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes2 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
 prefetchBytes2 (Bytes b#) off = prim_ (prefetchByteArray2# b# (fromOff# off))
 {-# INLINE prefetchBytes2 #-}
 
-prefetchMBytes2 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes2 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
 prefetchMBytes2 (MBytes mb#) off = prim_ (prefetchMutableByteArray2# mb# (fromOff# off))
 {-# INLINE prefetchMBytes2 #-}
 
-prefetchBytes3 :: (MonadPrim s m, Prim a) => Bytes p -> Off a -> m ()
+prefetchBytes3 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
 prefetchBytes3 (Bytes b#) off = prim_ (prefetchByteArray3# b# (fromOff# off))
 {-# INLINE prefetchBytes3 #-}
 
-prefetchMBytes3 :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m ()
+prefetchMBytes3 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
 prefetchMBytes3 (MBytes mb#) off = prim_ (prefetchMutableByteArray3# mb# (fromOff# off))
 {-# INLINE prefetchMBytes3 #-}
 

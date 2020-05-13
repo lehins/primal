@@ -173,9 +173,10 @@ instance MemRead ShortByteString where
   compareByteOffMem mem off1 sbs = compareByteOffMem mem off1 (fromShortByteStringBytes sbs)
   {-# INLINE compareByteOffMem #-}
 
--- | A wrapper that adds a phantom state token to type that either doesn't have one or it
--- designed to work in IO. For that reason using this wrapper doesn't make it safe to use
--- in `ST` for example, but it is sometimes desired, so `MemState` makes it possible.
+-- | A wrapper that adds a phantom state token. It can be use with types that either
+-- doesn't have such state token or are designed to work in `IO` and therefore restricted
+-- to `RW`. Using this wrapper is very much unsafe, so make sure you know what you are
+-- doing.
 newtype MemState a s = MemState { unMemState :: a }
 
 instance MemWrite (MemState (ForeignPtr a)) where
@@ -380,9 +381,9 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 -- pure function and both regions of memory are read-only.
 compareMem ::
      (MemRead r1, MemRead r2, Prim e)
-  => r1 -- ^ First region of memeory
+  => r1 -- ^ First region of memory
   -> Off e -- ^ Offset in number of elements into the first region
-  -> r2 -- ^ Second region of memeory
+  -> r2 -- ^ Second region of memory
   -> Off e -- ^ Offset in number of elements into the second region
   -> Count e -- ^ Number of elements to compare
   -> Ordering
