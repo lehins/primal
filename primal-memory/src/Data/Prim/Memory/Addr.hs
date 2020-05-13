@@ -19,7 +19,7 @@ module Data.Prim.Memory.Addr
   ( -- * Immutable Addr
     Addr(..)
   , castAddr
-  , toAddr
+  , fromBytesAddr
   , curOffAddr
   , byteCountAddr
   , countAddr
@@ -65,6 +65,8 @@ module Data.Prim.Memory.Addr
   -- * Conversion
   -- ** ByteString
   , toByteStringAddr
+  , toShortByteStringAddr
+  , fromShortByteStringAddr
   , fromByteStringAddr
   , fromByteStringMAddr
 
@@ -114,6 +116,7 @@ module Data.Prim.Memory.Addr
 
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
+import Control.Arrow (first)
 import Control.DeepSeq
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
@@ -132,13 +135,17 @@ import Data.Prim.Memory.Bytes.Internal
   , toPtrBytes
   , toPtrMBytes
   )
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
 import GHC.ForeignPtr
+import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
+import qualified Data.Semigroup as Semigroup
+import qualified Data.Monoid as Monoid
 
 data Addr e = Addr
   { addrAddr# :: Addr#
@@ -152,6 +159,17 @@ data MAddr e s = MAddr
 
 instance Eq (Addr e) where
   a1 == a2 = isSameAddr a1 a2 || eqMem a1 a2
+
+instance Semigroup.Semigroup (Addr e) where
+  (<>) = appendMem
+  sconcat (x :| xs) = concatMem (x:xs)
+  stimes i = cycleMemN (fromIntegral i)
+
+instance Monoid.Monoid (Addr e) where
+  mappend = appendMem
+  mconcat = concatMem
+  mempty = emptyMem
+
 
 castAddr :: Addr e -> Addr b
 castAddr = coerce
@@ -168,19 +186,22 @@ instance NFData (Addr e) where
 instance NFData (MAddr e s) where
   rnf (MAddr _ _) = ()
 
-toAddr :: Bytes 'Pin -> Addr e
-toAddr b@(Bytes b#) = Addr (byteArrayContents# b#) b
+toBytesAddr :: Addr e -> (Bytes 'Pin, Off Word8)
+toBytesAddr addr@(Addr _ b) = (b, curByteOffAddr addr)
 
-toMAddr :: MBytes 'Pin s -> MAddr e s
-toMAddr mb =
+fromBytesAddr :: Bytes 'Pin -> Addr e
+fromBytesAddr b@(Bytes b#) = Addr (byteArrayContents# b#) b
+
+fromMBytesMAddr :: MBytes 'Pin s -> MAddr e s
+fromMBytesMAddr mb =
   case toPtrMBytes mb of
     Ptr addr# -> MAddr addr# mb
 
 allocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
-allocMAddr c = toMAddr <$> allocAlignedMBytes c
+allocMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
 
 callocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
-callocMAddr c = toMAddr <$> callocAlignedMBytes c
+callocMAddr c = fromMBytesMAddr <$> callocAlignedMBytes c
 
 plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` fromOff# off) b
@@ -190,6 +211,9 @@ plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` fromOff# off) mb
 
 curOffAddr :: Prim e => Addr e -> Off e
 curOffAddr a@(Addr addr# b) = offAsProxy a (Ptr addr# `minusOffPtr` toPtrBytes b)
+
+curByteOffAddr :: Addr e -> Off Word8
+curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b
 
 countAddr ::
      forall e. Prim e
@@ -372,49 +396,60 @@ instance MemWrite (MAddr e) where
 
 thawAddr :: MonadPrim s m => Addr e -> m (MAddr e s)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
+{-# INLINE thawAddr #-}
 
 freezeMAddr :: MonadPrim s m => MAddr e s -> m (Addr e)
 freezeMAddr (MAddr addr# mb) = Addr addr# <$> freezeMBytes mb
+{-# INLINE freezeMAddr #-}
 
 
 readAddr :: (MonadPrim s m, Prim e) => Addr e -> m e
 readAddr addr = readOffAddr addr 0
+{-# INLINE readAddr #-}
 
 readOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m e
 readOffAddr (Addr addr# b) (Off (I# off#)) = do
   -- TODO: benchmark and see if `readOffAddr` is faster here
   a <- prim (seq# (indexOffAddr# addr# off#))
   a <$ touch b
+{-# INLINE readOffAddr #-}
 
 readByteOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off Word8 -> m e
 readByteOffAddr (Addr addr# b) (Off (I# off#)) = do
   a <- prim (seq# (indexOffAddr# (addr# `plusAddr#` off#) 0#))
   a <$ touch b
+{-# INLINE readByteOffAddr #-}
 
 
 readMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> m e
 readMAddr maddr = readOffMAddr maddr 0
+{-# INLINE readMAddr #-}
 
 readOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m e
 readOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
   a <- prim (readOffAddr# addr# off#)
   a <$ touch mb
+{-# INLINE readOffMAddr #-}
 
 readByteOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off Word8 -> m e
 readByteOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
   a <- prim (readOffAddr# (addr# `plusAddr#` off#) 0#)
   a <$ touch mb
+{-# INLINE readByteOffMAddr #-}
 
 writeMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> e -> m ()
 writeMAddr maddr = writeOffMAddr maddr 0
+{-# INLINE writeMAddr #-}
 
 writeOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> e -> m ()
 writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
   prim_ (writeOffAddr# addr# off# a) >> touch mb
+{-# INLINE writeOffMAddr #-}
 
 writeByteOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off Word8 -> e -> m ()
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
   prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a) >> touch mb
+{-# INLINE writeByteOffMAddr #-}
 
 
 copyAddrToMAddr ::
@@ -445,11 +480,19 @@ setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
 toByteStringAddr :: Addr Word8 -> ByteString
 toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
 
--- -- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
--- --
--- -- @since 0.1.0
--- toShortByteStringAddr :: Addr Word8 -> ByteString
--- toShortByteStringAddr (Addr _ ( = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
+-- | /O(1)/ - Cast an immutable `Addr` to an immutable `ShortByteString`
+--
+-- @since 0.1.0
+toShortByteStringAddr :: Addr Word8 -> (ShortByteString, Off Word8)
+toShortByteStringAddr = first toShortByteStringBytes . toBytesAddr
+
+-- | /O(1)/ - Cast an immutable `ShortByteString` to an immutable `Addr`. In a most common
+-- case when `ShortByteString` is not backed by pinned memory, this function will return
+-- `Nothing`.
+--
+-- @since 0.1.0
+fromShortByteStringAddr :: ShortByteString -> Addr Word8
+fromShortByteStringAddr = fromBytesAddr . ensurePinnedBytes . fromShortByteStringBytes
 
 -- | /O(1)/ - Cast an immutable `ByteString` to `Addr`. Also returns the original length of
 -- ByteString, which will be less or equal to `countOfAddr` in the produced `Addr`.

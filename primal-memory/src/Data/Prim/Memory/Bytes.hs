@@ -137,6 +137,7 @@ module Data.Prim.Memory.Bytes
 import Control.Monad
 import Control.Monad.ST
 import Control.Prim.Monad
+import Data.Maybe (fromMaybe)
 import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
@@ -184,12 +185,8 @@ coerceStateMBytes :: MBytes p s' -> MBytes p s
 coerceStateMBytes = unsafeCoerce#
 
 
--- Internal function for coercing pinnes
-castBytes :: Bytes p1 -> Bytes p2
-castBytes = coerce
-
 emptyBytes :: Bytes p
-emptyBytes = castBytes $ runST $ allocUnpinnedMBytes (0 :: Count Word8) >>= freezeMBytes
+emptyBytes = coerce $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
 {-# INLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool
@@ -426,15 +423,7 @@ isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 
 
 ensurePinnedBytes :: Bytes p -> Bytes 'Pin
-ensurePinnedBytes b =
-  case toPinnedBytes b of
-    Just pb -> pb
-    Nothing ->
-      runST $ do
-        let n8 = byteCountBytes b
-        pmb <- allocPinnedMBytes n8
-        copyBytesToMBytes b 0 pmb 0 n8
-        freezeMBytes pmb
+ensurePinnedBytes b = fromMaybe (convertMem b) (toPinnedBytes b)
 {-# INLINE ensurePinnedBytes #-}
 
 ensurePinnedMBytes :: MonadPrim s m => MBytes p s -> m (MBytes 'Pin s)
