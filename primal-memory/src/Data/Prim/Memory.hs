@@ -31,9 +31,16 @@ module Data.Prim.Memory
   , allocMem
   , allocZeroMem
   , thawMem
+  , thawCloneMem
+  , thawCopyMem
   , freezeMem
+  , freezeCloneMem
+  , freezeCopyMem
   , createMemST
   , createMemST_
+  , emptyMem
+  , singletonMem
+  , cycleMemN
   -- * Byte operations
   -- $byteOperations
   -- ** Immutable
@@ -48,9 +55,13 @@ module Data.Prim.Memory
   , copyByteOffMem
   , moveByteOffMem
   -- * Conversion
+  , convertMem
   -- ** List
   , toListMem
   , toListSlackMem
+  , toByteListMem
+  , fromByteListMem
+
   , fromListMem
   , fromListMemN
   , loadListMem

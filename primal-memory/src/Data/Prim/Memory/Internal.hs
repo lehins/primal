@@ -26,7 +26,7 @@ module Data.Prim.Memory.Internal
   , module Data.Prim.Memory.Internal
   ) where
 
-
+import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
@@ -61,6 +61,7 @@ import Data.Prim.Memory.Ptr
 import Foreign.Prim
 import Numeric (showHex)
 import qualified Data.Semigroup as Semigroup
+import qualified Data.Monoid as Monoid
 
 
 
@@ -207,9 +208,33 @@ instance MemWrite (MemState (ForeignPtr a)) where
   setMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMem #-}
 
+-- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
+cycleMemN :: (MemAlloc a, MemRead r) => Int -> r -> FrozenMem a
+cycleMemN n r
+  | 0 <= n = emptyMem
+  | otherwise =
+    runST $ do
+      let bc@(Count chunk) = byteCountMem r
+          c@(Count c8) = Count n * bc
+      mem <- allocByteCountMem c
+      let go i = when (i < c8) $ copyByteOffMem r 0 mem (Off i) bc >> go (i + chunk)
+      go 0
+      freezeMem mem
+{-# INLINE cycleMemN #-}
 
 
+-- | Chunk of empty memory.
+emptyMem :: MemAlloc a => FrozenMem a
+emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
+{-# INLINE emptyMem #-}
 
+-- | A region of memory that hold a single element.
+singletonMem ::
+     forall e a. (MemAlloc a, Prim e)
+  => e
+  -> FrozenMem a
+singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
+{-# INLINE singletonMem #-}
 
 -- | Allocate enough memory for number of elements. Memory is not initialized and may
 -- contain garbage. Use `allocZeroMem` if clean memory is needed.
@@ -217,7 +242,7 @@ instance MemWrite (MemState (ForeignPtr a)) where
 -- [Unsafe Count] Negative element count will result in unpredictable behavior
 --
 -- @since 0.1.0
-allocMem :: (MemAlloc r, MonadPrim s m, Prim e) => Count e -> m (r s)
+allocMem :: (MemAlloc a, MonadPrim s m, Prim e) => Count e -> m (a s)
 allocMem n = allocByteCountMem (toByteCount n)
 {-# INLINE allocMem #-}
 
@@ -228,14 +253,14 @@ allocMem n = allocByteCountMem (toByteCount n)
 --
 -- @since 0.1.0
 allocZeroMem ::
-     (MemAlloc r, MonadPrim s m, Prim e) => Count e -> m (r s)
+     (MemAlloc a, MonadPrim s m, Prim e) => Count e -> m (a s)
 allocZeroMem n = do
   m <- allocMem n
   m <$ setMem m 0 (toByteCount n) (0 :: Word8)
 {-# INLINE allocZeroMem #-}
 
 
-createMemST :: (MemAlloc r, Prim e) => Count e -> (forall s . r s -> ST s b) -> (b, FrozenMem r)
+createMemST :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> (b, FrozenMem a)
 createMemST n f = runST $ do
   m <- allocZeroMem n
   res <- f m
@@ -243,7 +268,7 @@ createMemST n f = runST $ do
   pure (res, i)
 {-# INLINE createMemST #-}
 
-createMemST_ :: (MemAlloc r, Prim e) => Count e -> (forall s . r s -> ST s b) -> FrozenMem r
+createMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
 createMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createMemST_ #-}
 
@@ -293,24 +318,44 @@ concatMem xs = do
 {-# INLINE concatMem #-}
 
 
-
-allocCopyMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
-allocCopyMem a = do
-  let n = byteCountMem a
-  mem <- allocMem n
-  mem <$ copyMem a 0 mem 0 n
-{-# INLINE allocCopyMem #-}
-
-freezeCopyMem :: (MemAlloc a, MonadPrim s m) => a s -> m (FrozenMem a)
-freezeCopyMem = freezeMem >=> allocCopyMem >=> freezeMem
-{-# INLINE freezeCopyMem #-}
-
-thawCopyMem :: (MemAlloc a, MonadPrim s m) => FrozenMem a -> m (a s)
-thawCopyMem = allocCopyMem
+thawCopyMem ::
+     (MemRead r, MemAlloc a, MonadPrim s m, Prim e) => r -> Off e -> Count e -> m (a s)
+thawCopyMem a off c = do
+  mem <- allocMem c
+  mem <$ copyMem a off mem 0 c
 {-# INLINE thawCopyMem #-}
 
+freezeCopyMem ::
+     (MemAlloc a, MonadPrim s m, Prim e)
+  => a s
+  -> Off e
+  -> Count e
+  -> m (FrozenMem a)
+freezeCopyMem mem off c = freezeMem mem >>= \r -> thawCopyMem r off c >>= freezeMem
+{-# INLINE freezeCopyMem #-}
+
+
+thawCloneMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
+thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
+{-# INLINE thawCloneMem #-}
+
+freezeCloneMem :: (MemAlloc a, MonadPrim s m) => a s -> m (FrozenMem a)
+freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
+{-# INLINE freezeCloneMem #-}
+
+-- | /O(n)/ - Convert a read-only memory region into a newly allocated other type of
+-- memory region
+--
+-- >>> import Data.ByteString
+-- >>> bs = pack [0x10 .. 0x20]
+-- >>> bs
+-- "\DLE\DC1\DC2\DC3\DC4\NAK\SYN\ETB\CAN\EM\SUB\ESC\FS\GS\RS\US "
+-- >>> convertMem bs :: Bytes 'Inc
+-- [0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20]
+--
+-- @since 0.1.0
 convertMem :: (MemRead r, MemAlloc a) => r -> FrozenMem a
-convertMem a = runST $ allocCopyMem a >>= freezeMem
+convertMem a = runST $ thawCloneMem a >>= freezeMem
 {-# INLINE convertMem #-}
 
 -- | Figure out how many elements can fit into the region of memory. It is possible that
@@ -491,26 +536,29 @@ fromListMem xs = createMemST_ (countAsProxy xs (coerce (length xs))) (loadListMe
 {-# INLINE fromListMem #-}
 
 
--- withCopyMBytes ::
---      (MonadPrim s m, MemAlloc m (MBytes p s))
---   => Bytes p'
---   -> (MBytes p s -> m a)
---   -> m (a, Bytes p)
--- withCopyMBytes b f = do
---   let n = getByteCountMem b
---   mb <- allocMem n
---   copyBytesToMBytes8 b 0 mb 0 (Count n)
---   applyFreezeMBytes f mb
--- {-# INLINE withCopyMBytes #-}
+-- | Load a list of bytes into a newly allocated memory region. Equivalent to
+-- `Data.ByteString.pack` for `Data.ByteString.ByteString`
+--
+-- ====__Examples__
+--
+-- >>> fromByteListMem [0..10] :: Bytes 'Pin
+-- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
+--
+-- @since 0.1.0
+fromByteListMem :: MemAlloc a => [Word8] -> FrozenMem a
+fromByteListMem = fromListMem
+{-# INLINE fromByteListMem #-}
 
-
--- withCopyMBytes_ ::
---      (MonadPrim s m, MemAlloc m (MBytes p s)) => Bytes p' -> (MBytes p s -> m a) -> m (Bytes p)
--- withCopyMBytes_ b f = snd <$> withCopyMBytes b f
--- {-# INLINE withCopyMBytes_ #-}
-
-
-
+-- | Convert a memory region to a list of bytes. Equivalent to `Data.ByteString.unpack`
+-- for `Data.ByteString.ByteString`
+--
+-- >>> toByteListMem (fromByteListMem [0..10] :: Bytes 'Pin)
+-- [0,1,2,3,4,5,6,7,8,9,10]
+--
+-- @since 0.1.0
+toByteListMem :: MemAlloc a => FrozenMem a -> [Word8]
+toByteListMem = toListMem
+{-# INLINE toByteListMem #-}
 
 -- class NoConstraint a
 -- instance NoConstraint a
@@ -649,8 +697,15 @@ instance Ord (Bytes p) where
     where
       n = byteCountBytes b1
 
--- instance Typeable p => Semigroup.Semigroup (Bytes p) where
+instance Typeable p => Semigroup.Semigroup (Bytes p) where
+  (<>) = appendMem
+  sconcat (x :| xs) = concatMem (x:xs)
+  stimes i = cycleMemN (fromIntegral i)
 
+instance Typeable p => Monoid.Monoid (Bytes p) where
+  mappend = appendMem
+  mconcat = concatMem
+  mempty = emptyMem
 
 
 -- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
