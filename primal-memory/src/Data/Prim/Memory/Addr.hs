@@ -136,7 +136,7 @@ import Data.Prim.Memory.Ptr
 import Data.Prim.Class
 import Foreign.Prim
 import GHC.ForeignPtr
-import Data.Prim.Memory
+import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 
@@ -310,8 +310,8 @@ instance MemAlloc (MAddr a) where
 
   getByteCountMem = getByteCountMAddr
   {-# INLINE getByteCountMem #-}
-  allocRawMem = fmap castMAddr . allocMAddr
-  {-# INLINE allocRawMem #-}
+  allocByteCountMem = fmap castMAddr . allocMAddr
+  {-# INLINE allocByteCountMem #-}
   thawMem = thawAddr
   {-# INLINE thawMem #-}
   freezeMem = freezeMAddr
@@ -325,12 +325,12 @@ instance MemRead (Addr a) where
   {-# INLINE indexOffMem #-}
   indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
   {-# INLINE indexByteOffMem #-}
-  copyToMBytesMem a si mb di c =
-    withPtrAddr a $ \ptr -> copyPtrToMBytes (castPtr ptr) si mb di c
-  {-# INLINE copyToMBytesMem #-}
-  copyToPtrMem a si mb di c =
-    withPtrAddr a $ \ptr -> copyPtrToPtr (castPtr ptr) si mb di c
-  {-# INLINE copyToPtrMem #-}
+  copyByteOffToMBytesMem a si mb di c =
+    withPtrAddr a $ \ptr -> copyByteOffPtrToMBytes (castPtr ptr) si mb di c
+  {-# INLINE copyByteOffToMBytesMem #-}
+  copyByteOffToPtrMem a si mb di c =
+    withPtrAddr a $ \ptr -> copyByteOffPtrToPtr (castPtr ptr) si mb di c
+  {-# INLINE copyByteOffToPtrMem #-}
   compareByteOffToPtrMem addr off1 ptr2 off2 c =
     withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMem #-}
@@ -350,22 +350,22 @@ instance MemWrite (MAddr a) where
   {-# INLINE writeOffMem #-}
   writeByteOffMem a = writeByteOffMAddr (castMAddr a)
   {-# INLINE writeByteOffMem #-}
-  moveToPtrMem src srcOff dstPtr dstOff c =
+  moveByteOffToPtrMem src srcOff dstPtr dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
-      movePtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
-  {-# INLINE moveToPtrMem #-}
-  moveToMBytesMem src srcOff dst dstOff c =
+      moveByteOffPtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffToPtrMem #-}
+  moveByteOffToMBytesMem src srcOff dst dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
-      movePtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
-  {-# INLINE moveToMBytesMem #-}
-  copyMem src srcOff dst dstOff c =
+      moveByteOffPtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
+  {-# INLINE moveByteOffToMBytesMem #-}
+  copyByteOffMem src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
-      copyToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE copyMem #-}
-  moveMem src srcOff dst dstOff c =
+      copyByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE copyByteOffMem #-}
+  moveByteOffMem src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
-      moveToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE moveMem #-}
+      moveByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE moveByteOffMem #-}
   setMem maddr = setMAddr (castMAddr maddr)
   {-# INLINE setMem #-}
 

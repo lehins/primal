@@ -139,7 +139,7 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Atomic
-import Data.Prim.Memory
+import Data.Prim.Memory.Internal
 import Data.Prim.Memory.Bytes.Internal
 import Data.Proxy
 import Data.Typeable
@@ -236,6 +236,20 @@ cloneMBytes mb = do
   mb' <$ moveMBytesToMBytes mb 0 mb' 0 n
 {-# INLINE cloneMBytes #-}
 
+
+copyBytesToMBytes ::
+     (MonadPrim s m, Prim a) => Bytes ps -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
+  prim_ $
+  copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
+{-# INLINE copyBytesToMBytes #-}
+
+
+moveMBytesToMBytes ::
+     (MonadPrim s m, Prim a) => MBytes ps s-> Off a -> MBytes pd s -> Off a -> Count a -> m ()
+moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
+  prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
+{-# INLINE moveMBytesToMBytes #-}
 
 -- | Allocated memory is not cleared, so make sure to fill it in properly, otherwise you
 -- might find some garbage there.
@@ -343,22 +357,10 @@ getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
 toListBytes :: Prim a => Bytes p -> [a]
-toListBytes --ba = build (\ c n -> foldrCountBytes (countBytes ba) c n ba)
-  = toListMem
+toListBytes = toListMem
 {-# INLINE toListBytes #-}
 
--- foldrCountBytes :: Prim a => Count a -> (a -> b -> b) -> b -> Bytes p -> b
--- foldrCountBytes (Count k) c nil bs = go 0
---   where
---     go i
---       | i == k = nil
---       | otherwise =
---         let !v = indexOffBytes bs (Off i)
---          in v `c` go (i + 1)
--- {-# INLINE[0] foldrCountBytes #-}
-
-
-toListSlackBytes :: Prim a => Bytes p -> ([a], Maybe (Bytes 'Inc))
+toListSlackBytes :: Prim a => Bytes p -> ([a], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
@@ -368,13 +370,13 @@ toListSlackBytes = toListSlackMem
 loadListMBytes :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
   (c, slack) <- getCountRemOfMBytes mb
-  loadListInternal (countAsProxy ys c) slack ys mb
+  loadListMemN (countAsProxy ys c) slack ys mb
 {-# INLINE loadListMBytes #-}
 
 loadListMBytes_ :: (MonadPrim s m, Prim a) => [a] -> MBytes p s -> m ()
 loadListMBytes_ ys mb = do
   c <- getCountMBytes mb
-  void $ loadListInternal (countAsProxy ys c) 0 ys mb
+  loadListMemN_ (countAsProxy ys c) ys mb
 {-# INLINE loadListMBytes_ #-}
 
 fromListBytesN_ :: (Prim a, Typeable p) => Count a -> [a] -> Bytes p

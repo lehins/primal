@@ -25,7 +25,9 @@ module Foreign.Prim.Ptr
   , writeByteOffPtr
   , setOffPtr
   , copyPtrToPtr
+  , copyByteOffPtrToPtr
   , movePtrToPtr
+  , moveByteOffPtrToPtr
   , comparePtrToPtr
   , compareByteOffPtrToPtr
   , freeHaskellFunPtr
@@ -82,72 +84,72 @@ import Foreign.Ptr as X hiding (IntPtr, WordPtr, freeHaskellFunPtr, intPtrToPtr,
 import GHC.Ptr
 
 setOffPtr ::
-     (MonadPrim s m, Prim a)
-  => Ptr a -- ^ Chunk of memory to fill
-  -> Off a -- ^ Offset in number of elements
-  -> Count a -- ^ Number of cells to fill
-  -> a -- ^ A value to fill the cells with
+     (MonadPrim s m, Prim e)
+  => Ptr e -- ^ Chunk of memory to fill
+  -> Off e -- ^ Offset in number of elements
+  -> Count e -- ^ Number of cells to fill
+  -> e -- ^ A value to fill the cells with
   -> m ()
 setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setOffAddr# addr# o# n# a)
 {-# INLINE setOffPtr #-}
 
 
-readOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m a
+readOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m e
 readOffPtr (Ptr addr#) (Off (I# i#)) = prim (readOffAddr# addr# i#)
 {-# INLINE readOffPtr #-}
 
 
-readByteOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off Word8 -> m a
+readByteOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off Word8 -> m e
 readByteOffPtr ptr (Off i) =
   case ptr `plusPtr` i of
     Ptr addr# -> prim (readOffAddr# addr# 0#)
 {-# INLINE readByteOffPtr #-}
 
-writeOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> a -> m ()
+writeOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> e -> m ()
 writeOffPtr (Ptr addr#) (Off (I# i#)) a = prim_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
 
-writeByteOffPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off Word8 -> a -> m ()
+writeByteOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off Word8 -> e -> m ()
 writeByteOffPtr ptr (Off i) a =
   case ptr `plusPtr` i of
     Ptr addr# -> prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writeByteOffPtr #-}
 
-readPtr :: (MonadPrim s m, Prim a) => Ptr a -> m a
+readPtr :: (MonadPrim s m, Prim e) => Ptr e -> m e
 readPtr (Ptr addr#) = prim (readOffAddr# addr# 0#)
 {-# INLINE readPtr #-}
 
-writePtr :: (MonadPrim s m, Prim a) => Ptr a -> a -> m ()
+writePtr :: (MonadPrim s m, Prim e) => Ptr e -> e -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
 -- | Count how many bytes is between the two pointers by subtracting the addresses.
-minusByteCountPtr :: Prim a => Ptr a -> Ptr a -> Count Word8
+minusByteCountPtr :: Prim e => Ptr e -> Ptr e -> Count Word8
 minusByteCountPtr (Ptr xaddr#) (Ptr yaddr#) = Count (I# (xaddr# `minusAddr#` yaddr#))
 {-# INLINE minusByteCountPtr #-}
 
-plusByteOffPtr :: Prim a => Ptr a -> Off Word8 -> Ptr a
+plusByteOffPtr :: Prim e => Ptr e -> Off Word8 -> Ptr e
 plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteOffPtr #-}
 
 
-plusOffPtr :: Prim a => Ptr a -> Off a -> Ptr a
+plusOffPtr :: Prim e => Ptr e -> Off e -> Ptr e
 plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
 {-# INLINE plusOffPtr #-}
 
 -- | Count how many elements of type @a@ canb fit between the two addresses
-minusCountPtr :: Prim a => Ptr a -> Ptr a -> Count a
+minusCountPtr :: Prim e => Ptr e -> Ptr e -> Count e
 minusCountPtr (Ptr xaddr#) (Ptr yaddr#) =
   fromByteCount (Count (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusCountPtr #-}
 
 -- | Same as `minusCountPtr`, but will also return the slack that is left over
-minusCountRemPtr :: Prim a => Ptr a -> Ptr a -> (Count a, Int)
+minusCountRemPtr :: Prim e => Ptr e -> Ptr e -> (Count e, Int)
 minusCountRemPtr (Ptr xaddr#) (Ptr yaddr#) =
   fromByteCountRem (Count (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusCountRemPtr #-}
 
-copyPtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
+copyPtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
 copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
   unsafeIOToPrim $
   copyBytes
@@ -156,27 +158,49 @@ copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
     (fromCount c)
 {-# INLINE copyPtrToPtr #-}
 
-movePtrToPtr :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> m ()
-movePtrToPtr (Ptr srcAddr#) srcOff (Ptr dstAddr#) dstOff c =
+copyByteOffPtrToPtr ::
+     (MonadPrim s m, Prim e)
+  => Ptr e
+  -> Off Word8
+  -> Ptr e
+  -> Off Word8
+  -> Count e
+  -> m ()
+copyByteOffPtrToPtr srcPtr (Off srcOff) dstPtr (Off dstOff) c =
   unsafeIOToPrim $
-  memmoveAddr#
-    srcAddr#
-    (fromOff# srcOff)
-    dstAddr#
-    (fromOff# dstOff)
-    (fromCount# c)
+  copyBytes
+    (dstPtr `plusPtr` dstOff)
+    (srcPtr `plusPtr` srcOff)
+    (fromCount c)
+{-# INLINE copyByteOffPtrToPtr #-}
+
+movePtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
+movePtrToPtr src srcOff dst dstOff =
+  moveByteOffPtrToPtr src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE movePtrToPtr #-}
+
+moveByteOffPtrToPtr ::
+     (MonadPrim s m, Prim e)
+  => Ptr e
+  -> Off Word8
+  -> Ptr e
+  -> Off Word8
+  -> Count e
+  -> m ()
+moveByteOffPtrToPtr (Ptr srcAddr#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# dstOff#)) c =
+  unsafeIOToPrim $ memmoveAddr# srcAddr# srcOff# dstAddr# dstOff# (fromCount# c)
+{-# INLINE moveByteOffPtrToPtr #-}
 
 -- | Compare memory between two pointers. Offsets and count is in number of elements,
 -- instead of byte count. Use `compareByteOffPtrToPtr` when offset in bytes is required.
-comparePtrToPtr :: Prim a => Ptr a -> Off a -> Ptr a -> Off a -> Count a -> Ordering
+comparePtrToPtr :: Prim e => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> Ordering
 comparePtrToPtr (Ptr addr1#) off1 (Ptr addr2#) off2 c =
   toOrdering# (memcmpAddr# addr1# (fromOff# off1) addr2# (fromOff# off2) (fromCount# c))
 {-# INLINE comparePtrToPtr #-}
 
 -- | Same as `comparePtrToPtr`, except offset is in bytes instead of number of elements.
 compareByteOffPtrToPtr ::
-     Prim a => Ptr a -> Off Word8 -> Ptr a -> Off Word8 -> Count a -> Ordering
+     Prim e => Ptr e -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
 compareByteOffPtrToPtr (Ptr addr1#) (Off (I# off1#)) (Ptr addr2#) (Off (I# off2#)) c =
   toOrdering# (memcmpAddr# addr1# off1# addr2# off2# (fromCount# c))
 {-# INLINE compareByteOffPtrToPtr #-}
@@ -192,12 +216,12 @@ compareByteOffPtrToPtr (Ptr addr1#) (Off (I# off1#)) (Ptr addr2#) (Off (I# off2#
 --
 -- @since 0.1.0
 casOffPtr ::
-     (MonadPrim s m, Atomic a)
-  => Ptr a -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> a -- ^ Expected old value
-  -> a -- ^ New value
-  -> m a
+     (MonadPrim s m, Atomic e)
+  => Ptr e -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m e
 casOffPtr (Ptr addr#) (Off (I# i#)) old new = prim $ casOffAddr# addr# i# old new
 {-# INLINE casOffPtr #-}
 
@@ -209,10 +233,10 @@ casOffPtr (Ptr addr#) (Off (I# i#)) old new = prim $ casOffAddr# addr# i# old ne
 --
 -- @since 0.1.0
 atomicModifyOffPtr ::
-     (MonadPrim s m, Atomic a)
-  => Ptr a -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> (a, b)) -- ^ Function that is applied to the old value and returns new value
+     (MonadPrim s m, Atomic e)
+  => Ptr e -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> (e, b)) -- ^ Function that is applied to the old value and returns new value
                    -- and some artifact of computation @__b__@
   -> m b
 atomicModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
@@ -230,10 +254,10 @@ atomicModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicModifyOffPtr_ ::
-     (MonadPrim s m, Atomic a)
-  => Ptr a -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns new value.
+     (MonadPrim s m, Atomic e)
+  => Ptr e -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns new value.
   -> m ()
 atomicModifyOffPtr_ (Ptr addr#) (Off (I# i#)) f =
   prim_ $ atomicModifyOffAddr_# addr# i# f
@@ -248,11 +272,11 @@ atomicModifyOffPtr_ (Ptr addr#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicFetchModifyOffPtr ::
-     (MonadPrim s m, Atomic a)
-  => Ptr a -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns the new value
-  -> m a
+     (MonadPrim s m, Atomic e)
+  => Ptr e -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
+  -> m e
 atomicFetchModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
   prim $ atomicFetchModifyOffAddr# addr# i# f
 {-# INLINE atomicFetchModifyOffPtr #-}
@@ -266,11 +290,11 @@ atomicFetchModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicModifyFetchOffPtr ::
-     (MonadPrim s m, Atomic a)
-  => Ptr a -- ^ Array to be mutated
-  -> Off a -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (a -> a) -- ^ Function that is applied to the old value and returns the new value
-  -> m a
+     (MonadPrim s m, Atomic e)
+  => Ptr e -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
+  -> m e
 atomicModifyFetchOffPtr (Ptr addr#) (Off (I# i#)) f =
   prim $ atomicModifyFetchOffAddr# addr# i# f
 {-# INLINE atomicModifyFetchOffPtr #-}
@@ -285,11 +309,11 @@ atomicModifyFetchOffPtr (Ptr addr#) (Off (I# i#)) f =
 --
 -- @since 0.1.0
 atomicFetchAddOffPtr ::
-     (MonadPrim s m, AtomicCount a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicCount e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchAddOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchAddOffAddr# addr# i# a)
 {-# INLINE atomicFetchAddOffPtr #-}
@@ -302,11 +326,11 @@ atomicFetchAddOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicAddFetchOffPtr ::
-     (MonadPrim s m, AtomicCount a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicCount e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicAddFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicAddFetchOffAddr# addr# i# a)
 {-# INLINE atomicAddFetchOffPtr #-}
@@ -321,11 +345,11 @@ atomicAddFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchSubOffPtr ::
-     (MonadPrim s m, AtomicCount a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicCount e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchSubOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchSubOffAddr# addr# i# a)
 {-# INLINE atomicFetchSubOffPtr #-}
@@ -338,11 +362,11 @@ atomicFetchSubOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicSubFetchOffPtr ::
-     (MonadPrim s m, AtomicCount a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicCount e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicSubFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicSubFetchOffAddr# addr# i# a)
 {-# INLINE atomicSubFetchOffPtr #-}
@@ -357,11 +381,11 @@ atomicSubFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchAndOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchAndOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchAndOffAddr# addr# i# a)
 {-# INLINE atomicFetchAndOffPtr #-}
@@ -374,11 +398,11 @@ atomicFetchAndOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicAndFetchOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicAndFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicAndFetchOffAddr# addr# i# a)
 {-# INLINE atomicAndFetchOffPtr #-}
@@ -394,11 +418,11 @@ atomicAndFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchNandOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchNandOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchNandOffAddr# addr# i# a)
 {-# INLINE atomicFetchNandOffPtr #-}
@@ -412,11 +436,11 @@ atomicFetchNandOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicNandFetchOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicNandFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicNandFetchOffAddr# addr# i# a)
 {-# INLINE atomicNandFetchOffPtr #-}
@@ -432,11 +456,11 @@ atomicNandFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchOrOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchOrOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchOrOffAddr# addr# i# a)
 {-# INLINE atomicFetchOrOffPtr #-}
@@ -449,11 +473,11 @@ atomicFetchOrOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicOrFetchOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicOrFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicOrFetchOffAddr# addr# i# a)
 {-# INLINE atomicOrFetchOffPtr #-}
@@ -468,11 +492,11 @@ atomicOrFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchXorOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicFetchXorOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicFetchXorOffAddr# addr# i# a)
 {-# INLINE atomicFetchXorOffPtr #-}
@@ -485,11 +509,11 @@ atomicFetchXorOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicXorFetchOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> e
+  -> m e
 atomicXorFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
   prim (atomicXorFetchOffAddr# addr# i# a)
 {-# INLINE atomicXorFetchOffPtr #-}
@@ -506,10 +530,10 @@ atomicXorFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 --
 -- @since 0.1.0
 atomicFetchNotOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> m e
 atomicFetchNotOffPtr (Ptr addr#) (Off (I# i#)) =
   prim (atomicFetchNotOffAddr# addr# i#)
 {-# INLINE atomicFetchNotOffPtr #-}
@@ -522,10 +546,10 @@ atomicFetchNotOffPtr (Ptr addr#) (Off (I# i#)) =
 --
 -- @since 0.1.0
 atomicNotFetchOffPtr ::
-     (MonadPrim s m, AtomicBits a)
-  => Ptr a
-  -> Off a
-  -> m a
+     (MonadPrim s m, AtomicBits e)
+  => Ptr e
+  -> Off e
+  -> m e
 atomicNotFetchOffPtr (Ptr addr#) (Off (I# i#)) =
   prim (atomicNotFetchOffAddr# addr# i#)
 {-# INLINE atomicNotFetchOffPtr #-}
@@ -534,7 +558,7 @@ atomicNotFetchOffPtr (Ptr addr#) (Off (I# i#)) =
 
 
 
-prefetchPtr0 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr0 :: MonadPrim s m => Ptr e -> m ()
 prefetchPtr0 (Ptr b#) = prim_ (prefetchAddr0# b# 0#)
 {-# INLINE prefetchPtr0 #-}
 
@@ -542,27 +566,27 @@ prefetchPtr1 :: MonadPrim s m => Ptr a -> m ()
 prefetchPtr1 (Ptr b#) = prim_ (prefetchAddr1# b# 0#)
 {-# INLINE prefetchPtr1 #-}
 
-prefetchPtr2 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr2 :: MonadPrim s m => Ptr e -> m ()
 prefetchPtr2 (Ptr b#) = prim_ (prefetchAddr2# b# 0#)
 {-# INLINE prefetchPtr2 #-}
 
-prefetchPtr3 :: MonadPrim s m => Ptr a -> m ()
+prefetchPtr3 :: MonadPrim s m => Ptr e -> m ()
 prefetchPtr3 (Ptr b#) = prim_ (prefetchAddr3# b# 0#)
 {-# INLINE prefetchPtr3 #-}
 
-prefetchOffPtr0 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr0 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
 prefetchOffPtr0 (Ptr b#) off = prim_ (prefetchAddr0# b# (fromOff# off))
 {-# INLINE prefetchOffPtr0 #-}
 
-prefetchOffPtr1 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr1 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
 prefetchOffPtr1 (Ptr b#) off = prim_ (prefetchAddr1# b# (fromOff# off))
 {-# INLINE prefetchOffPtr1 #-}
 
-prefetchOffPtr2 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr2 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
 prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (fromOff# off))
 {-# INLINE prefetchOffPtr2 #-}
 
-prefetchOffPtr3 :: (MonadPrim s m, Prim a) => Ptr a -> Off a -> m ()
+prefetchOffPtr3 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
 prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (fromOff# off))
 {-# INLINE prefetchOffPtr3 #-}
 

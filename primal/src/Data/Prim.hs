@@ -36,7 +36,7 @@ module Data.Prim
   , fromByteCountRem
   , countAsProxy
   , Off(..)
-  -- , fromOff
+  , toByteOff
   , fromOff#
   , offAsProxy
   -- * Prefetch
@@ -186,14 +186,25 @@ fromOff# o@(Off (I# o#)) =
 "fromOffInt8#" fromOff# = fromOffInt8#
   #-}
 
--- -- | Convert offset of some type into number of bytes
--- fromOff :: Prim a => Off a -> Int
--- fromOff c = I# (fromOff# c)
--- {-# INLINE fromOff #-}
+-- | Compute byte offset from an offset of `Prim` type
+--
+-- >>> toByteOff (10 :: Off Word64)
+-- Off {unOff = 80}
+--
+-- @since 0.1.0
+toByteOff :: Prim e => Off e -> Off Word8
+toByteOff off = Off (I# (fromOff# off))
+{-# INLINE toByteOff #-}
 
+-- | Helper noop function that restricts `Off`set to the type of proxy
+--
+-- @since 0.1.0
 offAsProxy :: proxy a -> Off a -> Off a
 offAsProxy _ = id
 
+-- | Helper noop function that restricts `Count` to the type of proxy
+--
+-- @since 0.1.0
 countAsProxy :: proxy a -> Count a -> Count a
 countAsProxy _ = id
 

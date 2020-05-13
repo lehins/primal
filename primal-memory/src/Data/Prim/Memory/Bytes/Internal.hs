@@ -38,8 +38,8 @@ module Data.Prim.Memory.Bytes.Internal
   , getCountMBytes
   , getByteCountMBytes
   , setMBytes
-  , moveMBytesToMBytes
-  , copyBytesToMBytes
+  , copyByteOffBytesToMBytes
+  , moveByteOffMBytesToMBytes
   , readOffMBytes
   , readByteOffMBytes
   , writeOffMBytes
@@ -88,16 +88,16 @@ instance NFData (MBytes p s) where
 
 ---- Pure
 
-compareByteOffBytes :: Prim a => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count a -> Ordering
+compareByteOffBytes :: Prim e => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count e -> Ordering
 compareByteOffBytes (Bytes b1#) (Off (I# off1#)) (Bytes b2#) (Off (I# off2#)) c =
   toOrdering# (compareByteArrays# b1# off1# b2# off2# (fromCount# c))
 {-# INLINE compareByteOffBytes #-}
 
-indexOffBytes :: Prim a => Bytes p -> Off a -> a
+indexOffBytes :: Prim e => Bytes p -> Off e -> e
 indexOffBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
 {-# INLINE indexOffBytes #-}
 
-indexByteOffBytes :: Prim a => Bytes p -> Off Word8 -> a
+indexByteOffBytes :: Prim e => Bytes p -> Off Word8 -> e
 indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
 {-# INLINE indexByteOffBytes #-}
 
@@ -106,8 +106,8 @@ indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
 
 
 allocMBytes ::
-     forall p a s m. (Typeable p, Prim a, MonadPrim s m)
-  => Count a
+     forall p e s m. (Typeable p, Prim e, MonadPrim s m)
+  => Count e
   -> m (MBytes p s)
 allocMBytes c =
   case eqT :: Maybe (p :~: 'Pin) of
@@ -125,7 +125,7 @@ allocMBytes c =
 "allocPinnedMBytes" allocMBytes = allocPinnedMBytes
   #-}
 
-allocUnpinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Inc s)
+allocUnpinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
   prim $ \s ->
     case newByteArray# (fromCount# c) s of
@@ -133,7 +133,7 @@ allocUnpinnedMBytes c =
 {-# INLINE allocUnpinnedMBytes #-}
 
 
-allocPinnedMBytes :: (MonadPrim s m, Prim a) => Count a -> m (MBytes 'Pin s)
+allocPinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Pin s)
 allocPinnedMBytes c =
   prim $ \s ->
     case newPinnedByteArray# (fromCount# c) s of
@@ -141,8 +141,8 @@ allocPinnedMBytes c =
 {-# INLINE allocPinnedMBytes #-}
 
 allocAlignedMBytes ::
-     (MonadPrim s m, Prim a)
-  => Count a -- ^ Size in number of bytes
+     (MonadPrim s m, Prim e)
+  => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocAlignedMBytes c =
   prim $ \s ->
@@ -153,8 +153,8 @@ allocAlignedMBytes c =
 {-# INLINE allocAlignedMBytes #-}
 
 callocAlignedMBytes ::
-     (MonadPrim s m, Prim a)
-  => Count a -- ^ Size in number of bytes
+     (MonadPrim s m, Prim e)
+  => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 callocAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE callocAlignedMBytes #-}
@@ -181,19 +181,17 @@ thawBytes (Bytes ba#) =
       (# s', mba# #) -> (# s', MBytes mba# #)
 {-# INLINE thawBytes #-}
 
+copyByteOffBytesToMBytes ::
+     (MonadPrim s m, Prim e) => Bytes ps -> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
+copyByteOffBytesToMBytes (Bytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
+  prim_ $ copyByteArray# src# srcOff# dst# dstOff# (fromCount# c)
+{-# INLINE copyByteOffBytesToMBytes #-}
 
-copyBytesToMBytes ::
-     (MonadPrim s m, Prim a) => Bytes ps -> Off a -> MBytes pd s -> Off a -> Count a -> m ()
-copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
-  prim_ $
-  copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
-{-# INLINE copyBytesToMBytes #-}
-
-moveMBytesToMBytes ::
-     (MonadPrim s m, Prim a) => MBytes ps s-> Off a -> MBytes pd s -> Off a -> Count a -> m ()
-moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
-  prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
-{-# INLINE moveMBytesToMBytes #-}
+moveByteOffMBytesToMBytes ::
+     (MonadPrim s m, Prim e) => MBytes ps s-> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
+moveByteOffMBytesToMBytes (MBytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
+  prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# (fromCount# c))
+{-# INLINE moveByteOffMBytesToMBytes #-}
 
 
 byteCountBytes :: Bytes p -> Count Word8
@@ -202,29 +200,29 @@ byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`
-countBytes :: Prim a => Bytes p -> Count a
+countBytes :: Prim e => Bytes p -> Count e
 countBytes = fromByteCount . byteCountBytes
 {-# INLINE countBytes #-}
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
 -- of leftover bytes use `countRemBytes`
-getCountMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> m (Count a)
+getCountMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> m (Count e)
 getCountMBytes b = fromByteCount <$> getByteCountMBytes b
 {-# INLINE getCountMBytes #-}
 
-readOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> m a
+readOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m e
 readOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)
 {-# INLINE readOffMBytes #-}
 
-readByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off Word8 -> m a
+readByteOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off Word8 -> m e
 readByteOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readByteOffMutableByteArray# mba# i#)
 {-# INLINE readByteOffMBytes #-}
 
-writeOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off a -> a -> m ()
+writeOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> e -> m ()
 writeOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeMutableByteArray# mba# i# a)
 {-# INLINE writeOffMBytes #-}
 
-writeByteOffMBytes :: (MonadPrim s m, Prim a) => MBytes p s -> Off Word8 -> a -> m ()
+writeByteOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off Word8 -> e -> m ()
 writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeByteOffMutableByteArray# mba# i# a)
 {-# INLINE writeByteOffMBytes #-}
 
@@ -244,54 +242,54 @@ isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 
 
 setMBytes ::
-     (MonadPrim s m, Prim a)
+     (MonadPrim s m, Prim e)
   => MBytes p s -- ^ Chunk of memory to fill
-  -> Off a -- ^ Offset in number of elements
-  -> Count a -- ^ Number of cells to fill
-  -> a -- ^ A value to fill the cells with
+  -> Off e -- ^ Offset in number of elements
+  -> Count e -- ^ Number of cells to fill
+  -> e -- ^ A value to fill the cells with
   -> m ()
 setMBytes (MBytes mba#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setMutableByteArray# mba# o# n# a)
 {-# INLINE setMBytes #-}
 
 
-toPtrBytes :: Bytes 'Pin -> Ptr a
+toPtrBytes :: Bytes 'Pin -> Ptr e
 toPtrBytes (Bytes ba#) = Ptr (byteArrayContents# ba#)
 {-# INLINE toPtrBytes #-}
 
-toPtrMBytes :: MBytes 'Pin s -> Ptr a
+toPtrMBytes :: MBytes 'Pin s -> Ptr e
 toPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
 {-# INLINE toPtrMBytes #-}
 
 -- | Pointer access to immutable `Bytes` should be for read only purposes, but it is
 -- not enforced. Any mutation will break referential transparency
-withPtrBytes :: MonadPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
+withPtrBytes :: MonadPrim s m => Bytes 'Pin -> (Ptr e -> m b) -> m b
 withPtrBytes b f = do
   res <- f (toPtrBytes b)
   res <$ touch b
 {-# INLINE withPtrBytes #-}
 
 -- | Same as `withPtrBytes`, but is suitable for actions that don't terminate
-withNoHaltPtrBytes :: MonadUnliftPrim s m => Bytes 'Pin -> (Ptr a -> m b) -> m b
+withNoHaltPtrBytes :: MonadUnliftPrim s m => Bytes 'Pin -> (Ptr e -> m b) -> m b
 withNoHaltPtrBytes b f = withUnliftPrim b $ f (toPtrBytes b)
 {-# INLINE withNoHaltPtrBytes #-}
 
-withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr e -> m b) -> m b
 withPtrMBytes mb f = do
   res <- f (toPtrMBytes mb)
   res <$ touch mb
 {-# INLINE withPtrMBytes #-}
 
-withNoHaltPtrMBytes :: (MonadUnliftPrim s m) => MBytes 'Pin s -> (Ptr a -> m b) -> m b
+withNoHaltPtrMBytes :: MonadUnliftPrim s m => MBytes 'Pin s -> (Ptr e -> m b) -> m b
 withNoHaltPtrMBytes mb f = withUnliftPrim mb $ f (toPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
 
-toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr a
+toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e
 toForeignPtrBytes (Bytes ba#) =
   ForeignPtr (byteArrayContents# ba#) (PlainPtr (unsafeCoerce# ba#))
 {-# INLINE toForeignPtrBytes #-}
 
 
-toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr a
+toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr e
 toForeignPtrMBytes (MBytes mba#) =
   ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE toForeignPtrMBytes #-}
@@ -299,7 +297,7 @@ toForeignPtrMBytes (MBytes mba#) =
 
 -- | Discarding the `ForeignPtr` will trigger all if there are any associated
 -- Haskell finalizers.
-fromForeignPtrBytes :: ForeignPtr a -> Either String (Bytes 'Pin)
+fromForeignPtrBytes :: ForeignPtr e -> Either String (Bytes 'Pin)
 fromForeignPtrBytes (ForeignPtr addr# content) =
   case content of
     PlainPtr mbaRW# -> checkConvert mbaRW#
