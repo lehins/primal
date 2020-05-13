@@ -189,7 +189,7 @@ plusOffMAddr :: Prim e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` fromOff# off) mb
 
 curOffAddr :: Prim e => Addr e -> Off e
-curOffAddr a@(Addr addr# b) = coerce (countAsProxy a (Ptr addr# `minusCountPtr` toPtrBytes b))
+curOffAddr a@(Addr addr# b) = offAsProxy a (Ptr addr# `minusOffPtr` toPtrBytes b)
 
 countAddr ::
      forall e. Prim e
@@ -231,8 +231,7 @@ withNoHaltPtrAddr (Addr addr# b) f = withUnliftPrim b $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrAddr #-}
 
 curOffMAddr :: forall e s . Prim e => MAddr e s -> Off e
-curOffMAddr (MAddr addr# mb) =
-  coerce ((Ptr addr# :: Ptr e) `minusCountPtr` toPtrMBytes mb)
+curOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusOffPtr` toPtrMBytes mb
 
 withPtrMAddr :: MonadPrim s m => MAddr e s -> (Ptr e -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)

@@ -143,15 +143,16 @@ allocPinnedMBytes c =
 {-# INLINE allocPinnedMBytes #-}
 
 allocAlignedMBytes ::
-     (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Prim e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocAlignedMBytes c =
   prim $ \s ->
-    case alignmentProxy c of
-      Count (I# a#) ->
-        case newAlignedPinnedByteArray# (fromCount# c) a# s of
-          (# s', ba# #) -> (# s', MBytes ba# #)
+    case newAlignedPinnedByteArray#
+           (fromCount# c)
+           (alignment# (proxy# :: Proxy# e))
+           s of
+      (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocAlignedMBytes #-}
 
 callocAlignedMBytes ::
@@ -259,7 +260,7 @@ toPtrBytes (Bytes ba#) = Ptr (byteArrayContents# ba#)
 {-# INLINE toPtrBytes #-}
 
 toPtrMBytes :: MBytes 'Pin s -> Ptr e
-toPtrMBytes (MBytes mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
+toPtrMBytes (MBytes mba#) = Ptr (mutableByteArrayContents# mba#)
 {-# INLINE toPtrMBytes #-}
 
 -- | Pointer access to immutable `Bytes` should be for read only purposes, but it is

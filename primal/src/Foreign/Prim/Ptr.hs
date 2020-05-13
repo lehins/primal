@@ -14,9 +14,9 @@ module Foreign.Prim.Ptr
   ( module GHC.Ptr
   , plusOffPtr
   , plusByteOffPtr
-  , minusByteCountPtr
-  , minusCountPtr
-  , minusCountRemPtr
+  , minusOffPtr
+  , minusOffRemPtr
+  , minusByteOffPtr
   , readPtr
   , readOffPtr
   , readByteOffPtr
@@ -123,11 +123,6 @@ writePtr :: (MonadPrim s m, Prim e) => Ptr e -> e -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
--- | Count how many bytes is between the two pointers by subtracting the addresses.
-minusByteCountPtr :: Prim e => Ptr e -> Ptr e -> Count Word8
-minusByteCountPtr (Ptr xaddr#) (Ptr yaddr#) = Count (I# (xaddr# `minusAddr#` yaddr#))
-{-# INLINE minusByteCountPtr #-}
-
 plusByteOffPtr :: Prim e => Ptr e -> Off Word8 -> Ptr e
 plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteOffPtr #-}
@@ -137,17 +132,30 @@ plusOffPtr :: Prim e => Ptr e -> Off e -> Ptr e
 plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
 {-# INLINE plusOffPtr #-}
 
--- | Count how many elements of type @a@ canb fit between the two addresses
-minusCountPtr :: Prim e => Ptr e -> Ptr e -> Count e
-minusCountPtr (Ptr xaddr#) (Ptr yaddr#) =
-  fromByteCount (Count (I# (xaddr# `minusAddr#` yaddr#)))
-{-# INLINE minusCountPtr #-}
+-- | Find the offset in bytes that is between the two pointers by subtracting one address
+-- from another.
+--
+-- @since 0.1.0
+minusByteOffPtr :: Ptr e -> Ptr e -> Off Word8
+minusByteOffPtr (Ptr xaddr#) (Ptr yaddr#) = Off (I# (xaddr# `minusAddr#` yaddr#))
+{-# INLINE minusByteOffPtr #-}
 
--- | Same as `minusCountPtr`, but will also return the slack that is left over
-minusCountRemPtr :: Prim e => Ptr e -> Ptr e -> (Count e, Int)
-minusCountRemPtr (Ptr xaddr#) (Ptr yaddr#) =
-  fromByteCountRem (Count (I# (xaddr# `minusAddr#` yaddr#)))
-{-# INLINE minusCountRemPtr #-}
+-- | Find the offset in number of elements that is between the two pointers by subtracting
+-- one address from another and dividing the result by the size of an element.
+--
+-- @since 0.1.0
+minusOffPtr :: Prim e => Ptr e -> Ptr e -> Off e
+minusOffPtr (Ptr xaddr#) (Ptr yaddr#) =
+  fromByteOff (Off (I# (xaddr# `minusAddr#` yaddr#)))
+{-# INLINE minusOffPtr #-}
+
+-- | Same as `minusOffPtr`, but will also return the remainder in bytes that is left over.
+--
+-- @since 0.1.0
+minusOffRemPtr :: Prim e => Ptr e -> Ptr e -> (Off e, Off Word8)
+minusOffRemPtr (Ptr xaddr#) (Ptr yaddr#) =
+  fromByteOffRem (Off (I# (xaddr# `minusAddr#` yaddr#)))
+{-# INLINE minusOffRemPtr #-}
 
 copyPtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
 copyPtrToPtr srcPtr srcOff dstPtr dstOff c =

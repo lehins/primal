@@ -10,9 +10,10 @@
 --
 module Data.Prim.Memory.ByteString
   (
+    MByteString(..)
   -- * Conversion
   -- Builder
-    Builder
+  , Builder
   , toBuilderBytes
   , fromBuilderBytes
   -- ** ByteString
@@ -49,6 +50,10 @@ import Data.Prim.Memory.Bytes.Internal
   , fromForeignPtrBytes
   , byteStringConvertError
   )
+
+-- | Mutable version of a `ByteString`
+newtype MByteString s = MByteString ByteString
+
 
 -- | /O(1)/ - Cast an immutable `Bytes` to an immutable `ByteString`
 --

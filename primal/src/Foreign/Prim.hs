@@ -45,7 +45,6 @@ import GHC.Prim
   )
 #endif
 
-
 unsafeThawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
 unsafeThawByteArray# ba# s = (# s, unsafeCoerce# ba# #)
 {-# INLINE unsafeThawByteArray# #-}

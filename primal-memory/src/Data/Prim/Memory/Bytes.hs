@@ -339,7 +339,7 @@ withCloneMBytesST_ b f = runST $ withCloneMBytes_ b f
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-countRemBytes :: forall e p. Prim e => Bytes p -> (Count e, Int)
+countRemBytes :: forall e p. Prim e => Bytes p -> (Count e, Count Word8)
 countRemBytes = fromByteCountRem . byteCountBytes
 {-# INLINE countRemBytes #-}
 
@@ -349,7 +349,10 @@ countRemBytes = fromByteCountRem . byteCountBytes
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-getCountRemOfMBytes :: forall e p s m. (MonadPrim s m, Prim e) => MBytes p s -> m (Count e, Int)
+getCountRemOfMBytes ::
+     forall e p s m. (MonadPrim s m, Prim e)
+  => MBytes p s
+  -> m (Count e, Count Word8)
 getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 {-# INLINE getCountRemOfMBytes #-}
 

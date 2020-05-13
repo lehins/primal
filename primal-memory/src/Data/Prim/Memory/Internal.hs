@@ -57,6 +57,7 @@ import Data.Prim.Memory.Bytes.Internal
 import Data.List as List
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
+import qualified Data.ByteString.Internal as BS
 import Data.Prim.Memory.Ptr
 import Foreign.Prim
 import Numeric (showHex)
@@ -102,33 +103,33 @@ class (MemRead (FrozenMem a), MemWrite a) => MemAlloc a where
   freezeMem :: MonadPrim s m => a s -> m (FrozenMem a)
 
 
-class MemWrite r where
-  readOffMem :: (MonadPrim s m, Prim e) => r s -> Off e -> m e
+class MemWrite w where
+  readOffMem :: (MonadPrim s m, Prim e) => w s -> Off e -> m e
 
-  readByteOffMem :: (MonadPrim s m, Prim e) => r s -> Off Word8 -> m e
+  readByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> m e
 
-  writeOffMem :: (MonadPrim s m, Prim e) => r s -> Off e -> e -> m ()
+  writeOffMem :: (MonadPrim s m, Prim e) => w s -> Off e -> e -> m ()
 
-  writeByteOffMem :: (MonadPrim s m, Prim e) => r s -> Off Word8 -> e -> m ()
+  writeByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> e -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToMBytesMem ::
-    (MonadPrim s m, Prim e) => r s -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e) => w s -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToPtrMem ::
-    (MonadPrim s m, Prim e) => r s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e) => w s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
 
   copyByteOffMem ::
-    (MonadPrim s m, MemRead r', Prim e) => r' -> Off Word8 -> r s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, MemRead r, Prim e) => r -> Off Word8 -> w s -> Off Word8 -> Count e -> m ()
 
   moveByteOffMem ::
-    (MonadPrim s m, MemWrite r', Prim e) => r' s -> Off Word8 -> r s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, MemWrite w', Prim e) => w' s -> Off Word8 -> w s -> Off Word8 -> Count e -> m ()
 
   -- TODO:
-  --setByteOffMem :: (MonadPrim s m, Prim e) => r s -> Off Word8 -> Count e -> e -> m ()
+  --setByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> Count e -> e -> m ()
 
-  setMem :: (MonadPrim s m, Prim e) => r s -> Off e -> Count e -> e -> m ()
+  setMem :: (MonadPrim s m, Prim e) => w s -> Off e -> Count e -> e -> m ()
 
 
 instance MemRead ByteString where
@@ -154,6 +155,43 @@ instance MemRead ByteString where
     unsafeInlineIO $ withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
   {-# INLINE compareByteOffMem #-}
 
+
+instance MemAlloc MByteString where
+  type FrozenMem MByteString = ByteString
+  getByteCountMem (MByteString (PS _ _ c)) = pure $ Count c
+  {-# INLINE getByteCountMem #-}
+  allocByteCountMem c = do
+    fp <- mallocByteCountPlainForeignPtr c
+    pure $ MByteString (PS fp 0 (coerce c))
+  {-# INLINE allocByteCountMem #-}
+  thawMem bs = pure $ MByteString bs
+  {-# INLINE thawMem #-}
+  freezeMem (MByteString bs) = pure bs
+  {-# INLINE freezeMem #-}
+
+instance MemWrite MByteString where
+  readOffMem (MByteString mbs) i = withPtrAccess mbs (`readOffPtr` i)
+  {-# INLINE readOffMem #-}
+  readByteOffMem (MByteString mbs) i = withPtrAccess mbs (`readByteOffPtr` i)
+  {-# INLINE readByteOffMem #-}
+  writeOffMem (MByteString mbs) i a = withPtrAccess mbs $ \ptr -> writeOffPtr ptr i a
+  {-# INLINE writeOffMem #-}
+  writeByteOffMem (MByteString mbs) i a = withPtrAccess mbs $ \ptr -> writeByteOffPtr ptr i a
+  {-# INLINE writeByteOffMem #-}
+  moveByteOffToPtrMem (MByteString fsrc) srcOff dstPtr dstOff c =
+    withPtrAccess fsrc $ \srcPtr -> moveByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffToPtrMem #-}
+  moveByteOffToMBytesMem (MByteString fsrc) srcOff dst dstOff c =
+    withPtrAccess fsrc $ \srcPtr -> moveByteOffPtrToMBytes srcPtr srcOff dst dstOff c
+  {-# INLINE moveByteOffToMBytesMem #-}
+  copyByteOffMem src srcOff (MByteString fdst) dstOff c =
+    withPtrAccess fdst $ \dstPtr -> copyByteOffToPtrMem src srcOff dstPtr dstOff c
+  {-# INLINE copyByteOffMem #-}
+  moveByteOffMem src srcOff (MByteString fdst) dstOff c =
+    withPtrAccess fdst $ \dstPtr -> moveByteOffToPtrMem src srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffMem #-}
+  setMem (MByteString mbs) off c a = withPtrAccess mbs $ \ptr -> setOffPtr ptr off c a
+  {-# INLINE setMem #-}
 
 
 instance MemRead ShortByteString where
@@ -207,6 +245,7 @@ instance MemWrite (MemState (ForeignPtr a)) where
   {-# INLINE moveByteOffMem #-}
   setMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMem #-}
+
 
 -- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
 cycleMemN :: (MemAlloc a, MemRead r) => Int -> r -> FrozenMem a
@@ -392,7 +431,7 @@ countMem = fromByteCount . byteCountMem
 -- (Count {unCount = 1},2)
 --
 -- @since 0.1.0
-countRemMem :: forall e r. (MemRead r, Prim e) => r -> (Count e, Int)
+countRemMem :: forall e r. (MemRead r, Prim e) => r -> (Count e, Count Word8)
 countRemMem = fromByteCountRem . byteCountMem
 {-# INLINE countRemMem #-}
 
@@ -401,7 +440,7 @@ getCountMem = fmap (fromByteCount . coerce) . getByteCountMem
 {-# INLINE getCountMem #-}
 
 
-getCountRemMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e, Int)
+getCountRemMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e, Count Word8)
 getCountRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
 {-# INLINE getCountRemMem #-}
 
@@ -470,7 +509,7 @@ toListSlackMem ::
 toListSlackMem mem =
   (build (\c n -> foldrCountMem k c n mem), getSlack (k8 + r8) [])
   where
-    (k, r8) = countRemMem mem
+    (k, Count r8) = countRemMem mem
     Count k8 = toByteCount k
     getSlack i !acc
       | i == k8 = acc
@@ -491,8 +530,14 @@ foldrCountMem (Count k) c nil bs = go 0
 {-# INLINE[0] foldrCountMem #-}
 
 
-loadListMemN :: (MemWrite r, MonadPrim s m, Prim e) => Count e -> Int -> [e] -> r s -> m Ordering
-loadListMemN (Count n) slack ys mb = do
+loadListMemN ::
+     (MemWrite r, MonadPrim s m, Prim e)
+  => Count e
+  -> Count Word8
+  -> [e]
+  -> r s
+  -> m Ordering
+loadListMemN (Count n) (Count slack) ys mb = do
   let go [] !i = pure (compare i n <> compare 0 slack)
       go (x:xs) !i
         | i < n = writeOffMem mb (Off i) x >> go xs (i + 1)
