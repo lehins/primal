@@ -52,6 +52,7 @@ module Data.Prim
   , Ptr
   , ForeignPtr
   , Typeable
+  , Proxy(..)
   , module Data.Monoid
   , module Data.Coerce
   ) where

@@ -10,6 +10,8 @@ import Test.QuickCheck.Function as X
 import Test.QuickCheck.Monadic as X
 import Control.Prim.Monad as X
 import Data.Prim as X
+import Data.Typeable as X
+import Data.Proxy as X
 
 
 propIO :: Testable a => IO a -> Property

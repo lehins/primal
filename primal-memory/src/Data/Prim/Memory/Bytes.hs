@@ -217,26 +217,6 @@ singletonBytes a = runST $ do
 
 ---- Mutable
 
-
-shrinkMBytes ::
-     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m ()
-shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
-{-# INLINE shrinkMBytes #-}
-
-
--- | Attempt to resize mutable bytes in place.
---
--- * New bytes might be allocated, with the copy of an old one.
--- * Old references should not be kept around to allow GC to claim it
--- * Old references should not be used to avoid undefined behavior
-resizeMBytes ::
-     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
-resizeMBytes (MBytes mb#) c =
-  prim $ \s ->
-    case resizeMutableByteArray# mb# (fromCount# c) s of
-      (# s', mb'# #) -> (# s', MBytes mb'# #)
-{-# INLINE resizeMBytes #-}
-
 cloneBytes :: Typeable p => Bytes p -> Bytes p
 cloneBytes b = runST $ thawBytes b >>= cloneMBytes >>= freezeMBytes
 {-# INLINE cloneBytes #-}

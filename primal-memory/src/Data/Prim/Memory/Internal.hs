@@ -37,6 +37,7 @@ import Data.Prim.Memory.Bytes.Internal
   , MBytes(..)
   , Pinned(..)
   , allocMBytes
+  , reallocMBytes
   , byteCountBytes
   , compareByteOffBytes
   , copyByteOffBytesToMBytes
@@ -99,6 +100,9 @@ class (MemRead (FrozenMem a), MemWrite a) => MemAlloc a where
   thawMem :: MonadPrim s m => FrozenMem a -> m (a s)
 
   freezeMem :: MonadPrim s m => a s -> m (FrozenMem a)
+
+  resizeMem :: (MonadPrim s m, Prim e) => a s -> Count e -> m (a s)
+  resizeMem = defaultResizeMem
 
 
 class MemWrite w where
@@ -166,6 +170,12 @@ instance MemAlloc MByteString where
   {-# INLINE thawMem #-}
   freezeMem (MByteString bs) = pure bs
   {-# INLINE freezeMem #-}
+  resizeMem bsm@(MByteString (PS fp o n)) newc
+    | newn > n = defaultResizeMem bsm newc
+    | otherwise = pure $ MByteString (PS fp o newn)
+    where -- constant slice if we need to reduce the size
+      Count newn = toByteCount newc
+  {-# INLINE resizeMem #-}
 
 instance MemWrite MByteString where
   readOffMem (MByteString mbs) i = withPtrAccess mbs (`readOffPtr` i)
@@ -243,6 +253,17 @@ instance MemWrite (MemState (ForeignPtr a)) where
   {-# INLINE moveByteOffMem #-}
   setMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMem #-}
+
+defaultResizeMem ::
+     (Prim e, MemAlloc a, MonadPrim s m) => a s -> Count e -> m (a s)
+defaultResizeMem mem c = do
+  let newByteCount = toByteCount c
+  oldByteCount <- getByteCountMem mem
+  if oldByteCount == newByteCount
+    then pure mem
+    else do
+      newMem <- allocByteCountMem newByteCount
+      newMem <$ moveMem mem 0 newMem 0 oldByteCount
 
 
 -- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
@@ -603,6 +624,50 @@ toByteListMem :: MemAlloc a => FrozenMem a -> [Word8]
 toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
 
+
+mapMem :: (MemRead r, MemAlloc a, Prim e) => (Word8 -> e) -> r -> FrozenMem a
+mapMem f r = runST $ traverseMem (pure . f) r
+
+-- | Map an index aware function over memory region
+--
+-- >>> a = fromListMem [1 .. 10 :: Word8] :: Bytes 'Inc
+-- >>> a
+-- [0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
+-- >>> imapMem (\i e -> (fromIntegral i :: Int8, e + 0xf0)) a :: Bytes 'Pin
+-- [0x00,0xf1,0x01,0xf2,0x02,0xf3,0x03,0xf4,0x04,0xf5,0x05,0xf6,0x06,0xf7,0x07,0xf8,0x08,0xf9,0x09,0xfa]
+--
+-- @since 0.1.0
+imapMem ::
+     (MemRead r, MemAlloc a, Prim e) => (Int -> Word8 -> e) -> r -> FrozenMem a
+imapMem f r = runST $ itraverseMem (\i -> pure . f i) r
+
+-- @since 0.1.0
+traverseMem ::
+     (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
+  => (Word8 -> m e)
+  -> r
+  -> m (FrozenMem a)
+traverseMem f = itraverseMem (const f)
+
+
+-- @since 0.1.0
+itraverseMem ::
+     (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
+  => (Int -> Word8 -> m e)
+  -> r
+  -> m (FrozenMem a)
+itraverseMem f r = do
+  let Count n = byteCountMem r
+      c = countAsProxy (f 0 0) (Count n)
+  mem <- allocMem c
+  let go i =
+        when (i < n) $ do
+          f i (indexByteOffMem r (Off i)) >>=
+            writeOffMem mem (offAsProxy c (Off i))
+          go (i + 1)
+  go 0
+  freezeMem mem
+
 -- class NoConstraint a
 -- instance NoConstraint a
 
@@ -698,6 +763,8 @@ instance Typeable p => MemAlloc (MBytes p) where
   {-# INLINE thawMem #-}
   freezeMem = freezeMBytes
   {-# INLINE freezeMem #-}
+  resizeMem = reallocMBytes
+  {-# INLINE resizeMem #-}
 
 instance MemWrite (MBytes p) where
   readOffMem = readOffMBytes

@@ -28,8 +28,11 @@ module Data.Prim.Memory.Bytes.Internal
   , allocPinnedMBytes
   , allocAlignedMBytes
   , callocAlignedMBytes
+  , reallocMBytes
   , freezeMBytes
   , thawBytes
+  , shrinkMBytes
+  , resizeMBytes
   , indexOffBytes
   , indexByteOffBytes
   , compareByteOffBytes
@@ -71,8 +74,9 @@ import Foreign.Prim
 --
 -- Pinned memory is such, when allocated, it is guaranteed not to move throughout the
 -- lifetime of a program. In other words the address pointer that refers to allocated
--- bytes will not change until it is garbage collected. Unpinned memory on the other hand
--- can be moved around during GC, which helps to reduce memory fragmentation.
+-- bytes will not change until it gets garbage collected because it is no longer
+-- referenced by anything. Unpinned memory on the other hand can be moved around during
+-- GC, which helps to reduce memory fragmentation.
 --
 -- Pinned/unpinnned choice during allocation is a bit of a lie, because when attempt is
 -- made to allocate memory as unpinned, but requested size is a bit more than a certain
@@ -87,9 +91,18 @@ import Foreign.Prim
 data Pinned = Pin | Inc
 
 -- | An immutable region of memory which was allocated either as pinned or unpinned.
+--
+-- Constructor is not exported for safety. Violating type level `Pinned` kind is very
+-- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
+-- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
+-- actual constructor is available in "Data.Prim.Memory.Internal" module.
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes phantom
 
+-- | Mutable region of memory which was allocated either as pinned or unpinned.
+--
+-- Constructor is not exported for safety. Violating type level `Pinned` kind is very
+-- dangerous. As a backdoor of course it is available in "Data.Prim.Memory.Internal" module.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes phantom nominal
 
@@ -214,6 +227,46 @@ moveByteOffMBytesToMBytes (MBytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I
 byteCountBytes :: Bytes p -> Count Word8
 byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 {-# INLINE byteCountBytes #-}
+
+
+-- | Shrink mutable bytes to new specified count of elements. The new count must be less
+-- than or equal to the current count as reported by `getCountMBytes`.
+shrinkMBytes :: (MonadPrim s m) => MBytes p s -> Count Word8 -> m ()
+shrinkMBytes (MBytes mb#) (Count (I# c#)) = prim_ (shrinkMutableByteArray# mb# c#)
+{-# INLINE shrinkMBytes #-}
+
+
+-- | Attempt to resize mutable bytes in place.
+--
+-- * New bytes might be allocated, with the copy of an old one.
+-- * Old references should not be kept around to allow GC to claim it
+-- * Old references should not be used to avoid undefined behavior
+resizeMBytes ::
+     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
+resizeMBytes (MBytes mb#) c =
+  prim $ \s ->
+    case resizeMutableByteArray# mb# (fromCount# c) s of
+      (# s', mb'# #) -> (# s', MBytes mb'# #)
+{-# INLINE resizeMBytes #-}
+
+reallocMBytes ::
+     forall e p m s. (MonadPrim s m, Typeable p,  Prim e)
+  => MBytes p s
+  -> Count e
+  -> m (MBytes p s)
+reallocMBytes mb c = do
+  oldByteCount <- getByteCountMBytes mb
+  let newByteCount = toByteCount c
+  if newByteCount <= oldByteCount
+    then mb <$ when (newByteCount < oldByteCount) (shrinkMBytes mb newByteCount)
+    else case eqT :: Maybe (p :~: 'Pin) of
+           Just Refl -> do
+             b <- freezeMBytes mb
+             mb' <- allocPinnedMBytes newByteCount
+             mb' <$ copyByteOffBytesToMBytes b 0 mb' 0 oldByteCount
+           Nothing -> coerce <$> resizeMBytes mb newByteCount
+{-# INLINABLE reallocMBytes #-}
+
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`

@@ -41,6 +41,8 @@ module Data.Prim.Memory.Addr
   , castMAddr
   , allocMAddr
   , callocMAddr
+  , reallocMAddr
+  , shrinkMAddr
   , setMAddr
   , curOffMAddr
   , getByteCountMAddr
@@ -203,6 +205,28 @@ allocMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
 callocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
 callocMAddr c = fromMBytesMAddr <$> callocAlignedMBytes c
 
+
+-- | Shrink mutable address to new specified size in bytes. The new count must be less
+-- than or equal to the current as reported by `getByteCountMAddr`.
+shrinkMAddr :: (MonadPrim s m) => MAddr e s -> Count Word8 -> m ()
+shrinkMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (c + coerce (curByteOffMAddr maddr))
+{-# INLINE shrinkMAddr #-}
+
+
+reallocMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Count e -> m (MAddr e s)
+reallocMAddr maddr c = do
+  oldByteCount <- getByteCountMAddr maddr
+  let newByteCount = toByteCount c
+  if newByteCount <= oldByteCount
+    then maddr <$
+         when (newByteCount < oldByteCount) (shrinkMAddr maddr newByteCount)
+    else do
+      addr <- freezeMAddr maddr
+      maddr' <- allocMAddr newByteCount
+      castMAddr maddr' <$
+        copyAddrToMAddr (castAddr addr) 0 maddr' 0 oldByteCount
+
+
 plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` fromOff# off) b
 
@@ -256,6 +280,9 @@ withNoHaltPtrAddr (Addr addr# b) f = withUnliftPrim b $ f (Ptr addr#)
 
 curOffMAddr :: forall e s . Prim e => MAddr e s -> Off e
 curOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusOffPtr` toPtrMBytes mb
+
+curByteOffMAddr :: forall e s . MAddr e s -> Off Word8
+curByteOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusByteOffPtr` toPtrMBytes mb
 
 withPtrMAddr :: MonadPrim s m => MAddr e s -> (Ptr e -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
@@ -328,7 +355,6 @@ instance PtrAccess s (MAddr e s) where
 
 
 
-
 instance MemAlloc (MAddr e) where
   type FrozenMem (MAddr e) = Addr e
 
@@ -340,6 +366,8 @@ instance MemAlloc (MAddr e) where
   {-# INLINE thawMem #-}
   freezeMem = freezeMAddr
   {-# INLINE freezeMem #-}
+  resizeMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
+  {-# INLINE resizeMem #-}
 
 
 instance MemRead (Addr e) where
