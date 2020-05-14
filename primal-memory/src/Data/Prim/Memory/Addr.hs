@@ -309,6 +309,7 @@ withNoHaltPtrMAddr (MAddr addr# mb) f = withUnliftPrim mb $ f (Ptr addr#)
 
 
 
+-- | Read-only access, but it is not enforced.
 instance PtrAccess s (Addr e) where
   toForeignPtr = pure . toForeignPtrAddr . castAddr
   {-# INLINE toForeignPtr #-}

@@ -13,6 +13,7 @@ import Control.Prim.Monad
 import qualified Foreign.ForeignPtr as GHC
 import Foreign.Storable
 import Data.Prim.Memory.ForeignPtr
+import Data.Semigroup
 import qualified Data.Primitive.ByteArray as BA
 
 main :: IO ()
@@ -21,6 +22,7 @@ main = do
       n64 = n :: Count Word64
       xs = [1 .. unCount n]
   mb1 <- allocAlignedMBytes n64
+  b1 <- freezeMBytes mb1
   mb2 <- allocAlignedMBytes n64
   mb3 <- allocAlignedMBytes n64
   let fp = toForeignPtrMBytes mb3
@@ -53,22 +55,34 @@ main = do
     , bgroup
         "list"
         [ bgroup
+            "mappend"
+            [ bench "Bytes" $ whnf (mappend bEq1) bEq2
+            , bench "ByteArray" $ whnf (mappend baEq1) baEq2
+            ]
+        , bgroup
+            "mconcat"
+            [ bench "Bytes" $ whnf mconcat [bEq1, bEq2, bEq1]
+            , bench "ByteArray" $ whnf mconcat [baEq1, baEq2, baEq1]
+            ]
+        , env (pure (5 :: Int)) $ \sLen ->
+            bgroup
+              "stimes"
+              [ bench "Bytes" $ whnf (stimes sLen) bEq1
+              , bench "ByteArray" $ whnf (stimes sLen) baEq1
+              ]
+        , bgroup
             "toList"
-            [ env (freezeMBytes mb1) (bench "Bytes" . nf toList)
+            [ bench "Bytes" $ nf toList b1
             , bench "ByteArray" $ nf toList ba
             ]
         , bgroup
             "fromList"
-            [ env
-                (pure xs)
-                (bench "Bytes" . whnf (fromListBytes :: [Int] -> Bytes 'Inc))
+            [ bench "Bytes" $ whnf (fromListBytes :: [Int] -> Bytes 'Inc) xs
             , bench "ByteArray" $ whnf BA.byteArrayFromList xs
             ]
         , bgroup
             "fromListN"
-            [ env
-                (pure xs)
-                (bench "Bytes" . whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc))
+            [ bench "Bytes" $ whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc) xs
             , bench "ByteArray" $ whnf (BA.byteArrayFromListN (unCount n)) xs
             ]
         ]

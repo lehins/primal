@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -15,7 +14,6 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory.ForeignPtr
-    -- * Universal access
   ( PtrAccess(..)
     -- * ForeignPtr
   , ForeignPtr(..)
@@ -104,8 +102,8 @@ class PtrAccess s p where
   withPtrAccess p action = toForeignPtr p >>= (`withForeignPtr` action)
   {-# INLINE withPtrAccess #-}
 
-  -- | See this GHC Issue[#18061](https://gitlab.haskell.org/ghc/ghc/issues/18061) to learn
-  -- why this is needed.
+  -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/18061 issue #18061> and
+  -- related to get more insight why this is needed.
   withNoHaltPtrAccess :: (MonadUnliftPrim s m, PtrAccess s p) => p -> (Ptr a -> m b) -> m b
   withNoHaltPtrAccess p f = do
     ForeignPtr addr# ptrContents <- toForeignPtr p
@@ -116,6 +114,7 @@ instance PtrAccess s (ForeignPtr a) where
   toForeignPtr = pure . coerce
   {-# INLINE toForeignPtr #-}
 
+-- | Read-only access, but it is not enforced.
 instance PtrAccess s ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusByteOffForeignPtr` Off s)
   {-# INLINE toForeignPtr #-}
@@ -124,6 +123,15 @@ instance PtrAccess s ByteString where
   withNoHaltPtrAccess = withNoHaltPtrByteString
   {-# INLINE withNoHaltPtrAccess #-}
 
+instance PtrAccess s (MByteString s) where
+  toForeignPtr mbs = toForeignPtr (coerce mbs :: ByteString)
+  {-# INLINE toForeignPtr #-}
+  withPtrAccess mbs = withPtrByteString (coerce mbs)
+  {-# INLINE withPtrAccess #-}
+  withNoHaltPtrAccess mbs = withNoHaltPtrByteString (coerce mbs)
+  {-# INLINE withNoHaltPtrAccess #-}
+
+-- | Read-only access, but it is not enforced.
 instance PtrAccess s (Bytes 'Pin) where
   toForeignPtr = pure . toForeignPtrBytes
   {-# INLINE toForeignPtr #-}
@@ -141,15 +149,25 @@ instance PtrAccess s (MBytes 'Pin s) where
   {-# INLINE withNoHaltPtrAccess #-}
 
 
-
+-- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from
+-- the action because memory itself might get garbage collected or cleaned up by
+-- finalizers.
+--
+-- It is also important not to run non-terminating actions, because GHC can optimize away
+-- the logic that runs after the action and GC will happen before the action get's a chance
+-- to finish resulting in corrupt memory. Whenever you have an action that runs an infinite
+-- loop or ends in an exception throwing, make sure to use `withNoHaltForeignPtr` instead.
 withForeignPtr :: MonadPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withForeignPtr (ForeignPtr addr# ptrContents) f = do
   r <- f (Ptr addr#)
   r <$ touch ptrContents
 {-# INLINE withForeignPtr #-}
 
--- | See this GHC Issue[#18061](https://gitlab.haskell.org/ghc/ghc/issues/18061) to learn
--- why this is needed.
+-- | Same thing as `withForeignPtr` except it should be used for never ending actions. See
+-- `withNoHaltPtrAccess` for more information on how this and how this differes from
+-- `withForeignPtr`.
+--
+-- @since 0.1.0
 withNoHaltForeignPtr ::
      MonadUnliftPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =

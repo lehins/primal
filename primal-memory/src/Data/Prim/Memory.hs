@@ -8,7 +8,7 @@
 --
 module Data.Prim.Memory
   ( Pinned(..)
-  -- * Read-only
+  -- * Immutable
   , Bytes
   , MemRead
   , countMem
@@ -16,6 +16,7 @@ module Data.Prim.Memory
   , indexOffMem
   , eqMem
   , compareMem
+  -- * Mutable
   , MBytes
   , MemAlloc(FrozenMem)
   , MemWrite

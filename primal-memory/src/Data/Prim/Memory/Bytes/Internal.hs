@@ -67,9 +67,23 @@ import Data.Typeable
 import Foreign.Prim
 
 
--- | Memory can either be @`Pin`ned@ or @`Inc`onclusive@. Use either
--- `Data.Prim.Memory.Bytes.toPinnedBytes` or `Data.Prim.Memory.Bytes.toPinnedMBytes` to
--- get a conclusive type.
+-- | In Haskell there is a distinction between pinned or unpinned memory.
+--
+-- Pinned memory is such, when allocated, it is guaranteed not to move throughout the
+-- lifetime of a program. In other words the address pointer that refers to allocated
+-- bytes will not change until it is garbage collected. Unpinned memory on the other hand
+-- can be moved around during GC, which helps to reduce memory fragmentation.
+--
+-- Pinned/unpinnned choice during allocation is a bit of a lie, because when attempt is
+-- made to allocate memory as unpinned, but requested size is a bit more than a certain
+-- threashold (somewhere around 3KiB) it might still be allocated as pinned. Because of
+-- that fact through out the "primal" universe there is a distinction between memory that
+-- is either @`Pin`ned@ or @`Inc`onclusive@.
+--
+-- It is possible to use one of `Data.Prim.Memory.Bytes.toPinnedBytes` or
+-- `Data.Prim.Memory.Bytes.toPinnedMBytes` to get a conclusive type.
+--
+-- @since 0.1.0
 data Pinned = Pin | Inc
 
 -- | An immutable region of memory which was allocated either as pinned or unpinned.

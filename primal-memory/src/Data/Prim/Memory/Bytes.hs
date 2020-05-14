@@ -17,7 +17,10 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory.Bytes
-  ( Bytes(..)
+  ( -- * Mutable
+    Bytes
+  , toByteArray#
+  , fromByteArray#
   , cloneBytes
   , emptyBytes
   , eqBytes
@@ -27,12 +30,8 @@ module Data.Prim.Memory.Bytes
   , createBytes_
   , createBytesST
   , createBytesST_
-  , MBytes(..)
+  -- * Pinness
   , Pinned(..)
-  , Count(..)
-  , isSameBytes
-  , isSamePinnedBytes
-  , isSameMBytes
   , relaxPinned
   , isPinnedBytes
   , isPinnedMBytes
@@ -40,6 +39,13 @@ module Data.Prim.Memory.Bytes
   , toPinnedMBytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
+  -- * Mutable
+  , MBytes
+  , toMutableByteArray#
+  , fromMutableByteArray#
+  , isSameBytes
+  , isSamePinnedBytes
+  , isSameMBytes
   , indexOffBytes
   , indexByteOffBytes
   , byteCountBytes
@@ -47,12 +53,6 @@ module Data.Prim.Memory.Bytes
   , countRemBytes
   , compareBytes
   , compareByteOffBytes
-  , fromListBytes
-  , fromListBytesN
-  , fromListBytesN_
-  , toListBytes
-  , toListSlackBytes
-  , concatBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -98,6 +98,14 @@ module Data.Prim.Memory.Bytes
   , toPtrMBytes
   , toForeignPtrBytes
   , toForeignPtrMBytes
+  -- * Conversion
+  , fromListBytes
+  , fromListBytesN
+  , fromListBytesN_
+  , appendBytes
+  , concatBytes
+  , toListBytes
+  , toListSlackBytes
   -- * Atomic
   , casMBytes
   , atomicModifyMBytes
@@ -130,11 +138,9 @@ module Data.Prim.Memory.Bytes
   , prefetchBytes3
   , prefetchMBytes3
   , module Data.Prim
-  , module Data.Typeable
   -- * Helpers
   ) where
 
-import Control.Monad
 import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Maybe (fromMaybe)
@@ -142,16 +148,25 @@ import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.Bytes.Internal
-import Data.Proxy
-import Data.Typeable
 import Foreign.Prim
 
+-- | Wrap `ByteArray#` into `Bytes`
+toByteArray# :: Bytes p -> ByteArray#
+toByteArray# (Bytes b#) = b#
+
+-- | Unwrap `Bytes` to get the underlying `ByteArray#`.
+fromByteArray# :: ByteArray# -> Bytes 'Inc
+fromByteArray# = Bytes
+
+-- | Wrap `MutableByteArray#` into `MBytes`
+toMutableByteArray# :: MBytes p s -> MutableByteArray# s
+toMutableByteArray# (MBytes mb#) = mb#
+
+-- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
+fromMutableByteArray# :: MutableByteArray# s -> MBytes 'Inc s
+fromMutableByteArray# = MBytes
 
 
-
-
-relaxPinned :: Bytes p -> Bytes 'Inc
-relaxPinned = coerce
 
 
 -- | Check if two mutable bytes pointers refer to the same memory
@@ -401,12 +416,25 @@ fromListBytes ::
      forall e p. (Prim e, Typeable p)
   => [e]
   -> Bytes p
-fromListBytes xs = fromListBytesN_ (Count (length xs)) xs
+fromListBytes = fromListMem
 {-# INLINE fromListBytes #-}
+
+-- | Allocate new memory region and append second bytes region after the first one
+appendBytes ::
+     Typeable p
+  => Bytes p1 -- ^ First memory region
+  -> Bytes p2 -- ^ Second memory region
+  -> Bytes p
+appendBytes = appendMem
+{-# INLINE appendBytes #-}
+
 
 concatBytes :: Typeable p => [Bytes p'] -> Bytes p
 concatBytes = concatMem
 {-# INLINE concatBytes #-}
+
+relaxPinned :: Bytes p -> Bytes 'Inc
+relaxPinned = coerce
 
 isPinnedBytes :: Bytes p -> Bool
 isPinnedBytes (Bytes b#) = isTrue# (isByteArrayPinned# b#)

@@ -37,7 +37,6 @@ import Data.Prim.Memory.Bytes.Internal
   , MBytes(..)
   , Pinned(..)
   , allocMBytes
-  , allocUnpinnedMBytes
   , byteCountBytes
   , compareByteOffBytes
   , copyByteOffBytesToMBytes
@@ -57,7 +56,6 @@ import Data.Prim.Memory.Bytes.Internal
 import Data.List as List
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
-import qualified Data.ByteString.Internal as BS
 import Data.Prim.Memory.Ptr
 import Foreign.Prim
 import Numeric (showHex)
@@ -250,7 +248,7 @@ instance MemWrite (MemState (ForeignPtr a)) where
 -- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
 cycleMemN :: (MemAlloc a, MemRead r) => Int -> r -> FrozenMem a
 cycleMemN n r
-  | 0 <= n = emptyMem
+  | n <= 0 = emptyMem
   | otherwise =
     runST $ do
       let bc@(Count chunk) = byteCountMem r
@@ -301,14 +299,14 @@ allocZeroMem n = do
 
 createMemST :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> (b, FrozenMem a)
 createMemST n f = runST $ do
-  m <- allocZeroMem n
+  m <- allocMem n
   res <- f m
   i <- freezeMem m
   pure (res, i)
 {-# INLINE createMemST #-}
 
 createMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
-createMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
+createMemST_ n f = runST (allocMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createMemST_ #-}
 
 
@@ -344,17 +342,17 @@ appendMem r1 r2 =
   where
     n1 = byteCountMem r1
     n2 = byteCountMem r2
-
+{-# INLINABLE appendMem #-}
 
 concatMem :: (MemRead r, MemAlloc a) => [r] -> FrozenMem a
 concatMem xs = do
   let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
-  createMemST_ (coerce c :: Count Word8) $ \mb -> do
+  createMemST_ c $ \mb -> do
     let load i b = do
           let cb@(Count n) = byteCountMem b :: Count Word8
           (i + Off n) <$ copyMem b 0 mb i cb
     foldM_ load 0 xs
-{-# INLINE concatMem #-}
+{-# INLINABLE concatMem #-}
 
 
 thawCopyMem ::
@@ -516,7 +514,7 @@ toListSlackMem mem =
       | otherwise =
         let i' = i - 1
          in getSlack i' (indexByteOffMem mem (Off i') : acc)
-{-# INLINE toListSlackMem #-}
+{-# INLINABLE toListSlackMem #-}
 
 -- | Right fold that is useful for converting to list while tapping into list fusion.
 foldrCountMem :: (MemRead r, Prim e) => Count e -> (e -> b -> b) -> b -> r -> b
@@ -543,14 +541,14 @@ loadListMemN (Count n) (Count slack) ys mb = do
         | i < n = writeOffMem mb (Off i) x >> go xs (i + 1)
         | otherwise = pure GT
   go ys 0
-{-# INLINE loadListMemN #-}
+{-# INLINABLE loadListMemN #-}
 
 loadListMemN_ :: (MemWrite r, MonadPrim s m, Prim e) => Count e -> [e] -> r s -> m ()
 loadListMemN_ (Count n) ys mb =
   let go [] _     = pure ()
       go (x:xs) i = when (i < n) $ writeOffMem mb (Off i) x >> go xs (i + 1)
    in go ys 0
-{-# INLINE loadListMemN_ #-}
+{-# INLINABLE loadListMemN_ #-}
 
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
@@ -569,15 +567,15 @@ loadListMem_ ys mb = do
 
 
 fromListMemN :: (MemAlloc a, Prim e) => Count e -> [e] -> (Ordering, FrozenMem a)
-fromListMemN n xs = createMemST n (loadListMem xs)
+fromListMemN n xs = createMemST n (loadListMemN n 0 xs)
 {-# INLINE fromListMemN #-}
 
 fromListMemN_ :: (MemAlloc a, Prim e) => Count e -> [e] -> FrozenMem a
-fromListMemN_ n xs = createMemST_ n (loadListMem_ xs)
+fromListMemN_ !n xs = createMemST_ n (loadListMemN_ n xs)
 {-# INLINE fromListMemN_ #-}
 
 fromListMem :: (MemAlloc a, Prim e) => [e] -> FrozenMem a
-fromListMem xs = createMemST_ (countAsProxy xs (coerce (length xs))) (loadListMem_ xs)
+fromListMem xs = fromListMemN_ (countAsProxy xs (coerce (length xs))) xs
 {-# INLINE fromListMem #-}
 
 
