@@ -59,6 +59,7 @@ module Data.Prim.Memory.Bytes
   , freezeMBytes
   -- ** Construction
   , allocMBytes
+  , singletonMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
   , allocUnpinnedMBytes
@@ -108,6 +109,8 @@ module Data.Prim.Memory.Bytes
   , toListSlackBytes
   -- * Atomic
   , casMBytes
+  , atomicReadMBytes
+  , atomicWriteMBytes
   , atomicModifyMBytes
   , atomicModifyMBytes_
   , atomicFetchModifyMBytes
@@ -209,13 +212,16 @@ isEmptyBytes b = byteCountBytes b == 0
 {-# INLINE isEmptyBytes #-}
 
 singletonBytes :: forall e p. (Prim e, Typeable p) => e -> Bytes p
-singletonBytes a = runST $ do
-  mb <- allocMBytes (1 :: Count e)
-  writeOffMBytes mb 0 a
-  freezeMBytes mb
+singletonBytes a = runST $ singletonMBytes a >>= freezeMBytes
 {-# INLINE singletonBytes #-}
 
 ---- Mutable
+
+singletonMBytes :: forall e p m s. (Prim e, Typeable p, MonadPrim s m) => e -> m (MBytes p s)
+singletonMBytes a = do
+  mb <- allocMBytes (1 :: Count e)
+  mb <$ writeOffMBytes mb 0 a
+{-# INLINE singletonMBytes #-}
 
 cloneBytes :: Typeable p => Bytes p -> Bytes p
 cloneBytes b = runST $ thawBytes b >>= cloneMBytes >>= freezeMBytes
@@ -474,6 +480,40 @@ casMBytes ::
   -> m e
 casMBytes (MBytes mba#) (Off (I# i#)) old new = prim $ casMutableByteArray# mba# i# old new
 {-# INLINE casMBytes #-}
+
+
+-- | Perform atomic read of `MBytes` at the supplied index. Offset is in number of
+-- elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+atomicReadMBytes ::
+     (MonadPrim s m, Atomic e)
+  => MBytes p s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> m e
+atomicReadMBytes (MBytes mba#) (Off (I# i#)) =
+  prim $ atomicReadMutableByteArray# mba# i#
+{-# INLINE atomicReadMBytes #-}
+
+
+-- | Perform a write into `MBytes` at the supplied index atomically. Offset is in number
+-- of elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+atomicWriteMBytes ::
+     (MonadPrim s m, Atomic e)
+  => MBytes p s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e
+  -> m ()
+atomicWriteMBytes (MBytes mba#) (Off (I# i#)) e =
+  prim_ $ atomicWriteMutableByteArray# mba# i# e
+{-# INLINE atomicWriteMBytes #-}
+
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied
 -- index. Returns the artifact of computation @__b__@.  Offset is in number of elements,

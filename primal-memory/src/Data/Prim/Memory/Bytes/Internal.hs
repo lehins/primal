@@ -64,7 +64,6 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Class
-import Data.Proxy
 import GHC.ForeignPtr
 import Data.Typeable
 import Foreign.Prim
@@ -95,14 +94,16 @@ data Pinned = Pin | Inc
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
 -- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
 -- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
--- actual constructor is available in "Data.Prim.Memory.Internal" module.
+-- the actual constructor is available in "Data.Prim.Memory.Internal" module.
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes phantom
 
 -- | Mutable region of memory which was allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
--- dangerous. As a backdoor of course it is available in "Data.Prim.Memory.Internal" module.
+-- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromMutableByteArray#` and unwrapper
+-- `Data.Prim.Memory.Bytes.toMutableByteArray#` should be used instead. As a backdoor, of course,
+-- the actual constructor is available in "Data.Prim.Memory.Internal" module.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes phantom nominal
 

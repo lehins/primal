@@ -24,6 +24,10 @@ module Data.Prim.Memory
   , getCountRemMem
   , readOffMem
   , writeOffMem
+  , modifyFetchOldMem
+  , modifyFetchOldMemM
+  , modifyFetchNewMem
+  , modifyFetchNewMemM
   , setMem
   , copyMem
   , moveMem

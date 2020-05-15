@@ -62,7 +62,7 @@ import Foreign.Prim
 import Numeric (showHex)
 import qualified Data.Semigroup as Semigroup
 import qualified Data.Monoid as Monoid
-
+import Data.Kind
 
 
 class MemRead r where
@@ -91,7 +91,7 @@ class MemRead r where
 
 -- | Generalized memory allocation and pure/mutable state conversion.
 class (MemRead (FrozenMem a), MemWrite a) => MemAlloc a where
-  type FrozenMem a = (fa :: *) | fa -> a
+  type FrozenMem a = (fa :: Type) | fa -> a
 
   getByteCountMem :: MonadPrim s m => a s -> m (Count Word8)
 
@@ -253,6 +253,35 @@ instance MemWrite (MemState (ForeignPtr a)) where
   {-# INLINE moveByteOffMem #-}
   setMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMem #-}
+
+modifyFetchOldMem ::
+     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> b) -> m b
+modifyFetchOldMem mem o f = modifyFetchOldMemM mem o (pure . f)
+{-# INLINE modifyFetchOldMem #-}
+
+
+modifyFetchNewMem ::
+     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> b) -> m b
+modifyFetchNewMem mem o f = modifyFetchNewMemM mem o (pure . f)
+{-# INLINE modifyFetchNewMem #-}
+
+
+modifyFetchOldMemM ::
+     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> m b) -> m b
+modifyFetchOldMemM mem o f = do
+  a <- readOffMem mem o
+  a <$ (writeOffMem mem o =<< f a)
+{-# INLINE modifyFetchOldMemM #-}
+
+
+modifyFetchNewMemM ::
+     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> m b) -> m b
+modifyFetchNewMemM mem o f = do
+  a <- readOffMem mem o
+  a' <- f a
+  a' <$ writeOffMem mem o a'
+{-# INLINE modifyFetchNewMemM #-}
+
 
 defaultResizeMem ::
      (Prim e, MemAlloc a, MonadPrim s m) => a s -> Count e -> m (a s)
@@ -625,8 +654,8 @@ toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
 
 
-mapMem :: (MemRead r, MemAlloc a, Prim e) => (Word8 -> e) -> r -> FrozenMem a
-mapMem f r = runST $ traverseMem (pure . f) r
+mapByteMem :: (MemRead r, MemAlloc a, Prim e) => (Word8 -> e) -> r -> FrozenMem a
+mapByteMem f = mapByteOffMem (const f)
 
 -- | Map an index aware function over memory region
 --
@@ -637,36 +666,142 @@ mapMem f r = runST $ traverseMem (pure . f) r
 -- [0x00,0xf1,0x01,0xf2,0x02,0xf3,0x03,0xf4,0x04,0xf5,0x05,0xf6,0x06,0xf7,0x07,0xf8,0x08,0xf9,0x09,0xfa]
 --
 -- @since 0.1.0
-imapMem ::
-     (MemRead r, MemAlloc a, Prim e) => (Int -> Word8 -> e) -> r -> FrozenMem a
-imapMem f r = runST $ itraverseMem (\i -> pure . f i) r
+mapByteOffMem ::
+     (MemRead r, MemAlloc a, Prim e) => (Off Word8 -> Word8 -> e) -> r -> FrozenMem a
+mapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
-traverseMem ::
+mapByteMemM ::
      (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
   => (Word8 -> m e)
   -> r
   -> m (FrozenMem a)
-traverseMem f = itraverseMem (const f)
+mapByteMemM f = mapByteOffMemM (const f)
 
 
 -- @since 0.1.0
-itraverseMem ::
+mapByteOffMemM ::
      (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
-  => (Int -> Word8 -> m e)
+  => (Off Word8 -> Word8 -> m e)
   -> r
   -> m (FrozenMem a)
-itraverseMem f r = do
-  let Count n = byteCountMem r
+mapByteOffMemM f r = do
+  let bc@(Count n) = byteCountMem r
       c = countAsProxy (f 0 0) (Count n)
   mem <- allocMem c
-  let go i =
-        when (i < n) $ do
-          f i (indexByteOffMem r (Off i)) >>=
-            writeOffMem mem (offAsProxy c (Off i))
-          go (i + 1)
-  go 0
+  _ <- forByteOffMemM_ r 0 bc f
+  -- let go i =
+  --       when (i < n) $ do
+  --         f i (indexByteOffMem r (Off i)) >>=
+  --           writeOffMem mem (offAsProxy c (Off i))
+  --         go (i + 1)
+  -- go 0
   freezeMem mem
+
+
+-- | Iterate over a region of memory
+forByteOffMemM_ ::
+     (MemRead r, MonadPrim s m, Prim e)
+  => r
+  -> Off Word8
+  -> Count e
+  -> (Off Word8 -> e -> m b)
+  -> m (Off Word8)
+forByteOffMemM_ r (Off byteOff) c f =
+  let n = coerce (toByteCount c) + byteOff
+      Count k = byteCountProxy c
+      go i
+        | i < n = f (Off i) (indexByteOffMem r (Off i)) >> go (i + k)
+        | otherwise = pure $ Off i
+   in go byteOff
+
+loopShortM :: Monad m => Int -> (Int -> a -> Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
+loopShortM !startAt condition increment !initAcc f = go startAt initAcc
+  where
+    go !step !acc
+      | condition step acc = f step acc >>= go (increment step)
+      | otherwise = pure acc
+{-# INLINE loopShortM #-}
+
+loopShortM' :: Monad m => Int -> (Int -> a -> m Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
+loopShortM' !startAt condition increment !initAcc f = go startAt initAcc
+  where
+    go !step !acc =
+      condition step acc >>= \cont ->
+        if cont
+          then f step acc >>= go (increment step)
+          else pure acc
+{-# INLINE loopShortM' #-}
+
+-- -- | Iterate over a region of memory
+-- loopMemM_ ::
+--      (MemRead r, MonadPrim s m, Prim e)
+--   => r
+--   -> Off Word8
+--   -> Count e
+--   -> (Count Word8 -> a -> Bool)
+--   -> (Off Word8 -> e -> m b)
+--   -> m (Off Word8)
+-- foldlByteOffMemM_ r (Off byteOff) c f =
+--   loopShortM byteOff (\i -> f (coerce i))
+--   let n = coerce (toByteCount c) + byteOff
+--       Count k = byteCountProxy c
+--       go i
+--         | i < n = f (Off i) (indexByteOffMem r (Off i)) >> go (i + k)
+--         | otherwise = pure $ Off i
+--    in go byteOff
+
+
+data MemView a = MemView
+  { mvOffset :: {-# UNPACK #-} !(Off Word8)
+  , mvCount :: {-# UNPACK #-} !(Count Word8)
+  , mvMem :: !a
+  }
+
+data MMemView a s = MMemView
+  { mmvOffset :: {-# UNPACK #-} !(Off Word8)
+  , mmvCount :: {-# UNPACK #-} !(Count Word8)
+  , mmvMem :: !(a s)
+  }
+
+izipWithByteOffMemM_ ::
+     (MemRead r1, MemRead r2, MonadPrim s m, Prim e)
+  => r1
+  -> Off Word8
+  -> r2
+  -> Off Word8
+  -> Count e
+  -> (Off Word8 -> e -> Off Word8 -> e -> m b)
+  -> m (Off Word8)
+izipWithByteOffMemM_ r1 (Off byteOff1) r2 off2 c f =
+  let n = coerce (toByteCount c) + byteOff1
+      Count k = byteCountProxy c
+      go i
+        | i < n =
+          let o1 = Off i
+              o2 = Off i + off2
+           in f o1 (indexByteOffMem r1 o1) o2 (indexByteOffMem r2 o2) >>
+              go (i + k)
+        | otherwise = pure $ Off i
+   in go byteOff1
+
+
+izipWithOffMemM_ ::
+     (MemRead r1, MemRead r2, MonadPrim s m, Prim e1, Prim e2)
+  => r1
+  -> Off e1
+  -> r2
+  -> Off e2
+  -> Int
+  -> (Off e1 -> e1 -> Off e2 -> e2 -> m b)
+  -> m ()
+izipWithOffMemM_ r1 off1 r2 off2 nc f =
+  let n = nc + coerce off1
+      go o1@(Off i) o2 =
+        when (i < n) $
+        f o1 (indexOffMem r1 o1) o2 (indexOffMem r2 o2) >> go (o1 + 1) (o2 + 1)
+   in go off1 off2
+
 
 -- class NoConstraint a
 -- instance NoConstraint a

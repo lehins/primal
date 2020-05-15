@@ -39,11 +39,11 @@ module Data.Prim.Class
 #include "HsBaseConfig.h"
 
 import Control.Prim.Monad.Unsafe
-import Foreign.Prim hiding (Any)
-import Foreign.C.Error (Errno(..))
 import Data.Complex
 import Data.Type.Equality
---import GHC.Conc
+import Foreign.C.Error (Errno(..))
+import Foreign.Prim hiding (Any)
+import GHC.Conc
 import GHC.Stable
 import GHC.Real
 import GHC.IO.Device
@@ -1045,10 +1045,22 @@ instance Prim Ordering where
   toPrimBase o = I8# (fromOrdering# o)
   fromPrimBase (I8# i#) = toOrdering# i#
 
--- instance Prim IODeviceType where
---   type PrimBase IODeviceType = Int8
---   toPrimBase o = I8# (dataToTag# o)
---   fromPrimBase (I8# i#) = tagToEnum# i#
+instance Prim IODeviceType where
+  type PrimBase IODeviceType = Int8
+  toPrimBase =
+    \case
+      Directory -> 0
+      Stream -> 1
+      RegularFile -> 2
+      RawDevice -> 3
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      0 -> Directory
+      1 -> Stream
+      2 -> RegularFile
+      _ -> RawDevice
+  {-# INLINE fromPrimBase #-}
 
 instance Prim SeekMode where
   type PrimBase SeekMode = Int8
@@ -1063,10 +1075,47 @@ instance Prim SeekMode where
     _ -> SeekFromEnd
   {-# INLINE fromPrimBase #-}
 
--- instance Prim BlockReason where
---   type PrimBase BlockReason = Int8
---   toPrimBase o = I8# (dataToTag# o)
---   fromPrimBase (I8# i#) = tagToEnum# i#
+instance Prim BlockReason where
+  type PrimBase BlockReason = Int8
+  toPrimBase =
+    \case
+      BlockedOnMVar -> 0
+      BlockedOnBlackHole -> 1
+      BlockedOnException -> 2
+      BlockedOnSTM -> 3
+      BlockedOnForeignCall -> 4
+      BlockedOnOther -> 5
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      0 -> BlockedOnMVar
+      1 -> BlockedOnBlackHole
+      2 -> BlockedOnException
+      3 -> BlockedOnSTM
+      4 -> BlockedOnForeignCall
+      _ -> BlockedOnOther
+  {-# INLINE fromPrimBase #-}
+
+
+-- instance Prim ThreadStatus where
+--   type PrimBase ThreadStatus = Int8
+--   toPrimBase =
+--     \case
+--       ThreadRunning -> 0
+--       ThreadFinished -> 1
+--       ThreadBlocked br -> toPrimBase br 2
+--       ThreadDied -> 3
+--   {-# INLINE toPrimBase #-}
+--   fromPrimBase =
+--     \case
+--       0 -> BlockedOnMVar
+--       1 -> BlockedOnBlackHole
+--       2 -> BlockedOnException
+--       3 -> BlockedOnSTM
+--       4 -> BlockedOnForeignCall
+--       _ -> BlockedOnOther
+--   {-# INLINE fromPrimBase #-}
+
 
 
 instance Prim a => Prim (Down a) where

@@ -62,6 +62,7 @@ module Data.Prim.Ref
   , fromIORef
   ) where
 
+import Control.DeepSeq
 import Control.Prim.Monad
 import Foreign.Prim
 import GHC.STRef
@@ -78,6 +79,9 @@ data Ref a s = Ref (MutVar# s a)
 instance Eq (Ref a s) where
   Ref ref1# == Ref ref2# = isTrue# (sameMutVar# ref1# ref2#)
 
+instance NFData (Ref a s) where
+  rnf (Ref _ref#) = ()
+
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --
 -- ==== __Examples__
@@ -93,7 +97,7 @@ instance Eq (Ref a s) where
 --
 -- @since 0.1.0
 newRef :: MonadPrim s m => a -> m (Ref a s)
-newRef a = seqPrim a >>= newRefLazy
+newRef a = a `seq` newRefLazy a
 {-# INLINE newRef #-}
 
 -- | Create a new mutable variable. Initial value stays unevaluated.
@@ -149,7 +153,9 @@ readRef (Ref ref#) = prim (readMutVar# ref#)
 --
 -- @since 0.1.0
 swapRef :: MonadPrim s m => Ref a s -> a -> m a
-swapRef ref x = fetchModifyRef ref . const =<< seqPrim x
+swapRef ref a = do
+  a' <- readRef ref
+  a' <$ writeRef ref a
 {-# INLINE swapRef #-}
 
 
@@ -170,7 +176,8 @@ swapRef ref x = fetchModifyRef ref . const =<< seqPrim x
 --
 -- @since 0.1.0
 writeRef :: MonadPrim s m => Ref a s -> a -> m ()
-writeRef ref a = seqPrim a >>= writeRefLazy ref
+writeRef ref a =
+  a `seq` writeRefLazy ref a
 {-# INLINE writeRef #-}
 
 -- | Write a value into a mutable variable lazily.
@@ -322,6 +329,7 @@ modifyRefLazyM ref f = do
 ------------
 -- Atomic --
 ------------
+data Unit a = Unit a
 
 -- | Evaluate a value and write it atomically into a `Ref`. This is different from
 -- `writeRef` because [a memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)
@@ -330,11 +338,18 @@ modifyRefLazyM ref f = do
 -- @since 0.1.0
 atomicWriteRef :: MonadPrim s m => Ref b s -> b -> m ()
 atomicWriteRef (Ref ref#) x =
-  prim_ $ \s ->
-    case seq# x s of
-      (# s', x' #) ->
-        case atomicModifyMutVar_# ref# (const x') s' of
-          (# s'', _prev, _cur #) -> s''
+  x `seq`
+  prim $ \s ->
+    case atomicModifyMutVar2# ref# (\_ -> Unit x) s of
+      (# s', _prev, Unit _cur #) -> (# s', () #)
+  -- prim $ \s ->
+  --   case atomicModifyMutVar_# ref# (\_ -> x) s of
+  --     (# s', _prev, _cur #) -> (# s', () #)
+  -- x `seq` prim_ $ \s ->
+  --   -- case seq# x s of
+  --   --   (# s', x' #) ->
+  --       case atomicModifyMutVar_# ref# (const x) s of
+  --         (# s'', _prev, _cur #) -> s''
 {-# INLINE atomicWriteRef #-}
 
 
@@ -342,7 +357,7 @@ atomicWriteRef (Ref ref#) x =
 --
 -- @since 0.1.0
 atomicSwapRef :: MonadPrim s m => Ref b s -> b -> m b
-atomicSwapRef ref x = atomicFetchModifyRef ref . const =<< seqPrim x
+atomicSwapRef ref x = atomicFetchModifyRef ref (const x)
 {-# INLINE atomicSwapRef #-}
 
 
@@ -401,7 +416,7 @@ atomicFetchModifyRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicFetchModifyRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
-      (# s', prev, _cur #) -> seq# prev s'
+      (# s', prev, _cur #) -> (# s', prev #)
 
 atomicModifyFetchRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicModifyFetchRef (Ref ref#) f =
