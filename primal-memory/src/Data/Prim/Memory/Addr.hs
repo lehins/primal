@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -116,48 +117,40 @@ module Data.Prim.Memory.Addr
 
   ) where
 
-import Data.ByteString.Internal
-import Data.ByteString.Short.Internal
 import Control.Arrow (first)
 import Control.DeepSeq
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
+import Data.ByteString.Internal
+import Data.ByteString.Short.Internal
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Monoid as Monoid
 import Data.Prim
 import Data.Prim.Atomic
-import Data.Prim.Memory.Bytes.Internal
-  ( Bytes(..)
-  , MBytes(..)
-  , Pinned(..)
-  , allocAlignedMBytes
-  , callocAlignedMBytes
-  , countBytes
-  , freezeMBytes
-  , getCountMBytes
-  , thawBytes
-  , toPtrBytes
-  , toPtrMBytes
-  )
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Prim.Memory.Ptr
 import Data.Prim.Class
-import Foreign.Prim
-import GHC.ForeignPtr
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
+import Data.Prim.Memory.Internal
+import Data.Prim.Memory.Ptr
 import qualified Data.Semigroup as Semigroup
-import qualified Data.Monoid as Monoid
+import Foreign.Prim
+
 
 data Addr e = Addr
   { addrAddr# :: Addr#
   , addrBytes :: {-# UNPACK #-}!(Bytes 'Pin)
   }
+type role Addr representational
+
 
 data MAddr e s = MAddr
   { mAddrAddr#  :: Addr#
   , mAddrMBytes :: {-# UNPACK #-}!(MBytes 'Pin s)
   }
+type role MAddr representational nominal
+
+
 
 instance Eq (Addr e) where
   a1 == a2 = isSameAddr a1 a2 || eqMem a1 a2
@@ -174,10 +167,10 @@ instance Monoid.Monoid (Addr e) where
 
 
 castAddr :: Addr e -> Addr b
-castAddr = coerce
+castAddr (Addr a b) = Addr a b
 
 castMAddr :: MAddr e s -> MAddr b s
-castMAddr = coerce
+castMAddr (MAddr a mb) = MAddr a mb
 
 isSameAddr :: Addr e -> Addr e -> Bool
 isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
