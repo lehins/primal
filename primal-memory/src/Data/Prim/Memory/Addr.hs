@@ -76,24 +76,24 @@ module Data.Prim.Memory.Addr
   , casOffMAddr
   , atomicModifyOffMAddr
   , atomicModifyOffMAddr_
-  , atomicFetchModifyOffMAddr
-  , atomicModifyFetchOffMAddr
+  , atomicModifyFetchOldOffMAddr
+  , atomicModifyFetchNewOffMAddr
   -- ** Numeric
-  , atomicFetchAddOffMAddr
-  , atomicAddFetchOffMAddr
-  , atomicFetchSubOffMAddr
-  , atomicSubFetchOffMAddr
+  , atomicAddFetchOldOffMAddr
+  , atomicAddFetchNewOffMAddr
+  , atomicSubFetchOldOffMAddr
+  , atomicSubFetchNewOffMAddr
   -- ** Binary
-  , atomicFetchAndOffMAddr
-  , atomicAndFetchOffMAddr
-  , atomicFetchNandOffMAddr
-  , atomicNandFetchOffMAddr
-  , atomicFetchOrOffMAddr
-  , atomicOrFetchOffMAddr
-  , atomicFetchXorOffMAddr
-  , atomicXorFetchOffMAddr
-  , atomicFetchNotOffMAddr
-  , atomicNotFetchOffMAddr
+  , atomicAndFetchOldOffMAddr
+  , atomicAndFetchNewOffMAddr
+  , atomicNandFetchOldOffMAddr
+  , atomicNandFetchNewOffMAddr
+  , atomicOrFetchOldOffMAddr
+  , atomicOrFetchNewOffMAddr
+  , atomicXorFetchOldOffMAddr
+  , atomicXorFetchNewOffMAddr
+  , atomicNotFetchOldOffMAddr
+  , atomicNotFetchNewOffMAddr
   -- * Prefetch
   -- ** Directly
   , prefetchAddr0
@@ -611,15 +611,15 @@ atomicModifyOffMAddr_ maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchModifyOffMAddr ::
+atomicModifyFetchOldOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicFetchModifyOffMAddr maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchModifyOffAddr# addr# i# f
-{-# INLINE atomicFetchModifyOffMAddr #-}
+atomicModifyFetchOldOffMAddr maddr (Off (I# i#)) f =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicModifyFetchOldOffAddr# addr# i# f
+{-# INLINE atomicModifyFetchOldOffMAddr #-}
 
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
@@ -629,15 +629,15 @@ atomicFetchModifyOffMAddr maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyFetchOffMAddr ::
+atomicModifyFetchNewOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicModifyFetchOffMAddr maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicModifyFetchOffAddr# addr# i# f
-{-# INLINE atomicModifyFetchOffMAddr #-}
+atomicModifyFetchNewOffMAddr maddr (Off (I# i#)) f =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicModifyFetchNewOffAddr# addr# i# f
+{-# INLINE atomicModifyFetchNewOffMAddr #-}
 
 
 
@@ -648,15 +648,15 @@ atomicModifyFetchOffMAddr maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAddOffMAddr ::
+atomicAddFetchOldOffMAddr ::
      (MonadPrim s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchAddOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchAddOffAddr# addr# i# a
-{-# INLINE atomicFetchAddOffMAddr #-}
+atomicAddFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAddFetchOldOffAddr# addr# i# a
+{-# INLINE atomicAddFetchOldOffMAddr #-}
 
 -- | Add a numeric value to an element of a `MAddr`, corresponds to @(`+`)@ done
 -- atomically. Returns the new value.  Offset is in number of elements, rather
@@ -665,15 +665,15 @@ atomicFetchAddOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAddFetchOffMAddr ::
+atomicAddFetchNewOffMAddr ::
      (MonadPrim s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicAddFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAddFetchOffAddr# addr# i# a
-{-# INLINE atomicAddFetchOffMAddr #-}
+atomicAddFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAddFetchNewOffAddr# addr# i# a
+{-# INLINE atomicAddFetchNewOffMAddr #-}
 
 
 
@@ -684,15 +684,15 @@ atomicAddFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchSubOffMAddr ::
+atomicSubFetchOldOffMAddr ::
      (MonadPrim s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchSubOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchSubOffAddr# addr# i# a
-{-# INLINE atomicFetchSubOffMAddr #-}
+atomicSubFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicSubFetchOldOffAddr# addr# i# a
+{-# INLINE atomicSubFetchOldOffMAddr #-}
 
 -- | Subtract a numeric value from an element of a `MAddr`, corresponds to
 -- @(`-`)@ done atomically. Returns the new value. Offset is in number of elements, rather
@@ -701,15 +701,15 @@ atomicFetchSubOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicSubFetchOffMAddr ::
+atomicSubFetchNewOffMAddr ::
      (MonadPrim s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicSubFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicSubFetchOffAddr# addr# i# a
-{-# INLINE atomicSubFetchOffMAddr #-}
+atomicSubFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicSubFetchNewOffAddr# addr# i# a
+{-# INLINE atomicSubFetchNewOffMAddr #-}
 
 
 
@@ -720,15 +720,15 @@ atomicSubFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAndOffMAddr ::
+atomicAndFetchOldOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchAndOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchAndOffAddr# addr# i# a
-{-# INLINE atomicFetchAndOffMAddr #-}
+atomicAndFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAndFetchOldOffAddr# addr# i# a
+{-# INLINE atomicAndFetchOldOffMAddr #-}
 
 -- | Binary conjunction (AND) of an element of a `MAddr` with the supplied value,
 -- corresponds to @(`Data.Bits..&.`)@ done atomically. Returns the new value. Offset is
@@ -737,15 +737,15 @@ atomicFetchAndOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAndFetchOffMAddr ::
+atomicAndFetchNewOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicAndFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAndFetchOffAddr# addr# i# a
-{-# INLINE atomicAndFetchOffMAddr #-}
+atomicAndFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicAndFetchNewOffAddr# addr# i# a
+{-# INLINE atomicAndFetchNewOffMAddr #-}
 
 
 
@@ -757,15 +757,15 @@ atomicAndFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNandOffMAddr ::
+atomicNandFetchOldOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchNandOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchNandOffAddr# addr# i# a
-{-# INLINE atomicFetchNandOffMAddr #-}
+atomicNandFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNandFetchOldOffAddr# addr# i# a
+{-# INLINE atomicNandFetchOldOffMAddr #-}
 
 -- | Negation of binary conjunction (NAND)  of an element of a `MAddr` with the supplied
 -- value, corresponds to @\\x y -> `Data.Bits.complement` (x `Data.Bits..&.` y)@ done
@@ -775,15 +775,15 @@ atomicFetchNandOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNandFetchOffMAddr ::
+atomicNandFetchNewOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicNandFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNandFetchOffAddr# addr# i# a
-{-# INLINE atomicNandFetchOffMAddr #-}
+atomicNandFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNandFetchNewOffAddr# addr# i# a
+{-# INLINE atomicNandFetchNewOffMAddr #-}
 
 
 
@@ -795,15 +795,15 @@ atomicNandFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchOrOffMAddr ::
+atomicOrFetchOldOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchOrOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchOrOffAddr# addr# i# a
-{-# INLINE atomicFetchOrOffMAddr #-}
+atomicOrFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicOrFetchOldOffAddr# addr# i# a
+{-# INLINE atomicOrFetchOldOffMAddr #-}
 
 -- | Binary disjunction (OR) of an element of a `MAddr` with the supplied value,
 -- corresponds to @(`Data.Bits..|.`)@ done atomically. Returns the new value. Offset is
@@ -812,15 +812,15 @@ atomicFetchOrOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicOrFetchOffMAddr ::
+atomicOrFetchNewOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicOrFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicOrFetchOffAddr# addr# i# a
-{-# INLINE atomicOrFetchOffMAddr #-}
+atomicOrFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicOrFetchNewOffAddr# addr# i# a
+{-# INLINE atomicOrFetchNewOffMAddr #-}
 
 
 
@@ -831,15 +831,15 @@ atomicOrFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchXorOffMAddr ::
+atomicXorFetchOldOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicFetchXorOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchXorOffAddr# addr# i# a
-{-# INLINE atomicFetchXorOffMAddr #-}
+atomicXorFetchOldOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicXorFetchOldOffAddr# addr# i# a
+{-# INLINE atomicXorFetchOldOffMAddr #-}
 
 -- | Binary exclusive disjunction (XOR) of an element of a `MAddr` with the supplied value,
 -- corresponds to @`Data.Bits.xor`@ done atomically. Returns the new value. Offset is
@@ -848,15 +848,15 @@ atomicFetchXorOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicXorFetchOffMAddr ::
+atomicXorFetchNewOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
-atomicXorFetchOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicXorFetchOffAddr# addr# i# a
-{-# INLINE atomicXorFetchOffMAddr #-}
+atomicXorFetchNewOffMAddr maddr (Off (I# i#)) a =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicXorFetchNewOffAddr# addr# i# a
+{-# INLINE atomicXorFetchNewOffMAddr #-}
 
 
 
@@ -869,14 +869,14 @@ atomicXorFetchOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNotOffMAddr ::
+atomicNotFetchOldOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> m e
-atomicFetchNotOffMAddr maddr (Off (I# i#)) =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicFetchNotOffAddr# addr# i#
-{-# INLINE atomicFetchNotOffMAddr #-}
+atomicNotFetchOldOffMAddr maddr (Off (I# i#)) =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNotFetchOldOffAddr# addr# i#
+{-# INLINE atomicNotFetchOldOffMAddr #-}
 
 -- | Binary negation (NOT) of an element of a `MAddr`, corresponds to
 -- @(`Data.Bits.complement`)@ done atomically. Returns the new value. Offset is in number
@@ -885,14 +885,14 @@ atomicFetchNotOffMAddr maddr (Off (I# i#)) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNotFetchOffMAddr ::
+atomicNotFetchNewOffMAddr ::
      (MonadPrim s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> m e
-atomicNotFetchOffMAddr maddr (Off (I# i#)) =
-  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNotFetchOffAddr# addr# i#
-{-# INLINE atomicNotFetchOffMAddr #-}
+atomicNotFetchNewOffMAddr maddr (Off (I# i#)) =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicNotFetchNewOffAddr# addr# i#
+{-# INLINE atomicNotFetchNewOffMAddr #-}
 
 
 

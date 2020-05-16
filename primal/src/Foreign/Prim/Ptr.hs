@@ -42,24 +42,24 @@ module Foreign.Prim.Ptr
   , casOffPtr
   , atomicModifyOffPtr
   , atomicModifyOffPtr_
-  , atomicFetchModifyOffPtr
-  , atomicModifyFetchOffPtr
+  , atomicModifyFetchOldOffPtr
+  , atomicModifyFetchNewOffPtr
   -- ** Numeric
-  , atomicFetchAddOffPtr
-  , atomicAddFetchOffPtr
-  , atomicFetchSubOffPtr
-  , atomicSubFetchOffPtr
+  , atomicAddFetchOldOffPtr
+  , atomicAddFetchNewOffPtr
+  , atomicSubFetchOldOffPtr
+  , atomicSubFetchNewOffPtr
   -- ** Binary
-  , atomicFetchAndOffPtr
-  , atomicAndFetchOffPtr
-  , atomicFetchNandOffPtr
-  , atomicNandFetchOffPtr
-  , atomicFetchOrOffPtr
-  , atomicOrFetchOffPtr
-  , atomicFetchXorOffPtr
-  , atomicXorFetchOffPtr
-  , atomicFetchNotOffPtr
-  , atomicNotFetchOffPtr
+  , atomicAndFetchOldOffPtr
+  , atomicAndFetchNewOffPtr
+  , atomicNandFetchOldOffPtr
+  , atomicNandFetchNewOffPtr
+  , atomicOrFetchOldOffPtr
+  , atomicOrFetchNewOffPtr
+  , atomicXorFetchOldOffPtr
+  , atomicXorFetchNewOffPtr
+  , atomicNotFetchOldOffPtr
+  , atomicNotFetchNewOffPtr
   -- * Prefetch
   , prefetchPtr0
   , prefetchPtr1
@@ -279,15 +279,15 @@ atomicModifyOffPtr_ (Ptr addr#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchModifyOffPtr ::
+atomicModifyFetchOldOffPtr ::
      (MonadPrim s m, Atomic e)
   => Ptr e -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicFetchModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
-  prim $ atomicFetchModifyOffAddr# addr# i# f
-{-# INLINE atomicFetchModifyOffPtr #-}
+atomicModifyFetchOldOffPtr (Ptr addr#) (Off (I# i#)) f =
+  prim $ atomicModifyFetchOldOffAddr# addr# i# f
+{-# INLINE atomicModifyFetchOldOffPtr #-}
 
 
 -- | Perform atomic modification of an element in the `Ptr` at the supplied
@@ -297,15 +297,15 @@ atomicFetchModifyOffPtr (Ptr addr#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyFetchOffPtr ::
+atomicModifyFetchNewOffPtr ::
      (MonadPrim s m, Atomic e)
   => Ptr e -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicModifyFetchOffPtr (Ptr addr#) (Off (I# i#)) f =
-  prim $ atomicModifyFetchOffAddr# addr# i# f
-{-# INLINE atomicModifyFetchOffPtr #-}
+atomicModifyFetchNewOffPtr (Ptr addr#) (Off (I# i#)) f =
+  prim $ atomicModifyFetchNewOffAddr# addr# i# f
+{-# INLINE atomicModifyFetchNewOffPtr #-}
 
 
 
@@ -316,15 +316,15 @@ atomicModifyFetchOffPtr (Ptr addr#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAddOffPtr ::
+atomicAddFetchOldOffPtr ::
      (MonadPrim s m, AtomicCount e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchAddOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchAddOffAddr# addr# i# a)
-{-# INLINE atomicFetchAddOffPtr #-}
+atomicAddFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicAddFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicAddFetchOldOffPtr #-}
 
 -- | Add a numeric value to an element of a `Ptr`, corresponds to @(`+`)@ done
 -- atomically. Returns the new value.  Offset is in number of elements, rather
@@ -333,15 +333,15 @@ atomicFetchAddOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAddFetchOffPtr ::
+atomicAddFetchNewOffPtr ::
      (MonadPrim s m, AtomicCount e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicAddFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicAddFetchOffAddr# addr# i# a)
-{-# INLINE atomicAddFetchOffPtr #-}
+atomicAddFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicAddFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicAddFetchNewOffPtr #-}
 
 
 
@@ -352,15 +352,15 @@ atomicAddFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchSubOffPtr ::
+atomicSubFetchOldOffPtr ::
      (MonadPrim s m, AtomicCount e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchSubOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchSubOffAddr# addr# i# a)
-{-# INLINE atomicFetchSubOffPtr #-}
+atomicSubFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicSubFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicSubFetchOldOffPtr #-}
 
 -- | Subtract a numeric value from an element of a `Ptr`, corresponds to
 -- @(`-`)@ done atomically. Returns the new value. Offset is in number of elements, rather
@@ -369,15 +369,15 @@ atomicFetchSubOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicSubFetchOffPtr ::
+atomicSubFetchNewOffPtr ::
      (MonadPrim s m, AtomicCount e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicSubFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicSubFetchOffAddr# addr# i# a)
-{-# INLINE atomicSubFetchOffPtr #-}
+atomicSubFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicSubFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicSubFetchNewOffPtr #-}
 
 
 
@@ -388,15 +388,15 @@ atomicSubFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAndOffPtr ::
+atomicAndFetchOldOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchAndOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchAndOffAddr# addr# i# a)
-{-# INLINE atomicFetchAndOffPtr #-}
+atomicAndFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicAndFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicAndFetchOldOffPtr #-}
 
 -- | Binary conjunction (AND) of an element of a `Ptr` with the supplied value,
 -- corresponds to @(`Data.Bits..&.`)@ done atomically. Returns the new value. Offset is
@@ -405,15 +405,15 @@ atomicFetchAndOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAndFetchOffPtr ::
+atomicAndFetchNewOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicAndFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicAndFetchOffAddr# addr# i# a)
-{-# INLINE atomicAndFetchOffPtr #-}
+atomicAndFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicAndFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicAndFetchNewOffPtr #-}
 
 
 
@@ -425,15 +425,15 @@ atomicAndFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNandOffPtr ::
+atomicNandFetchOldOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchNandOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchNandOffAddr# addr# i# a)
-{-# INLINE atomicFetchNandOffPtr #-}
+atomicNandFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicNandFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicNandFetchOldOffPtr #-}
 
 -- | Negation of binary conjunction (NAND)  of an element of a `Ptr` with the supplied
 -- value, corresponds to @\\x y -> `Data.Bits.complement` (x `Data.Bits..&.` y)@ done
@@ -443,15 +443,15 @@ atomicFetchNandOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNandFetchOffPtr ::
+atomicNandFetchNewOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicNandFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicNandFetchOffAddr# addr# i# a)
-{-# INLINE atomicNandFetchOffPtr #-}
+atomicNandFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicNandFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicNandFetchNewOffPtr #-}
 
 
 
@@ -463,15 +463,15 @@ atomicNandFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchOrOffPtr ::
+atomicOrFetchOldOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchOrOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchOrOffAddr# addr# i# a)
-{-# INLINE atomicFetchOrOffPtr #-}
+atomicOrFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicOrFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicOrFetchOldOffPtr #-}
 
 -- | Binary disjunction (OR) of an element of a `Ptr` with the supplied value,
 -- corresponds to @(`Data.Bits..|.`)@ done atomically. Returns the new value. Offset is
@@ -480,15 +480,15 @@ atomicFetchOrOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicOrFetchOffPtr ::
+atomicOrFetchNewOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicOrFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicOrFetchOffAddr# addr# i# a)
-{-# INLINE atomicOrFetchOffPtr #-}
+atomicOrFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicOrFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicOrFetchNewOffPtr #-}
 
 
 
@@ -499,15 +499,15 @@ atomicOrFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchXorOffPtr ::
+atomicXorFetchOldOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicFetchXorOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicFetchXorOffAddr# addr# i# a)
-{-# INLINE atomicFetchXorOffPtr #-}
+atomicXorFetchOldOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicXorFetchOldOffAddr# addr# i# a)
+{-# INLINE atomicXorFetchOldOffPtr #-}
 
 -- | Binary exclusive disjunction (XOR) of an element of a `Ptr` with the supplied value,
 -- corresponds to @`Data.Bits.xor`@ done atomically. Returns the new value. Offset is
@@ -516,15 +516,15 @@ atomicFetchXorOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicXorFetchOffPtr ::
+atomicXorFetchNewOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> e
   -> m e
-atomicXorFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
-  prim (atomicXorFetchOffAddr# addr# i# a)
-{-# INLINE atomicXorFetchOffPtr #-}
+atomicXorFetchNewOffPtr (Ptr addr#) (Off (I# i#)) a =
+  prim (atomicXorFetchNewOffAddr# addr# i# a)
+{-# INLINE atomicXorFetchNewOffPtr #-}
 
 
 
@@ -537,14 +537,14 @@ atomicXorFetchOffPtr (Ptr addr#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNotOffPtr ::
+atomicNotFetchOldOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> m e
-atomicFetchNotOffPtr (Ptr addr#) (Off (I# i#)) =
-  prim (atomicFetchNotOffAddr# addr# i#)
-{-# INLINE atomicFetchNotOffPtr #-}
+atomicNotFetchOldOffPtr (Ptr addr#) (Off (I# i#)) =
+  prim (atomicNotFetchOldOffAddr# addr# i#)
+{-# INLINE atomicNotFetchOldOffPtr #-}
 
 -- | Binary negation (NOT) of an element of a `Ptr`, corresponds to
 -- @(`Data.Bits.complement`)@ done atomically. Returns the new value. Offset is in number
@@ -553,14 +553,14 @@ atomicFetchNotOffPtr (Ptr addr#) (Off (I# i#)) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNotFetchOffPtr ::
+atomicNotFetchNewOffPtr ::
      (MonadPrim s m, AtomicBits e)
   => Ptr e
   -> Off e
   -> m e
-atomicNotFetchOffPtr (Ptr addr#) (Off (I# i#)) =
-  prim (atomicNotFetchOffAddr# addr# i#)
-{-# INLINE atomicNotFetchOffPtr #-}
+atomicNotFetchNewOffPtr (Ptr addr#) (Off (I# i#)) =
+  prim (atomicNotFetchNewOffAddr# addr# i#)
+{-# INLINE atomicNotFetchNewOffPtr #-}
 
 
 

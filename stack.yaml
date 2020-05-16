@@ -3,7 +3,7 @@ packages:
 - primal
 #- primal-array
 - primal-memory
-#- primal-pvar
+- primal-pvar
 - primal-test
 
 extra-deps:

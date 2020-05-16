@@ -38,8 +38,8 @@ module Data.Prim.Array.Unboxed
   , writeMArray
   -- *** Atomic
   -- , casMArray
-  -- , atomicModifyFetchMArray
-  -- , atomicFetchModifyMArray
+  -- , atomicModifyFetchNewMArray
+  -- , atomicModifyFetchOldMArray
   -- , atomicModifyMArray
   -- , atomicModifyMArray_
   -- , atomicModifyMArray2
@@ -499,12 +499,12 @@ setMArray (MArray ma#) (I# o#) (Size (I# n#)) a =
 -- {-# INLINE atomicModifyMArray# #-}
 
 
--- atomicModifyFetchMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
--- atomicModifyFetchMArray ma i f =
+-- atomicModifyFetchNewMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+-- atomicModifyFetchNewMArray ma i f =
 --   atomicModifyMArray# ma i (\a -> let a' = f a in (# a', a' #))
--- {-# INLINE atomicModifyFetchMArray #-}
+-- {-# INLINE atomicModifyFetchNewMArray #-}
 
--- -- atomicModifyFetchMArray ma@(MArray ma#) i@(I# i#) f = do
+-- -- atomicModifyFetchNewMArray ma@(MArray ma#) i@(I# i#) f = do
 -- --   current0 <- readMArray ma i
 -- --   prim $ \s0 ->
 -- --     let go expected s =
@@ -518,10 +518,10 @@ setMArray (MArray ma#) (I# o#) (Size (I# n#)) a =
 --   --         (_, current) -> go current
 --   --  in readMArray ma i >>= go
 
--- atomicFetchModifyMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
--- atomicFetchModifyMArray ma i f =
+-- atomicModifyFetchOldMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+-- atomicModifyFetchOldMArray ma i f =
 --   atomicModifyMArray# ma i (\a -> (# f a, a #))
--- {-# INLINE atomicFetchModifyMArray #-}
+-- {-# INLINE atomicModifyFetchOldMArray #-}
 --   -- let go e =
 --   --       casMArray ma i e (f e) >>= \case
 --   --         (True, _new) -> pure e

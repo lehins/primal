@@ -79,22 +79,22 @@ main = do
                   "MBytes"
                   [ bench "modifyFetchOldMem" $
                     whnfIO $ modifyFetchOldMem mb off0 (+ k)
-                  , bench "atomicFetchModifyMBytes" $
-                    whnfIO $ atomicFetchModifyMBytes mb off0 (+ k)
-                  , bench "atomicFetchAddMBytes" $
-                    whnfIO $ atomicFetchAddMBytes mb off0 k
+                  , bench "atomicModifyFetchOldMBytes" $
+                    whnfIO $ atomicModifyFetchOldMBytes mb off0 (+ k)
+                  , bench "atomicAddFetchOldMBytes" $
+                    whnfIO $ atomicAddFetchOldMBytes mb off0 k
                   ]
             , env (newRef 0) $ \ref ->
                 bgroup
                   "Ref"
-                  [ bench "fetchModifyRef" $ whnfIO $ fetchModifyRef ref (+ k)
-                  , bench "atomicFetchModifyRef" $
-                    whnfIO $ atomicFetchModifyRef ref (+ k)
+                  [ bench "modifyFetchOldRef" $ whnfIO $ modifyFetchOldRef ref (+ k)
+                  , bench "atomicModifyFetchOldRef" $
+                    whnfIO $ atomicModifyFetchOldRef ref (+ k)
                   ]
             , env (newIORef 0) $ \ioRef ->
                 bgroup
                   "IORef"
-                  [ bench "fetchModifyIORef" $
+                  [ bench "modifyFetchOldIORef" $
                     whnfIO $ do
                       a <- readIORef ioRef
                       let a' = a + k
@@ -117,15 +117,15 @@ main = do
             , env (newRef (Just 0)) $ \ref ->
                 bgroup
                   "Ref"
-                  [ bench "fetchModifyRef" $
-                    nfIO $ fetchModifyRef ref (fmap (+ k))
-                  , bench "atomicFetchModifyRef" $
-                    nfIO $ atomicFetchModifyRef ref (fmap (+ k))
+                  [ bench "modifyFetchOldRef" $
+                    nfIO $ modifyFetchOldRef ref (fmap (+ k))
+                  , bench "atomicModifyFetchOldRef" $
+                    nfIO $ atomicModifyFetchOldRef ref (fmap (+ k))
                   ]
             , env (newIORef (Just 0)) $ \ioRef ->
                 bgroup
                   "IORef"
-                  [ bench "fetchModifyIORef" $
+                  [ bench "modifyFetchOldIORef" $
                     nfIO $ do
                       a <- readIORef ioRef
                       let a' = (k +) <$> a
@@ -147,29 +147,29 @@ main = do
                   [ bench "modifyFetchOldMem (single core)" $
                     nfIO $
                     forM_ [1 .. n] $ \k' -> modifyFetchOldMem mb off0 (+ k')
-                  , bench "atomicFetchModifyMBytes" $
+                  , bench "atomicModifyFetchOldMBytes" $
                     nfIO $
                     pooledForConcurrentlyN_ c [1 .. n] $ \k' ->
-                      atomicFetchModifyMBytes mb off0 (+ k')
-                  , bench "atomicFetchAddMBytes" $
+                      atomicModifyFetchOldMBytes mb off0 (+ k')
+                  , bench "atomicAddFetchOldMBytes" $
                     nfIO $
                     pooledForConcurrentlyN_ c [1 .. n] $ \k' ->
-                      atomicFetchAddMBytes mb off0 k'
+                      atomicAddFetchOldMBytes mb off0 k'
                   ]
             , env (newRef 0) $ \ref ->
                 bgroup
                   "Ref"
-                  [ bench "fetchModifyRef  (single core)" $
-                    nfIO $ forM_ [1 .. n] $ \k' -> fetchModifyRef ref (+ k')
-                  , bench "atomicFetchModifyRef" $
+                  [ bench "modifyFetchOldRef  (single core)" $
+                    nfIO $ forM_ [1 .. n] $ \k' -> modifyFetchOldRef ref (+ k')
+                  , bench "atomicModifyFetchOldRef" $
                     nfIO $
                     pooledForConcurrentlyN_ c [1 .. n] $ \k' ->
-                      atomicFetchModifyRef ref (+ k')
+                      atomicModifyFetchOldRef ref (+ k')
                   ]
             , env (newIORef 0) $ \ioRef ->
                 bgroup
                   "IORef"
-                  [ bench "fetchModifyIORef (single core)" $
+                  [ bench "modifyFetchOldIORef (single core)" $
                     nfIO $
                     forM_ [1 .. n] $ \k' -> do
                       a <- readIORef ioRef
@@ -212,12 +212,12 @@ main = do
         --     [ bgroup
         --         "MBytes"
         --         [ env (newMBytes 0) $ \avar ->
-        --             bench "atomicFetchAddMBytes" $
+        --             bench "atomicAddFetchOldMBytes" $
         --             whnfIO $
         --             pooledForConcurrentlyN_
         --               c
         --               [1 .. n]
-        --               (atomicFetchAddMBytes avar)
+        --               (atomicAddFetchOldMBytes avar)
         --         , env (newMBytes 0) $ \avar ->
         --             bench "atomicModifyMBytes_" $
         --             whnfIO $
@@ -229,12 +229,12 @@ main = do
         --     , bgroup
         --         "MBytes (Int32) "
         --         [ env (newMBytes (0 :: Int32)) $ \avar ->
-        --             bench "atomicFetchAddMBytes" $
+        --             bench "atomicAddFetchOldMBytes" $
         --             whnfIO $
         --             pooledForConcurrentlyN_
         --               c
         --               [1 .. fromIntegral n]
-        --               (atomicFetchAddMBytes avar)
+        --               (atomicAddFetchOldMBytes avar)
         --         , env (newMBytes (0 :: Int32)) $ \avar ->
         --             bench "atomicModifyMBytes_" $
         --             whnfIO $

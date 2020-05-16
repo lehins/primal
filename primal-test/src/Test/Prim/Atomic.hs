@@ -32,4 +32,4 @@ import Test.QuickCheck
 --   -> Spec
 -- propMutSpecIO name gen action = prop name $ forAllAVarIO gen action
 
---atomicFetchAddProp :: (a -> f a s -> m b) ->
+--atomicAddFetchOldProp :: (a -> f a s -> m b) ->

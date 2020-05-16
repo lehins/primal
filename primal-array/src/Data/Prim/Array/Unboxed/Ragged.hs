@@ -45,8 +45,8 @@ module Data.Prim.Array.Unboxed.Ragged
   , writeMArray
   -- -- *** Atomic
   -- , casMArray
-  -- , atomicModifyFetchMArray
-  -- , atomicFetchModifyMArray
+  -- , atomicModifyFetchNewMArray
+  -- , atomicModifyFetchOldMArray
   -- , atomicModifyMArray
   -- , atomicModifyMArray_
   -- , atomicModifyMArray2

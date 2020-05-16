@@ -113,24 +113,24 @@ module Data.Prim.Memory.Bytes
   , atomicWriteMBytes
   , atomicModifyMBytes
   , atomicModifyMBytes_
-  , atomicFetchModifyMBytes
-  , atomicModifyFetchMBytes
+  , atomicModifyFetchOldMBytes
+  , atomicModifyFetchNewMBytes
   -- ** Numberic
-  , atomicFetchAddMBytes
-  , atomicAddFetchMBytes
-  , atomicFetchSubMBytes
-  , atomicSubFetchMBytes
+  , atomicAddFetchOldMBytes
+  , atomicAddFetchNewMBytes
+  , atomicSubFetchOldMBytes
+  , atomicSubFetchNewMBytes
   -- ** Binary
-  , atomicFetchAndMBytes
-  , atomicAndFetchMBytes
-  , atomicFetchNandMBytes
-  , atomicNandFetchMBytes
-  , atomicFetchOrMBytes
-  , atomicOrFetchMBytes
-  , atomicFetchXorMBytes
-  , atomicXorFetchMBytes
-  , atomicFetchNotMBytes
-  , atomicNotFetchMBytes
+  , atomicAndFetchOldMBytes
+  , atomicAndFetchNewMBytes
+  , atomicNandFetchOldMBytes
+  , atomicNandFetchNewMBytes
+  , atomicOrFetchOldMBytes
+  , atomicOrFetchNewMBytes
+  , atomicXorFetchOldMBytes
+  , atomicXorFetchNewMBytes
+  , atomicNotFetchOldMBytes
+  , atomicNotFetchNewMBytes
   -- * Prefetch
   , prefetchBytes0
   , prefetchMBytes0
@@ -561,15 +561,15 @@ atomicModifyMBytes_ (MBytes mba#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchModifyMBytes ::
+atomicModifyFetchOldMBytes ::
      (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicFetchModifyMBytes (MBytes mba#) (Off (I# i#)) f =
-  prim $ atomicFetchModifyMutableByteArray# mba# i# f
-{-# INLINE atomicFetchModifyMBytes #-}
+atomicModifyFetchOldMBytes (MBytes mba#) (Off (I# i#)) f =
+  prim $ atomicModifyFetchOldMutableByteArray# mba# i# f
+{-# INLINE atomicModifyFetchOldMBytes #-}
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied
@@ -579,15 +579,15 @@ atomicFetchModifyMBytes (MBytes mba#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyFetchMBytes ::
+atomicModifyFetchNewMBytes ::
      (MonadPrim s m, Atomic e)
   => MBytes p s -- ^ Array to be mutated
   -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
   -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
   -> m e
-atomicModifyFetchMBytes (MBytes mba#) (Off (I# i#)) f =
-  prim $ atomicModifyFetchMutableByteArray# mba# i# f
-{-# INLINE atomicModifyFetchMBytes #-}
+atomicModifyFetchNewMBytes (MBytes mba#) (Off (I# i#)) f =
+  prim $ atomicModifyFetchNewMutableByteArray# mba# i# f
+{-# INLINE atomicModifyFetchNewMBytes #-}
 
 
 
@@ -601,15 +601,15 @@ atomicModifyFetchMBytes (MBytes mba#) (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAddMBytes ::
+atomicAddFetchOldMBytes ::
      (MonadPrim s m, AtomicCount e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchAddMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchAddMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchAddMBytes #-}
+atomicAddFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicAddFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicAddFetchOldMBytes #-}
 
 -- | Add a numeric value to an element of a `MBytes`, corresponds to @(`+`)@ done
 -- atomically. Returns the new value.  Offset is in number of elements, rather
@@ -618,15 +618,15 @@ atomicFetchAddMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAddFetchMBytes ::
+atomicAddFetchNewMBytes ::
      (MonadPrim s m, AtomicCount e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicAddFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicAddFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicAddFetchMBytes #-}
+atomicAddFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicAddFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicAddFetchNewMBytes #-}
 
 
 
@@ -637,15 +637,15 @@ atomicAddFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchSubMBytes ::
+atomicSubFetchOldMBytes ::
      (MonadPrim s m, AtomicCount e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchSubMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchSubMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchSubMBytes #-}
+atomicSubFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicSubFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicSubFetchOldMBytes #-}
 
 -- | Subtract a numeric value from an element of a `MBytes`, corresponds to
 -- @(`-`)@ done atomically. Returns the new value. Offset is in number of elements, rather
@@ -654,15 +654,15 @@ atomicFetchSubMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicSubFetchMBytes ::
+atomicSubFetchNewMBytes ::
      (MonadPrim s m, AtomicCount e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicSubFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicSubFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicSubFetchMBytes #-}
+atomicSubFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicSubFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicSubFetchNewMBytes #-}
 
 
 
@@ -673,15 +673,15 @@ atomicSubFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchAndMBytes ::
+atomicAndFetchOldMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchAndMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchAndMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchAndMBytes #-}
+atomicAndFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicAndFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicAndFetchOldMBytes #-}
 
 -- | Binary conjunction (AND) of an element of a `MBytes` with the supplied value,
 -- corresponds to @(`Data.Bits..&.`)@ done atomically. Returns the new value. Offset is
@@ -690,15 +690,15 @@ atomicFetchAndMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAndFetchMBytes ::
+atomicAndFetchNewMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicAndFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicAndFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicAndFetchMBytes #-}
+atomicAndFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicAndFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicAndFetchNewMBytes #-}
 
 
 
@@ -710,15 +710,15 @@ atomicAndFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNandMBytes ::
+atomicNandFetchOldMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchNandMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchNandMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchNandMBytes #-}
+atomicNandFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicNandFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicNandFetchOldMBytes #-}
 
 -- | Negation of binary conjunction (NAND)  of an element of a `MBytes` with the supplied
 -- value, corresponds to @\\x y -> `Data.Bits.complement` (x `Data.Bits..&.` y)@ done
@@ -728,15 +728,15 @@ atomicFetchNandMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNandFetchMBytes ::
+atomicNandFetchNewMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicNandFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicNandFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicNandFetchMBytes #-}
+atomicNandFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicNandFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicNandFetchNewMBytes #-}
 
 
 
@@ -748,15 +748,15 @@ atomicNandFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchOrMBytes ::
+atomicOrFetchOldMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchOrMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchOrMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchOrMBytes #-}
+atomicOrFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicOrFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicOrFetchOldMBytes #-}
 
 -- | Binary disjunction (OR) of an element of a `MBytes` with the supplied value,
 -- corresponds to @(`Data.Bits..|.`)@ done atomically. Returns the new value. Offset is
@@ -765,15 +765,15 @@ atomicFetchOrMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicOrFetchMBytes ::
+atomicOrFetchNewMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicOrFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicOrFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicOrFetchMBytes #-}
+atomicOrFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicOrFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicOrFetchNewMBytes #-}
 
 
 
@@ -784,15 +784,15 @@ atomicOrFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchXorMBytes ::
+atomicXorFetchOldMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicFetchXorMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicFetchXorMutableByteArray# mba# i# a)
-{-# INLINE atomicFetchXorMBytes #-}
+atomicXorFetchOldMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicXorFetchOldMutableByteArray# mba# i# a)
+{-# INLINE atomicXorFetchOldMBytes #-}
 
 -- | Binary exclusive disjunction (XOR) of an element of a `MBytes` with the supplied value,
 -- corresponds to @`Data.Bits.xor`@ done atomically. Returns the new value. Offset is
@@ -801,15 +801,15 @@ atomicFetchXorMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicXorFetchMBytes ::
+atomicXorFetchNewMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> e
   -> m e
-atomicXorFetchMBytes (MBytes mba#) (Off (I# i#)) a =
-  prim (atomicXorFetchMutableByteArray# mba# i# a)
-{-# INLINE atomicXorFetchMBytes #-}
+atomicXorFetchNewMBytes (MBytes mba#) (Off (I# i#)) a =
+  prim (atomicXorFetchNewMutableByteArray# mba# i# a)
+{-# INLINE atomicXorFetchNewMBytes #-}
 
 
 
@@ -822,14 +822,14 @@ atomicXorFetchMBytes (MBytes mba#) (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicFetchNotMBytes ::
+atomicNotFetchOldMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> m e
-atomicFetchNotMBytes (MBytes mba#) (Off (I# i#)) =
-  prim (atomicFetchNotMutableByteArray# mba# i#)
-{-# INLINE atomicFetchNotMBytes #-}
+atomicNotFetchOldMBytes (MBytes mba#) (Off (I# i#)) =
+  prim (atomicNotFetchOldMutableByteArray# mba# i#)
+{-# INLINE atomicNotFetchOldMBytes #-}
 
 -- | Binary negation (NOT) of an element of a `MBytes`, corresponds to
 -- @(`Data.Bits.complement`)@ done atomically. Returns the new value. Offset is in number
@@ -838,14 +838,14 @@ atomicFetchNotMBytes (MBytes mba#) (Off (I# i#)) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNotFetchMBytes ::
+atomicNotFetchNewMBytes ::
      (MonadPrim s m, AtomicBits e)
   => MBytes p s
   -> Off e
   -> m e
-atomicNotFetchMBytes (MBytes mba#) (Off (I# i#)) =
-  prim (atomicNotFetchMutableByteArray# mba# i#)
-{-# INLINE atomicNotFetchMBytes #-}
+atomicNotFetchNewMBytes (MBytes mba#) (Off (I# i#)) =
+  prim (atomicNotFetchNewMutableByteArray# mba# i#)
+{-# INLINE atomicNotFetchNewMBytes #-}
 
 
 

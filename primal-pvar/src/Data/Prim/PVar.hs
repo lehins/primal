@@ -30,12 +30,12 @@ module Data.Prim.PVar
   , writePVar
   , modifyPVar
   , modifyPVar_
-  , fetchModifyPVar
-  , modifyFetchPVar
+  , modifyFetchOldPVar
+  , modifyFetchNewPVar
   , modifyPVarM
   , modifyPVarM_
-  , fetchModifyPVarM
-  , modifyFetchPVarM
+  , modifyFetchOldPVarM
+  , modifyFetchNewPVarM
   , swapPVars_
   , swapPVars
   , copyPVar
@@ -55,44 +55,43 @@ module Data.Prim.PVar
   , atomicWritePVar
   , atomicModifyPVar
   , atomicModifyPVar_
-  , atomicFetchModifyPVar
-  , atomicModifyFetchPVar
+  , atomicModifyFetchOldPVar
+  , atomicModifyFetchNewPVar
   , casPVar
   -- ** Arithmetic
   -- *** Addition
   , (!+)
-  , atomicFetchAddPVar
-  , atomicAddFetchPVar
+  , atomicAddFetchOldPVar
+  , atomicAddFetchNewPVar
   -- *** Subtraction
   , (!-)
-  , atomicFetchSubPVar
-  , atomicSubFetchPVar
+  , atomicSubFetchOldPVar
+  , atomicSubFetchNewPVar
   -- ** Binary
   -- *** AND
   , (!&)
-  , atomicFetchAndPVar
-  , atomicAndFetchPVar
+  , atomicAndFetchOldPVar
+  , atomicAndFetchNewPVar
   -- *** NAND
   , (!~&)
-  , atomicFetchNandPVar
-  , atomicNandFetchPVar
+  , atomicNandFetchOldPVar
+  , atomicNandFetchNewPVar
   -- *** OR
   , (!|)
-  , atomicFetchOrPVar
-  , atomicOrFetchPVar
+  , atomicOrFetchOldPVar
+  , atomicOrFetchNewPVar
   -- *** XOR
   , (!^)
-  , atomicFetchXorPVar
-  , atomicXorFetchPVar
+  , atomicXorFetchOldPVar
+  , atomicXorFetchNewPVar
   -- *** NOT
   , (!~)
-  , atomicFetchNotPVar
-  , atomicNotFetchPVar
+  , atomicNotFetchOldPVar
+  , atomicNotFetchNewPVar
   -- * Re-export
   , module Data.Prim
   ) where
 
-import Control.Monad (void, forM)
 import Control.Prim.Monad
 import Control.Monad.ST (ST, runST)
 import Data.Prim
@@ -179,16 +178,16 @@ modifyPVar_ pvar f = modifyPVarM_ pvar (return . f)
 -- | Apply a pure function to the contents of a mutable variable. Returns the old value.
 --
 -- @since 0.1.0
-fetchModifyPVar :: (MonadPrim s m, Prim a) => PVar a s -> (a -> a) -> m a
-fetchModifyPVar pvar f = fetchModifyPVarM pvar (return . f)
-{-# INLINE fetchModifyPVar #-}
+modifyFetchOldPVar :: (MonadPrim s m, Prim a) => PVar a s -> (a -> a) -> m a
+modifyFetchOldPVar pvar f = modifyFetchOldPVarM pvar (return . f)
+{-# INLINE modifyFetchOldPVar #-}
 
 -- | Apply a pure function to the contents of a mutable variable. Returns the new value.
 --
 -- @since 0.1.0
-modifyFetchPVar :: (MonadPrim s m, Prim a) => PVar a s -> (a -> a) -> m a
-modifyFetchPVar pvar f = modifyFetchPVarM pvar (return . f)
-{-# INLINE modifyFetchPVar #-}
+modifyFetchNewPVar :: (MonadPrim s m, Prim a) => PVar a s -> (a -> a) -> m a
+modifyFetchNewPVar pvar f = modifyFetchNewPVarM pvar (return . f)
+{-# INLINE modifyFetchNewPVar #-}
 
 
 -- | Apply a monadic action to the contents of a mutable variable. Returns the artifact of
@@ -205,22 +204,22 @@ modifyPVarM pvar f = do
 -- | Apply a monadic action to the contents of a mutable variable. Returns the old value.
 --
 -- @since 0.1.0
-fetchModifyPVarM :: (MonadPrim s m, Prim a) => PVar a s -> (a -> m a) -> m a
-fetchModifyPVarM pvar f = do
+modifyFetchOldPVarM :: (MonadPrim s m, Prim a) => PVar a s -> (a -> m a) -> m a
+modifyFetchOldPVarM pvar f = do
   a <- readPVar pvar
   a <$ (writePVar pvar =<< f a)
-{-# INLINE fetchModifyPVarM #-}
+{-# INLINE modifyFetchOldPVarM #-}
 
 
 -- | Apply a monadic action to the contents of a mutable variable. Returns the new value.
 --
 -- @since 0.1.0
-modifyFetchPVarM :: (MonadPrim s m, Prim a) => PVar a s -> (a -> m a) -> m a
-modifyFetchPVarM pvar f = do
+modifyFetchNewPVarM :: (MonadPrim s m, Prim a) => PVar a s -> (a -> m a) -> m a
+modifyFetchNewPVarM pvar f = do
   a <- readPVar pvar
   a' <- f a
   a' <$ writePVar pvar a'
-{-# INLINE modifyFetchPVarM #-}
+{-# INLINE modifyFetchNewPVarM #-}
 
 
 -- | Apply a monadic action to the contents of a mutable variable.
@@ -236,7 +235,7 @@ modifyPVarM_ pvar f = readPVar pvar >>= f >>= writePVar pvar
 swapPVars :: (MonadPrim s m, Prim a) => PVar a s -> PVar a s -> m (a, a)
 swapPVars pvar1 pvar2 = do
   a1 <- readPVar pvar1
-  a2 <- fetchModifyPVar pvar2 (const a1)
+  a2 <- modifyFetchOldPVar pvar2 (const a1)
   (a1, a2) <$ writePVar pvar1 a2
 {-# INLINE swapPVars #-}
 
@@ -270,19 +269,19 @@ atomicWritePVar (PVar mba#) a = prim_ (atomicWriteMutableByteArray# mba# 0# a)
 -- barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicFetchModifyPVar :: (MonadPrim s m, Atomic a) => PVar a s -> (a -> a) -> m a
-atomicFetchModifyPVar (PVar mba#) f =
-  prim $ atomicFetchModifyMutableByteArray# mba# 0# f
-{-# INLINE atomicFetchModifyPVar #-}
+atomicModifyFetchOldPVar :: (MonadPrim s m, Atomic a) => PVar a s -> (a -> a) -> m a
+atomicModifyFetchOldPVar (PVar mba#) f =
+  prim $ atomicModifyFetchOldMutableByteArray# mba# 0# f
+{-# INLINE atomicModifyFetchOldPVar #-}
 
 -- | Apply a function to an integer element of a `PVar` atomically. Implies a full memory
 -- barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicModifyFetchPVar :: (MonadPrim s m, Atomic a) => PVar a s -> (a -> a) -> m a
-atomicModifyFetchPVar (PVar mba#) f =
-  prim $ atomicModifyFetchMutableByteArray# mba# 0# f
-{-# INLINE atomicModifyFetchPVar #-}
+atomicModifyFetchNewPVar :: (MonadPrim s m, Atomic a) => PVar a s -> (a -> a) -> m a
+atomicModifyFetchNewPVar (PVar mba#) f =
+  prim $ atomicModifyFetchNewMutableByteArray# mba# 0# f
+{-# INLINE atomicModifyFetchNewPVar #-}
 
 
 -- | Compare and swap. This is also a function that is used to implement
@@ -303,24 +302,24 @@ casPVar (PVar mba#) old new = prim $ casMutableByteArray# mba# 0# old new
 -- a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchAddPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
-atomicFetchAddPVar (PVar mba#) a = prim $ atomicFetchAddMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchAddPVar #-}
+atomicAddFetchOldPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
+atomicAddFetchOldPVar (PVar mba#) a = prim $ atomicAddFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicAddFetchOldPVar #-}
 
 -- | Add a number to mutable variable, corresponds to @(`+`)@ done atomically. Implies
 -- a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicAddFetchPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
-atomicAddFetchPVar (PVar mba#) a = prim $ atomicAddFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicAddFetchPVar #-}
+atomicAddFetchNewPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
+atomicAddFetchNewPVar (PVar mba#) a = prim $ atomicAddFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicAddFetchNewPVar #-}
 
 -- | Add a number to mutable variable, corresponds to @(`+`)@ done atomically. Implies a
 -- full memory barrier.
 --
 -- @since 0.1.0
 (!+) :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m ()
-(!+) var = void . atomicFetchAddPVar var
+(!+) var = void . atomicAddFetchOldPVar var
 {-# INLINE (!+) #-}
 
 
@@ -328,147 +327,147 @@ atomicAddFetchPVar (PVar mba#) a = prim $ atomicAddFetchMutableByteArray# mba# 0
 -- atomically. Implies a full memory barrier. Returns the previous value
 --
 -- @since 0.1.0
-atomicFetchSubPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
-atomicFetchSubPVar (PVar mba#) a = prim $ atomicFetchSubMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchSubPVar #-}
+atomicSubFetchOldPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
+atomicSubFetchOldPVar (PVar mba#) a = prim $ atomicSubFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicSubFetchOldPVar #-}
 
 -- | Subtract a number from mutable variable, corresponds to @(`-`)@ done
 -- atomically. Implies a full memory barrier. Returns the new value
 --
 -- @since 0.1.0
-atomicSubFetchPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
-atomicSubFetchPVar (PVar mba#) a = prim $ atomicSubFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicSubFetchPVar #-}
+atomicSubFetchNewPVar :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m a
+atomicSubFetchNewPVar (PVar mba#) a = prim $ atomicSubFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicSubFetchNewPVar #-}
 
 -- | Subtract a number from a mutable variable, corresponds to @(`-`)@ done atomically. Implies a
 -- full memory barrier.
 --
 -- @since 0.1.0
 (!-) :: (MonadPrim s m, AtomicCount a) => PVar a s -> a -> m ()
-(!-) var = void . atomicFetchSubPVar var
+(!-) var = void . atomicSubFetchOldPVar var
 {-# INLINE (!-) #-}
 
 -- | Binary conjuction (AND), corresponds to @(`Data.Bits..&.`)@ done atomically. Implies
 -- a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchAndPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicFetchAndPVar (PVar mba#) a = prim $ atomicFetchAndMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchAndPVar #-}
+atomicAndFetchOldPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicAndFetchOldPVar (PVar mba#) a = prim $ atomicAndFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicAndFetchOldPVar #-}
 
 
 -- | Binary conjuction (AND), corresponds to @(`Data.Bits..&.`)@ done atomically. Implies
 -- a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicAndFetchPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicAndFetchPVar (PVar mba#) a = prim $ atomicAndFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicAndFetchPVar #-}
+atomicAndFetchNewPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicAndFetchNewPVar (PVar mba#) a = prim $ atomicAndFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicAndFetchNewPVar #-}
 
 -- | Binary conjuction (AND), corresponds to @(`Data.Bits..&.`)@ done atomically. Implies
 -- a full memory barrier.
 --
 -- @since 0.1.0
 (!&) :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m ()
-(!&) var = void . atomicFetchAndPVar var
+(!&) var = void . atomicAndFetchOldPVar var
 {-# INLINE (!&) #-}
 
 -- | Binary negation of conjuction (NAND), corresponds to @\\x y -> `Data.Bits.complement` (x `.&.`
 -- y)@ done atomically. Implies a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchNandPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicFetchNandPVar (PVar mba#) a = prim $ atomicFetchNandMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchNandPVar #-}
+atomicNandFetchOldPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicNandFetchOldPVar (PVar mba#) a = prim $ atomicNandFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicNandFetchOldPVar #-}
 
 
 -- | Binary negation of conjuction (NAND), corresponds to @\\x y -> `Data.Bits.complement` (x `.&.`
 -- y)@ done atomically. Implies a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicNandFetchPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicNandFetchPVar (PVar mba#) a = prim $ atomicNandFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicNandFetchPVar #-}
+atomicNandFetchNewPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicNandFetchNewPVar (PVar mba#) a = prim $ atomicNandFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicNandFetchNewPVar #-}
 
 -- | Binary negation of conjuction (NAND), corresponds to @\\x y -> `Data.Bits.complement` (x `.&.`
 -- y)@ done atomically. Implies a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
 (!~&) :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m ()
-(!~&) var = void . atomicFetchNandPVar var
+(!~&) var = void . atomicNandFetchOldPVar var
 {-# INLINE (!~&) #-}
 
 -- | Binary disjunction (OR), corresponds to @(`Data.Bits..|.`)@ done atomically. Implies
 -- a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchOrPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicFetchOrPVar (PVar mba#) a = prim $ atomicFetchOrMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchOrPVar #-}
+atomicOrFetchOldPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicOrFetchOldPVar (PVar mba#) a = prim $ atomicOrFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicOrFetchOldPVar #-}
 
 
 -- | Binary disjunction (OR), corresponds to @(`Data.Bits..|.`)@ done atomically. Implies
 -- a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicOrFetchPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicOrFetchPVar (PVar mba#) a = prim $ atomicOrFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicOrFetchPVar #-}
+atomicOrFetchNewPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicOrFetchNewPVar (PVar mba#) a = prim $ atomicOrFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicOrFetchNewPVar #-}
 
 -- | Binary disjunction (OR), corresponds to @(`Data.Bits..|.`)@ done atomically. Implies
 -- a full memory barrier.
 --
 -- @since 0.1.0
 (!|) :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m ()
-(!|) var = void . atomicFetchOrPVar var
+(!|) var = void . atomicOrFetchOldPVar var
 {-# INLINE (!|) #-}
 
 -- | Binary exclusive OR (XOR), corresponds to @(`Data.Bits.xor`)@ done atomically. Implies
 -- a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchXorPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicFetchXorPVar (PVar mba#) a = prim $ atomicFetchXorMutableByteArray# mba# 0# a
-{-# INLINE atomicFetchXorPVar #-}
+atomicXorFetchOldPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicXorFetchOldPVar (PVar mba#) a = prim $ atomicXorFetchOldMutableByteArray# mba# 0# a
+{-# INLINE atomicXorFetchOldPVar #-}
 
 
 -- | Binary exclusive OR (XOR), corresponds to @(`Data.Bits.xor`)@ done atomically. Implies
 -- a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicXorFetchPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
-atomicXorFetchPVar (PVar mba#) a = prim $ atomicXorFetchMutableByteArray# mba# 0# a
-{-# INLINE atomicXorFetchPVar #-}
+atomicXorFetchNewPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m a
+atomicXorFetchNewPVar (PVar mba#) a = prim $ atomicXorFetchNewMutableByteArray# mba# 0# a
+{-# INLINE atomicXorFetchNewPVar #-}
 
 -- | Binary exclusive OR (XOR), corresponds to @(`Data.Bits.xor`)@ done atomically. Implies
 -- a full memory barrier.
 --
 -- @since 0.1.0
 (!^) :: (MonadPrim s m, AtomicBits a) => PVar a s -> a -> m ()
-(!^) var = void . atomicFetchXorPVar var
+(!^) var = void . atomicXorFetchOldPVar var
 {-# INLINE (!^) #-}
 
 -- | Binary negation (NOT), corresponds to @(`Data.Bits.complement`)@ done atomically. Implies
 -- a full memory barrier. Returns the previous value.
 --
 -- @since 0.1.0
-atomicFetchNotPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> m a
-atomicFetchNotPVar (PVar mba#) = prim $ atomicFetchNotMutableByteArray# mba# 0#
-{-# INLINE atomicFetchNotPVar #-}
+atomicNotFetchOldPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> m a
+atomicNotFetchOldPVar (PVar mba#) = prim $ atomicNotFetchOldMutableByteArray# mba# 0#
+{-# INLINE atomicNotFetchOldPVar #-}
 
 
 -- | Binary negation (NOT), corresponds to @(`Data.Bits.complement`)@ done atomically. Implies
 -- a full memory barrier. Returns the new value.
 --
 -- @since 0.1.0
-atomicNotFetchPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> m a
-atomicNotFetchPVar (PVar mba#) = prim $ atomicNotFetchMutableByteArray# mba# 0#
-{-# INLINE atomicNotFetchPVar #-}
+atomicNotFetchNewPVar :: (MonadPrim s m, AtomicBits a) => PVar a s -> m a
+atomicNotFetchNewPVar (PVar mba#) = prim $ atomicNotFetchNewMutableByteArray# mba# 0#
+{-# INLINE atomicNotFetchNewPVar #-}
 
 -- | Binary negation (NOT), corresponds to @(`Data.Bits.complement`)@ done atomically. Implies
 -- a full memory barrier.
 --
 -- @since 0.1.0
 (!~) :: (MonadPrim s m, AtomicBits a) => PVar a s -> m ()
-(!~) var = void $ atomicFetchNotPVar var
+(!~) var = void $ atomicNotFetchOldPVar var
 {-# INLINE (!~) #-}
