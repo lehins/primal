@@ -16,3 +16,22 @@ reallyUnsafePtrEquality# (unsafeCoerce# ba1 :: ()) (unsafeCoerce# ba2 :: ())
 * `Prim` class: inability to index/read/write with Byte offset
 * Lack of backwards compatibility (eg, isPinnedByteArray only works on ghc-8.2 and up)
 * Lack of unified interface
+
+
+
+=== Plan
+
+
+* Finish raw implementation of:
+  * primal
+  * primal-memory (ByteArray, MByteArray, Addr, MAddr, Bytes, MBytes)
+  * primal-array
+  * primal-var (Var and PRef)
+
+
+
+* Future:
+  * primal (Int8, Int16 ...)
+  * primal-simd
+  * primal-memory (ForeignAddr, ForeignMAddr)
+  * primal-numeric

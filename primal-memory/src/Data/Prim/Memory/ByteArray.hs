@@ -24,22 +24,32 @@ module Data.Prim.Memory.ByteArray
   , toMByteArray
   , fromMByteArray
   , castMByteArray
+  , allocMByteArray
+  , allocPinnedMByteArray
+  , allocAlignedMByteArray
+  , allocUnpinnedMByteArray
+  , shrinkMByteArray
+  , resizeMByteArray
+  , reallocMByteArray
+  , isPinnedByteArray
+  , isPinnedMByteArray
   ) where
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Foreign.Prim
 import Data.Prim
 import Data.Prim.Memory.Bytes.Internal
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ForeignPtr
 
 
--- | An immutable array of bytes of some type @e@
+-- | An immutable array of bytes of type @e@
 newtype ByteArray (p :: Pinned) e = ByteArray (Bytes p)
-  deriving (Eq, NFData, Semigroup, Monoid, MemRead)
+  deriving (NFData, Semigroup, Monoid, MemRead)
 type role ByteArray phantom representational
 
--- | A mutable array of bytes of some type @e@
+-- | A mutable array of bytes of type @e@
 newtype MByteArray (p :: Pinned) e s = MByteArray (MBytes p s)
   deriving (NFData, MemWrite)
 type role MByteArray phantom representational nominal
@@ -61,7 +71,6 @@ instance PtrAccess s (MByteArray 'Pin e s) where
   withNoHaltPtrAccess mb = withNoHaltPtrMBytes (fromMByteArray mb)
   {-# INLINE withNoHaltPtrAccess #-}
 
-
 instance Typeable p => MemAlloc (MByteArray p e) where
   type FrozenMem (MByteArray p e) = ByteArray p e
   getByteCountMem = getByteCountMem . fromMByteArray
@@ -75,6 +84,21 @@ instance Typeable p => MemAlloc (MByteArray p e) where
   resizeMem mba = fmap toMByteArray . reallocMBytes (fromMByteArray mba)
   {-# INLINE resizeMem #-}
 
+instance (Typeable p, Prim e) => IsList (ByteArray p e) where
+  type Item (ByteArray p e) = e
+  fromList = fromListMem
+  fromListN n = fromListMemN_ (Count n)
+  toList = toListMem
+
+instance Typeable p => IsString (ByteArray p Char) where
+  fromString = fromListMem
+
+instance (Show e, Prim e) => Show (ByteArray p e) where
+  show = show . toListByteArray
+
+
+toListByteArray :: Prim e => ByteArray p e -> [e]
+toListByteArray = toListMem
 
 castByteArray :: ByteArray p e' -> ByteArray p e
 castByteArray = coerce
@@ -100,18 +124,18 @@ allocMByteArray ::
 allocMByteArray = fmap toMByteArray . allocMBytes
 {-# INLINE allocMByteArray #-}
 
-allocUnpinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray Inc e s)
+allocUnpinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray 'Inc e s)
 allocUnpinnedMByteArray = fmap toMByteArray . allocUnpinnedMBytes
 {-# INLINE allocUnpinnedMByteArray #-}
 
-allocPinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray Pin e s)
+allocPinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray 'Pin e s)
 allocPinnedMByteArray = fmap toMByteArray . allocPinnedMBytes
 {-# INLINE allocPinnedMByteArray #-}
 
 allocAlignedMByteArray ::
      (MonadPrim s m, Prim e)
   => Count e -- ^ Size in number of bytes
-  -> m (MByteArray Pin e s)
+  -> m (MByteArray 'Pin e s)
 allocAlignedMByteArray = fmap toMByteArray . allocAlignedMBytes
 {-# INLINE allocAlignedMByteArray #-}
 
@@ -136,7 +160,7 @@ shrinkMByteArray mba c = shrinkMBytes (fromMByteArray mba) (toByteCount c)
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizeMByteArray ::
-     (MonadPrim s m, Prim e) => MByteArray p e s -> Count e -> m (MByteArray Inc e s)
+     (MonadPrim s m, Prim e) => MByteArray p e s -> Count e -> m (MByteArray 'Inc e s)
 resizeMByteArray mba = fmap toMByteArray . resizeMBytes (fromMByteArray mba)
 {-# INLINE resizeMByteArray #-}
 
@@ -148,13 +172,14 @@ reallocMByteArray ::
 reallocMByteArray mba = fmap toMByteArray . reallocMBytes (fromMByteArray mba)
 {-# INLINABLE reallocMByteArray #-}
 
--- isPinnedByteArray :: ByteArray p e -> Bool
--- isPinnedByteArray (ByteArray b#) = isTrue# (isByteArrayPinned# b#)
--- {-# INLINE isPinnedByteArray #-}
 
--- isPinnedMByteArray :: MByteArray p e d -> Bool
--- isPinnedMByteArray (MByteArray mb#) = isTrue# (isMutableByteArrayPinned# mb#)
--- {-# INLINE isPinnedMByteArray #-}
+isPinnedByteArray :: ByteArray p e -> Bool
+isPinnedByteArray (ByteArray b) = isPinnedBytes b
+{-# INLINE isPinnedByteArray #-}
+
+isPinnedMByteArray :: MByteArray p e s -> Bool
+isPinnedMByteArray (MByteArray mb) = isPinnedMBytes mb
+{-# INLINE isPinnedMByteArray #-}
 
 -- setMByteArray ::
 --      (MonadPrim s m, Prim e)

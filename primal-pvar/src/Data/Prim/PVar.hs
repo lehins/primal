@@ -1,6 +1,5 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 800
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}

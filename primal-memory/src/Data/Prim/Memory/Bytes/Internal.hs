@@ -23,10 +23,12 @@ module Data.Prim.Memory.Bytes.Internal
   , Pinned(..)
   , isSameBytes
   , isSamePinnedBytes
+  , isPinnedBytes
+  , isPinnedMBytes
   , allocMBytes
-  , allocUnpinnedMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
+  , allocUnpinnedMBytes
   , callocAlignedMBytes
   , reallocMBytes
   , freezeMBytes

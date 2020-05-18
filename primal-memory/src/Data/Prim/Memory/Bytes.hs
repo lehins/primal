@@ -422,18 +422,6 @@ concatBytes = concatMem
 relaxPinned :: Bytes p -> Bytes 'Inc
 relaxPinned = coerce
 
-isPinnedBytes :: Bytes p -> Bool
-isPinnedBytes (Bytes b#) = isTrue# (isByteArrayPinned# b#)
-{-# INLINE[0] isPinnedBytes #-}
-
-isPinnedMBytes :: MBytes p d -> Bool
-isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
-{-# INLINE[0] isPinnedMBytes #-}
-
-{-# RULES
-"isPinnedBytes" forall (x :: Bytes 'Pin) . isPinnedBytes x = True
-"isPinnedMBytes" forall (x :: MBytes 'Pin s) . isPinnedMBytes x = True
-  #-}
 
 
 ensurePinnedBytes :: Bytes p -> Bytes 'Pin
