@@ -17,9 +17,9 @@ module Data.Prim.PVar.Internal
   , newPVar
   , newPinnedPVar
   , newAlignedPinnedPVar
-  , rawPVar
-  , rawPinnedPVar
-  , rawAlignedPinnedPVar
+  , allocPVar
+  , allocPinnedPVar
+  , allocAlignedPinnedPVar
   , unsafeToPtrPVar
   , readPVar
   , writePVar
@@ -28,7 +28,6 @@ module Data.Prim.PVar.Internal
   , alignmentPVar
   , atomicModifyPVar
   , atomicModifyPVar_
-  , unI#
   )
   where
 
@@ -43,10 +42,10 @@ import GHC.Exts
 -- | Mutable variable with primitive value.
 --
 -- @since 0.1.0
-data PVar a s = PVar (MutableByteArray# s)
+data PVar e s = PVar (MutableByteArray# s)
 
 -- | @`S.poke`+`S.peek`@ will result in a new copy of a `PVar`
-instance Prim a => S.Storable (PVar a RW) where
+instance Prim e => S.Storable (PVar e RW) where
   sizeOf = sizeOfPVar
   {-# INLINE sizeOf #-}
   alignment = alignmentPVar
@@ -61,12 +60,8 @@ instance Prim a => S.Storable (PVar a RW) where
   {-# INLINE pokeElemOff #-}
 
 -- | Values are already written into `PVar` in NF, this instance is trivial.
-instance NFData (PVar a s) where
+instance NFData (PVar e s) where
   rnf (PVar _) = ()
-
-unI# :: Int -> Int#
-unI# (I# i#) = i#
-{-# INLINE unI# #-}
 
 -- | Create a mutable variable in unpinned memory (i.e. GC can move it) with an initial
 -- value. This is a prefered way to create a mutable variable, since it will not
@@ -74,54 +69,54 @@ unI# (I# i#) = i#
 -- `newAlignedPinnedPVar`
 --
 -- @since 0.1.0
-newPVar :: (MonadPrim s m, Prim a) => a -> m (PVar a s)
+newPVar :: (MonadPrim s m, Prim e) => e -> m (PVar e s)
 newPVar v = do
-  pvar <- rawPVar
+  pvar <- allocPVar
   pvar <$ writePVar pvar v
 {-# INLINE newPVar #-}
 
 -- | Create a mutable variable in unpinned and unititialized memory
 --
 -- @since 0.1.0
-rawPVar ::
-     forall a m s. (MonadPrim s m, Prim a)
-  => m (PVar a s)
-rawPVar =
-  prim $ \s# ->
-    case newByteArray# (sizeOf# (proxy# :: Proxy# a)) s# of
-      (# s'#, mba# #) -> (# s'#, PVar mba# #)
-{-# INLINE rawPVar #-}
+allocPVar ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => m (PVar e s)
+allocPVar =
+  prim $ \s ->
+    case newByteArray# (sizeOf# (proxy# :: Proxy# e)) s of
+      (# s', mba# #) -> (# s', PVar mba# #)
+{-# INLINE allocPVar #-}
 
 
 -- | Create a mutable variable in pinned memory with an initial value.
 --
 -- @since 0.1.0
-newPinnedPVar :: (MonadPrim s m, Prim a) => a -> m (PVar a s)
+newPinnedPVar :: (MonadPrim s m, Prim e) => e -> m (PVar e s)
 newPinnedPVar v = do
-  pvar <- rawPinnedPVar
+  pvar <- allocPinnedPVar
   pvar <$ writePVar pvar v
 {-# INLINE newPinnedPVar #-}
 
 -- | Create a mutable variable in pinned memory with uninitialized memory.
 --
 -- @since 0.1.0
-rawPinnedPVar ::
-     forall a m s. (MonadPrim s m, Prim a)
-  => m (PVar a s)
-rawPinnedPVar =
-  prim $ \s# ->
-    case newPinnedByteArray# (sizeOf# (proxy# :: Proxy# a)) s# of
-      (# s'#, mba# #) -> (# s'#, PVar mba# #)
-{-# INLINE rawPinnedPVar #-}
+allocPinnedPVar ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => m (PVar e s)
+allocPinnedPVar =
+  prim $ \s ->
+    case newPinnedByteArray# (sizeOf# (proxy# :: Proxy# e)) s of
+      (# s', mba# #) -> (# s', PVar mba# #)
+{-# INLINE allocPinnedPVar #-}
 
 
 -- | Create a mutable variable in pinned memory with an initial value and aligned
 -- according to its `Data.Prim.Types.alignment`
 --
 -- @since 0.1.0
-newAlignedPinnedPVar :: (MonadPrim s m, Prim a) => a -> m (PVar a s)
+newAlignedPinnedPVar :: (MonadPrim s m, Prim e) => e -> m (PVar e s)
 newAlignedPinnedPVar v = do
-  pvar <- rawAlignedPinnedPVar
+  pvar <- allocAlignedPinnedPVar
   pvar <$ writePVar pvar v
 {-# INLINE newAlignedPinnedPVar #-}
 
@@ -129,35 +124,35 @@ newAlignedPinnedPVar v = do
 -- | Create a mutable variable in pinned uninitialized memory.
 --
 -- @since 0.1.0
-rawAlignedPinnedPVar ::
-     forall a m s. (MonadPrim s m, Prim a)
-  => m (PVar a s)
-rawAlignedPinnedPVar =
-  let dummy = proxy# :: Proxy# a
-   in prim $ \s# ->
-        case newAlignedPinnedByteArray# (sizeOf# dummy) (alignment# dummy) s# of
-          (# s'#, mba# #) -> (# s'#, PVar mba# #)
-{-# INLINE rawAlignedPinnedPVar #-}
+allocAlignedPinnedPVar ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => m (PVar e s)
+allocAlignedPinnedPVar =
+  let px# = proxy# :: Proxy# e
+   in prim $ \s ->
+        case newAlignedPinnedByteArray# (sizeOf# px#) (alignment# px#) s of
+          (# s', mba# #) -> (# s', PVar mba# #)
+{-# INLINE allocAlignedPinnedPVar #-}
 
 
 -- | Get the address to the contents. This is highly unsafe, espcially if memory is not pinned
 --
 -- @since 0.1.0
-unsafeToPtrPVar :: PVar a s -> Ptr a
+unsafeToPtrPVar :: PVar e s -> Ptr a
 unsafeToPtrPVar (PVar mba#) = Ptr (byteArrayContents# (unsafeCoerce# mba#))
 {-# INLINE unsafeToPtrPVar #-}
 
 -- | Read a value from a mutable variable
 --
 -- @since 0.1.0
-readPVar :: (MonadPrim s m, Prim a) => PVar a s -> m a
+readPVar :: (MonadPrim s m, Prim e) => PVar e s -> m e
 readPVar (PVar mba#) = prim (readMutableByteArray# mba# 0#)
 {-# INLINE readPVar #-}
 
 -- | Write a value into a mutable variable
 --
 -- @since 0.1.0
-writePVar :: (MonadPrim s m, Prim a) => PVar a s -> a -> m ()
+writePVar :: (MonadPrim s m, Prim e) => PVar e s -> e -> m ()
 writePVar (PVar mba#) v = prim_ (writeMutableByteArray# mba# 0# v)
 {-# INLINE writePVar #-}
 
@@ -165,23 +160,23 @@ writePVar (PVar mba#) v = prim_ (writeMutableByteArray# mba# 0# v)
 -- accessed nor evaluated.
 --
 -- @since 0.1.0
-sizeOfPVar :: forall a s. Prim a => PVar a s -> Int
-sizeOfPVar _ = I# (sizeOf# (proxy# :: Proxy# a))
+sizeOfPVar :: forall e s. Prim e => PVar e s -> Int
+sizeOfPVar _ = I# (sizeOf# (proxy# :: Proxy# e))
 {-# INLINE sizeOfPVar #-}
 
 -- | Alignment in bytes of the value stored inside of the mutable variable. `PVar` itself is
 -- neither accessed nor evaluated.
 --
 -- @since 0.1.0
-alignmentPVar :: forall a s. Prim a => PVar a s -> Int
-alignmentPVar _ = I# (alignment# (proxy# :: Proxy# a))
+alignmentPVar :: forall e s. Prim e => PVar e s -> Int
+alignmentPVar _ = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignmentPVar #-}
 
 
 -- | Check if `PVar` is backed by pinned memory or not
 --
 -- @since 0.1.0
-isPinnedPVar :: PVar a s -> Bool
+isPinnedPVar :: PVar e s -> Bool
 isPinnedPVar (PVar mba#) = isTrue# (isMutableByteArrayPinned# mba#)
 {-# INLINE isPinnedPVar #-}
 
@@ -191,14 +186,12 @@ isPinnedPVar (PVar mba#) = isTrue# (isMutableByteArrayPinned# mba#)
 --
 -- @since 0.1.0
 atomicModifyPVar ::
-     (MonadPrim s m, Atomic a) => PVar a s -> (a -> (a, b)) -> m b
+     (MonadPrim s m, Atomic e) => PVar e s -> (e -> (e, b)) -> m b
 atomicModifyPVar (PVar mba#) f =
-  prim (atomicModifyMutableByteArray# mba# 0# g)
-  where
-    g a =
-      case f a of
-        (a', b) -> (# a', b #)
-    {-# INLINE g #-}
+  prim $
+  atomicModifyMutableByteArray# mba# 0# $ \a ->
+    case f a of
+      (a', b) -> (# a', b #)
 {-# INLINE atomicModifyPVar #-}
 
 
@@ -207,7 +200,7 @@ atomicModifyPVar (PVar mba#) f =
 --
 -- @since 0.1.0
 atomicModifyPVar_ ::
-     (MonadPrim s m, Atomic a) => PVar a s -> (a -> a) -> m ()
+     (MonadPrim s m, Atomic e) => PVar e s -> (e -> e) -> m ()
 atomicModifyPVar_ (PVar mba#) f =
   prim_ (atomicModifyMutableByteArray_# mba# 0# f)
 {-# INLINE atomicModifyPVar_ #-}

@@ -12,11 +12,9 @@ import Data.Bits
 import Data.Foldable as F
 import Data.GenValidity
 import Data.Int
-import Data.List (intercalate, partition)
+import Data.List (partition)
 import Data.Prim.PVar
 import Data.Prim.PVar.Unsafe as Unsafe
-import Data.Typeable
-import Data.Word
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import qualified Foreign.Storable as Storable

@@ -14,6 +14,11 @@ module Foreign.Prim
     unsafeThawByteArray#
   , mutableByteArrayContents#
   , unsafeThawArrayArray#
+  , unInt#
+  , unWord#
+    -- * Primitive
+  , module Foreign.Prim.C
+  , module Foreign.Prim.Cmm
     -- * Re-exports
   , module Foreign.C.Types
   , module System.Posix.Types
@@ -23,9 +28,6 @@ module Foreign.Prim
 #endif
   , module GHC.Int
   , module GHC.Word
-  -- * Primitive
-  , module Foreign.Prim.C
-  , module Foreign.Prim.Cmm
   ) where
 
 import Foreign.Prim.C
@@ -57,3 +59,13 @@ mutableByteArrayContents# mba# = byteArrayContents# (unsafeCoerce# mba#)
 unsafeThawArrayArray# :: ArrayArray# -> State# s -> (# State# s, MutableArrayArray# s #)
 unsafeThawArrayArray# ba# s = (# s, unsafeCoerce# ba# #)
 {-# INLINE unsafeThawArrayArray# #-}
+
+
+
+unInt# :: Int -> Int#
+unInt# (I# i#) = i#
+{-# INLINE unInt# #-}
+
+unWord# :: Word -> Word#
+unWord# (W# w#) = w#
+{-# INLINE unWord# #-}

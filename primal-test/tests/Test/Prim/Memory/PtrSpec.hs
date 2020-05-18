@@ -12,7 +12,6 @@ import Control.DeepSeq
 import Control.Monad
 import Control.Prim.Monad
 import Data.Prim.Memory.Ptr
-import Data.Typeable
 import Test.Prim
 import Test.Prim.Memory
 import Test.Prim.Memory.BytesSpec hiding (spec)

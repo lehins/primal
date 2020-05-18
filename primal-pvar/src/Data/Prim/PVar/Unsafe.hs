@@ -11,9 +11,9 @@
 module Data.Prim.PVar.Unsafe
   ( PVar(..)
   -- * Creation
-  , rawPVar
-  , rawPinnedPVar
-  , rawAlignedPinnedPVar
+  , allocPVar
+  , allocPinnedPVar
+  , allocAlignedPinnedPVar
   -- * Conversion
   , unsafeWithPtrPVar
   , toPtrPVar
@@ -21,24 +21,22 @@ module Data.Prim.PVar.Unsafe
   , unsafeToForeignPtrPVar
   -- * Reset
   , zeroPVar
-  -- * Unpacked opartions
+  -- * Raw memory operations
   , setPVar#
-  -- * Helpers
-  , unI#
   )
   where
 
 import Control.Prim.Monad
 import Data.Prim.PVar.Internal
 import Data.Prim.Class
-import GHC.Exts as Exts
+import Foreign.Prim
 import GHC.ForeignPtr
 
 
 -- | Convert `PVar` into a `ForeignPtr`, very unsafe if not backed by pinned memory.
 --
 -- @since 0.1.0
-unsafeToForeignPtrPVar :: PVar a s -> ForeignPtr a
+unsafeToForeignPtrPVar :: PVar e s -> ForeignPtr e
 unsafeToForeignPtrPVar pvar@(PVar mba#) =
   case unsafeToPtrPVar pvar of
     Ptr addr# -> ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#))
@@ -50,9 +48,9 @@ unsafeToForeignPtrPVar pvar@(PVar mba#) =
 --
 -- @since 0.1.0
 unsafeWithPtrPVar ::
-     (MonadPrim s m, Prim a)
-  => PVar a s
-  -> (Ptr a -> m b)
+     (MonadPrim s m, Prim e)
+  => PVar e s
+  -> (Ptr e -> m b)
   -> m b
 unsafeWithPtrPVar pvar f = do
   r <- f $ unsafeToPtrPVar pvar
@@ -67,7 +65,7 @@ unsafeWithPtrPVar pvar f = do
 -- `Data.Prim.PVar.toForeignPtr` instead.
 --
 -- @since 0.1.0
-toPtrPVar :: PVar a s -> Maybe (Ptr a)
+toPtrPVar :: PVar e s -> Maybe (Ptr e)
 toPtrPVar pvar
   | isPinnedPVar pvar = Just $ unsafeToPtrPVar pvar
   | otherwise = Nothing
@@ -77,17 +75,17 @@ toPtrPVar pvar
 --
 -- @since 0.1.0
 setPVar# ::
-     (MonadPrim s m, Prim a)
-  => PVar a s
+     (MonadPrim s m, Prim e)
+  => PVar e s
   -> Int# -- ^ Byte value to fill the `PVar` with
   -> m ()
 setPVar# pvar@(PVar mba#) a# =
-  prim_ (Exts.setByteArray# mba# 0# (unI# (sizeOfPVar pvar)) a#)
+  prim_ (setByteArray# mba# 0# (unInt# (sizeOfPVar pvar)) a#)
 {-# INLINE setPVar# #-}
 
 -- | Reset contents of a mutable variable to zero.
 --
 -- @since 0.1.0
-zeroPVar :: (MonadPrim s m, Prim a) => PVar a s -> m ()
+zeroPVar :: (MonadPrim s m, Prim e) => PVar e s -> m ()
 zeroPVar pvar = setPVar# pvar 0#
 {-# INLINE zeroPVar #-}
