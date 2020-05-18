@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Data.Prim.Memory.ByteArray
@@ -33,6 +34,17 @@ module Data.Prim.Memory.ByteArray
   , reallocMByteArray
   , isPinnedByteArray
   , isPinnedMByteArray
+
+  , thawByteArray
+  , freezeMByteArray
+  , sizeByteArray
+  , getSizeMByteArray
+  , readMByteArray
+  , writeMByteArray
+
+  , setMByteArray
+  , copyByteArrayToMByteArray
+  , moveMByteArrayToMByteArray
   ) where
 
 import Control.DeepSeq
@@ -118,18 +130,25 @@ toMByteArray = coerce
 fromMByteArray :: MByteArray p e s -> MBytes p s
 fromMByteArray = coerce
 
+sizeByteArray :: forall e p. Prim e => ByteArray p e -> Size
+sizeByteArray = (coerce :: Count e -> Size) . countBytes . fromByteArray
+{-# INLINE sizeByteArray #-}
+
+getSizeMByteArray :: forall e p m s. (MonadPrim s m, Prim e) => MByteArray p e s -> m Size
+getSizeMByteArray = fmap (coerce :: Count e -> Size) . getCountMBytes . fromMByteArray
+{-# INLINE getSizeMByteArray #-}
 
 allocMByteArray ::
-     (Typeable p, Prim e, MonadPrim s m) => Count e -> m (MByteArray p e s)
-allocMByteArray = fmap toMByteArray . allocMBytes
+     forall e p m s . (Typeable p, Prim e, MonadPrim s m) => Size -> m (MByteArray p e s)
+allocMByteArray sz = toMByteArray <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocMByteArray #-}
 
-allocUnpinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray 'Inc e s)
-allocUnpinnedMByteArray = fmap toMByteArray . allocUnpinnedMBytes
+allocUnpinnedMByteArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MByteArray 'Inc e s)
+allocUnpinnedMByteArray sz = toMByteArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocUnpinnedMByteArray #-}
 
-allocPinnedMByteArray :: (MonadPrim s m, Prim e) => Count e -> m (MByteArray 'Pin e s)
-allocPinnedMByteArray = fmap toMByteArray . allocPinnedMBytes
+allocPinnedMByteArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MByteArray 'Pin e s)
+allocPinnedMByteArray sz = toMByteArray <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocPinnedMByteArray #-}
 
 allocAlignedMByteArray ::
@@ -181,16 +200,50 @@ isPinnedMByteArray :: MByteArray p e s -> Bool
 isPinnedMByteArray (MByteArray mb) = isPinnedMBytes mb
 {-# INLINE isPinnedMByteArray #-}
 
--- setMByteArray ::
---      (MonadPrim s m, Prim e)
---   => MByteArray p e s -- ^ Chunk of memory to fill
---   -> Off e -- ^ Offset in number of elements
---   -> Count e -- ^ Number of cells to fill
---   -> e -- ^ A value to fill the cells with
---   -> m ()
--- setMByteArray (MByteArray mba#) (Off (I# o#)) (Count (I# n#)) a =
---   prim_ (setMutableByteArray# mba# o# n# a)
--- {-# INLINE setMByteArray #-}
+readMByteArray :: (MonadPrim s m, Prim e) => MByteArray p e s -> Int -> m e
+readMByteArray (MByteArray mb) = readOffMBytes mb . coerce
+{-# INLINE readMByteArray #-}
+
+writeMByteArray :: (MonadPrim s m, Prim e) => MByteArray p e s -> Int -> e -> m ()
+writeMByteArray (MByteArray mb) o = writeOffMBytes mb (coerce o)
+{-# INLINE writeMByteArray #-}
+
+
+
+setMByteArray ::
+     (MonadPrim s m, Prim e)
+  => MByteArray p e s -- ^ Chunk of memory to fill
+  -> Int -- ^ Offset in number of elements
+  -> Size -- ^ Number of cells to fill
+  -> e -- ^ A value to fill the cells with
+  -> m ()
+setMByteArray (MByteArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
+{-# INLINE setMByteArray #-}
+
+copyByteArrayToMByteArray ::
+     (MonadPrim s m, Prim e)
+  => ByteArray p e
+  -> Int
+  -> MByteArray p e s
+  -> Int
+  -> Size
+  -> m ()
+copyByteArrayToMByteArray ba srcOff mba dstOff sz =
+  copyMem ba (coerce srcOff) mba (coerce dstOff) (countAsProxy ba (coerce sz))
+{-# INLINE copyByteArrayToMByteArray #-}
+
+moveMByteArrayToMByteArray ::
+     forall e p m s. (MonadPrim s m, Prim e)
+  => MByteArray p e s
+  -> Int
+  -> MByteArray p e s
+  -> Int
+  -> Size
+  -> m ()
+moveMByteArrayToMByteArray ba srcOff mba dstOff sz =
+  moveMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
+{-# INLINE moveMByteArrayToMByteArray #-}
+
 
 
 -- toPtrByteArray :: ByteArray Pin e -> Ptr e

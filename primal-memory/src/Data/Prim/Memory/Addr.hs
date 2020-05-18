@@ -75,6 +75,8 @@ module Data.Prim.Memory.Addr
 
   -- * Atomic
   , casOffMAddr
+  , atomicReadOffMAddr
+  , atomicWriteOffMAddr
   , atomicModifyOffMAddr
   , atomicModifyOffMAddr_
   , atomicModifyFetchOldOffMAddr
@@ -557,6 +559,38 @@ casOffMAddr ::
   -> m e
 casOffMAddr maddr (Off (I# i#)) old new = withAddrMAddr# maddr $ \ addr# -> prim $ casOffAddr# addr# i# old new
 {-# INLINE casOffMAddr #-}
+
+-- | Perform atomic read of an element in the `MAddr` at the supplied offset. Offset is in
+-- number of elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+atomicReadOffMAddr ::
+     (MonadPrim s m, Atomic e)
+  => MAddr e s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> m e
+atomicReadOffMAddr maddr (Off (I# i#)) =
+  withAddrMAddr# maddr $ \ addr# -> prim $ atomicReadOffAddr# addr# i#
+{-# INLINE atomicReadOffMAddr #-}
+
+-- | Perform atomic write of an element in the `MAddr` at the supplied offset. Offset is in
+-- number of elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+atomicWriteOffMAddr ::
+     (MonadPrim s m, Atomic e)
+  => MAddr e s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e
+  -> m ()
+atomicWriteOffMAddr maddr (Off (I# i#)) e =
+  withAddrMAddr# maddr $ \ addr# -> prim_ $ atomicWriteOffAddr# addr# i# e
+{-# INLINE atomicWriteOffMAddr #-}
+
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index. Returns the artifact of computation @__b__@.  Offset is in number of elements,

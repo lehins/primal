@@ -1,9 +1,6 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE CPP #-}
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
-#endif
 -- |
 -- Module      : Data.Prim.PVar
 -- Copyright   : (c) Alexey Kuleshevich 2020

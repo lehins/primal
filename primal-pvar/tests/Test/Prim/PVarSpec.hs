@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Prim.PVarSpec (spec) where
 
 import Control.Concurrent.Async
@@ -197,13 +196,6 @@ specStorable gen =
           maybe (error "Expected to get a Just ForeignPtr") pure $
           toForeignPtrPVar var
         withForeignPtr fPtr $ \ptr -> Storable.peek ptr `shouldReturn` a
-    propPVarIO "poke/peek/ (Ptr PVar)" gen $ \a var ->
-      alloca $ \ptr -> do
-        Storable.poke ptr var
-        var' <- Storable.peek ptr
-        readPVar var' `shouldReturn` a
-        Storable.sizeOf var `shouldBe` sizeOfPVar var
-        Storable.alignment var `shouldBe` alignmentPVar var
     propPVarIO "copyPVarToPtr" gen $ \a var ->
       alloca $ \ptr -> do
         copyPVarToPtr var ptr

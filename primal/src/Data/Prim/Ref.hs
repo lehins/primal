@@ -37,6 +37,7 @@ module Data.Prim.Ref
   -- * Atomic
   -- ** Write
   , atomicSwapRef
+  , atomicReadRef
   , atomicWriteRef
   -- ** Modify
   , atomicModifyRef
@@ -336,7 +337,7 @@ data Unit a = Unit a
 -- will be issued.
 --
 -- @since 0.1.0
-atomicWriteRef :: MonadPrim s m => Ref b s -> b -> m ()
+atomicWriteRef :: MonadPrim s m => Ref e s -> e -> m ()
 atomicWriteRef (Ref ref#) x =
   x `seq`
   prim $ \s ->
@@ -352,11 +353,13 @@ atomicWriteRef (Ref ref#) x =
   --         (# s'', _prev, _cur #) -> s''
 {-# INLINE atomicWriteRef #-}
 
+atomicReadRef :: MonadPrim s m => Ref e s -> m e
+atomicReadRef ref = fst <$> atomicModifyRef2_ ref id
 
 -- | Same as `atomicWriteRef`, but also returns the old value.
 --
 -- @since 0.1.0
-atomicSwapRef :: MonadPrim s m => Ref b s -> b -> m b
+atomicSwapRef :: MonadPrim s m => Ref e s -> e -> m e
 atomicSwapRef ref x = atomicModifyFetchOldRef ref (const x)
 {-# INLINE atomicSwapRef #-}
 

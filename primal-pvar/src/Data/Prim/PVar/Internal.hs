@@ -36,28 +36,12 @@ import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Class
-import qualified Foreign.Storable as S
 import GHC.Exts
 
 -- | Mutable variable with primitive value.
 --
 -- @since 0.1.0
 data PVar e s = PVar (MutableByteArray# s)
-
--- | @`S.poke`+`S.peek`@ will result in a new copy of a `PVar`
-instance Prim e => S.Storable (PVar e RW) where
-  sizeOf = sizeOfPVar
-  {-# INLINE sizeOf #-}
-  alignment = alignmentPVar
-  {-# INLINE alignment #-}
-  peekElemOff (Ptr addr#) (I# i#) = do
-    a <- prim (readOffAddr# addr# i#)
-    newAlignedPinnedPVar a
-  {-# INLINE peekElemOff #-}
-  pokeElemOff (Ptr addr#) (I# i#) pvar = do
-    a <- readPVar pvar
-    prim_ (writeOffAddr# addr# i# a)
-  {-# INLINE pokeElemOff #-}
 
 -- | Values are already written into `PVar` in NF, this instance is trivial.
 instance NFData (PVar e s) where

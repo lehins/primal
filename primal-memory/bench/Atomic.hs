@@ -38,8 +38,7 @@ main = do
                 bgroup
                   "Ref"
                   [ bench "readRef" $ whnfIO (readRef ref)
-                  , bench "atomicReadRef" $
-                    whnfIO (fst <$> atomicModifyRef2_ ref id)
+                  , bench "atomicReadRef" $ whnfIO (atomicReadRef ref)
                   ]
             , env (newIORef e0) $ \ioRef ->
                 bgroup

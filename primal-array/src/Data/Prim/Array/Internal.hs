@@ -34,7 +34,9 @@ module Data.Prim.Array.Internal
 
 import Control.Monad.ST
 import Control.Prim.Monad
+import Data.Prim.Memory
 import Data.Prim.Memory.Addr
+import Data.Prim.Memory.ByteArray
 import Data.Prim.Memory.Bytes
 import GHC.Exts
 
@@ -201,6 +203,44 @@ instance Prim e => MArray (MAddr e) where
   {-# INLINE moveMArray #-}
 
   setMArray ma i sz = setMAddr ma (coerce i) (coerce sz)
+  {-# INLINE setMArray #-}
+
+
+instance (Typeable p, Prim e) => MArray (MByteArray p e) where
+  type IArray (MByteArray p e) = ByteArray p e
+  type Elt (MByteArray p e) = e
+
+  sizeOfArray = sizeByteArray
+  {-# INLINE sizeOfArray #-}
+
+  indexArray a i = indexOffMem a (coerce i)
+  {-# INLINE indexArray #-}
+
+  getSizeOfMArray = getSizeMByteArray
+  {-# INLINE getSizeOfMArray #-}
+
+  thawArray = thawByteArray
+  {-# INLINE thawArray #-}
+
+  freezeMArray = freezeMByteArray
+  {-# INLINE freezeMArray #-}
+
+  newRawMArray = allocMByteArray
+  {-# INLINE newRawMArray #-}
+
+  writeMArray = writeMByteArray
+  {-# INLINE writeMArray #-}
+
+  readMArray = readMByteArray
+  {-# INLINE readMArray #-}
+
+  copyArray = copyByteArrayToMByteArray
+  {-# INLINE copyArray #-}
+
+  moveMArray = moveMByteArrayToMByteArray
+  {-# INLINE moveMArray #-}
+
+  setMArray = setMByteArray
   {-# INLINE setMArray #-}
 
 
