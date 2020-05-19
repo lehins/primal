@@ -1141,12 +1141,12 @@ instance Prim Fingerprint where
   toPrimBase (Fingerprint a b) = (a, b)
   fromPrimBase (a, b) = Fingerprint a b
 
-instance (Prim a, Eq a) => Prim (Ratio a) where
+instance Prim a => Prim (Ratio a) where
   type PrimBase (Ratio a) = (a, a)
   toPrimBase (a :% b) = (a, b)
   fromPrimBase (a, b) = a :% b
 
-instance (Prim a, Eq a) => Prim (Complex a) where
+instance Prim a => Prim (Complex a) where
   type PrimBase (Complex a) = (a, a)
   toPrimBase (a :+ b) = (a, b)
   fromPrimBase (a, b) = a :+ b

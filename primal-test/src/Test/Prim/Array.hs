@@ -79,8 +79,8 @@ instance Prim a => MRef Addr.MAddr a where
   writeMRef = Addr.writeMAddr
 
 type family BestRep r1 r2 where
-  BestRep Addr.MAddr Addr.MAddr = Addr.MAddr
-  BestRep r1 r2 = r1
+  BestRep r1 Addr.MAddr = r1
+  BestRep r1 r2 = r2
 
 type family ARep def a :: Type -> Type -> Type where
   ARep def Int = Addr.MAddr

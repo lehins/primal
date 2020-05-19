@@ -44,7 +44,7 @@ import Data.Monoid
 import Data.Prim.Class
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
---import GHC.Conc
+import GHC.Conc
 import GHC.IO.Device
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
@@ -980,14 +980,15 @@ instance AtomicBits Word where
   {-# INLINE atomicXorFetchNewOffAddr# #-}
 
 #if WORD_SIZE_IN_BITS == 64
--- | Available only on 64bit architectures
 
+-- | Available only on 64bit architectures
 instance Atomic Int64 where
   casMutableByteArray# mba# i# old new = unsafePrimBase (syncCasInt64ArrayIO mba# i# old new)
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt64AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
 
+-- | Available only on 64bit architectures
 instance AtomicCount Int64 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
@@ -1006,6 +1007,7 @@ instance AtomicCount Int64 where
   atomicSubFetchNewOffAddr# addr# i# a = unsafePrimBase (syncSubFetchNewInt64AddrIO addr# i# a)
   {-# INLINE atomicSubFetchNewOffAddr# #-}
 
+-- | Available only on 64bit architectures
 instance AtomicBits Int64 where
   atomicAndFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
@@ -1041,14 +1043,13 @@ instance AtomicBits Int64 where
   {-# INLINE atomicXorFetchNewOffAddr# #-}
 
 -- | Available only on 64bit architectures
-
-
 instance Atomic Word64 where
   casMutableByteArray# mba# i# old new = unsafePrimBase (syncCasWord64ArrayIO mba# i# old new)
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWord64AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
 
+-- | Available only on 64bit architectures
 instance AtomicCount Word64 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
@@ -1067,6 +1068,7 @@ instance AtomicCount Word64 where
   atomicSubFetchNewOffAddr# addr# i# a = unsafePrimBase (syncSubFetchNewWord64AddrIO addr# i# a)
   {-# INLINE atomicSubFetchNewOffAddr# #-}
 
+-- | Available only on 64bit architectures
 instance AtomicBits Word64 where
   atomicAndFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
@@ -1100,6 +1102,22 @@ instance AtomicBits Word64 where
   {-# INLINE atomicXorFetchOldOffAddr# #-}
   atomicXorFetchNewOffAddr# addr# i# a = unsafePrimBase (syncXorFetchNewWord64AddrIO addr# i# a)
   {-# INLINE atomicXorFetchNewOffAddr# #-}
+
+
+-- | Available only on 64bit architectures
+instance Atomic CLLong
+-- | Available only on 64bit architectures
+instance AtomicCount CLLong
+-- | Available only on 64bit architectures
+instance AtomicBits CLLong
+
+-- | Available only on 64bit architectures
+instance Atomic CULLong
+-- | Available only on 64bit architectures
+instance AtomicCount CULLong
+-- | Available only on 64bit architectures
+instance AtomicBits CULLong
+
 #endif
 
 instance Atomic Bool
@@ -1159,14 +1177,6 @@ instance AtomicBits CLong
 instance Atomic CULong
 instance AtomicCount CULong
 instance AtomicBits CULong
-
-instance Atomic CLLong
-instance AtomicCount CLLong
-instance AtomicBits CLLong
-
-instance Atomic CULLong
-instance AtomicCount CULLong
-instance AtomicBits CULLong
 
 instance Atomic CPtrdiff
 instance AtomicCount CPtrdiff
@@ -1356,11 +1366,11 @@ instance AtomicBits a => AtomicBits (Identity a)
 
 instance Atomic Ordering
 
--- instance Atomic IODeviceType
+instance Atomic IODeviceType
 
 instance Atomic SeekMode
 
--- instance Atomic BlockReason
+instance Atomic BlockReason
 
 instance Atomic a => Atomic (Down a)
 instance AtomicCount a => AtomicCount (Down a)
