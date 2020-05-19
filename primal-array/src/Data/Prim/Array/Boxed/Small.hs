@@ -103,8 +103,8 @@ data SmallBoxedArray a = Array (SmallArray# a)
 instance Functor SmallBoxedArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray (SmallBoxedMArray a) where
-  type IArray (SmallBoxedMArray a) = SmallBoxedArray a
+instance I.Mutable (SmallBoxedMArray a) where
+  type Frozen (SmallBoxedMArray a) = SmallBoxedArray a
   type Elt (SmallBoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}

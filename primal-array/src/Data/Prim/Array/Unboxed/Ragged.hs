@@ -93,8 +93,8 @@ type MArray = RaggedMArray
 data RaggedMArray (n :: Nat) a s = MArray (MutableArrayArray# s)
 
 
-instance {-# OVERLAPPING #-} I.MArray (RaggedMArray 0 (U.UnboxedArray a)) where
-  type IArray (RaggedMArray 0 (U.UnboxedArray a)) = RaggedArray 0 (U.UnboxedArray a)
+instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (U.UnboxedArray a)) where
+  type Frozen (RaggedMArray 0 (U.UnboxedArray a)) = RaggedArray 0 (U.UnboxedArray a)
   type Elt (RaggedMArray 0 (U.UnboxedArray a)) = RaggedElt 0 (U.UnboxedArray a)
 
   indexArray = indexUnboxedArray
@@ -123,8 +123,8 @@ type family RaggedElt n a where
   RaggedElt n a = RaggedArray (n - 1) a
 
 instance (KnownNat n, 1 <= n, RaggedElt n a ~ RaggedArray (n - 1) a) =>
-         I.MArray (RaggedMArray n a) where
-  type IArray (RaggedMArray n a) = RaggedArray n a
+         I.Mutable (RaggedMArray n a) where
+  type Frozen (RaggedMArray n a) = RaggedArray n a
   type Elt (RaggedMArray n a) = RaggedElt n a
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
@@ -161,7 +161,7 @@ indexArray (Array a#) (I# i#) = Array (indexArrayArrayArray# a# i#)
 {-# INLINE indexArray #-}
 
 
-indexArrayI :: I.MArray (RaggedMArray n a) => RaggedArray n a -> Int -> RaggedElt n a
+indexArrayI :: I.Mutable (RaggedMArray n a) => RaggedArray n a -> Int -> RaggedElt n a
 indexArrayI = I.indexArray
 {-# INLINE indexArrayI #-}
 

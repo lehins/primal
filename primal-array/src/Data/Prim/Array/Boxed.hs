@@ -104,8 +104,8 @@ data BoxedArray a = Array (Array# a)
 instance Functor BoxedArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MArray (BoxedMArray a) where
-  type IArray (BoxedMArray a) = BoxedArray a
+instance I.Mutable (BoxedMArray a) where
+  type Frozen (BoxedMArray a) = BoxedArray a
   type Elt (BoxedMArray a) = a
   indexArray = indexArray
   {-# INLINE indexArray #-}

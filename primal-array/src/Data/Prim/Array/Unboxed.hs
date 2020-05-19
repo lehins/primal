@@ -98,8 +98,8 @@ instance Eq (UnboxedMArray a s) where
 
 data UnboxedArray a = Array ByteArray#
 
-instance Prim a => I.MArray (UnboxedMArray a) where
-  type IArray (UnboxedMArray a) = UnboxedArray a
+instance Prim a => I.Mutable (UnboxedMArray a) where
+  type Frozen (UnboxedMArray a) = UnboxedArray a
   type Elt (UnboxedMArray a) = a
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
