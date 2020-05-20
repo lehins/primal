@@ -19,6 +19,7 @@
 module Data.Prim.Memory.ByteArray
   ( ByteArray(..)
   , MByteArray(..)
+  , Pinned(..)
   , toByteArray
   , fromByteArray
   , castByteArray
