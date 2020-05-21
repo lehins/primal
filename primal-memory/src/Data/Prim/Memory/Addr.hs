@@ -6,7 +6,6 @@
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Data.Prim.Memory.Addr
@@ -227,6 +226,7 @@ reallocMAddr maddr c = do
       maddr' <- allocMAddr newByteCount
       castMAddr maddr' <$
         copyAddrToMAddr (castAddr addr) 0 maddr' 0 oldByteCount
+{-# INLINABLE reallocMAddr #-}
 
 
 plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
@@ -502,6 +502,7 @@ moveMAddrToMAddr src srcOff dst dstOff c =
 setMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> Count e -> e -> m ()
 setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
   prim_ (setOffAddr# addr# off# n# a) >> touch mb
+{-# INLINE setMAddr #-}
 
 
 

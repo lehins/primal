@@ -35,9 +35,6 @@ library
                      , Data.Prim.Array.Boxed
                      , Data.Prim.Array.Boxed.Small
                      , Data.Prim.Array.Internal
-                     , Data.Prim.Array.Smart
-                     , Data.Prim.Array.Smart.Atomic
-                     , Data.Prim.Array.Smart.Rep
                      , Data.Prim.Array.Unboxed
                      , Data.Prim.Array.Unboxed.Ragged
 
