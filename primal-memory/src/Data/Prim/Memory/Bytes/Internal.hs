@@ -25,6 +25,8 @@ module Data.Prim.Memory.Bytes.Internal
   , isSamePinnedBytes
   , isPinnedBytes
   , isPinnedMBytes
+  , castPinnesBytes
+  , castPinnesMBytes
   , allocMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
@@ -96,18 +98,20 @@ data Pinned = Pin | Inc
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
 -- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
 -- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
--- the actual constructor is available in "Data.Prim.Memory.Internal" module.
+-- the actual constructor is available in "Data.Prim.Memory.Internal" module and specially
+-- unsafe function `castPinnesBytes` was crafted.
 data Bytes (p :: Pinned) = Bytes ByteArray#
-type role Bytes phantom
+type role Bytes nominal
 
 -- | Mutable region of memory which was allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
--- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromMutableByteArray#` and unwrapper
--- `Data.Prim.Memory.Bytes.toMutableByteArray#` should be used instead. As a backdoor, of course,
--- the actual constructor is available in "Data.Prim.Memory.Internal" module.
+-- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromMutableByteArray#` and
+-- unwrapper `Data.Prim.Memory.Bytes.toMutableByteArray#` should be used instead. As a
+-- backdoor, of course, the actual constructor is available in "Data.Prim.Memory.Internal"
+-- module and specially unsafe function `castPinnesMBytes` was crafted.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
-type role MBytes phantom nominal
+type role MBytes nominal nominal
 
 
 instance NFData (Bytes p) where
@@ -234,8 +238,8 @@ byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountMBytes`.
-shrinkMBytes :: (MonadPrim s m) => MBytes p s -> Count Word8 -> m ()
-shrinkMBytes (MBytes mb#) (Count (I# c#)) = prim_ (shrinkMutableByteArray# mb# c#)
+shrinkMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m ()
+shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
 {-# INLINE shrinkMBytes #-}
 
 
@@ -267,9 +271,14 @@ reallocMBytes mb c = do
              b <- freezeMBytes mb
              mb' <- allocPinnedMBytes newByteCount
              mb' <$ copyByteOffBytesToMBytes b 0 mb' 0 oldByteCount
-           Nothing -> coerce <$> resizeMBytes mb newByteCount
+           Nothing -> castPinnesMBytes <$> resizeMBytes mb newByteCount
 {-# INLINABLE reallocMBytes #-}
 
+castPinnesBytes :: Bytes p' -> Bytes p
+castPinnesBytes (Bytes b#) = Bytes b#
+
+castPinnesMBytes :: MBytes p' s -> MBytes p s
+castPinnesMBytes (MBytes b#) = MBytes b#
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`

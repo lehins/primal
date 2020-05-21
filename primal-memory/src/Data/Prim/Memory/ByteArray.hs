@@ -52,7 +52,7 @@ import Control.DeepSeq
 import Control.Prim.Monad
 import Foreign.Prim
 import Data.Prim
-import Data.Prim.Memory.Bytes.Internal
+import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ForeignPtr
 
@@ -60,12 +60,12 @@ import Data.Prim.Memory.ForeignPtr
 -- | An immutable array of bytes of type @e@
 newtype ByteArray (p :: Pinned) e = ByteArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
-type role ByteArray phantom representational
+type role ByteArray nominal representational
 
 -- | A mutable array of bytes of type @e@
 newtype MByteArray (p :: Pinned) e s = MByteArray (MBytes p s)
   deriving (NFData, MemWrite)
-type role MByteArray phantom representational nominal
+type role MByteArray nominal representational nominal
 
 -- | Read-only access, but it is not enforced.
 instance PtrAccess s (ByteArray 'Pin e) where
@@ -169,8 +169,12 @@ thawByteArray = fmap toMByteArray . thawBytes . fromByteArray
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountMByteArray`.
-shrinkMByteArray :: (MonadPrim s m, Prim e) => MByteArray p e s -> Count e -> m ()
-shrinkMByteArray mba c = shrinkMBytes (fromMByteArray mba) (toByteCount c)
+shrinkMByteArray ::
+     forall e p m s. (MonadPrim s m, Prim e)
+  => MByteArray p e s
+  -> Size
+  -> m ()
+shrinkMByteArray mba sz = shrinkMBytes (fromMByteArray mba) (coerce sz :: Count e)
 {-# INLINE shrinkMByteArray #-}
 
 
@@ -180,16 +184,19 @@ shrinkMByteArray mba c = shrinkMBytes (fromMByteArray mba) (toByteCount c)
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizeMByteArray ::
-     (MonadPrim s m, Prim e) => MByteArray p e s -> Count e -> m (MByteArray 'Inc e s)
-resizeMByteArray mba = fmap toMByteArray . resizeMBytes (fromMByteArray mba)
+     forall e p m s. (MonadPrim s m, Prim e)
+  => MByteArray p e s
+  -> Size
+  -> m (MByteArray 'Inc e s)
+resizeMByteArray mba sz = toMByteArray <$> resizeMBytes (fromMByteArray mba) (coerce sz :: Count e)
 {-# INLINE resizeMByteArray #-}
 
 reallocMByteArray ::
      forall e p m s. (MonadPrim s m, Typeable p,  Prim e)
   => MByteArray p e s
-  -> Count e
+  -> Size
   -> m (MByteArray p e s)
-reallocMByteArray mba = fmap toMByteArray . reallocMBytes (fromMByteArray mba)
+reallocMByteArray mba sz = toMByteArray <$> reallocMBytes (fromMByteArray mba) (coerce sz :: Count e)
 {-# INLINABLE reallocMByteArray #-}
 
 

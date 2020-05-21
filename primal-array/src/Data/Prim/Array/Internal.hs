@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -127,6 +128,17 @@ class Mutable mut where
     in go i0
   {-# INLINE setMArray #-}
 
+  shrinkMArray :: MonadPrim s m => mut s -> Size -> m (mut s)
+  shrinkMArray ma sz = cloneMArray ma 0 sz
+  {-# INLINE shrinkMArray #-}
+
+  resizeMArray :: MonadPrim s m => mut s -> Size -> m (mut s)
+  resizeMArray ma sz = do
+    a <- freezeMArray ma
+    ma' <- newRawMArray sz
+    ma' <$ copyArray a 0 ma' 0 sz
+  {-# INLINE resizeMArray #-}
+
 
 instance Typeable p => Mutable (MBytes p) where
   type Frozen (MBytes p) = Bytes p
@@ -167,6 +179,11 @@ instance Typeable p => Mutable (MBytes p) where
   setMArray ma i sz = setMBytes ma (coerce i) (coerce sz)
   {-# INLINE setMArray #-}
 
+  shrinkMArray ma sz = ma <$ shrinkMBytes ma (coerce sz :: Count Word8)
+  {-# INLINE shrinkMArray #-}
+
+  resizeMArray ma sz = reallocMBytes ma (coerce sz :: Count Word8)
+  {-# INLINE resizeMArray #-}
 
 instance Prim e => Mutable (MAddr e) where
   type Frozen (MAddr e) = Addr e
@@ -204,6 +221,12 @@ instance Prim e => Mutable (MAddr e) where
 
   setMArray ma i sz = setMAddr ma (coerce i) (coerce sz)
   {-# INLINE setMArray #-}
+
+  shrinkMArray ma sz = ma <$ shrinkMAddr ma (coerce sz :: Count e)
+  {-# INLINE shrinkMArray #-}
+
+  resizeMArray ma sz = reallocMAddr ma (coerce sz :: Count e)
+  {-# INLINE resizeMArray #-}
 
 
 instance (Typeable p, Prim e) => Mutable (MByteArray p e) where
@@ -243,7 +266,11 @@ instance (Typeable p, Prim e) => Mutable (MByteArray p e) where
   setMArray = setMByteArray
   {-# INLINE setMArray #-}
 
+  shrinkMArray ma sz = ma <$ shrinkMByteArray ma sz
+  {-# INLINE shrinkMArray #-}
 
+  resizeMArray = reallocMByteArray
+  {-# INLINE resizeMArray #-}
 
 -- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
 -- to it being written into the newly created array. In order to allocate the array ahead
@@ -256,6 +283,8 @@ instance (Typeable p, Prim e) => Mutable (MByteArray p e) where
 fromListArray :: Mutable mut => [Elt mut] -> Frozen mut
 fromListArray xs = fromListArrayN (Size (length xs)) xs
 {-# INLINE fromListArray #-}
+
+
 
 -- | Same as `fromListArray`, except it will allocate an array exactly of @n@ size, as
 -- such it will not convert any portion of the list that doesn't fit into the newly
@@ -380,3 +409,5 @@ traverseArray ::
   -> m (Frozen mut')
 traverseArray f a = makeArrayM (sizeOfArray a) (f . indexArray a)
 {-# INLINE traverseArray #-}
+
+

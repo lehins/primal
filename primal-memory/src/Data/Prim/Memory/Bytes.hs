@@ -32,11 +32,12 @@ module Data.Prim.Memory.Bytes
   , createBytesST_
   -- * Pinness
   , Pinned(..)
-  , relaxPinned
   , isPinnedBytes
   , isPinnedMBytes
   , toPinnedBytes
   , toPinnedMBytes
+  , relaxPinnedBytes
+  , relaxPinnedMBytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
   -- * Mutable
@@ -67,6 +68,7 @@ module Data.Prim.Memory.Bytes
   , callocAlignedMBytes
   , shrinkMBytes
   , resizeMBytes
+  , reallocMBytes
   , coerceStateMBytes
   -- ** Modifying data
   , cloneMBytes
@@ -204,7 +206,7 @@ coerceStateMBytes = unsafeCoerce#
 
 
 emptyBytes :: Bytes p
-emptyBytes = coerce $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
+emptyBytes = castPinnesBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
 {-# INLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool
@@ -419,8 +421,11 @@ concatBytes :: Typeable p => [Bytes p'] -> Bytes p
 concatBytes = concatMem
 {-# INLINE concatBytes #-}
 
-relaxPinned :: Bytes p -> Bytes 'Inc
-relaxPinned = coerce
+relaxPinnedBytes :: Bytes p -> Bytes 'Inc
+relaxPinnedBytes = castPinnesBytes
+
+relaxPinnedMBytes :: MBytes p e -> MBytes 'Inc e
+relaxPinnedMBytes = castPinnesMBytes
 
 
 

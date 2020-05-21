@@ -44,6 +44,7 @@ module Data.Prim.Memory.Addr
   , callocMAddr
   , reallocMAddr
   , shrinkMAddr
+  , shrinkByteCountMAddr
   , setMAddr
   , curOffMAddr
   , getByteCountMAddr
@@ -201,11 +202,17 @@ callocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
 callocMAddr c = fromMBytesMAddr <$> callocAlignedMBytes c
 
 
+-- | Shrink mutable address to new specified size in number of elements. The new count
+-- must be less than or equal to the current as reported by `getCountMAddr`.
+shrinkMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Count e -> m ()
+shrinkMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (toByteCount c + coerce (curByteOffMAddr maddr))
+{-# INLINE shrinkMAddr #-}
+
 -- | Shrink mutable address to new specified size in bytes. The new count must be less
 -- than or equal to the current as reported by `getByteCountMAddr`.
-shrinkMAddr :: (MonadPrim s m) => MAddr e s -> Count Word8 -> m ()
-shrinkMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (c + coerce (curByteOffMAddr maddr))
-{-# INLINE shrinkMAddr #-}
+shrinkByteCountMAddr :: MonadPrim s m => MAddr e s -> Count Word8 -> m ()
+shrinkByteCountMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (c + coerce (curByteOffMAddr maddr))
+{-# INLINE shrinkByteCountMAddr #-}
 
 
 reallocMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Count e -> m (MAddr e s)
@@ -214,7 +221,7 @@ reallocMAddr maddr c = do
   let newByteCount = toByteCount c
   if newByteCount <= oldByteCount
     then maddr <$
-         when (newByteCount < oldByteCount) (shrinkMAddr maddr newByteCount)
+         when (newByteCount < oldByteCount) (shrinkByteCountMAddr maddr newByteCount)
     else do
       addr <- freezeMAddr maddr
       maddr' <- allocMAddr newByteCount

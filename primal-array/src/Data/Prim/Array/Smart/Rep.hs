@@ -4,15 +4,16 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.ByteRep
+-- Module      : Data.Prim.Array.Smart.Rep
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.ByteRep
-  ( UnboxRep
+module Data.Prim.Array.Smart.Rep
+  ( SmartRep
+  , AtomicRep
   ) where
 
 #include "MachDeps.h"
@@ -46,171 +47,171 @@ type family BestRep def r1 r2 where
   BestRep def r1               r2               = r2
 
 
-type family UnboxRep def a :: Type -> Type -> Type where
-  UnboxRep def () = UnboxedMArray
-  UnboxRep def (a :~: b) = UnboxedMArray
-  UnboxRep def Bool = UnboxedMArray
-  UnboxRep def Char = UnboxedMArray
-  UnboxRep def Int = UnboxedMArray
-  UnboxRep def Int8 = UnboxedMArray
-  UnboxRep def Int16 = UnboxedMArray
-  UnboxRep def Int32 = UnboxedMArray
-  UnboxRep def Int64 = UnboxedMArray
-  UnboxRep def Word = UnboxedMArray
-  UnboxRep def Word8 = UnboxedMArray
-  UnboxRep def Word16 = UnboxedMArray
-  UnboxRep def Word32 = UnboxedMArray
-  UnboxRep def Word64 = UnboxedMArray
-  UnboxRep def Float = UnboxedMArray
-  UnboxRep def Double = UnboxedMArray
-  UnboxRep def IntPtr = UnboxedMArray
-  UnboxRep def WordPtr = UnboxedMArray
-  UnboxRep def (Ptr a) = UnboxedMArray
-  UnboxRep def (FunPtr a) = UnboxedMArray
-  UnboxRep def (StablePtr a) = UnboxedMArray
-  UnboxRep def CBool = UnboxedMArray
-  UnboxRep def CChar = UnboxedMArray
-  UnboxRep def CSChar = UnboxedMArray
-  UnboxRep def CUChar = UnboxedMArray
-  UnboxRep def CShort = UnboxedMArray
-  UnboxRep def CUShort = UnboxedMArray
-  UnboxRep def CInt = UnboxedMArray
-  UnboxRep def CUInt = UnboxedMArray
-  UnboxRep def CLong = UnboxedMArray
-  UnboxRep def CULong = UnboxedMArray
-  UnboxRep def CLLong = UnboxedMArray
-  UnboxRep def CULLong = UnboxedMArray
-  UnboxRep def CPtrdiff = UnboxedMArray
-  UnboxRep def CSize = UnboxedMArray
-  UnboxRep def CWchar = UnboxedMArray
-  UnboxRep def CSigAtomic = UnboxedMArray
-  UnboxRep def CIntPtr = UnboxedMArray
-  UnboxRep def CUIntPtr = UnboxedMArray
-  UnboxRep def CFloat = UnboxedMArray
-  UnboxRep def CDouble = UnboxedMArray
-  UnboxRep def Fd = UnboxedMArray
-  UnboxRep def Errno = UnboxedMArray
+type family SmartRep def e :: Type -> Type -> Type where
+  SmartRep def () = UnboxedMArray
+  SmartRep def (a :~: b) = UnboxedMArray
+  SmartRep def Bool = UnboxedMArray
+  SmartRep def Char = UnboxedMArray
+  SmartRep def Int = UnboxedMArray
+  SmartRep def Int8 = UnboxedMArray
+  SmartRep def Int16 = UnboxedMArray
+  SmartRep def Int32 = UnboxedMArray
+  SmartRep def Int64 = UnboxedMArray
+  SmartRep def Word = UnboxedMArray
+  SmartRep def Word8 = UnboxedMArray
+  SmartRep def Word16 = UnboxedMArray
+  SmartRep def Word32 = UnboxedMArray
+  SmartRep def Word64 = UnboxedMArray
+  SmartRep def Float = UnboxedMArray
+  SmartRep def Double = UnboxedMArray
+  SmartRep def IntPtr = UnboxedMArray
+  SmartRep def WordPtr = UnboxedMArray
+  SmartRep def (Ptr a) = UnboxedMArray
+  SmartRep def (FunPtr a) = UnboxedMArray
+  SmartRep def (StablePtr a) = UnboxedMArray
+  SmartRep def CBool = UnboxedMArray
+  SmartRep def CChar = UnboxedMArray
+  SmartRep def CSChar = UnboxedMArray
+  SmartRep def CUChar = UnboxedMArray
+  SmartRep def CShort = UnboxedMArray
+  SmartRep def CUShort = UnboxedMArray
+  SmartRep def CInt = UnboxedMArray
+  SmartRep def CUInt = UnboxedMArray
+  SmartRep def CLong = UnboxedMArray
+  SmartRep def CULong = UnboxedMArray
+  SmartRep def CLLong = UnboxedMArray
+  SmartRep def CULLong = UnboxedMArray
+  SmartRep def CPtrdiff = UnboxedMArray
+  SmartRep def CSize = UnboxedMArray
+  SmartRep def CWchar = UnboxedMArray
+  SmartRep def CSigAtomic = UnboxedMArray
+  SmartRep def CIntPtr = UnboxedMArray
+  SmartRep def CUIntPtr = UnboxedMArray
+  SmartRep def CFloat = UnboxedMArray
+  SmartRep def CDouble = UnboxedMArray
+  SmartRep def Fd = UnboxedMArray
+  SmartRep def Errno = UnboxedMArray
 #if defined(HTYPE_DEV_T)
-  UnboxRep def CDev = UnboxedMArray
+  SmartRep def CDev = UnboxedMArray
 #endif
 #if defined(HTYPE_INO_T)
-  UnboxRep def CIno = UnboxedMArray
+  SmartRep def CIno = UnboxedMArray
 #endif
 #if defined(HTYPE_MODE_T)
-  UnboxRep def CMode = UnboxedMArray
+  SmartRep def CMode = UnboxedMArray
 #endif
 #if defined(HTYPE_OFF_T)
-  UnboxRep def COff = UnboxedMArray
+  SmartRep def COff = UnboxedMArray
 #endif
 #if defined(HTYPE_PID_T)
-  UnboxRep def CPid = UnboxedMArray
+  SmartRep def CPid = UnboxedMArray
 #endif
 #if defined(HTYPE_SSIZE_T)
-  UnboxRep def CSsize = UnboxedMArray
+  SmartRep def CSsize = UnboxedMArray
 #endif
 #if defined(HTYPE_GID_T)
-  UnboxRep def CGid = UnboxedMArray
+  SmartRep def CGid = UnboxedMArray
 #endif
 #if defined(HTYPE_NLINK_T)
-  UnboxRep def CNlink = UnboxedMArray
+  SmartRep def CNlink = UnboxedMArray
 #endif
 #if defined(HTYPE_UID_T)
-  UnboxRep def CUid = UnboxedMArray
+  SmartRep def CUid = UnboxedMArray
 #endif
 #if defined(HTYPE_CC_T)
-  UnboxRep def CCc = UnboxedMArray
+  SmartRep def CCc = UnboxedMArray
 #endif
 #if defined(HTYPE_SPEED_T)
-  UnboxRep def CSpeed = UnboxedMArray
+  SmartRep def CSpeed = UnboxedMArray
 #endif
 #if defined(HTYPE_TCFLAG_T)
-  UnboxRep def CTcflag = UnboxedMArray
+  SmartRep def CTcflag = UnboxedMArray
 #endif
 #if defined(HTYPE_RLIM_T)
-  UnboxRep def CRLim = UnboxedMArray
+  SmartRep def CRLim = UnboxedMArray
 #endif
 #if defined(HTYPE_BLKSIZE_T)
-  UnboxRep def CBlkSize = UnboxedMArray
+  SmartRep def CBlkSize = UnboxedMArray
 #endif
 #if defined(HTYPE_BLKCNT_T)
-  UnboxRep def CBlkCnt = UnboxedMArray
+  SmartRep def CBlkCnt = UnboxedMArray
 #endif
 #if defined(HTYPE_CLOCKID_T)
-  UnboxRep def CClockId = UnboxedMArray
+  SmartRep def CClockId = UnboxedMArray
 #endif
 #if defined(HTYPE_FSBLKCNT_T)
-  UnboxRep def CFsBlkCnt = UnboxedMArray
+  SmartRep def CFsBlkCnt = UnboxedMArray
 #endif
 #if defined(HTYPE_FSFILCNT_T)
-  UnboxRep def CFsFilCnt = UnboxedMArray
+  SmartRep def CFsFilCnt = UnboxedMArray
 #endif
 #if defined(HTYPE_ID_T)
-  UnboxRep def CId = UnboxedMArray
+  SmartRep def CId = UnboxedMArray
 #endif
 #if defined(HTYPE_KEY_T)
-  UnboxRep def CKey = UnboxedMArray
+  SmartRep def CKey = UnboxedMArray
 #endif
 #if defined(HTYPE_TIMER_T)
-  UnboxRep def CTimer = UnboxedMArray
+  SmartRep def CTimer = UnboxedMArray
 #endif
 #if defined(HTYPE_SOCKLEN_T)
-  UnboxRep def CSocklen = UnboxedMArray
+  SmartRep def CSocklen = UnboxedMArray
 #endif
 #if defined(HTYPE_NFDS_T)
-  UnboxRep def CNfds = UnboxedMArray
+  SmartRep def CNfds = UnboxedMArray
 #endif
 #if __GLASGOW_HASKELL__ >= 802
-  UnboxRep def (a :~~: b) = UnboxedMArray
+  SmartRep def (a :~~: b) = UnboxedMArray
 #if __GLASGOW_HASKELL__ >= 806
-  UnboxRep def (Ap f a) = UnboxRep def (f a)
+  SmartRep def (Ap f a) = SmartRep def (f a)
 #endif /* __GLASGOW_HASKELL__ >= 806 */
 #endif /* __GLASGOW_HASKELL__ >= 802 */
-  UnboxRep def (Max a) = UnboxRep def a
-  UnboxRep def (Min a) = UnboxRep def a
-  UnboxRep def (Data.Semigroup.First a) = UnboxRep def a
-  UnboxRep def (Data.Semigroup.Last a) = UnboxRep def a
-  UnboxRep def (Arg a b) = BestRep def (UnboxRep def a) (UnboxRep def b)
-  UnboxRep def (Const a b) = UnboxRep def a
-  UnboxRep def (Compose f g a) = UnboxRep def (f (g a))
-  UnboxRep def (Identity a) = UnboxRep def a
-  UnboxRep def (Alt f a) = UnboxRep def (f a)
-  UnboxRep def Ordering = UnboxedMArray
-  UnboxRep def IODeviceType = UnboxedMArray
-  UnboxRep def SeekMode = UnboxedMArray
-  UnboxRep def BlockReason = UnboxedMArray
-  UnboxRep def (Down a) = UnboxRep def a
-  UnboxRep def (Dual a) = UnboxRep def a
-  UnboxRep def (Sum a) = UnboxRep def a
-  UnboxRep def (Product a) = UnboxRep def a
-  UnboxRep def All = UnboxedMArray
-  UnboxRep def Any = UnboxedMArray
-  UnboxRep def Fingerprint = UnboxedMArray
-  UnboxRep def (Ratio a) = UnboxRep def a
-  UnboxRep def (Complex a) = UnboxRep def a
-  UnboxRep def (Maybe a) = UnboxRep def a
-  UnboxRep def (Either a b) =
-    BestRep def (UnboxRep def a) (UnboxRep def b)
-  UnboxRep def (a, b) =
-    BestRep def (UnboxRep def a) (UnboxRep def b)
-  UnboxRep def (a, b, c) =
-    BestRep def (BestRep def (UnboxRep def a) (UnboxRep def b)) (UnboxRep def c)
-  UnboxRep def (a, b, c, d) =
-    BestRep def (UnboxRep def (a, b)) (UnboxRep def (c, d))
-  UnboxRep def (a, b, c, d, e) =
-    BestRep def (UnboxRep def (a, b, c)) (UnboxRep def (d, e))
-  UnboxRep def (a, b, c, d, e, f) =
-    BestRep def (UnboxRep def (a, b, c)) (UnboxRep def (d, e, f))
-  UnboxRep def (a, b, c, d, e, f, g) =
-    BestRep def (UnboxRep def (a, b, c, d)) (UnboxRep def (e, f, g))
-  UnboxRep def (a, b, c, d, e, f, g, h) =
-    BestRep def (UnboxRep def (a, b, c, d)) (UnboxRep def (e, f, g, h))
-  UnboxRep def (a, b, c, d, e, f, g, h, i) =
-    BestRep def (UnboxRep def (a, b, c, d, e)) (UnboxRep def (f, g, h, i))
-  UnboxRep def (UnboxedArray a) = RaggedMArray 0
-  UnboxRep def a = def
+  SmartRep def (Max a) = SmartRep def a
+  SmartRep def (Min a) = SmartRep def a
+  SmartRep def (Data.Semigroup.First a) = SmartRep def a
+  SmartRep def (Data.Semigroup.Last a) = SmartRep def a
+  SmartRep def (Arg a b) = BestRep def (SmartRep def a) (SmartRep def b)
+  SmartRep def (Const a b) = SmartRep def a
+  SmartRep def (Compose f g a) = SmartRep def (f (g a))
+  SmartRep def (Identity a) = SmartRep def a
+  SmartRep def (Alt f a) = SmartRep def (f a)
+  SmartRep def Ordering = UnboxedMArray
+  SmartRep def IODeviceType = UnboxedMArray
+  SmartRep def SeekMode = UnboxedMArray
+  SmartRep def BlockReason = UnboxedMArray
+  SmartRep def (Down a) = SmartRep def a
+  SmartRep def (Dual a) = SmartRep def a
+  SmartRep def (Sum a) = SmartRep def a
+  SmartRep def (Product a) = SmartRep def a
+  SmartRep def All = UnboxedMArray
+  SmartRep def Any = UnboxedMArray
+  SmartRep def Fingerprint = UnboxedMArray
+  SmartRep def (Ratio a) = SmartRep def a
+  SmartRep def (Complex a) = SmartRep def a
+  SmartRep def (Maybe a) = SmartRep def a
+  SmartRep def (Either a b) =
+    BestRep def (SmartRep def a) (SmartRep def b)
+  SmartRep def (a, b) =
+    BestRep def (SmartRep def a) (SmartRep def b)
+  SmartRep def (a, b, c) =
+    BestRep def (BestRep def (SmartRep def a) (SmartRep def b)) (SmartRep def c)
+  SmartRep def (a, b, c, d) =
+    BestRep def (SmartRep def (a, b)) (SmartRep def (c, d))
+  SmartRep def (a, b, c, d, e) =
+    BestRep def (SmartRep def (a, b, c)) (SmartRep def (d, e))
+  SmartRep def (a, b, c, d, e, f) =
+    BestRep def (SmartRep def (a, b, c)) (SmartRep def (d, e, f))
+  SmartRep def (a, b, c, d, e, f, g) =
+    BestRep def (SmartRep def (a, b, c, d)) (SmartRep def (e, f, g))
+  SmartRep def (a, b, c, d, e, f, g, h) =
+    BestRep def (SmartRep def (a, b, c, d)) (SmartRep def (e, f, g, h))
+  SmartRep def (a, b, c, d, e, f, g, h, i) =
+    BestRep def (SmartRep def (a, b, c, d, e)) (SmartRep def (f, g, h, i))
+  SmartRep def (UnboxedArray a) = RaggedMArray 0
+  SmartRep def a = def
 
 
-type family AtomicRep def a :: Type -> Type -> Type where
+type family AtomicRep def e :: Type -> Type -> Type where
   AtomicRep def Bool = UnboxedMArray
   AtomicRep def Char = UnboxedMArray
   AtomicRep def Int = UnboxedMArray
