@@ -51,14 +51,14 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_synchronize"
   syncSynchronize :: IO ()
 
 
-foreign import ccall unsafe "primal_atomic.c primal_sync_lock_test_set"
-  syncLockTestSetIntArrayIO :: MutableByteArray# s -> Int# -> IO Int
-foreign import ccall unsafe "primal_atomic.c primal_sync_lock_test_set"
-  syncLockTestSetIntAddrIO :: Addr# -> Int# -> IO Int
-foreign import ccall unsafe "primal_atomic.c primal_sync_lock_release"
-  syncLockReleaseIntArrayIO :: MutableByteArray# s -> Int# -> IO ()
-foreign import ccall unsafe "primal_atomic.c primal_sync_lock_release"
-  syncLockReleaseIntAddrIO :: Addr# -> Int# -> IO ()
+foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_test_set"
+  syncLockTestSetInt8ArrayIO :: MutableByteArray# s -> Int# -> IO Int8
+foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_test_set"
+  syncLockTestSetInt8AddrIO :: Addr# -> Int# -> IO Int8
+foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_release"
+  syncLockReleaseInt8ArrayIO :: MutableByteArray# s -> Int# -> IO ()
+foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_release"
+  syncLockReleaseInt8AddrIO :: Addr# -> Int# -> IO ()
 
 
 foreign import ccall unsafe "primal_atomic.c primal_sync8_cas_bool"

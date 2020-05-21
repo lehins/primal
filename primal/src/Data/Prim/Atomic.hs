@@ -25,11 +25,9 @@ module Data.Prim.Atomic
   , AtomicCount(..)
   , atomicBoolModifyMutableByteArray#
   , atomicBoolModifyFetchOldMutableByteArray#
-  , atomicModifyMutableByteArray#
   , atomicModifyMutableByteArray_#
   , atomicModifyFetchOldMutableByteArray#
   , atomicModifyFetchNewMutableByteArray#
-  , atomicModifyOffAddr#
   , atomicModifyOffAddr_#
   , atomicBoolModifyOffAddr#
   , atomicModifyFetchOldOffAddr#
@@ -41,6 +39,8 @@ module Data.Prim.Atomic
   ) where
 
 import Control.Prim.Monad.Unsafe
+import Control.Exception
+import Control.Monad
 import Data.Bits
 import Data.Functor.Identity
 import Data.Monoid
@@ -48,6 +48,7 @@ import Data.Prim.Class
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
 import GHC.Conc
+import GHC.IO
 import GHC.IO.Device
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
@@ -158,6 +159,53 @@ class (Prim a, Eq a) => Atomic a where
   {-# INLINE casBoolOffAddr# #-}
 
 
+  -- | Using `casMutableByteArray#` perform atomic modification of an element in a
+  -- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
+  --
+  -- @since 0.1.0
+  atomicModifyMutableByteArray# ::
+       MutableByteArray# s -- ^ Array to be mutated
+    -> Int# -- ^ Index in number of `Int#` elements into the `MutableByteArray#`
+    -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
+    -> State# s -- ^ Starting state
+    -> (# State# s, b #)
+  atomicModifyMutableByteArray# mba# i# f s0 =
+    let go s o =
+          case f o of
+            (# n, artifact #) ->
+              case casMutableByteArray# mba# i# o n s of
+                (# s', o' #) ->
+                  if o == o'
+                    then (# s', artifact #)
+                    else go s o'
+     in case readMutableByteArray# mba# i# s0 of
+          (# s', o #) -> go s' o
+  {-# INLINE atomicModifyMutableByteArray# #-}
+
+  -- | Using `casOffAddr#` perform atomic modification of an element in a
+  -- `OffAddr#`. This is essentially an implementation of a spinlock using CAS.
+  --
+  -- @since 0.1.0
+  atomicModifyOffAddr# ::
+       Addr# -- ^ Array to be mutated
+    -> Int# -- ^ Index in number of `Int#` elements into the `OffAddr#`
+    -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
+    -> State# s -- ^ Starting state
+    -> (# State# s, b #)
+  atomicModifyOffAddr# addr# i# f s0 =
+    let go s o =
+          case f o of
+            (# n, artifact #) ->
+              case casOffAddr# addr# i# o n s of
+                (# s', o' #) ->
+                  if o == o'
+                    then (# s', artifact #)
+                    else go s o'
+     in case readOffAddr# addr# i# s0 of
+          (# s', o #) -> go s' o
+  {-# INLINE atomicModifyOffAddr# #-}
+
+
 -- | Using `casBoolMutableByteArray#` perform atomic modification of an element in a
 -- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
 --
@@ -197,30 +245,6 @@ atomicBoolModifyFetchOldMutableByteArray# ::
 atomicBoolModifyFetchOldMutableByteArray# mba# i# f =
   atomicBoolModifyMutableByteArray# mba# i# (\a -> let a' = f a in seq a' (# a', a #))
 {-# INLINE atomicBoolModifyFetchOldMutableByteArray# #-}
-
--- | Using `casMutableByteArray#` perform atomic modification of an element in a
--- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
---
--- @since 0.1.0
-atomicModifyMutableByteArray# ::
-     Atomic a =>
-     MutableByteArray# s -- ^ Array to be mutated
-  -> Int# -- ^ Index in number of `Int#` elements into the `MutableByteArray#`
-  -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
-  -> State# s -- ^ Starting state
-  -> (# State# s, b #)
-atomicModifyMutableByteArray# mba# i# f s0 =
-  let go s o =
-        case f o of
-          (# n, artifact #) ->
-            case casMutableByteArray# mba# i# o n s of
-              (# s', o' #) ->
-                if o == o'
-                  then (# s', artifact #)
-                  else go s o'
-   in case readMutableByteArray# mba# i# s0 of
-        (# s', o #) -> go s' o
-{-# INLINE atomicModifyMutableByteArray# #-}
 
 
 -- | Using `casMutableByteArray#` perform atomic modification of an element in a
@@ -295,30 +319,6 @@ atomicBoolModifyOffAddr# addr# i# f s0 =
    in case atomicReadOffAddr# addr# i# s0 of
         (# s', o #) -> go s' o
 {-# INLINE atomicBoolModifyOffAddr# #-}
-
--- | Using `casOffAddr#` perform atomic modification of an element in a
--- `OffAddr#`. This is essentially an implementation of a spinlock using CAS.
---
--- @since 0.1.0
-atomicModifyOffAddr# ::
-     Atomic a =>
-     Addr# -- ^ Array to be mutated
-  -> Int# -- ^ Index in number of `Int#` elements into the `OffAddr#`
-  -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
-  -> State# s -- ^ Starting state
-  -> (# State# s, b #)
-atomicModifyOffAddr# addr# i# f s0 =
-  let go s o =
-        case f o of
-          (# n, artifact #) ->
-            case casOffAddr# addr# i# o n s of
-              (# s', o' #) ->
-                if o == o'
-                  then (# s', artifact #)
-                  else go s o'
-   in case readOffAddr# addr# i# s0 of
-        (# s', o #) -> go s' o
-{-# INLINE atomicModifyOffAddr# #-}
 
 
 -- | Using `casOffAddr#` perform atomic modification of an element in a
@@ -1275,6 +1275,67 @@ instance AtomicBits Word64 where
   {-# INLINE atomicXorFetchOldOffAddr# #-}
   atomicXorFetchNewOffAddr# addr# i# a = unsafePrimBase (syncXorFetchNewWord64AddrIO addr# i# a)
   {-# INLINE atomicXorFetchNewOffAddr# #-}
+
+acquireLock# :: MutableByteArray# s -> Int# -> State# s -> State# s
+acquireLock# mba# i# = go#
+  where
+    go# s# =
+      case unsafePrimBase (syncLockTestSetInt8ArrayIO mba# i#) s# of
+        (# s'#, I8# 0# #) -> go# s'#
+        (# s'#, _      #) -> s'#
+                 -- TODO: benchmark and test
+                 -- else go# (yield# s'#)
+{-# INLINE acquireLock# #-}
+
+
+releaseLock# :: MutableByteArray# s -> Int# -> State# s -> State# s
+releaseLock# mba# i# = unsafePrimBase_ (syncLockReleaseInt8ArrayIO mba# i#)
+{-# INLINE releaseLock# #-}
+
+
+acquireLock :: MutableByteArray# s -> Int# -> IO ()
+acquireLock mba# i# = do
+  let go = do
+        locked <- syncLockTestSetInt8ArrayIO mba# i#
+        when (locked == 0) go
+   in go
+{-# INLINE acquireLock #-}
+
+
+releaseLock :: MutableByteArray# s -> Int# -> IO ()
+releaseLock mba# i# = syncLockReleaseInt8ArrayIO mba# i#
+{-# INLINE releaseLock #-}
+
+atomicModifyAtomMutableByteArray# ::
+     forall e b s. Prim e
+  => MutableByteArray# s
+  -> Int#
+  -> (Atom e -> (# Atom e, b #))
+  -> State# s
+  -> (# State# s, b #)
+atomicModifyAtomMutableByteArray# mba# i# f =
+  let li# = i# *# sizeOf# (proxy# :: Proxy# e)
+   in unsafePrimBase $
+      bracket_ (acquireLock mba# li#) (releaseLock mba# li#) $
+      IO $ \s ->
+        case readMutableByteArray# mba# i# (unsafeCoerce# s) of
+          (# s', a #) ->
+            case f a of
+              (# a', b #) ->
+                (# unsafeCoerce# (writeMutableByteArray# mba# i# (a') s'), b #)
+{-# INLINE atomicModifyAtomMutableByteArray#  #-}
+
+instance (Eq a, Prim a) => Atomic (Atom a) where
+--   casMutableByteArray# mba# i# old new = unsafePrimBase (syncCasInt8ArrayIO mba# i# old new)
+--   {-# INLINE casMutableByteArray# #-}
+--   -- casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt8AddrIO addr# i# old new)
+--   -- {-# INLINE casOffAddr# #-}
+--   -- casBoolMutableByteArray# mba# i# old new = ioCBoolToBoolBase (syncCasInt8BoolArrayIO mba# i# old new)
+--   -- {-# INLINE casBoolMutableByteArray# #-}
+--   -- casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasInt8BoolAddrIO addr# i# old new)
+--   -- {-# INLINE casBoolOffAddr# #-}
+  atomicModifyMutableByteArray# = atomicModifyAtomMutableByteArray#
+  {-# INLINE atomicModifyMutableByteArray#  #-}
 
 
 -- | Available only on 64bit architectures

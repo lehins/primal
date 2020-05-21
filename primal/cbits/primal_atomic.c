@@ -9,13 +9,13 @@ void primal_sync_synchronize (void) {
   return __sync_synchronize ();
 }
 
-// There are systems that do not support other values except 1 and 0. Moreover, in `atomic`
-// package it is used only as a lock, so having 1 and 0 as only values is sufficient for now.
-HsInt primal_sync_lock_test_set(HsInt mba[], HsInt i) {
+// There are systems that do not support other values except 1 and 0. Moreover, having 1
+// and 0 as only values is sufficient for now.
+HsInt8 primal_sync8_lock_test_set(HsInt8 mba[], HsInt i) {
   return __sync_lock_test_and_set(&mba[i], 1);
 }
 
-void primal_sync_lock_release(HsInt mba[], HsInt i) {
+void primal_sync8_lock_release(HsInt8 mba[], HsInt i) {
   return __sync_lock_release(&mba[i]);
 }
 

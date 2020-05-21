@@ -13,6 +13,7 @@
 --
 module Data.Prim
   ( Prim
+  , Atom(..)
   , Atomic
   , AtomicCount
   , AtomicBits
