@@ -24,6 +24,7 @@ module Data.Prim.Atomic
   , AtomicBits(..)
   , AtomicCount(..)
   , atomicBoolModifyMutableByteArray#
+  , atomicBoolModifyFetchOldMutableByteArray#
   , atomicModifyMutableByteArray#
   , atomicModifyMutableByteArray_#
   , atomicModifyFetchOldMutableByteArray#
@@ -62,7 +63,7 @@ class (Prim a, Eq a) => Atomic a where
     -> Int# -- ^ Offset into the array in number of elements
     -> State# s
     -> (# State# s, a #)
-  atomicReadMutableByteArray# mba# i# = withMemBarrier# (readMutableByteArray# mba# i#)
+  atomicReadMutableByteArray# mba# i# s = readMutableByteArray# mba# i# (syncSynchronize# s)
   {-# INLINE atomicReadMutableByteArray# #-}
 
   -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
@@ -81,7 +82,7 @@ class (Prim a, Eq a) => Atomic a where
     -> Int# -- ^ Offset in number of elements from the supplied pointer
     -> State# s
     -> (# State# s, a #)
-  atomicReadOffAddr# addr# i# = withMemBarrier# (readOffAddr# addr# i#)
+  atomicReadOffAddr# addr# i# s = readOffAddr# addr# i# (syncSynchronize# s)
   {-# INLINE atomicReadOffAddr# #-}
 
   -- | Write an element directly into memory atomically. Implies full memory barrier.
@@ -176,12 +177,26 @@ atomicBoolModifyMutableByteArray# mba# i# f s0 =
               (# s', isCasSucc #) ->
                 if isCasSucc
                   then (# s', artifact #)
-                  else case atomicReadMutableByteArray# mba# i# s' of
+                  else case readMutableByteArray# mba# i# s' of
                          (# s'', o' #) -> go s'' o'
-   in case atomicReadMutableByteArray# mba# i# s0 of
+   in case readMutableByteArray# mba# i# s0 of
         (# s', o #) -> go s' o
 {-# INLINE atomicBoolModifyMutableByteArray# #-}
 
+-- | Using `casBoolMutableByteArray#` perform atomic modification of an element in a
+-- `MutableByteArray#`. Returns the previous value.
+--
+-- @since 0.1.0
+atomicBoolModifyFetchOldMutableByteArray# ::
+     Atomic a =>
+     MutableByteArray# s -- ^ Array to be mutated
+  -> Int# -- ^ Index in number of `Int#` elements into the `MutableByteArray#`
+  -> (a -> a) -- ^ Function to be applied atomically to the element
+  -> State# s -- ^ Starting state
+  -> (# State# s, a #)
+atomicBoolModifyFetchOldMutableByteArray# mba# i# f =
+  atomicBoolModifyMutableByteArray# mba# i# (\a -> let a' = f a in seq a' (# a', a #))
+{-# INLINE atomicBoolModifyFetchOldMutableByteArray# #-}
 
 -- | Using `casMutableByteArray#` perform atomic modification of an element in a
 -- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
@@ -203,7 +218,7 @@ atomicModifyMutableByteArray# mba# i# f s0 =
                 if o == o'
                   then (# s', artifact #)
                   else go s o'
-   in case atomicReadMutableByteArray# mba# i# s0 of
+   in case readMutableByteArray# mba# i# s0 of
         (# s', o #) -> go s' o
 {-# INLINE atomicModifyMutableByteArray# #-}
 
@@ -301,7 +316,7 @@ atomicModifyOffAddr# addr# i# f s0 =
                 if o == o'
                   then (# s', artifact #)
                   else go s o'
-   in case atomicReadOffAddr# addr# i# s0 of
+   in case readOffAddr# addr# i# s0 of
         (# s', o #) -> go s' o
 {-# INLINE atomicModifyOffAddr# #-}
 

@@ -80,6 +80,8 @@ main = do
                     whnfIO $ modifyFetchOldMem mb off0 (+ k)
                   , bench "atomicModifyFetchOldMBytes" $
                     whnfIO $ atomicModifyFetchOldMBytes mb off0 (+ k)
+                  , bench "atomicBoolModifyFetchOldMBytes" $
+                    whnfIO $ atomicBoolModifyFetchOldMBytes mb off0 (+ k)
                   , bench "atomicAddFetchOldMBytes" $
                     whnfIO $ atomicAddFetchOldMBytes mb off0 k
                   ]
@@ -150,6 +152,10 @@ main = do
                     nfIO $
                     pooledForConcurrentlyN_ c [1 .. n] $ \k' ->
                       atomicModifyFetchOldMBytes mb off0 (+ k')
+                  , bench "atomicBoolModifyFetchOldMBytes" $
+                    nfIO $
+                    pooledForConcurrentlyN_ c [1 .. n] $ \k' ->
+                      atomicBoolModifyFetchOldMBytes mb off0 (+ k')
                   , bench "atomicAddFetchOldMBytes" $
                     nfIO $
                     pooledForConcurrentlyN_ c [1 .. n] $ \k' ->

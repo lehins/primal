@@ -115,6 +115,7 @@ module Data.Prim.Memory.Bytes
   , atomicWriteMBytes
   , atomicModifyMBytes
   , atomicModifyMBytes_
+  , atomicBoolModifyFetchOldMBytes
   , atomicModifyFetchOldMBytes
   , atomicModifyFetchNewMBytes
   -- ** Numberic
@@ -563,6 +564,24 @@ atomicModifyFetchOldMBytes ::
 atomicModifyFetchOldMBytes (MBytes mba#) (Off (I# i#)) f =
   prim $ atomicModifyFetchOldMutableByteArray# mba# i# f
 {-# INLINE atomicModifyFetchOldMBytes #-}
+
+
+-- | Perform atomic modification of an element in the `MBytes` at the supplied
+-- index. Returns the previous value.  Offset is in number of elements, rather than
+-- bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+atomicBoolModifyFetchOldMBytes ::
+     (MonadPrim s m, Atomic e)
+  => MBytes p s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
+  -> m e
+atomicBoolModifyFetchOldMBytes (MBytes mba#) (Off (I# i#)) f =
+  prim $ atomicBoolModifyFetchOldMutableByteArray# mba# i# f
+{-# INLINE atomicBoolModifyFetchOldMBytes #-}
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied
