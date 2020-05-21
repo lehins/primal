@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -44,6 +45,8 @@ module Data.Prim.Array.Unboxed
   -- , atomicModifyMArray_
   -- , atomicModifyMArray2
   -- *
+  , shrinkMArray
+  , resizeMArray
   , thawArray
   , thawCopyArray
   , freezeMArray
@@ -52,6 +55,11 @@ module Data.Prim.Array.Unboxed
   , moveMArray
   , cloneArray
   , cloneMArray
+  -- * ByteArray
+  , toByteArray
+  , fromByteArray
+  , toMByteArray
+  , fromMByteArray
   -- * List
   , fromListArray
   , fromListArrayN
@@ -67,6 +75,8 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Class
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.ByteArray
 import Data.Prim.Array.Internal (Size(..))
 import qualified Data.Prim.Array.Internal as I
 import Foreign.Prim
@@ -123,6 +133,27 @@ instance Prim a => I.Mutable (UnboxedMArray a) where
   {-# INLINE moveMArray #-}
   setMArray = setMArray
   {-# INLINE setMArray #-}
+  shrinkMArray ma sz = ma <$ shrinkMArray ma sz
+  {-# INLINE shrinkMArray #-}
+  resizeMArray = resizeMArray
+  {-# INLINE resizeMArray #-}
+
+toByteArray :: UnboxedArray e -> ByteArray 'Inc e
+toByteArray (Array a#) = ByteArray (fromByteArray# a#)
+{-# INLINE toByteArray #-}
+
+fromByteArray :: ByteArray p e -> UnboxedArray e
+fromByteArray (ByteArray ba) = Array (toByteArray# ba)
+{-# INLINE fromByteArray #-}
+
+
+toMByteArray :: UnboxedMArray e s -> MByteArray 'Inc e s
+toMByteArray (MArray a#) = MByteArray (fromMutableByteArray# a#)
+{-# INLINE toMByteArray #-}
+
+fromMByteArray :: MByteArray p e s -> UnboxedMArray e s
+fromMByteArray (MByteArray ba) = MArray (toMutableByteArray# ba)
+{-# INLINE fromMByteArray #-}
 
 
 
@@ -192,10 +223,9 @@ indexArray (Array a#) (I# i#) = indexByteArray# a# i#
 -- @since 0.1.0
 newRawMArray :: forall a m s . (Prim a, MonadPrim s m) => Size -> m (MArray a s)
 newRawMArray n =
-  let c = coerce n :: Count a
-   in prim $ \s ->
-        case newByteArray# (fromCount# c) s of
-          (# s', ma# #) -> (# s', MArray ma# #)
+  prim $ \s ->
+    case newByteArray# (fromCount# (coerce n :: Count a)) s of
+      (# s', ma# #) -> (# s', MArray ma# #)
 {-# INLINE newRawMArray #-}
 
 newMArray :: (Prim a, MonadPrim s m) => Size -> a -> m (MArray a s)
@@ -221,7 +251,28 @@ getSizeOfMArray (MArray ma#) =
 {-# INLINE getSizeOfMArray #-}
 
 
--- | Read an element from mutable unboxed array at a supplied index.
+shrinkMArray ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => MArray e s
+  -> Size
+  -> m ()
+shrinkMArray (MArray mb#) sz =
+  prim_ (shrinkMutableByteArray# mb# (fromCount# (coerce sz :: Count e)))
+{-# INLINE shrinkMArray #-}
+
+resizeMArray ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => MArray e s
+  -> Size
+  -> m (MArray e s)
+resizeMArray (MArray mb#) sz =
+  prim $ \s ->
+    case resizeMutableByteArray# mb# (fromCount# (coerce sz :: Count e)) s of
+      (# s', mb'# #) -> (# s', MArray mb'# #)
+{-# INLINE resizeMArray #-}
+
+
+-- | Read an element from a mutable unboxed array at the supplied index.
 --
 -- [Unsafe index] Negative or larger than array size can fail with unchecked exception
 --

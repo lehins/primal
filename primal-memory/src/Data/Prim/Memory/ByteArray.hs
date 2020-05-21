@@ -20,11 +20,11 @@ module Data.Prim.Memory.ByteArray
   ( ByteArray(..)
   , MByteArray(..)
   , Pinned(..)
-  , toByteArray
-  , fromByteArray
+  , fromBytesByteArray
+  , toBytesByteArray
   , castByteArray
-  , toMByteArray
-  , fromMByteArray
+  , fromMBytesMByteArray
+  , toMBytesMByteArray
   , castMByteArray
   , allocMByteArray
   , allocPinnedMByteArray
@@ -69,32 +69,32 @@ type role MByteArray nominal representational nominal
 
 -- | Read-only access, but it is not enforced.
 instance PtrAccess s (ByteArray 'Pin e) where
-  toForeignPtr = pure . toForeignPtrBytes . fromByteArray
+  toForeignPtr = pure . toForeignPtrBytes . toBytesByteArray
   {-# INLINE toForeignPtr #-}
-  withPtrAccess b = withPtrBytes (fromByteArray b)
+  withPtrAccess b = withPtrBytes (toBytesByteArray b)
   {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess b = withNoHaltPtrBytes (fromByteArray b)
+  withNoHaltPtrAccess b = withNoHaltPtrBytes (toBytesByteArray b)
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance PtrAccess s (MByteArray 'Pin e s) where
-  toForeignPtr = pure . toForeignPtrMBytes . fromMByteArray
+  toForeignPtr = pure . toForeignPtrMBytes . toMBytesMByteArray
   {-# INLINE toForeignPtr #-}
-  withPtrAccess mb = withPtrMBytes (fromMByteArray mb)
+  withPtrAccess mb = withPtrMBytes (toMBytesMByteArray mb)
   {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess mb = withNoHaltPtrMBytes (fromMByteArray mb)
+  withNoHaltPtrAccess mb = withNoHaltPtrMBytes (toMBytesMByteArray mb)
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance Typeable p => MemAlloc (MByteArray p e) where
   type FrozenMem (MByteArray p e) = ByteArray p e
-  getByteCountMem = getByteCountMem . fromMByteArray
+  getByteCountMem = getByteCountMem . toMBytesMByteArray
   {-# INLINE getByteCountMem #-}
-  allocByteCountMem = fmap toMByteArray . allocMBytes
+  allocByteCountMem = fmap fromMBytesMByteArray . allocMBytes
   {-# INLINE allocByteCountMem #-}
   thawMem = thawByteArray
   {-# INLINE thawMem #-}
   freezeMem = freezeMByteArray
   {-# INLINE freezeMem #-}
-  resizeMem mba = fmap toMByteArray . reallocMBytes (fromMByteArray mba)
+  resizeMem mba = fmap fromMBytesMByteArray . reallocMBytes (toMBytesMByteArray mba)
   {-# INLINE resizeMem #-}
 
 instance (Typeable p, Prim e) => IsList (ByteArray p e) where
@@ -116,55 +116,55 @@ toListByteArray = toListMem
 castByteArray :: ByteArray p e' -> ByteArray p e
 castByteArray = coerce
 
-toByteArray :: Bytes p -> ByteArray p e
-toByteArray = coerce
+fromBytesByteArray :: Bytes p -> ByteArray p e
+fromBytesByteArray = coerce
 
-fromByteArray :: ByteArray p e -> Bytes p
-fromByteArray = coerce
+toBytesByteArray :: ByteArray p e -> Bytes p
+toBytesByteArray = coerce
 
 castMByteArray :: MByteArray p e' s -> MByteArray p e s
 castMByteArray = coerce
 
-toMByteArray :: MBytes p s -> MByteArray p e s
-toMByteArray = coerce
+fromMBytesMByteArray :: MBytes p s -> MByteArray p e s
+fromMBytesMByteArray = coerce
 
-fromMByteArray :: MByteArray p e s -> MBytes p s
-fromMByteArray = coerce
+toMBytesMByteArray :: MByteArray p e s -> MBytes p s
+toMBytesMByteArray = coerce
 
 sizeByteArray :: forall e p. Prim e => ByteArray p e -> Size
-sizeByteArray = (coerce :: Count e -> Size) . countBytes . fromByteArray
+sizeByteArray = (coerce :: Count e -> Size) . countBytes . toBytesByteArray
 {-# INLINE sizeByteArray #-}
 
 getSizeMByteArray :: forall e p m s. (MonadPrim s m, Prim e) => MByteArray p e s -> m Size
-getSizeMByteArray = fmap (coerce :: Count e -> Size) . getCountMBytes . fromMByteArray
+getSizeMByteArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesMByteArray
 {-# INLINE getSizeMByteArray #-}
 
 allocMByteArray ::
      forall e p m s . (Typeable p, Prim e, MonadPrim s m) => Size -> m (MByteArray p e s)
-allocMByteArray sz = toMByteArray <$> allocMBytes (coerce sz :: Count e)
+allocMByteArray sz = fromMBytesMByteArray <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocMByteArray #-}
 
 allocUnpinnedMByteArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MByteArray 'Inc e s)
-allocUnpinnedMByteArray sz = toMByteArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
+allocUnpinnedMByteArray sz = fromMBytesMByteArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocUnpinnedMByteArray #-}
 
 allocPinnedMByteArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MByteArray 'Pin e s)
-allocPinnedMByteArray sz = toMByteArray <$> allocPinnedMBytes (coerce sz :: Count e)
+allocPinnedMByteArray sz = fromMBytesMByteArray <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocPinnedMByteArray #-}
 
 allocAlignedMByteArray ::
      (MonadPrim s m, Prim e)
   => Count e -- ^ Size in number of bytes
   -> m (MByteArray 'Pin e s)
-allocAlignedMByteArray = fmap toMByteArray . allocAlignedMBytes
+allocAlignedMByteArray = fmap fromMBytesMByteArray . allocAlignedMBytes
 {-# INLINE allocAlignedMByteArray #-}
 
 freezeMByteArray :: MonadPrim s m => MByteArray p e s -> m (ByteArray p e)
-freezeMByteArray = fmap toByteArray . freezeMBytes . fromMByteArray
+freezeMByteArray = fmap fromBytesByteArray . freezeMBytes . toMBytesMByteArray
 {-# INLINE freezeMByteArray #-}
 
 thawByteArray :: MonadPrim s m => ByteArray p e -> m (MByteArray p e s)
-thawByteArray = fmap toMByteArray . thawBytes . fromByteArray
+thawByteArray = fmap fromMBytesMByteArray . thawBytes . toBytesByteArray
 {-# INLINE thawByteArray #-}
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
@@ -174,7 +174,7 @@ shrinkMByteArray ::
   => MByteArray p e s
   -> Size
   -> m ()
-shrinkMByteArray mba sz = shrinkMBytes (fromMByteArray mba) (coerce sz :: Count e)
+shrinkMByteArray mba sz = shrinkMBytes (toMBytesMByteArray mba) (coerce sz :: Count e)
 {-# INLINE shrinkMByteArray #-}
 
 
@@ -188,7 +188,9 @@ resizeMByteArray ::
   => MByteArray p e s
   -> Size
   -> m (MByteArray 'Inc e s)
-resizeMByteArray mba sz = toMByteArray <$> resizeMBytes (fromMByteArray mba) (coerce sz :: Count e)
+resizeMByteArray mba sz =
+  fromMBytesMByteArray <$>
+  resizeMBytes (toMBytesMByteArray mba) (coerce sz :: Count e)
 {-# INLINE resizeMByteArray #-}
 
 reallocMByteArray ::
@@ -196,7 +198,9 @@ reallocMByteArray ::
   => MByteArray p e s
   -> Size
   -> m (MByteArray p e s)
-reallocMByteArray mba sz = toMByteArray <$> reallocMBytes (fromMByteArray mba) (coerce sz :: Count e)
+reallocMByteArray mba sz =
+  fromMBytesMByteArray <$>
+  reallocMBytes (toMBytesMByteArray mba) (coerce sz :: Count e)
 {-# INLINABLE reallocMByteArray #-}
 
 
