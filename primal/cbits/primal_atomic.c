@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <HsFFI.h>
 
 /* See GCC reference for all of the atomic opartions in this file
@@ -18,7 +19,10 @@ void primal_sync_lock_release(HsInt mba[], HsInt i) {
   return __sync_lock_release(&mba[i]);
 }
 
-HsWord8 primal_sync8_cas (HsWord8 mba[], HsInt i, HsWord8 old, HsWord8 new) {
+bool primal_sync8_cas_bool(HsWord8 mba[], HsInt i, HsWord8 old, HsWord8 new) {
+	return __sync_bool_compare_and_swap (&mba[i], old, new);
+}
+HsWord8 primal_sync8_cas(HsWord8 mba[], HsInt i, HsWord8 old, HsWord8 new) {
 	return __sync_val_compare_and_swap (&mba[i], old, new);
 }
 HsWord8 primal_sync8_fetch_add(HsWord8 mba[], HsInt i, HsWord8 a){
@@ -60,6 +64,9 @@ HsWord8 primal_sync8_xor_fetch(HsWord8 mba[], HsInt i, HsWord8 a){
 
 
 
+bool primal_sync16_cas_bool (HsWord16 mba[], HsInt i, HsWord16 old, HsWord16 new) {
+	return __sync_bool_compare_and_swap (&mba[i], old, new);
+}
 HsWord16 primal_sync16_cas (HsWord16 mba[], HsInt i, HsWord16 old, HsWord16 new) {
 	return __sync_val_compare_and_swap (&mba[i], old, new);
 }
@@ -102,6 +109,9 @@ HsWord16 primal_sync16_xor_fetch(HsWord16 mba[], HsInt i, HsWord16 a){
 
 
 
+bool primal_sync32_cas_bool (HsWord32 mba[], HsInt i, HsWord32 old, HsWord32 new) {
+	return __sync_bool_compare_and_swap (&mba[i], old, new);
+}
 HsWord32 primal_sync32_cas (HsWord32 mba[], HsInt i, HsWord32 old, HsWord32 new) {
 	return __sync_val_compare_and_swap (&mba[i], old, new);
 }
@@ -143,6 +153,9 @@ HsWord32 primal_sync32_xor_fetch(HsWord32 mba[], HsInt i, HsWord32 a){
 }
 
 
+bool primal_sync_cas_bool (HsWord mba[], HsInt i, HsWord old, HsWord new) {
+	return __sync_bool_compare_and_swap (&mba[i], old, new);
+}
 HsWord primal_sync_cas (HsWord mba[], HsInt i, HsWord old, HsWord new) {
 	return __sync_val_compare_and_swap (&mba[i], old, new);
 }

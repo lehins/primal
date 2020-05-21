@@ -23,12 +23,14 @@ module Data.Prim.Atomic
   ( Atomic(..)
   , AtomicBits(..)
   , AtomicCount(..)
+  , atomicBoolModifyMutableByteArray#
   , atomicModifyMutableByteArray#
   , atomicModifyMutableByteArray_#
   , atomicModifyFetchOldMutableByteArray#
   , atomicModifyFetchNewMutableByteArray#
   , atomicModifyOffAddr#
   , atomicModifyOffAddr_#
+  , atomicBoolModifyOffAddr#
   , atomicModifyFetchOldOffAddr#
   , atomicModifyFetchNewOffAddr#
   , atomicNotFetchOldMutableByteArray#
@@ -126,6 +128,60 @@ class (Prim a, Eq a) => Atomic a where
   {-# INLINE casOffAddr# #-}
 
 
+  casBoolMutableByteArray# ::
+       MutableByteArray# s -- ^ Array to be mutated
+    -> Int# -- ^ Offset into the array in number of elements
+    -> a -- ^ Expected old value
+    -> a -- ^ New value
+    -> State# s -- ^ Starting state
+    -> (# State# s, Bool #)
+  default casBoolMutableByteArray#
+    :: Atomic (PrimBase a)
+    => MutableByteArray# s
+    -> Int#
+    -> a
+    -> a
+    -> State# s
+    -> (# State# s, Bool #)
+  casBoolMutableByteArray# mba# i# old new s =
+    case casBoolMutableByteArray# mba# i# (toPrimBase old) (toPrimBase new) s of
+      (# s', casSucc #) -> (# s', casSucc #)
+  {-# INLINE casBoolMutableByteArray# #-}
+
+  casBoolOffAddr# :: Addr# -> Int# -> a -> a -> State# s -> (# State# s, Bool #)
+  default casBoolOffAddr# ::
+    Atomic (PrimBase a) => Addr# -> Int# -> a -> a -> State# s -> (# State# s, Bool #)
+  casBoolOffAddr# addr# i# old new s =
+    case casBoolOffAddr# addr# i# (toPrimBase old) (toPrimBase new) s of
+      (# s', casSucc #) -> (# s', casSucc #)
+  {-# INLINE casBoolOffAddr# #-}
+
+
+-- | Using `casBoolMutableByteArray#` perform atomic modification of an element in a
+-- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
+--
+-- @since 0.1.0
+atomicBoolModifyMutableByteArray# ::
+     Atomic a =>
+     MutableByteArray# s -- ^ Array to be mutated
+  -> Int# -- ^ Index in number of `Int#` elements into the `MutableByteArray#`
+  -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
+  -> State# s -- ^ Starting state
+  -> (# State# s, b #)
+atomicBoolModifyMutableByteArray# mba# i# f s0 =
+  let go s o =
+        case f o of
+          (# n, artifact #) ->
+            case casBoolMutableByteArray# mba# i# o n s of
+              (# s', isCasSucc #) ->
+                if isCasSucc
+                  then (# s', artifact #)
+                  else case atomicReadMutableByteArray# mba# i# s' of
+                         (# s'', o' #) -> go s'' o'
+   in case atomicReadMutableByteArray# mba# i# s0 of
+        (# s', o #) -> go s' o
+{-# INLINE atomicBoolModifyMutableByteArray# #-}
+
 
 -- | Using `casMutableByteArray#` perform atomic modification of an element in a
 -- `MutableByteArray#`. This is essentially an implementation of a spinlock using CAS.
@@ -199,6 +255,31 @@ atomicModifyMutableByteArray_# mba# i# f s =
     (# s', () #) -> s'
 {-# INLINE atomicModifyMutableByteArray_# #-}
 
+
+-- | Using `casBoolOffAddr#` perform atomic modification of an element in a
+-- `OffAddr#`. This is essentially an implementation of a spinlock using CAS.
+--
+-- @since 0.1.0
+atomicBoolModifyOffAddr# ::
+     Atomic a =>
+     Addr# -- ^ Array to be mutated
+  -> Int# -- ^ Index in number of `Int#` elements into the `OffAddr#`
+  -> (a -> (# a, b #)) -- ^ Function to be applied atomically to the element
+  -> State# s -- ^ Starting state
+  -> (# State# s, b #)
+atomicBoolModifyOffAddr# addr# i# f s0 =
+  let go s o =
+        case f o of
+          (# n, artifact #) ->
+            case casBoolOffAddr# addr# i# o n s of
+              (# s', isCasSucc #) ->
+                if isCasSucc
+                  then (# s', artifact #)
+                  else case atomicReadOffAddr# addr# i# s' of
+                         (# s'', o' #) -> go s'' o'
+   in case atomicReadOffAddr# addr# i# s0 of
+        (# s', o #) -> go s' o
+{-# INLINE atomicBoolModifyOffAddr# #-}
 
 -- | Using `casOffAddr#` perform atomic modification of an element in a
 -- `OffAddr#`. This is essentially an implementation of a spinlock using CAS.
@@ -514,6 +595,10 @@ instance Atomic Int8 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt8AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new = ioCBoolToBoolBase (syncCasInt8BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasInt8BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Int8 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldInt8ArrayIO mba# i# a)
@@ -572,6 +657,11 @@ instance Atomic Int16 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt16AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasInt16BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasInt16BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Int16 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldInt16ArrayIO mba# i# a)
@@ -630,6 +720,12 @@ instance Atomic Int32 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt32AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasInt32BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new =
+    ioCBoolToBoolBase (syncCasInt32BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Int32 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldInt32ArrayIO mba# i# a)
@@ -689,6 +785,10 @@ instance Atomic Int where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasIntAddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new = ioCBoolToBoolBase (syncCasIntBoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasIntBoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Int where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldIntArrayIO mba# i# a)
@@ -750,6 +850,11 @@ instance Atomic Word8 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWord8AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasWord8BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasWord8BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Word8 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWord8ArrayIO mba# i# a)
@@ -808,6 +913,11 @@ instance Atomic Word16 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWord16AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasWord16BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasWord16BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Word16 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWord16ArrayIO mba# i# a)
@@ -867,6 +977,11 @@ instance Atomic Word32 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWord32AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasWord32BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasWord32BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Word32 where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWord32ArrayIO mba# i# a)
@@ -926,6 +1041,11 @@ instance Atomic Word where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWordAddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasWordBoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasWordBoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Word where
   atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWordArrayIO mba# i# a)
@@ -946,21 +1066,29 @@ instance AtomicCount Word where
   {-# INLINE atomicSubFetchNewOffAddr# #-}
 
 instance AtomicBits Word where
-  atomicAndFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchOldWordArrayIO mba# i# a)
+  atomicAndFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchOldWordArrayIO mba# i# a)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
-  atomicAndFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchNewWordArrayIO mba# i# a)
+  atomicAndFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchNewWordArrayIO mba# i# a)
   {-# INLINE atomicAndFetchNewMutableByteArray# #-}
-  atomicNandFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchOldWordArrayIO mba# i# a)
+  atomicNandFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchOldWordArrayIO mba# i# a)
   {-# INLINE atomicNandFetchOldMutableByteArray# #-}
-  atomicNandFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchNewWordArrayIO mba# i# a)
+  atomicNandFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchNewWordArrayIO mba# i# a)
   {-# INLINE atomicNandFetchNewMutableByteArray# #-}
-  atomicOrFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchOldWordArrayIO mba# i# a)
+  atomicOrFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchOldWordArrayIO mba# i# a)
   {-# INLINE atomicOrFetchOldMutableByteArray# #-}
-  atomicOrFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchNewWordArrayIO mba# i# a)
+  atomicOrFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchNewWordArrayIO mba# i# a)
   {-# INLINE atomicOrFetchNewMutableByteArray# #-}
-  atomicXorFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchOldWordArrayIO mba# i# a)
+  atomicXorFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchOldWordArrayIO mba# i# a)
   {-# INLINE atomicXorFetchOldMutableByteArray# #-}
-  atomicXorFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchNewWordArrayIO mba# i# a)
+  atomicXorFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchNewWordArrayIO mba# i# a)
   {-# INLINE atomicXorFetchNewMutableByteArray# #-}
   atomicAndFetchOldOffAddr# addr# i# a = unsafePrimBase (syncAndFetchOldWordAddrIO addr# i# a)
   {-# INLINE atomicAndFetchOldOffAddr# #-}
@@ -987,6 +1115,11 @@ instance Atomic Int64 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt64AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasInt64BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasInt64BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 -- | Available only on 64bit architectures
 instance AtomicCount Int64 where
@@ -1009,21 +1142,29 @@ instance AtomicCount Int64 where
 
 -- | Available only on 64bit architectures
 instance AtomicBits Int64 where
-  atomicAndFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchOldInt64ArrayIO mba# i# a)
+  atomicAndFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
-  atomicAndFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchNewInt64ArrayIO mba# i# a)
+  atomicAndFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchNewInt64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchNewMutableByteArray# #-}
-  atomicNandFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchOldInt64ArrayIO mba# i# a)
+  atomicNandFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicNandFetchOldMutableByteArray# #-}
-  atomicNandFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchNewInt64ArrayIO mba# i# a)
+  atomicNandFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchNewInt64ArrayIO mba# i# a)
   {-# INLINE atomicNandFetchNewMutableByteArray# #-}
-  atomicOrFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchOldInt64ArrayIO mba# i# a)
+  atomicOrFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicOrFetchOldMutableByteArray# #-}
-  atomicOrFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchNewInt64ArrayIO mba# i# a)
+  atomicOrFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchNewInt64ArrayIO mba# i# a)
   {-# INLINE atomicOrFetchNewMutableByteArray# #-}
-  atomicXorFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchOldInt64ArrayIO mba# i# a)
+  atomicXorFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchOldInt64ArrayIO mba# i# a)
   {-# INLINE atomicXorFetchOldMutableByteArray# #-}
-  atomicXorFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchNewInt64ArrayIO mba# i# a)
+  atomicXorFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchNewInt64ArrayIO mba# i# a)
   {-# INLINE atomicXorFetchNewMutableByteArray# #-}
   atomicAndFetchOldOffAddr# addr# i# a = unsafePrimBase (syncAndFetchOldInt64AddrIO addr# i# a)
   {-# INLINE atomicAndFetchOldOffAddr# #-}
@@ -1048,16 +1189,25 @@ instance Atomic Word64 where
   {-# INLINE casMutableByteArray# #-}
   casOffAddr# addr# i# old new = unsafePrimBase (syncCasWord64AddrIO addr# i# old new)
   {-# INLINE casOffAddr# #-}
+  casBoolMutableByteArray# mba# i# old new =
+    ioCBoolToBoolBase (syncCasWord64BoolArrayIO mba# i# old new)
+  {-# INLINE casBoolMutableByteArray# #-}
+  casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasWord64BoolAddrIO addr# i# old new)
+  {-# INLINE casBoolOffAddr# #-}
 
 -- | Available only on 64bit architectures
 instance AtomicCount Word64 where
-  atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldWord64ArrayIO mba# i# a)
+  atomicAddFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAddFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
-  atomicAddFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchNewWord64ArrayIO mba# i# a)
+  atomicAddFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAddFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicAddFetchNewMutableByteArray# #-}
-  atomicSubFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncSubFetchOldWord64ArrayIO mba# i# a)
+  atomicSubFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncSubFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicSubFetchOldMutableByteArray# #-}
-  atomicSubFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncSubFetchNewWord64ArrayIO mba# i# a)
+  atomicSubFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncSubFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicSubFetchNewMutableByteArray# #-}
   atomicAddFetchOldOffAddr# addr# i# a = unsafePrimBase (syncAddFetchOldWord64AddrIO addr# i# a)
   {-# INLINE atomicAddFetchOldOffAddr# #-}
@@ -1070,21 +1220,29 @@ instance AtomicCount Word64 where
 
 -- | Available only on 64bit architectures
 instance AtomicBits Word64 where
-  atomicAndFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchOldWord64ArrayIO mba# i# a)
+  atomicAndFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
-  atomicAndFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncAndFetchNewWord64ArrayIO mba# i# a)
+  atomicAndFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncAndFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicAndFetchNewMutableByteArray# #-}
-  atomicNandFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchOldWord64ArrayIO mba# i# a)
+  atomicNandFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicNandFetchOldMutableByteArray# #-}
-  atomicNandFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncNandFetchNewWord64ArrayIO mba# i# a)
+  atomicNandFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncNandFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicNandFetchNewMutableByteArray# #-}
-  atomicOrFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchOldWord64ArrayIO mba# i# a)
+  atomicOrFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicOrFetchOldMutableByteArray# #-}
-  atomicOrFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncOrFetchNewWord64ArrayIO mba# i# a)
+  atomicOrFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncOrFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicOrFetchNewMutableByteArray# #-}
-  atomicXorFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchOldWord64ArrayIO mba# i# a)
+  atomicXorFetchOldMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchOldWord64ArrayIO mba# i# a)
   {-# INLINE atomicXorFetchOldMutableByteArray# #-}
-  atomicXorFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncXorFetchNewWord64ArrayIO mba# i# a)
+  atomicXorFetchNewMutableByteArray# mba# i# a =
+    unsafePrimBase (syncXorFetchNewWord64ArrayIO mba# i# a)
   {-# INLINE atomicXorFetchNewMutableByteArray# #-}
   atomicAndFetchOldOffAddr# addr# i# a = unsafePrimBase (syncAndFetchOldWord64AddrIO addr# i# a)
   {-# INLINE atomicAndFetchOldOffAddr# #-}

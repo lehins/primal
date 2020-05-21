@@ -190,7 +190,7 @@ primBinarySpec = do
       prop "Inc" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
         (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
       prop "Inc+Pin" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
-        (relaxPinned b1 == relaxPinned b2) ===
+        (relaxPinnedBytes b1 == relaxPinnedBytes b2) ===
         (toListBytes b1 == (toListBytes b2 :: [Word8]))
     describe "ensurePinned" $ do
       prop "Bytes" $ \(b :: Bytes p) ->
