@@ -348,12 +348,6 @@ thawArray (Array a#) = prim $ \s ->
 --
 -- > ma' <- newRawMArray n >>= \ma -> ma <$ copyArray a i ma 0 n
 --
--- [Unsafe offset] Offset cannot be negative or larger than the size of an array,
--- otherwise it can result in an unchecked exception
---
--- [Unsafe new size] Number of elements to be copied cannot be larger than the size of an
--- array minus the offset.
---
 -- ====__Examples__
 --
 -- >>> let a = fromListArray [1 .. 5 :: Int]
@@ -365,7 +359,14 @@ thawArray (Array a#) = prim $ \s ->
 -- Array [1,2,3,4,5]
 --
 -- @since 0.1.0
-thawCopyArray :: MonadPrim s m => Array e -> Int -> Size -> m (MArray e s)
+thawCopyArray ::
+     MonadPrim s m
+  => Array e
+  -> Int -- ^ [offset] Offset cannot be negative or larger than the size of an
+         -- array, otherwise it can result in an unchecked exception
+  -> Size -- ^ [new size] Number of elements to be copied cannot be larger than the
+          -- size of an array minus the offset.
+  -> m (MArray e s)
 thawCopyArray (Array a#) (I# i#) (Size (I# n#)) = prim $ \s ->
   case thawSmallArray# a# i# n# s of
     (# s', ma# #) -> (# s', MArray ma# #)
