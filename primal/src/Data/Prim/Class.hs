@@ -21,8 +21,8 @@
 --
 module Data.Prim.Class
   ( Prim(..)
-  , Atom(..)
   , setMutableByteArrayLoop#
+  , setOffAddrLoop#
   , errorImpossible
   , bool2Int#
   , int2Bool#
@@ -41,7 +41,6 @@ module Data.Prim.Class
 
 import Control.Prim.Monad.Unsafe
 import Data.Complex
-import Control.DeepSeq
 import Data.Type.Equality
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
@@ -1501,51 +1500,6 @@ instance (Prim a, Prim b) => Prim (Either a b) where
          Right b ->
            setOffAddr# addr1# b# (max# 0# (a# -# b#)) (I8# 0#)
            (writeOffAddr# addr1# 0# b (writeInt8OffAddr# addr0# 0# 1# s))
-  {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# = setMutableByteArrayLoop#
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# = setOffAddrLoop#
-  {-# INLINE setOffAddr# #-}
-
-newtype Atom a = Atom a
-  deriving (Eq, Ord, Num, Enum, Integral, Real, RealFrac, Fractional, Floating, RealFloat, NFData)
-
-
-instance Prim a => Prim (Atom a) where
-  type PrimBase (Atom a) = Atom a
-  type SizeOf (Atom a) = 1 + SizeOf a
-  type Alignment (Atom a) = 1 + Alignment a
-  sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# a)
-  {-# INLINE sizeOf# #-}
-  alignment# _ = 1# +# alignment# (proxy# :: Proxy# a)
-  {-# INLINE alignment# #-}
-  indexByteOffByteArray# ba# i# = indexByteOffByteArray# ba# (i# +# 1#)
-  {-# INLINE indexByteOffByteArray# #-}
-  indexByteArray# ba# i# =
-    indexByteOffByteArray# ba# (i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
-  {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# =
-    let addr0# = addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
-    in indexOffAddr# addr0# 0#
-  {-# INLINE indexOffAddr# #-}
-  readByteOffMutableByteArray# mba# i# s =
-    case readByteOffMutableByteArray# mba# (i# +# 1#) s of
-      (# s', a #) -> (# s', Atom a #)
-  {-# INLINE readByteOffMutableByteArray# #-}
-  readMutableByteArray# mba# i# =
-    readByteOffMutableByteArray# mba# (i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
-  {-# INLINE readMutableByteArray# #-}
-  readOffAddr# addr# i# =
-    readOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0#
-  {-# INLINE readOffAddr# #-}
-  writeByteOffMutableByteArray# mba# i# (Atom a) =
-    writeByteOffMutableByteArray# mba# (i# +# 1#) a
-  {-# INLINE writeByteOffMutableByteArray# #-}
-  writeMutableByteArray# mba# i# (Atom a) =
-    writeByteOffMutableByteArray# mba# (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a))) a
-  {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# addr# i# (Atom a) =
-    writeOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0# a
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
   {-# INLINE setMutableByteArray# #-}

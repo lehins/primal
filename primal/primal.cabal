@@ -35,6 +35,7 @@ library
                      , Control.Prim.Monad
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
+                     , Data.Prim.Atom
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName

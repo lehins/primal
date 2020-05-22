@@ -38,9 +38,9 @@ module Data.Prim.Atomic
   , atomicNotFetchNewOffAddr#
   ) where
 
-import Control.Prim.Monad.Unsafe
 import Control.Exception
 import Control.Monad
+import Control.Prim.Monad.Unsafe
 import Data.Bits
 import Data.Functor.Identity
 import Data.Monoid
@@ -48,7 +48,6 @@ import Data.Prim.Class
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
 import GHC.Conc
-import GHC.IO
 import GHC.IO.Device
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
@@ -1275,68 +1274,6 @@ instance AtomicBits Word64 where
   {-# INLINE atomicXorFetchOldOffAddr# #-}
   atomicXorFetchNewOffAddr# addr# i# a = unsafePrimBase (syncXorFetchNewWord64AddrIO addr# i# a)
   {-# INLINE atomicXorFetchNewOffAddr# #-}
-
-acquireLock# :: MutableByteArray# s -> Int# -> State# s -> State# s
-acquireLock# mba# i# = go#
-  where
-    go# s# =
-      case unsafePrimBase (syncLockTestSetInt8ArrayIO mba# i#) s# of
-        (# s'#, I8# 0# #) -> go# s'#
-        (# s'#, _      #) -> s'#
-                 -- TODO: benchmark and test
-                 -- else go# (yield# s'#)
-{-# INLINE acquireLock# #-}
-
-
-releaseLock# :: MutableByteArray# s -> Int# -> State# s -> State# s
-releaseLock# mba# i# = unsafePrimBase_ (syncLockReleaseInt8ArrayIO mba# i#)
-{-# INLINE releaseLock# #-}
-
-
-acquireLock :: MutableByteArray# s -> Int# -> IO ()
-acquireLock mba# i# = do
-  let go = do
-        locked <- syncLockTestSetInt8ArrayIO mba# i#
-        when (locked == 0) go
-   in go
-{-# INLINE acquireLock #-}
-
-
-releaseLock :: MutableByteArray# s -> Int# -> IO ()
-releaseLock mba# i# = syncLockReleaseInt8ArrayIO mba# i#
-{-# INLINE releaseLock #-}
-
-atomicModifyAtomMutableByteArray# ::
-     forall e b s. Prim e
-  => MutableByteArray# s
-  -> Int#
-  -> (Atom e -> (# Atom e, b #))
-  -> State# s
-  -> (# State# s, b #)
-atomicModifyAtomMutableByteArray# mba# i# f =
-  let li# = i# *# sizeOf# (proxy# :: Proxy# e)
-   in unsafePrimBase $
-      bracket_ (acquireLock mba# li#) (releaseLock mba# li#) $
-      IO $ \s ->
-        case readMutableByteArray# mba# i# (unsafeCoerce# s) of
-          (# s', a #) ->
-            case f a of
-              (# a', b #) ->
-                (# unsafeCoerce# (writeMutableByteArray# mba# i# (a') s'), b #)
-{-# INLINE atomicModifyAtomMutableByteArray#  #-}
-
-instance (Eq a, Prim a) => Atomic (Atom a) where
---   casMutableByteArray# mba# i# old new = unsafePrimBase (syncCasInt8ArrayIO mba# i# old new)
---   {-# INLINE casMutableByteArray# #-}
---   -- casOffAddr# addr# i# old new = unsafePrimBase (syncCasInt8AddrIO addr# i# old new)
---   -- {-# INLINE casOffAddr# #-}
---   -- casBoolMutableByteArray# mba# i# old new = ioCBoolToBoolBase (syncCasInt8BoolArrayIO mba# i# old new)
---   -- {-# INLINE casBoolMutableByteArray# #-}
---   -- casBoolOffAddr# addr# i# old new = ioCBoolToBoolBase (syncCasInt8BoolAddrIO addr# i# old new)
---   -- {-# INLINE casBoolOffAddr# #-}
-  atomicModifyMutableByteArray# = atomicModifyAtomMutableByteArray#
-  {-# INLINE atomicModifyMutableByteArray#  #-}
-
 
 -- | Available only on 64bit architectures
 instance Atomic CLLong

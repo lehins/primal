@@ -60,12 +60,12 @@ import Data.Prim.Memory.ForeignPtr
 -- | An immutable array of bytes of type @e@
 newtype ByteArray (p :: Pinned) e = ByteArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
-type role ByteArray nominal representational
+type role ByteArray nominal nominal
 
 -- | A mutable array of bytes of type @e@
 newtype MByteArray (p :: Pinned) e s = MByteArray (MBytes p s)
   deriving (NFData, MemWrite)
-type role MByteArray nominal representational nominal
+type role MByteArray nominal nominal nominal
 
 -- | Read-only access, but it is not enforced.
 instance PtrAccess s (ByteArray 'Pin e) where
