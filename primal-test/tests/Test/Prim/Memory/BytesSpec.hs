@@ -46,44 +46,45 @@ import Test.Prim.Memory
 type NEBytes p e = NEMem (MBytes p) e
 
 primSpec ::
-     forall (p :: Pinned) a.
-     (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable p, Typeable a)
+     forall (p :: Pinned) e.
+     (NFData e, Eq e, Show e, Prim e, Arbitrary e, Typeable p, Typeable e)
   => Spec
 primSpec = do
   let bytesTypeName =
         showsType (Proxy :: Proxy (Bytes p)) .
-        (' ' :) . showsType (Proxy :: Proxy a) $
+        (' ' :) . showsType (Proxy :: Proxy e) $
         ""
   describe bytesTypeName $ do
+    memSpec @(MBytes p) @e
     describe "memset" $ do
-      prop "empty" $ \(a :: a) -> do
-        mb :: MBytes p RealWorld <- allocMBytes (0 :: Count a)
-        setMBytes mb 0 0 a
+      prop "empty" $ \(e :: e) -> do
+        mb :: MBytes p RealWorld <- allocMBytes (0 :: Count e)
+        setMBytes mb 0 0 e
         b <- freezeMBytes mb
-        toListBytes b `shouldBe` ([] :: [a])
-      prop "non-empty" $ \(NEMem off@(Off o) xs b :: NEBytes p a) (a :: a) -> do
+        toListBytes b `shouldBe` ([] :: [e])
+      prop "non-empty" $ \(NEMem off@(Off o) xs b :: NEBytes p e) (e :: e) -> do
         mb <- thawBytes b
-        Count n :: Count a <- getCountMBytes mb
+        Count n :: Count e <- getCountMBytes mb
         let c = Count (n - o)
-        setMBytes mb off c a
+        setMBytes mb off c e
         zipWithM_ (\i x -> readOffMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
-            readOffMBytes mb (Off i) `shouldReturn` a
+            readOffMBytes mb (Off i) `shouldReturn` e
     describe "List" $ do
-      prop "toListBytes" $ \(NEMem _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
-      prop "toListBytes+fromBytes" $ \(NEMem _ xs b :: NEBytes p a) ->
-        let xs' = toListBytes b :: [a]
+      prop "toListBytes" $ \(NEMem _ xs b :: NEBytes p e) -> xs === (toListBytes b :: [e])
+      prop "toListBytes+fromBytes" $ \(NEMem _ xs b :: NEBytes p e) ->
+        let xs' = toListBytes b :: [e]
         in xs' === xs .&&. fromListBytes xs' === b
-      prop "loadListMBytes" $ \ (xs :: [a]) (b :: Bytes p) -> do
+      prop "loadListMBytes" $ \ (xs :: [e]) (b :: Bytes p) -> do
         mb <- thawBytes b
-        (Count n :: Count a, r) <- getCountRemOfMBytes mb
+        (Count n :: Count e, r) <- getCountRemOfMBytes mb
         loadListMBytes xs mb >>= \case
           GT ->
-            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off a) `shouldReturn` x) [0.. n - 1] xs
+            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off e) `shouldReturn` x) [0.. n - 1] xs
           elt -> do
             when (elt == EQ) $ r `shouldBe` 0
-            zipWithM_ (\i x -> readOffMBytes mb (i :: Off a) `shouldReturn` x) [0..] xs
-      prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p a) (Positive n') -> do
+            zipWithM_ (\i x -> readOffMBytes mb (i :: Off e) `shouldReturn` x) [0..] xs
+      prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p e) (Positive n') -> do
         let n = Count $ length xs
             (order, b') = fromListBytesN n xs
             (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
@@ -100,12 +101,12 @@ primSpec = do
       prop "concatBytes" $ \ (xs :: [Bytes p]) ->
         (concatBytes xs :: Bytes p) === fromListBytes (foldMap toList xs)
     describe "Allocation" $ do
-      prop "resizeMBytes" $ prop_resizeMBytes @p @a
-      prop "singletonBytes" $ \(a :: a) ->
-        indexOffBytes (singletonBytes a :: Bytes p) 0 === a
+      prop "resizeMBytes" $ prop_resizeMBytes @p @e
+      prop "singletonBytes" $ \(e :: e) ->
+        indexOffBytes (singletonBytes e :: Bytes p) 0 === e
     describe "moveMBytesToMBytes" $ do
       prop "copyBytesToMBytes" $
-        \(NEMem i1 _ b1 :: NEBytes p a) (NEMem i2 _ b2 :: NEBytes p a) -> do
+        \(NEMem i1 _ b1 :: NEBytes p e) (NEMem i2 _ b2 :: NEBytes p e) -> do
           let c = min (countBytes b1 - Count (unOff i1)) (countBytes b2 - Count (unOff i2))
           mb2x <- thawBytes b2
           copyBytesToMBytes b1 i1 mb2x i2 c
@@ -114,7 +115,7 @@ primSpec = do
             moveMBytesToMBytes mb1 i1 mb2y i2 c
           bx <- freezeMBytes mb2x
           bx `shouldBe` by
-      prop "moveInside" $ \(NEMem i xs b :: NEBytes p a) -> do
+      prop "moveInside" $ \(NEMem i xs b :: NEBytes p e) -> do
         let c = countBytes b - Count (unOff i)
         mb <- thawBytes b
         moveMBytesToMBytes mb i mb 0 c
@@ -122,8 +123,8 @@ primSpec = do
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
 
 prop_resizeMBytes ::
-     forall p a. (Prim a, Eq a, Show a, Typeable p)
-  => NEBytes p a
+     forall p e. (Prim e, Eq e, Show e, Typeable p)
+  => NEBytes p e
   -> NonNegative Int
   -> Property
 prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
@@ -132,15 +133,15 @@ prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
     mb <- thawBytes $ cloneBytes b
     mbr <- resizeMBytes mb (Count n' :: Count Int)
     br <- freezeMBytes mbr
-    pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
+    pure $ conjoin $ zipWith (===) xs (toListBytes br :: [e])
 
 
 primTypeSpec ::
-     forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+     forall e. (NFData e, Eq e, Show e, Prim e, Arbitrary e, Typeable e)
   => Spec
 primTypeSpec = do
-  primSpec @'Pin @a
-  primSpec @'Inc @a
+  primSpec @'Pin @e
+  primSpec @'Inc @e
 
 primBinarySpec ::
      forall (p :: Pinned). (Typeable p)

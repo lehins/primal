@@ -101,14 +101,18 @@ instance Prim a => Prim (Atom a) where
     case readOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0# s of
       (# s', a #) -> (# s', Atom a #)
   {-# INLINE readOffAddr# #-}
-  writeByteOffMutableByteArray# mba# i# (Atom a) =
-    writeByteOffMutableByteArray# mba# (i# +# 1#) a
+  writeByteOffMutableByteArray# mba# i# (Atom a) s =
+    writeByteOffMutableByteArray# mba# i# (0 :: Word8)
+      (writeByteOffMutableByteArray# mba# (1# +# i#) a s)
   {-# INLINE writeByteOffMutableByteArray# #-}
-  writeMutableByteArray# mba# i# =
-    writeByteOffMutableByteArray# mba# (i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
+  writeMutableByteArray# mba# i# (Atom a) s =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom a))
+    in writeByteOffMutableByteArray# mba# i0# (0 :: Word8)
+         (writeByteOffMutableByteArray# mba# (1# +# i0#) a s)
   {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# addr# i# (Atom a) =
-    writeOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0# a
+  writeOffAddr# addr# i# (Atom a) s =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom a))
+    in writeOffAddr# addr# i0# (0 :: Word8) (writeOffAddr# (addr# `plusAddr#` (1# +# i0#)) 0# a s)
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
   {-# INLINE setMutableByteArray# #-}

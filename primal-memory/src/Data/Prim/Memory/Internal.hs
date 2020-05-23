@@ -128,10 +128,18 @@ class MemWrite w where
   moveByteOffMem ::
     (MonadPrim s m, MemWrite w', Prim e) => w' s -> Off Word8 -> w s -> Off Word8 -> Count e -> m ()
 
-  -- TODO:
+  -- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
   --setByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> Count e -> e -> m ()
 
-  setMem :: (MonadPrim s m, Prim e) => w s -> Off e -> Count e -> e -> m ()
+  -- | Write the same value into each cell starting at an offset.
+  setMem
+    :: (MonadPrim s m, Prim e)
+    => w s -- ^ Writable memory. Must have enough bytes, at least: (off+count)*(sizeOf e)
+    -> Off e -- ^ An offset into writable memory at which element setting should start.
+    -> Count e -- ^ Numer of cells to write the elemnt into
+    -> e -- ^ Element to write into all memory cells specified by offset and count. Even
+         -- if the count is @0@ this element might be still fully evaluated.
+    -> m ()
 
 
 instance MemRead ByteString where
@@ -358,6 +366,18 @@ createMemST n f = runST $ do
 createMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
 createMemST_ n f = runST (allocMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createMemST_ #-}
+
+createZeroMemST :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> (b, FrozenMem a)
+createZeroMemST n f = runST $ do
+  m <- allocZeroMem n
+  res <- f m
+  i <- freezeMem m
+  pure (res, i)
+{-# INLINE createZeroMemST #-}
+
+createZeroMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
+createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
+{-# INLINE createZeroMemST_ #-}
 
 
 copyMem ::

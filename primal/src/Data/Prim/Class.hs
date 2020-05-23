@@ -105,6 +105,18 @@ instance Prim P.WordPtr where
 import Foreign.Ptr
 #endif
 
+-- | Invariants:
+--
+-- * Reading should never fail on memory that contains only zeros
+--
+-- * Writing should always overwrite all of the bytes allocated for the element. In other
+--   words, writing to a dirty (uninitilized) region of memory should never leave any
+--   garbage around. For example, if a type requires 31 bytes of memory then on any write
+--   all 31 bytes must be overwritten.
+--
+-- * A single thread write/read sequence must always roundtrip
+--
+--
 class Prim a where
   type PrimBase a :: *
 
@@ -121,11 +133,13 @@ class Prim a where
   default fromPrimBase :: Coercible a (PrimBase a) => PrimBase a -> a
   fromPrimBase = coerce
 
+  -- | Returned value must match the `SizeOf` type level Nat
   sizeOf# :: Proxy# a -> Int#
   default sizeOf# :: Prim (PrimBase a) => Proxy# a -> Int#
   sizeOf# _ = sizeOf# (proxy# :: Proxy# (PrimBase a))
   {-# INLINE sizeOf# #-}
 
+  -- | Returned value must match the `Alignment` type level Nat
   alignment# :: Proxy# a -> Int#
   default alignment# :: Prim (PrimBase a) => Proxy# a -> Int#
   alignment# _ = alignment# (proxy# :: Proxy# (PrimBase a))

@@ -43,6 +43,8 @@ module Data.Prim.Memory
   , freezeCopyMem
   , createMemST
   , createMemST_
+  , createZeroMemST
+  , createZeroMemST_
   , emptyMem
   , singletonMem
   , cycleMemN

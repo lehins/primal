@@ -1,5 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Test.Prim.Memory
@@ -68,6 +71,10 @@ instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
     Mem (_ :: [e]) b <- arbitrary
     pure b
 
+getZeroElement :: forall e m s. (MonadPrim s m, Prim e) => m e
+getZeroElement = do
+  z :: MBytes 'Inc s <- callocMBytes (1 :: Count e)
+  readOffMem z (0 :: Off e)
 
 prop_emptyMem ::
      forall a e. (Arbitrary e, Show e, Prim e, Eq e, MemAlloc a)
@@ -78,7 +85,8 @@ prop_emptyMem (Mem xs fm') = propIO $ do
   m' <- thawMem fm'
   m :: a RW <- allocMem zc
   -- Check zero set and no element evaluation
-  setMem m 0 0 (error "prop_emptyMem: Should not have been evaluated" :: e)
+  z :: e <- getZeroElement
+  setMem m 0 0 z
   getCountMem m `shouldReturn` (0 :: Count e)
   getCountRemMem m `shouldReturn` (0 :: Count e, 0)
   getByteCountMem m `shouldReturn` 0
@@ -111,9 +119,22 @@ prop_setMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
     setMem m off c' e
     fm' <- freezeMem m
     let xs' = toListMem fm' :: [e]
+    -- ensure memory before offset is unaffected by the set
     take o xs' `shouldBe` take o xs
+    -- ensure memory from offset up to size was set to value `e`
     take ci' (drop o xs') `shouldBe` replicate ci' e
+    -- ensure memory after offset+size is unaffected by the set
     drop ci' (drop o xs') `shouldBe` drop ci' (drop o xs)
+
+
+memSpec ::
+     forall a e. (Arbitrary e, Show e, Prim e, Eq e, Typeable e, Typeable a, MemAlloc a)
+  => Spec
+memSpec = do
+  let memTypeName = showsType (Proxy :: Proxy (Mem a e)) ""
+  describe memTypeName $ do
+    prop "emptyMem" $ prop_emptyMem @a @e
+    prop "setMem" $ prop_setMem @a @e
 
 
 -- primSpec ::
