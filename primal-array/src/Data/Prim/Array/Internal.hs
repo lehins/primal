@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
@@ -30,6 +31,8 @@ module Data.Prim.Array.Internal
   , makeArrayM
   , createArrayM
   , createArrayM_
+  , createArrayST
+  , createArrayST_
   , makeMArray
   , traverseArray
   ) where
@@ -216,10 +219,10 @@ instance Prim e => MRef (MAddr e) where
   newRawMRef = allocMAddr 1
   {-# INLINE newRawMRef #-}
 
-  writeMRef ma = writeOffMAddr ma 0
+  writeMRef = writeMAddr
   {-# INLINE writeMRef #-}
 
-  readMRef ma = readOffMAddr ma 0
+  readMRef = readMAddr
   {-# INLINE readMRef #-}
 
 
@@ -419,6 +422,15 @@ createArrayM_ ::
 createArrayM_ sz f =
   newRawMArray sz >>= \ma -> f ma >> freezeMArray ma
 {-# INLINE createArrayM_ #-}
+
+
+createArrayST :: MArray mut => Size -> (forall s. mut s -> ST s b) -> (b, Array mut)
+createArrayST sz f = runST $ createArrayM sz f
+{-# INLINE createArrayST #-}
+
+createArrayST_ :: MArray mut => Size -> (forall s. mut s -> ST s b) -> Array mut
+createArrayST_ sz f = runST $ createArrayM_ sz f
+{-# INLINE createArrayST_ #-}
 
 
 -- | Create a new mutable array of a supplied size by applying a monadic action to indices

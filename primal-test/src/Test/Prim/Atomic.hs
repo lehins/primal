@@ -1,3 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Test.Prim.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -9,23 +16,184 @@
 module Test.Prim.Atomic where
 
 import Control.Prim.Monad
-import Data.Prim.Atomic
-import Test.Hspec
-import Test.QuickCheck
+import Data.Prim
+import Data.Prim.Array
+import Test.Prim.Common
 
--- data MutableIx mut s = MutableIx ![Elt mut] !(mut s)
+data MEArray mut = MEArray ![Elt mut] !(Array mut)
+deriving instance (Eq (Elt mut), Eq (Array mut)) => Eq (MEArray mut)
+deriving instance (Show (Elt mut), Show (Array mut)) => Show (MEArray mut)
 
--- data NEMutableIx mut s = NEMutableIx !Int ![Elt mut] !(mut s)
-
-
--- instance (a ~ Elt (ma a), MArray (ma a)) => MRef (NEMArrayIx ma) a where
---   newMRef a = MArrayIx 0 <$> newMArray 1 a
---   newRawMRef = MArrayIx 0 <$> newRawMArray 1
---   readMRef (MArrayIx i ma) = readMArray ma i
---   writeMRef (MArrayIx i ma) = writeMArray ma i
+data MEMArray mut s = MEMArray ![Elt mut] !(mut s)
 
 
+data NEArrayIx mut = NEArrayIx !Int ![Elt mut] !(Array mut)
+deriving instance (Eq (Elt mut), Eq (Array mut)) => Eq (NEArrayIx mut)
+deriving instance (Show (Elt mut), Show (Array mut)) => Show (NEArrayIx mut)
 
+data NEMArrayIx mut s = NEMArrayIx !Int ![Elt mut] !(mut s)
+
+
+instance MRef mut => MRef (MEMArray mut) where
+  type Elt (MEMArray mut) = Elt mut
+  newMRef e = MEMArray [e] <$> newMRef e
+  {-# INLINE newMRef #-}
+  newRawMRef = MEMArray [] <$> newRawMRef
+  {-# INLINE newRawMRef #-}
+  writeMRef (MEMArray _ ma) = writeMRef ma
+  {-# INLINE writeMRef #-}
+  readMRef (MEMArray _ ma) = readMRef ma
+  {-# INLINE readMRef #-}
+
+
+instance MArray mut => MArray (MEMArray mut) where
+  type Array (MEMArray mut) = MEArray mut
+  sizeOfArray (MEArray _ a) = sizeOfArray a
+  {-# INLINE sizeOfArray #-}
+  indexArray (MEArray _ a) = indexArray a
+  {-# INLINE indexArray #-}
+  getSizeOfMArray (MEMArray _ ma) = getSizeOfMArray ma
+  {-# INLINE getSizeOfMArray #-}
+  thawArray (MEArray xs a) = MEMArray xs <$> thawArray a
+  {-# INLINE thawArray #-}
+  freezeMArray (MEMArray xs ma) = MEArray xs <$> freezeMArray ma
+  {-# INLINE freezeMArray #-}
+  newRawMArray sz = MEMArray [] <$> newRawMArray sz
+  {-# INLINE newRawMArray #-}
+  newMArray sz e = MEMArray (replicate (unSize sz) e) <$> newMArray sz e
+  {-# INLINE newMArray #-}
+  writeMArray (MEMArray _ ma) = writeMArray ma
+  {-# INLINE writeMArray #-}
+  readMArray (MEMArray _ ma) = readMArray ma
+  {-# INLINE readMArray #-}
+  copyArray (MEArray _ src) isrc (MEMArray _ mdst) idst = copyArray src isrc mdst idst
+  {-# INLINE copyArray #-}
+  moveMArray (MEMArray _ msrc) isrc (MEMArray _ mdst) idst = moveMArray msrc isrc mdst idst
+  {-# INLINE moveMArray #-}
+  setMArray (MEMArray _ ma) = setMArray ma
+  {-# INLINE setMArray #-}
+  shrinkMArray (MEMArray xs ma) sz = MEMArray xs <$> shrinkMArray ma sz
+  {-# INLINE shrinkMArray #-}
+  resizeMArray (MEMArray xs ma) sz = MEMArray xs <$> resizeMArray ma sz
+  {-# INLINE resizeMArray #-}
+
+
+instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (MEArray mut) where
+  arbitrary = do
+    NonNegative n <- arbitrary
+    xs :: [e] <- vectorOf n arbitrary
+    pure $
+      MEArray xs $
+      createArrayST_ (Size n) $ \ma ->
+        zipWithM_ (writeMArray ma) [0 ..] xs
+
+
+instance MArray mut => MRef (NEMArrayIx mut) where
+  type Elt (NEMArrayIx mut) = Elt mut
+  newMRef e = NEMArrayIx 0 [e] <$> newMRef e
+  {-# INLINE newMRef #-}
+  newRawMRef = NEMArrayIx 0 [] <$> newRawMRef
+  {-# INLINE newRawMRef #-}
+  writeMRef (NEMArrayIx i _ ma) = writeMArray ma i
+  {-# INLINE writeMRef #-}
+  readMRef (NEMArrayIx i _ ma) = readMArray ma i
+  {-# INLINE readMRef #-}
+
+
+instance AtomicMArray mut => AtomicMRef (NEMArrayIx mut) where
+  atomicReadMRef (NEMArrayIx i _ ma) = atomicReadMArray ma i
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef (NEMArrayIx i _ ma) = atomicWriteMArray ma i
+  {-# INLINE atomicWriteMRef #-}
+  casMRef (NEMArrayIx i _ ma) = casMArray ma i
+  {-# INLINE casMRef #-}
+  atomicModifyMRef (NEMArrayIx i _ ma) = atomicModifyMArray ma i
+  {-# INLINE atomicModifyMRef #-}
+
+instance MArray mut => MArray (NEMArrayIx mut) where
+  type Array (NEMArrayIx mut) = NEArrayIx mut
+  sizeOfArray (NEArrayIx _ _ a) = sizeOfArray a
+  {-# INLINE sizeOfArray #-}
+  indexArray (NEArrayIx _ _ a) = indexArray a
+  {-# INLINE indexArray #-}
+  getSizeOfMArray (NEMArrayIx _ _ ma) = getSizeOfMArray ma
+  {-# INLINE getSizeOfMArray #-}
+  thawArray (NEArrayIx i xs a) = NEMArrayIx i xs <$> thawArray a
+  {-# INLINE thawArray #-}
+  freezeMArray (NEMArrayIx i xs ma) = NEArrayIx i xs <$> freezeMArray ma
+  {-# INLINE freezeMArray #-}
+  newRawMArray sz = NEMArrayIx 0 [] <$> newRawMArray sz
+  {-# INLINE newRawMArray #-}
+  newMArray sz e = NEMArrayIx 0 (replicate (unSize sz) e) <$> newMArray sz e
+  {-# INLINE newMArray #-}
+  writeMArray (NEMArrayIx _ _ ma) = writeMArray ma
+  {-# INLINE writeMArray #-}
+  readMArray (NEMArrayIx _ _ ma) = readMArray ma
+  {-# INLINE readMArray #-}
+  copyArray (NEArrayIx _ _ src) isrc (NEMArrayIx _ _ mdst) idst = copyArray src isrc mdst idst
+  {-# INLINE copyArray #-}
+  moveMArray (NEMArrayIx _ _ msrc) isrc (NEMArrayIx _ _ mdst) idst = moveMArray msrc isrc mdst idst
+  {-# INLINE moveMArray #-}
+  setMArray (NEMArrayIx _ _ ma) = setMArray ma
+  {-# INLINE setMArray #-}
+  shrinkMArray (NEMArrayIx i xs ma) sz = NEMArrayIx i xs <$> shrinkMArray ma sz
+  {-# INLINE shrinkMArray #-}
+  resizeMArray (NEMArrayIx i xs ma) sz = NEMArrayIx i xs <$> resizeMArray ma sz
+  {-# INLINE resizeMArray #-}
+
+
+instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (NEArrayIx mut) where
+  arbitrary = do
+    Positive n <- arbitrary
+    NonNegative k <- arbitrary
+    let i = k `mod` n
+    xs :: [e] <- vectorOf n arbitrary
+    pure $
+      NEArrayIx i xs $
+      createArrayST_ (Size n) $ \ma -> zipWithM_ (writeMArray ma) [0 ..] xs
+
+
+prop_writeRead ::
+     (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), MArray mut)
+  => NEArrayIx mut
+  -> Elt mut
+  -> Property
+prop_writeRead nea e' = propIO $ do
+  ma@(NEMArrayIx i xs _) <- thawArray nea
+  e <- readMRef ma
+  e `shouldBe` (xs !! i)
+  writeMRef ma e'
+  readMRef ma `shouldReturn` e'
+
+prop_atomicWriteRead ::
+     (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), AtomicMArray mut)
+  => NEArrayIx mut
+  -> Elt mut
+  -> Property
+prop_atomicWriteRead nea e' = propIO $ do
+  ma@(NEMArrayIx i xs _) <- thawArray nea
+  e <- atomicReadMRef ma
+  e `shouldBe` (xs !! i)
+  atomicWriteMRef ma e'
+  atomicReadMRef ma `shouldReturn` e'
+  readMRef ma `shouldReturn` e'
+
+
+specMArray ::
+     forall mut.
+     ( Eq (Elt mut)
+     , Show (Elt mut)
+     , Arbitrary (Elt mut)
+     , Show (Array mut)
+     , AtomicMArray mut
+     , Typeable mut
+     )
+  => Spec
+specMArray = do
+  let mutTypeName = showsType (Proxy :: Proxy (NEArrayIx mut)) ""
+  describe mutTypeName $ do
+    prop "writeRead" $ prop_writeRead @mut
+    prop "atomicWriteRead" $ prop_atomicWriteRead @mut
 
 
 -- forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property

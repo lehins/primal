@@ -97,6 +97,14 @@ instance Functor SBArray where
 
 instance I.MRef (MSBArray e) where
   type Elt (MSBArray e) = e
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef ma = readMArray ma 0
+  {-# INLINE readMRef #-}
+  writeMRef ma = writeMArray ma 0
+  {-# INLINE writeMRef #-}
+  newMRef = newMArray 1
+  {-# INLINE newMRef #-}
 
 
 instance I.MArray (MSBArray e) where

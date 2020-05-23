@@ -42,7 +42,7 @@ library
   build-depends:       base >= 4.8 && < 5
                      , deepseq
                      , primal
-                     --, primal-array
+                     , primal-array
                      , primal-memory
                      , hspec
                      , QuickCheck
@@ -61,10 +61,12 @@ test-suite tests-O1
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
+                    , Test.Prim.Mutable.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
+                    , primal-array
                     , primal-memory
                     , primal-test
                     , hspec
@@ -84,10 +86,12 @@ test-suite tests-O0
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
+                    , Test.Prim.Mutable.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
+                    , primal-array
                     , primal-memory
                     , primal-test
                     , hspec

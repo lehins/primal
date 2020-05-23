@@ -12,9 +12,12 @@
 --
 module Data.Prim.Array
   ( module Data.Prim.Array
+  , module Data.Prim.Array.Internal
+  , module Data.Prim.Array.Atomic
   ) where
 
 import Control.Prim.Monad
+import Data.Prim.Array.Atomic
 import Data.Prim.Array.Internal
 import qualified Data.Prim.Array.Boxed as Boxed
 

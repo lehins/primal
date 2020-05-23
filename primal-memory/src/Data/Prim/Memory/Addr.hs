@@ -563,7 +563,7 @@ fromByteStringMAddr (PS fptr i n) =
 casOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m e
@@ -582,7 +582,7 @@ casOffMAddr maddr (Off (I# i#)) old new =
 casBoolOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m Bool
@@ -599,7 +599,7 @@ casBoolOffMAddr maddr (Off (I# i#)) old new =
 casBoolFetchOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m (Bool, e)
@@ -624,7 +624,7 @@ casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
 atomicReadOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> m e
 atomicReadOffMAddr maddr (Off (I# i#)) =
   withAddrMAddr# maddr $ \ addr# -> prim $ atomicReadOffAddr# addr# i#
@@ -639,7 +639,7 @@ atomicReadOffMAddr maddr (Off (I# i#)) =
 atomicWriteOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> e
   -> m ()
 atomicWriteOffMAddr maddr (Off (I# i#)) e =
@@ -657,7 +657,7 @@ atomicWriteOffMAddr maddr (Off (I# i#)) e =
 atomicModifyOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
   -> (e -> (e, b)) -- ^ Function that is applied to the old value and returns new value
                    -- and some artifact of computation @__b__@
   -> m b
@@ -678,8 +678,8 @@ atomicModifyOffMAddr maddr (Off (I# i#)) f =
 atomicModifyOffMAddr_ ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (e -> e) -- ^ Function that is applied to the old value and returns new value.
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the current value
   -> m ()
 atomicModifyOffMAddr_ maddr (Off (I# i#)) f =
   withAddrMAddr# maddr $ \ addr# -> prim_ $ atomicModifyOffAddr_# addr# i# f
@@ -696,9 +696,9 @@ atomicModifyOffMAddr_ maddr (Off (I# i#)) f =
 atomicModifyFetchOldOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
-  -> m e
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> (e -> e) -- ^ Function that is applied to the old value
+  -> m e -- ^ Returns the old value
 atomicModifyFetchOldOffMAddr maddr (Off (I# i#)) f =
   withAddrMAddr# maddr $ \ addr# -> prim $ atomicModifyFetchOldOffAddr# addr# i# f
 {-# INLINE atomicModifyFetchOldOffMAddr #-}
@@ -714,9 +714,9 @@ atomicModifyFetchOldOffMAddr maddr (Off (I# i#)) f =
 atomicModifyFetchNewOffMAddr ::
      (MonadPrim s m, Atomic e)
   => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
-  -> (e -> e) -- ^ Function that is applied to the old value and returns the new value
-  -> m e
+  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes
+  -> (e -> e) -- ^ Function that is applied to the old value
+  -> m e -- ^ Returns the new value
 atomicModifyFetchNewOffMAddr maddr (Off (I# i#)) f =
   withAddrMAddr# maddr $ \ addr# -> prim $ atomicModifyFetchNewOffAddr# addr# i# f
 {-# INLINE atomicModifyFetchNewOffMAddr #-}
