@@ -38,8 +38,6 @@ module Data.Prim.Atomic
   , atomicNotFetchNewOffAddr#
   ) where
 
-import Control.Exception
-import Control.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Bits
 import Data.Functor.Identity

@@ -32,6 +32,7 @@ custom-setup
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Array
+                     , Data.Prim.Array.Atomic
                      , Data.Prim.Array.Boxed
                      , Data.Prim.Array.Boxed.Small
                      , Data.Prim.Array.Internal

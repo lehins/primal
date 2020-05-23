@@ -60,6 +60,11 @@ module Data.Prim.Array.Unboxed
   , fromByteArray
   , toMByteArray
   , fromMByteArray
+  -- * Bytes (unsafe)
+  , toBytes
+  , fromBytes
+  , toMBytes
+  , fromMBytes
   -- * List
   , fromListArray
   , fromListArrayN
@@ -165,8 +170,37 @@ toMByteArray (MArray a#) = MByteArray (fromMutableByteArray# a#)
 --
 -- @since 0.1.0
 fromMByteArray :: MByteArray p e s -> UnboxedMArray e s
-fromMByteArray (MByteArray ba) = MArray (toMutableByteArray# ba)
+fromMByteArray (MByteArray mb) = MArray (toMutableByteArray# mb)
 {-# INLINE fromMByteArray #-}
+
+
+-- | /O(1)/ - Cast an unboxed array into a `Bytes`
+--
+-- @since 0.1.0
+toBytes :: UnboxedArray e -> Bytes 'Inc
+toBytes (Array ba#) = fromByteArray# ba#
+{-# INLINE toBytes #-}
+
+-- | /O(1)/ - Cast a `Bytes` into an unboxed array
+--
+-- @since 0.1.0
+fromBytes :: Bytes p -> UnboxedArray e
+fromBytes b = Array (toByteArray# b)
+{-# INLINE fromBytes #-}
+
+-- | /O(1)/ - Cast a mutable unboxed array into a `MByteArray`
+--
+-- @since 0.1.0
+toMBytes :: UnboxedMArray e s -> MBytes 'Inc s
+toMBytes (MArray a#) = fromMutableByteArray# a#
+{-# INLINE toMBytes #-}
+
+-- | /O(1)/ - Cast an `MByteArray` into a mutable unboxed array
+--
+-- @since 0.1.0
+fromMBytes :: MBytes p s -> UnboxedMArray e s
+fromMBytes mb = MArray (toMutableByteArray# mb)
+{-# INLINE fromMBytes #-}
 
 
 

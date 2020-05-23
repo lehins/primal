@@ -111,6 +111,8 @@ module Data.Prim.Memory.Bytes
   , toListSlackBytes
   -- * Atomic
   , casMBytes
+  , casBoolMBytes
+  , casBoolFetchMBytes
   , atomicReadMBytes
   , atomicWriteMBytes
   , atomicModifyMBytes
@@ -459,7 +461,7 @@ toPinnedMBytes (MBytes mb#)
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied
--- index. Returns the artifact of computation @__b__@.  Offset is in number of elements,
+-- index. Returns the actual value.  Offset is in number of elements,
 -- rather than bytes. Implies a full memory barrier.
 --
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
@@ -472,8 +474,49 @@ casMBytes ::
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m e
-casMBytes (MBytes mba#) (Off (I# i#)) old new = prim $ casMutableByteArray# mba# i# old new
+casMBytes (MBytes mba#) (Off (I# i#)) expected new = prim $ casMutableByteArray# mba# i# expected new
 {-# INLINE casMBytes #-}
+
+
+-- | Perform atomic modification of an element in the `MBytes` at the supplied
+-- index. Returns `True` if swap was successfull and false otherwise.  Offset is in number
+-- of elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+casBoolMBytes ::
+     (MonadPrim s m, Atomic e)
+  => MBytes p s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m Bool
+casBoolMBytes (MBytes mba#) (Off (I# i#)) expected new =
+  prim $ casBoolMutableByteArray# mba# i# expected new
+{-# INLINE casBoolMBytes #-}
+
+-- | Just like `casBoolMBytes`, but also returns the actual value, which will match the
+-- supplied expected value if the returned flag is `True`
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+casBoolFetchMBytes ::
+     (MonadPrim s m, Atomic e)
+  => MBytes p s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m (Bool, e)
+casBoolFetchMBytes mb off expected new = do
+  isCasSucc <- casBoolMBytes mb off expected new
+  actual <-
+    if isCasSucc
+      then pure expected
+      else readOffMBytes mb off
+  pure (isCasSucc, actual)
+{-# INLINE casBoolFetchMBytes #-}
 
 
 -- | Perform atomic read of `MBytes` at the supplied index. Offset is in number of

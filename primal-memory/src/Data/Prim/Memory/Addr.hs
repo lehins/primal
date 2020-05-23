@@ -75,6 +75,8 @@ module Data.Prim.Memory.Addr
 
   -- * Atomic
   , casOffMAddr
+  , casBoolOffMAddr
+  , casBoolFetchOffMAddr
   , atomicReadOffMAddr
   , atomicWriteOffMAddr
   , atomicModifyOffMAddr
@@ -565,8 +567,53 @@ casOffMAddr ::
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m e
-casOffMAddr maddr (Off (I# i#)) old new = withAddrMAddr# maddr $ \ addr# -> prim $ casOffAddr# addr# i# old new
+casOffMAddr maddr (Off (I# i#)) old new =
+  withAddrMAddr# maddr $ \ addr# -> prim $ casOffAddr# addr# i# old new
 {-# INLINE casOffMAddr #-}
+
+
+-- | Perform atomic modification of an element in the `MAddr` at the supplied
+-- index. Returns `True` if swap was successfull and false otherwise.  Offset is in number
+-- of elements, rather than bytes. Implies a full memory barrier.
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+casBoolOffMAddr ::
+     (MonadPrim s m, Atomic e)
+  => MAddr e s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m Bool
+casBoolOffMAddr maddr (Off (I# i#)) old new =
+  withAddrMAddr# maddr $ \ addr# -> prim $ casBoolOffAddr# addr# i# old new
+{-# INLINE casBoolOffMAddr #-}
+
+-- | Just like `casBoolOffMAddr`, but also returns the actual value, which will match the
+-- supplied expected value if the returned flag is `True`
+--
+-- /Note/ - Bounds are not checked, therefore this function is unsafe.
+--
+-- @since 0.1.0
+casBoolFetchOffMAddr ::
+     (MonadPrim s m, Atomic e)
+  => MAddr e s -- ^ Array to be mutated
+  -> Off e -- ^ Index is in elements of @__a__@, rather than bytes.
+  -> e -- ^ Expected old value
+  -> e -- ^ New value
+  -> m (Bool, e)
+casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
+  withAddrMAddr# maddr $ \addr# ->
+    prim $ \s ->
+      case casBoolOffAddr# addr# i# expected new s of
+        (# s', isCasSucc #)
+          | isCasSucc -> (# s', (True, expected) #)
+          | otherwise ->
+            case readOffAddr# addr# i# s' of
+              (# s'', actual #) -> (# s'', (False, actual) #)
+{-# INLINE casBoolFetchOffMAddr #-}
+
 
 -- | Perform atomic read of an element in the `MAddr` at the supplied offset. Offset is in
 -- number of elements, rather than bytes. Implies a full memory barrier.

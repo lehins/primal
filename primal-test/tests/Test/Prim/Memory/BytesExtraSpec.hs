@@ -18,15 +18,15 @@ spec = do
   primTypeSpec @(Maybe CNlink)
   primTypeSpec @(Either (CSsize, CUid, CCc, CSpeed, CTcflag, CRLim)
                         (CGid, CBlkSize, CBlkCnt, CClockId, CFsBlkCnt, CFsFilCnt, CId))
-  primTypeSpec @( CBool
-                , CChar
-                , CSChar
-                , CUChar
-                , CShort
-                , CUShort
-                , CInt
-                , CUInt
-                )
+  primTypeSpec @(Atom ( CBool
+                      , CChar
+                      , CSChar
+                      , CUChar
+                      , CShort
+                      , CUShort
+                      , CInt
+                      , CUInt
+                      ))
   primTypeSpec @( CPtrdiff
                 , CSize
                 , CWchar
@@ -37,8 +37,6 @@ spec = do
                 , CLong
                 , CULong
                 )
-
-
   primTypeSpec @(Arg CIntMax CUIntMax)
 
 

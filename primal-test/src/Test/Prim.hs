@@ -130,3 +130,6 @@ instance Arbitrary (Off a) where
 
 instance Arbitrary (Count a) where
   arbitrary = Count . getNonNegative <$> arbitrary
+
+instance Arbitrary a => Arbitrary (Atom a) where
+  arbitrary = (coerce :: Gen a -> Gen (Atom a)) arbitrary
