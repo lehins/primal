@@ -14,12 +14,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array.Boxed
-  ( Array
-  , pattern Array
-  , BoxedArray
-  , MArray
-  , pattern MArray
-  , BoxedMArray
+  ( BArray(..)
+  , MBArray(..)
   , Size(..)
   -- * Immutable
   , makeArray
@@ -73,40 +69,48 @@ import Data.Prim.Array.Internal (Size(..))
 import qualified Data.Prim.Array.Internal as I
 import GHC.Exts
 
-type Array e = BoxedArray e
+type Array e = BArray e
 
-instance Show e => Show (BoxedArray e) where
+instance Show e => Show (BArray e) where
   showsPrec n arr
     | n > 1 = ('(' :) . inner . (')' :)
     | otherwise = inner
     where
       inner = ("Array " ++) . shows (toList arr)
 
-instance IsList (BoxedArray e) where
+instance IsList (BArray e) where
   type Item (Array e) = e
   fromList = fromListArray
   fromListN n = fromListArrayN (Size n)
   toList = toListArray
 
-data BoxedMArray e s = MArray (MutableArray# s e)
-
-type MArray e s = BoxedMArray e s
-
+data MBArray e s = MBArray (MutableArray# s e)
 
 -- | Check if both of the arrays refer to the exact same one. None of the elements are
 -- evaluated.
-instance Eq (BoxedMArray e s) where
-  MArray ma1# == MArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
+instance Eq (MBArray e s) where
+  MBArray ma1# == MBArray ma2# = isTrue# (sameMutableArray# ma1# ma2#)
 
 
-data BoxedArray e = Array (Array# e)
+data BArray e = Array (Array# e)
 
-instance Functor BoxedArray where
+instance Functor BArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.Mutable (BoxedMArray e) where
-  type Frozen (BoxedMArray e) = BoxedArray e
-  type Elt (BoxedMArray e) = e
+instance I.MRef (MBArray e) where
+  type Elt (MBArray e) = e
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef mba = readMArray mba 0
+  {-# INLINE readMRef #-}
+  writeMRef mba = writeMArray mba 0
+  {-# INLINE writeMRef #-}
+  newMRef = newMArray 1
+  {-# INLINE newMRef #-}
+
+
+instance I.MArray (MBArray e) where
+  type Array (MBArray e) = BArray e
   indexArray = indexArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfArray
@@ -178,7 +182,7 @@ indexArray (Array a#) (I# i#) =
 -- Array "AAAAAAAAAA"
 --
 -- @since 0.1.0
-newMArray :: MonadPrim s m => Size -> e -> m (MArray e s)
+newMArray :: MonadPrim s m => Size -> e -> m (MBArray e s)
 newMArray sz a = seqPrim a >>= newMArrayLazy sz
 {-# INLINE newMArray #-}
 
@@ -191,11 +195,11 @@ newMArray sz a = seqPrim a >>= newMArrayLazy sz
 -- asynchronous exception.
 --
 -- @since 0.1.0
-newMArrayLazy :: MonadPrim s m => Size -> e -> m (MArray e s)
+newMArrayLazy :: MonadPrim s m => Size -> e -> m (MBArray e s)
 newMArrayLazy (Size (I# n#)) a =
   prim $ \s ->
     case newArray# n# a s of
-      (# s', ma# #) -> (# s', MArray ma# #)
+      (# s', ma# #) -> (# s', MBArray ma# #)
 {-# INLINE newMArrayLazy #-}
 
 -- | Create new mutable array, where each element is set to a thunk that throws an error
@@ -208,14 +212,14 @@ newMArrayLazy (Size (I# n#)) a =
 -- ==== __Examples__
 --
 -- >>> import Control.Prim.Monad
--- >>> ma <- newRawMArray 10 :: IO (MArray Int RW)
+-- >>> ma <- newRawMArray 10 :: IO (MBArray Int RW)
 -- >>> sizeOfMArray ma
 -- Size 10
 -- >>> readMArray ma 1
 -- *** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
 --
 -- @since 0.1.0
-newRawMArray :: MonadPrim s m => Size -> m (MArray e s)
+newRawMArray :: MonadPrim s m => Size -> m (MBArray e s)
 newRawMArray sz = newMArrayLazy sz uninitialized
 {-# INLINE newRawMArray #-}
 
@@ -230,8 +234,8 @@ uninitialized = throw (UndefinedElement "Data.Prim.Array.Boxed.uninitialized")
 -- Size 1024
 --
 -- @since 0.1.0
-sizeOfMArray :: MArray e s -> Size
-sizeOfMArray (MArray ma#) = Size (I# (sizeofMutableArray# ma#))
+sizeOfMArray :: MBArray e s -> Size
+sizeOfMArray (MBArray ma#) = Size (I# (sizeofMutableArray# ma#))
 {-# INLINE sizeOfMArray #-}
 
 
@@ -246,8 +250,8 @@ sizeOfMArray (MArray ma#) = Size (I# (sizeofMutableArray# ma#))
 -- "Element ix: 5"
 --
 -- @since 0.1.0
-readMArray :: MonadPrim s m => MArray e s -> Int -> m e
-readMArray (MArray ma#) (I# i#) = prim (readArray# ma# i#)
+readMArray :: MonadPrim s m => MBArray e s -> Int -> m e
+readMArray (MBArray ma#) (I# i#) = prim (readArray# ma# i#)
 {-# INLINE readMArray #-}
 
 -- | Write an element into a mutable boxed array at a supplied index strictly. An
@@ -281,7 +285,7 @@ readMArray (MArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- Either `deepseq` or `writeMArrayDeep` can be used to alleviate that.
 --
 -- @since 0.1.0
-writeMArray :: MonadPrim s m => MArray e s -> Int -> e -> m ()
+writeMArray :: MonadPrim s m => MBArray e s -> Int -> e -> m ()
 writeMArray ma i x = seqPrim x >>= writeMArrayLazy ma i
 {-# INLINE writeMArray #-}
 
@@ -292,8 +296,8 @@ writeMArray ma i x = seqPrim x >>= writeMArrayLazy ma i
 -- [Unsafe index] Negative or larger than array size can fail with unchecked exception
 --
 -- @since 0.1.0
-writeMArrayLazy :: MonadPrim s m => MArray e s -> Int -> e -> m ()
-writeMArrayLazy (MArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
+writeMArrayLazy :: MonadPrim s m => MBArray e s -> Int -> e -> m ()
+writeMArrayLazy (MBArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 {-# INLINE writeMArrayLazy #-}
 
 
@@ -302,7 +306,7 @@ writeMArrayLazy (MArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 -- [Unsafe index] Negative or larger than array size can fail with unchecked exception
 --
 -- @since 0.1.0
-writeMArrayDeep :: (MonadPrim s m, NFData e) => MArray e s -> Int -> e -> m ()
+writeMArrayDeep :: (MonadPrim s m, NFData e) => MBArray e s -> Int -> e -> m ()
 writeMArrayDeep ma i x = x `deepseq` writeMArrayLazy ma i x
 {-# INLINE writeMArrayDeep #-}
 
@@ -334,10 +338,10 @@ writeMArrayDeep ma i x = x `deepseq` writeMArrayLazy ma i x
 -- Array [100000,2,3,4,5]
 --
 -- @since 0.1.0
-thawArray :: MonadPrim s m => Array e -> m (MArray e s)
+thawArray :: MonadPrim s m => Array e -> m (MBArray e s)
 thawArray (Array a#) = prim $ \s ->
   case unsafeThawArray# a# s of
-    (# s', ma# #) -> (# s', MArray ma# #)
+    (# s', ma# #) -> (# s', MBArray ma# #)
 {-# INLINE thawArray #-}
 
 -- | Make a copy of a subsection of an immutable array and then convert the result into
@@ -366,10 +370,10 @@ thawArray (Array a#) = prim $ \s ->
 -- Array [1,2,3,4,5]
 --
 -- @since 0.1.0
-thawCopyArray :: MonadPrim s m => Array e -> Int -> Size -> m (MArray e s)
+thawCopyArray :: MonadPrim s m => Array e -> Int -> Size -> m (MBArray e s)
 thawCopyArray (Array a#) (I# i#) (Size (I# n#)) = prim $ \s ->
   case thawArray# a# i# n# s of
-    (# s', ma# #) -> (# s', MArray ma# #)
+    (# s', ma# #) -> (# s', MBArray ma# #)
 {-# INLINE thawCopyArray #-}
 
 -- | Convert a mutable boxed array into an immutable.
@@ -381,8 +385,8 @@ thawCopyArray (Array a#) (I# i#) (Size (I# n#)) = prim $ \s ->
 -- freezing if further mutation of an array is still needed.
 --
 -- @since 0.1.0
-freezeMArray :: MonadPrim s m => MArray e s -> m (Array e)
-freezeMArray (MArray ma#) = prim $ \s ->
+freezeMArray :: MonadPrim s m => MBArray e s -> m (Array e)
+freezeMArray (MBArray ma#) = prim $ \s ->
   case unsafeFreezeArray# ma# s of
     (# s', a# #) -> (# s', Array a# #)
 {-# INLINE freezeMArray #-}
@@ -398,8 +402,8 @@ freezeMArray (MArray ma#) = prim $ \s ->
 -- array minus the offset.
 --
 -- @since 0.1.0
-freezeCopyMArray :: MonadPrim s m => MArray e s -> Int -> Size -> m (Array e)
-freezeCopyMArray (MArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
+freezeCopyMArray :: MonadPrim s m => MBArray e s -> Int -> Size -> m (Array e)
+freezeCopyMArray (MBArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
   case freezeArray# ma# i# n# s of
     (# s', a# #) -> (# s', Array a# #)
 {-# INLINE freezeCopyMArray #-}
@@ -435,11 +439,11 @@ cloneArray (Array a#) (I# i#) (Size (I# n#)) = Array (cloneArray# a# i# n#)
 -- array minus the offset.
 --
 -- @since 0.1.0
-cloneMArray :: MonadPrim s m => MArray e s -> Int -> Size -> m (MArray e s)
-cloneMArray (MArray ma#) (I# i#) (Size (I# n#)) =
+cloneMArray :: MonadPrim s m => MBArray e s -> Int -> Size -> m (MBArray e s)
+cloneMArray (MBArray ma#) (I# i#) (Size (I# n#)) =
   prim $ \s ->
     case cloneMutableArray# ma# i# n# s of
-      (# s', ma'# #) -> (# s', MArray ma'# #)
+      (# s', ma'# #) -> (# s', MBArray ma'# #)
 {-# INLINE cloneMArray #-}
 
 
@@ -458,11 +462,11 @@ copyArray ::
      MonadPrim s m
   => Array e -- ^ Source immutable array
   -> Int -- ^ Offset into the source immutable array
-  -> MArray e s -- ^ Destination mutable array
+  -> MBArray e s -- ^ Destination mutable array
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-copyArray (Array src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
+copyArray (Array src#) (I# srcOff#) (MBArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyArray #-}
 
@@ -478,13 +482,13 @@ copyArray (Array src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
 -- @since 0.1.0
 moveMArray ::
      MonadPrim s m
-  => MArray e s -- ^ Source mutable array
+  => MBArray e s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
-  -> MArray e s -- ^ Destination mutable array
+  -> MBArray e s -- ^ Destination mutable array
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-moveMArray (MArray src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
+moveMArray (MBArray src#) (I# srcOff#) (MBArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyMutableArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveMArray #-}
 
@@ -535,20 +539,20 @@ moveMArray (MArray src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) 
 -- @since 0.1.0
 casMArray ::
      MonadPrim s m
-  => MArray e s -- ^ Mutable array to mutate
+  => MBArray e s -- ^ Mutable array to mutate
   -> Int -- ^ Index at which the cell should be set to the new value
   -> e -- ^ Reference to the expected boxed value
   -> e -- ^ New value to update the cell with
   -> m (Bool, e)
-casMArray (MArray ma#) (I# i#) expected new =
+casMArray (MBArray ma#) (I# i#) expected new =
   prim $ \s ->
     case casArray# ma# i# expected new s of
       (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
 {-# INLINE casMArray #-}
 
 
-atomicModifyMArray# :: MonadPrim s m => MArray e s -> Int -> (e -> (# e, b #)) -> m b
-atomicModifyMArray# ma@(MArray ma#) i@(I# i#) f = do
+atomicModifyMArray# :: MonadPrim s m => MBArray e s -> Int -> (e -> (# e, b #)) -> m b
+atomicModifyMArray# ma@(MBArray ma#) i@(I# i#) f = do
   current0 <- readMArray ma i
   prim $
     let go expected s =
@@ -561,12 +565,12 @@ atomicModifyMArray# ma@(MArray ma#) i@(I# i#) f = do
 {-# INLINE atomicModifyMArray# #-}
 
 
-atomicModifyFetchNewMArray :: MonadPrim s m => MArray e s -> Int -> (e -> e) -> m e
+atomicModifyFetchNewMArray :: MonadPrim s m => MBArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchNewMArray ma i f =
   atomicModifyMArray# ma i (\a -> let a' = f a in (# a', a' #))
 {-# INLINE atomicModifyFetchNewMArray #-}
 
--- atomicModifyFetchNewMArray ma@(MArray ma#) i@(I# i#) f = do
+-- atomicModifyFetchNewMArray ma@(MBArray ma#) i@(I# i#) f = do
 --   current0 <- readMArray ma i
 --   prim $ \s0 ->
 --     let go expected s =
@@ -580,7 +584,7 @@ atomicModifyFetchNewMArray ma i f =
   --         (_, current) -> go current
   --  in readMArray ma i >>= go
 
-atomicModifyFetchOldMArray :: MonadPrim s m => MArray e s -> Int -> (e -> e) -> m e
+atomicModifyFetchOldMArray :: MonadPrim s m => MBArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchOldMArray ma i f =
   atomicModifyMArray# ma i (\a -> (# f a, a #))
 {-# INLINE atomicModifyFetchOldMArray #-}
@@ -592,7 +596,7 @@ atomicModifyFetchOldMArray ma i f =
 
 
 
-atomicModifyMArray :: MonadPrim s m => MArray e s -> Int -> (e -> (e, b)) -> m b
+atomicModifyMArray :: MonadPrim s m => MBArray e s -> Int -> (e -> (e, b)) -> m b
 atomicModifyMArray ma i f =
   atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
 {-# INLINE atomicModifyMArray #-}
@@ -604,13 +608,13 @@ atomicModifyMArray ma i f =
   --  in readMArray ma i >>= go
 
 
-atomicModifyMArray_ :: MonadPrim s m => MArray e s -> Int -> (e -> e) -> m ()
+atomicModifyMArray_ :: MonadPrim s m => MBArray e s -> Int -> (e -> e) -> m ()
 atomicModifyMArray_ ma i f =
   atomicModifyMArray# ma i (\a -> let a' = f a in (# a', () #))
 {-# INLINE atomicModifyMArray_ #-}
 
 
-atomicModifyMArray2 :: MonadPrim s m => MArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
+atomicModifyMArray2 :: MonadPrim s m => MBArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
 atomicModifyMArray2 ma i f =
   atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
 {-# INLINE atomicModifyMArray2 #-}
@@ -673,11 +677,11 @@ makeArrayM :: MonadPrim s m => Size -> (Int -> m e) -> m (Array e)
 makeArrayM = I.makeArrayM
 {-# INLINE makeArrayM #-}
 
-createArrayM :: MonadPrim s m => Size -> (MArray e s -> m b) -> m (b, Array e)
+createArrayM :: MonadPrim s m => Size -> (MBArray e s -> m b) -> m (b, Array e)
 createArrayM = I.createArrayM
 {-# INLINE createArrayM #-}
 
-createArrayM_ :: MonadPrim s m => Size -> (MArray e s -> m b) -> m (Array e)
+createArrayM_ :: MonadPrim s m => Size -> (MBArray e s -> m b) -> m (Array e)
 createArrayM_ = I.createArrayM_
 {-# INLINE createArrayM_ #-}
 
@@ -702,13 +706,13 @@ createArrayM_ = I.createArrayM_
 -- Numbers: 0,1,2,3,4,
 --
 -- @since 0.1.0
-makeMArray :: MonadPrim s m => Size -> (Int -> m e) -> m (MArray e s)
+makeMArray :: MonadPrim s m => Size -> (Int -> m e) -> m (MBArray e s)
 makeMArray = I.makeMArray
 {-# INLINE makeMArray #-}
 
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
-traverseArray :: MonadPrim s m => (e -> m b) -> Array e -> m (Array b)
+traverseArray :: MonadPrim s m => (e -> m b) -> BArray e -> m (BArray b)
 traverseArray = I.traverseArray
 {-# INLINE traverseArray #-}

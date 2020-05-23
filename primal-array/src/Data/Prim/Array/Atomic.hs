@@ -13,9 +13,9 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array.Atomic
-  ( AtomicMutable(..)
-  , AtomicCountMutable(..)
-  , AtomicBitsMutable(..)
+  ( AtomicMArray(..)
+  , AtomicCountMArray(..)
+  , AtomicBitsMArray(..)
   ) where
 
 import Control.Prim.Monad
@@ -23,13 +23,13 @@ import Data.Bits
 --import Data.Prim.
 import Data.Prim.Array.Internal
 import qualified Data.Prim.Array.Boxed as B
-import qualified Data.Prim.Array.Boxed.Small as BS
+import qualified Data.Prim.Array.Boxed.Small as SB
 import qualified Data.Prim.Array.Unboxed as U
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ByteArray
 import Data.Prim.Memory.Bytes
 
-class Mutable mut => AtomicMutable mut where
+class MArray mut => AtomicMArray mut where
 
   atomicReadMArray ::
     MonadPrim s m
@@ -87,7 +87,7 @@ class Mutable mut => AtomicMutable mut where
 
 
 
-class (Num (Elt mut), AtomicMutable mut) => AtomicCountMutable mut where
+class (Num (Elt mut), AtomicMArray mut) => AtomicCountMArray mut where
   atomicAddFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
   atomicAddFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x))
   {-# INLINE atomicAddFetchOldMArray #-}
@@ -105,7 +105,7 @@ class (Num (Elt mut), AtomicMutable mut) => AtomicCountMutable mut where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-class (Bits (Elt mut), AtomicMutable mut) => AtomicBitsMutable mut where
+class (Bits (Elt mut), AtomicMArray mut) => AtomicBitsMArray mut where
   atomicAndFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
   atomicAndFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x))
   {-# INLINE atomicAndFetchOldMArray #-}
@@ -150,7 +150,7 @@ class (Bits (Elt mut), AtomicMutable mut) => AtomicBitsMutable mut where
 
 
 
-instance Typeable p => AtomicMutable (MBytes p) where
+instance Typeable p => AtomicMArray (MBytes p) where
   atomicReadMArray mb i = atomicReadMBytes mb (coerce i :: Off Word8)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mb i = atomicWriteMBytes mb (coerce i :: Off Word8)
@@ -161,7 +161,7 @@ instance Typeable p => AtomicMutable (MBytes p) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance Typeable p => AtomicCountMutable (MBytes p) where
+instance Typeable p => AtomicCountMArray (MBytes p) where
   atomicAddFetchOldMArray mb i = atomicAddFetchOldMBytes mb (coerce i :: Off Word8)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mb i = atomicAddFetchNewMBytes mb (coerce i :: Off Word8)
@@ -172,7 +172,7 @@ instance Typeable p => AtomicCountMutable (MBytes p) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance Typeable p => AtomicBitsMutable (MBytes p) where
+instance Typeable p => AtomicBitsMArray (MBytes p) where
   atomicAndFetchOldMArray mb i = atomicAndFetchOldMBytes mb (coerce i :: Off Word8)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mb i = atomicAndFetchNewMBytes mb (coerce i :: Off Word8)
@@ -196,7 +196,7 @@ instance Typeable p => AtomicBitsMutable (MBytes p) where
 
 
 
-instance (Typeable p, Atomic e) => AtomicMutable (MByteArray p e) where
+instance (Typeable p, Atomic e) => AtomicMArray (MByteArray p e) where
   atomicReadMArray mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (coerce mba) (coerce i :: Off e)
@@ -207,7 +207,7 @@ instance (Typeable p, Atomic e) => AtomicMutable (MByteArray p e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Typeable p, Num e, AtomicCount e) => AtomicCountMutable (MByteArray p e) where
+instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MByteArray p e) where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -218,7 +218,7 @@ instance (Typeable p, Num e, AtomicCount e) => AtomicCountMutable (MByteArray p 
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMutable (MByteArray p e) where
+instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (MByteArray p e) where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -243,7 +243,7 @@ instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMutable (MByteArray p e
 
 
 
-instance Atomic e => AtomicMutable (MAddr e) where
+instance Atomic e => AtomicMArray (MAddr e) where
   atomicReadMArray maddr i = atomicReadOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray maddr i = atomicWriteOffMAddr maddr (coerce i :: Off e)
@@ -254,7 +254,7 @@ instance Atomic e => AtomicMutable (MAddr e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Num e, AtomicCount e) => AtomicCountMutable (MAddr e) where
+instance (Num e, AtomicCount e) => AtomicCountMArray (MAddr e) where
   atomicAddFetchOldMArray maddr i = atomicAddFetchOldOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray maddr i = atomicAddFetchNewOffMAddr maddr (coerce i :: Off e)
@@ -265,7 +265,7 @@ instance (Num e, AtomicCount e) => AtomicCountMutable (MAddr e) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Bits e, AtomicBits e) => AtomicBitsMutable (MAddr e) where
+instance (Bits e, AtomicBits e) => AtomicBitsMArray (MAddr e) where
   atomicAndFetchOldMArray maddr i = atomicAndFetchOldOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray maddr i = atomicAndFetchNewOffMAddr maddr (coerce i :: Off e)
@@ -290,7 +290,7 @@ instance (Bits e, AtomicBits e) => AtomicBitsMutable (MAddr e) where
 
 
 
-instance Atomic e => AtomicMutable (U.UnboxedMArray e) where
+instance Atomic e => AtomicMArray (U.MUArray e) where
   atomicReadMArray mba i = atomicReadMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -301,7 +301,7 @@ instance Atomic e => AtomicMutable (U.UnboxedMArray e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Num e, AtomicCount e) => AtomicCountMutable (U.UnboxedMArray e) where
+instance (Num e, AtomicCount e) => AtomicCountMArray (U.MUArray e) where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -312,7 +312,7 @@ instance (Num e, AtomicCount e) => AtomicCountMutable (U.UnboxedMArray e) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Bits e, AtomicBits e) => AtomicBitsMutable (U.UnboxedMArray e) where
+instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.MUArray e) where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -336,20 +336,20 @@ instance (Bits e, AtomicBits e) => AtomicBitsMutable (U.UnboxedMArray e) where
 
 
 
-instance AtomicMutable (B.BoxedMArray e) where
+instance AtomicMArray (B.MBArray e) where
   casMArray = B.casMArray
   {-# INLINE casMArray #-}
 
 
-instance Num e => AtomicCountMutable (B.BoxedMArray e)
-instance Bits e => AtomicBitsMutable (B.BoxedMArray e)
+instance Num e => AtomicCountMArray (B.MBArray e)
+instance Bits e => AtomicBitsMArray (B.MBArray e)
 
 
 
-instance AtomicMutable (BS.SmallBoxedMArray e) where
-  casMArray = BS.casMArray
+instance AtomicMArray (SB.MSBArray e) where
+  casMArray = SB.casMArray
   {-# INLINE casMArray #-}
 
 
-instance Num e => AtomicCountMutable (BS.SmallBoxedMArray e)
-instance Bits e => AtomicBitsMutable (BS.SmallBoxedMArray e)
+instance Num e => AtomicCountMArray (SB.MSBArray e)
+instance Bits e => AtomicBitsMArray (SB.MSBArray e)

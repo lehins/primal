@@ -11,7 +11,7 @@
 --
 module Foreign.Prim.WeakPtr
   ( Weak(..)
-  , mkWeak
+  , mkWeak -- TODO: validate pre ghc-8.2 mkWeak#
   , mkWeakNoFinalizer
   , mkWeakPtr
   , mkWeakPtrNoFinalizer

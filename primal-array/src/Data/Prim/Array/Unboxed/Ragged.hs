@@ -19,12 +19,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array.Unboxed.Ragged
-  ( Array
-  , pattern Array
-  , RaggedArray
-  , MArray
-  , pattern MArray
-  , RaggedMArray
+  ( RArray(..)
+  , MRArray(..)
   , Size(..)
   -- * Immutable
   -- , makeArray
@@ -83,21 +79,28 @@ import GHC.TypeLits
 
 -- | Check if both of the arrays refer to the exact same one. None of the elements are
 -- evaluated.
-instance Eq (RaggedMArray n a s) where
-  MArray ma1# == MArray ma2# = isTrue# (sameMutableArrayArray# ma1# ma2#)
+instance Eq (MRArray n a s) where
+  MRArray ma1# == MRArray ma2# = isTrue# (sameMutableArrayArray# ma1# ma2#)
 
-type Array = RaggedArray
+data RArray (n :: Nat) a = RArray ArrayArray#
 
-data RaggedArray (n :: Nat) a = Array ArrayArray#
+data MRArray (n :: Nat) a s = MRArray (MutableArrayArray# s)
 
-type MArray = RaggedMArray
+type family RElt n a where
+  RElt 0 a = a
+  RElt n a = RArray (n - 1) a
 
-data RaggedMArray (n :: Nat) a s = MArray (MutableArrayArray# s)
+instance {-# OVERLAPPING #-} I.MRef (MRArray 0 (Bytes 'Inc)) where
+  type Elt (MRArray 0 (Bytes 'Inc)) = RElt 0 (Bytes 'Inc)
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef ra = readBytesMArray ra 0
+  {-# INLINE readMRef #-}
+  writeMRef ra = writeBytesMArray ra 0
+  {-# INLINE writeMRef #-}
 
-
-instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (Bytes 'Inc)) where
-  type Frozen (RaggedMArray 0 (Bytes 'Inc)) = RaggedArray 0 (Bytes 'Inc)
-  type Elt (RaggedMArray 0 (Bytes 'Inc)) = RaggedElt 0 (Bytes 'Inc)
+instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (Bytes 'Inc)) where
+  type Array (MRArray 0 (Bytes 'Inc)) = RArray 0 (Bytes 'Inc)
 
   indexArray = indexBytesArray
   {-# INLINE indexArray #-}
@@ -120,9 +123,18 @@ instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (Bytes 'Inc)) where
   moveMArray = moveMArray
   {-# INLINE moveMArray #-}
 
-instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (U.UnboxedArray e)) where
-  type Frozen (RaggedMArray 0 (U.UnboxedArray e)) = RaggedArray 0 (U.UnboxedArray e)
-  type Elt (RaggedMArray 0 (U.UnboxedArray e)) = RaggedElt 0 (U.UnboxedArray e)
+
+instance {-# OVERLAPPING #-} I.MRef (MRArray 0 (U.UArray e)) where
+  type Elt (MRArray 0 (U.UArray e)) = RElt 0 (U.UArray e)
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef ra = readUnboxedFrozenMArray ra 0
+  {-# INLINE readMRef #-}
+  writeMRef ra = writeUnboxedFrozenMArray ra 0
+  {-# INLINE writeMRef #-}
+
+instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (U.UArray e)) where
+  type Array (MRArray 0 (U.UArray e)) = RArray 0 (U.UArray e)
 
   indexArray = indexUnboxedArray
   {-# INLINE indexArray #-}
@@ -145,9 +157,17 @@ instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (U.UnboxedArray e)) where
   moveMArray = moveMArray
   {-# INLINE moveMArray #-}
 
-instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (ByteArray 'Inc e)) where
-  type Frozen (RaggedMArray 0 (ByteArray 'Inc e)) = RaggedArray 0 (ByteArray 'Inc e)
-  type Elt (RaggedMArray 0 (ByteArray 'Inc e)) = RaggedElt 0 (ByteArray 'Inc e)
+instance {-# OVERLAPPING #-} I.MRef (MRArray 0 (ByteArray 'Inc e)) where
+  type Elt (MRArray 0 (ByteArray 'Inc e)) = RElt 0 (ByteArray 'Inc e)
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef rma = coerce <$> readBytesMArray rma 0
+  {-# INLINE readMRef #-}
+  writeMRef rma ba = writeBytesMArray rma 0 (coerce ba)
+  {-# INLINE writeMRef #-}
+
+instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (ByteArray 'Inc e)) where
+  type Array (MRArray 0 (ByteArray 'Inc e)) = RArray 0 (ByteArray 'Inc e)
 
   indexArray = coerce . indexBytesArray
   {-# INLINE indexArray #-}
@@ -170,14 +190,17 @@ instance {-# OVERLAPPING #-} I.Mutable (RaggedMArray 0 (ByteArray 'Inc e)) where
   moveMArray = moveMArray
   {-# INLINE moveMArray #-}
 
-type family RaggedElt n a where
-  RaggedElt 0 a = a
-  RaggedElt n a = RaggedArray (n - 1) a
+instance (KnownNat n, 1 <= n, RElt n e ~ RArray (n - 1) e) => I.MRef (MRArray n e) where
+  type Elt (MRArray n e) = RElt n e
+  newRawMRef = newRawMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef rma = readFrozenMArray rma 0
+  {-# INLINE readMRef #-}
+  writeMRef rma = writeFrozenMArray rma 0
+  {-# INLINE writeMRef #-}
 
-instance (KnownNat n, 1 <= n, RaggedElt n e ~ RaggedArray (n - 1) e) =>
-         I.Mutable (RaggedMArray n e) where
-  type Frozen (RaggedMArray n e) = RaggedArray n e
-  type Elt (RaggedMArray n e) = RaggedElt n e
+instance (KnownNat n, 1 <= n, RElt n e ~ RArray (n - 1) e) => I.MArray (MRArray n e) where
+  type Array (MRArray n e) = RArray n e
   sizeOfArray = sizeOfArray
   {-# INLINE sizeOfArray #-}
   indexArray = indexArray
@@ -200,67 +223,67 @@ instance (KnownNat n, 1 <= n, RaggedElt n e ~ RaggedArray (n - 1) e) =>
   {-# INLINE moveMArray #-}
 
 
-sizeOfArray :: Array n a -> Size
-sizeOfArray (Array a#) = Size (I# (sizeofArrayArray# a#))
+sizeOfArray :: RArray n a -> Size
+sizeOfArray (RArray a#) = Size (I# (sizeofArrayArray# a#))
 {-# INLINE sizeOfArray #-}
 
-indexUnboxedArray :: Array 0 b -> Int -> U.Array e
-indexUnboxedArray (Array a#) (I# i#) = U.Array (indexByteArrayArray# a# i#)
+indexUnboxedArray :: RArray 0 b -> Int -> U.UArray e
+indexUnboxedArray (RArray a#) (I# i#) = U.UArray (indexByteArrayArray# a# i#)
 {-# INLINE indexUnboxedArray #-}
 
-indexBytesArray :: Array 0 b -> Int -> Bytes 'Inc
-indexBytesArray (Array a#) (I# i#) = fromByteArray# (indexByteArrayArray# a# i#)
+indexBytesArray :: RArray 0 b -> Int -> Bytes 'Inc
+indexBytesArray (RArray a#) (I# i#) = fromByteArray# (indexByteArrayArray# a# i#)
 {-# INLINE indexBytesArray #-}
 
-indexArray :: (KnownNat n, 1 <= n) => Array n e -> Int -> Array (n - 1) e
-indexArray (Array a#) (I# i#) = Array (indexArrayArrayArray# a# i#)
+indexArray :: (KnownNat n, 1 <= n) => RArray n e -> Int -> RArray (n - 1) e
+indexArray (RArray a#) (I# i#) = RArray (indexArrayArrayArray# a# i#)
 {-# INLINE indexArray #-}
 
 
-indexArrayI :: I.Mutable (RaggedMArray n e) => RaggedArray n e -> Int -> RaggedElt n e
+indexArrayI :: I.MArray (MRArray n e) => RArray n e -> Int -> RElt n e
 indexArrayI = I.indexArray
 {-# INLINE indexArrayI #-}
 
 -- |
 --
 -- @since 0.1.0
-newRawMArray :: MonadPrim s m => Size -> m (MArray n e s)
+newRawMArray :: MonadPrim s m => Size -> m (MRArray n e s)
 newRawMArray (Size (I# n#)) =
   prim $ \s ->
     case newArrayArray# n# s of
-      (# s', ma# #) -> (# s', MArray ma# #)
+      (# s', ma# #) -> (# s', MRArray ma# #)
 {-# INLINE newRawMArray #-}
 
 -- Better interface:
--- newRawMArrayI :: (I.MArray (MArray n) a, MonadPrim s m) => Size -> m (MArray n a s)
+-- newRawMArrayI :: (I.MArray (MRArray n) a, MonadPrim s m) => Size -> m (MRArray n a s)
 -- newRawMArrayI = I.newRawMArray
 -- {-# INLINE newRawMArrayI #-}
 
 
-thawArray :: MonadPrim s m => Array n e -> m (MArray n e s)
-thawArray (Array a#) =
+thawArray :: MonadPrim s m => RArray n e -> m (MRArray n e s)
+thawArray (RArray a#) =
   prim $ \s ->
     case unsafeThawArrayArray# a# s of
-      (# s', ma# #) -> (# s', MArray ma# #)
+      (# s', ma# #) -> (# s', MRArray ma# #)
 {-# INLINE thawArray #-}
 
-freezeMArray :: MonadPrim s m => MArray n e s -> m (Array n e)
-freezeMArray (MArray ma#) =
+freezeMArray :: MonadPrim s m => MRArray n e s -> m (RArray n e)
+freezeMArray (MRArray ma#) =
   prim $ \s ->
     case unsafeFreezeArrayArray# ma# s of
-      (# s', a# #) -> (# s', Array a# #)
+      (# s', a# #) -> (# s', RArray a# #)
 {-# INLINE freezeMArray #-}
 
 
 -- | Get the size of a mutable boxed array
 --
--- >>> ma <- newMArray 1024 "Element of each cell"
--- >>> sizeOfMArray ma
+-- >>> ma <- newMRArray 1024 "Element of each cell"
+-- >>> sizeOfMRArray ma
 -- Size 1024
 --
 -- @since 0.1.0
-sizeOfMArray :: MArray n e s -> Size
-sizeOfMArray (MArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
+sizeOfMArray :: MRArray n e s -> Size
+sizeOfMArray (MRArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
 {-# INLINE sizeOfMArray #-}
 
 
@@ -270,57 +293,57 @@ sizeOfMArray (MArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
 --
 -- ==== __Examples__
 --
--- >>> ma <- makeMArray 10 (pure . ("Element ix: " ++) . show)
--- >>> readMArray ma 5
+-- >>> ma <- makeMRArray 10 (pure . ("Element ix: " ++) . show)
+-- >>> readMRArray ma 5
 -- "Element ix: 5"
 --
 -- @since 0.1.0
 readMArray ::
-     (KnownNat n, 1 <= n, marr ~ MArray (n - 1) e s, MonadPrim s m)
-  => MArray n marr s
+     (KnownNat n, 1 <= n, marr ~ MRArray (n - 1) e s, MonadPrim s m)
+  => MRArray n marr s
   -> Int
   -> m marr
-readMArray (MArray ma#) (I# i#) =
+readMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readMutableArrayArrayArray# ma# i# s of
-      (# s', ma'# #) -> (# s', MArray ma'# #)
+      (# s', ma'# #) -> (# s', MRArray ma'# #)
 {-# INLINE readMArray #-}
 
 readFrozenMArray ::
      (KnownNat n, 1 <= n, MonadPrim s m)
-  => MArray n e s
+  => MRArray n e s
   -> Int
-  -> m (Array (n - 1) e)
-readFrozenMArray (MArray ma#) (I# i#) =
+  -> m (RArray (n - 1) e)
+readFrozenMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readArrayArrayArray# ma# i# s of
-      (# s', a# #) -> (# s', Array a# #)
+      (# s', a# #) -> (# s', RArray a# #)
 {-# INLINE readFrozenMArray #-}
 
-readUnboxedMArray :: MonadPrim s m => MArray 0 e s -> Int -> m (U.MArray e s)
-readUnboxedMArray (MArray ma#) (I# i#) =
+readUnboxedMArray :: MonadPrim s m => MRArray 0 e s -> Int -> m (U.MUArray e s)
+readUnboxedMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readMutableByteArrayArray# ma# i# s of
-      (# s', mba# #) -> (# s', U.MArray mba# #)
+      (# s', mba# #) -> (# s', U.MUArray mba# #)
 {-# INLINE readUnboxedMArray #-}
 
-readUnboxedFrozenMArray :: MonadPrim s m => MArray 0 b s -> Int -> m (U.Array e)
-readUnboxedFrozenMArray (MArray ma#) (I# i#) =
+readUnboxedFrozenMArray :: MonadPrim s m => MRArray 0 b s -> Int -> m (U.UArray e)
+readUnboxedFrozenMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readByteArrayArray# ma# i# s of
-      (# s', ba# #) -> (# s', U.Array ba# #)
+      (# s', ba# #) -> (# s', U.UArray ba# #)
 {-# INLINE readUnboxedFrozenMArray #-}
 
 
-readMBytesMArray :: MonadPrim s m => MArray 0 e s -> Int -> m (MBytes 'Inc s)
-readMBytesMArray (MArray ma#) (I# i#) =
+readMBytesMArray :: MonadPrim s m => MRArray 0 e s -> Int -> m (MBytes 'Inc s)
+readMBytesMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readMutableByteArrayArray# ma# i# s of
       (# s', mba# #) -> (# s', fromMutableByteArray# mba# #)
 {-# INLINE readMBytesMArray #-}
 
-readBytesMArray :: MonadPrim s m => MArray 0 b s -> Int -> m (Bytes 'Inc)
-readBytesMArray (MArray ma#) (I# i#) =
+readBytesMArray :: MonadPrim s m => MRArray 0 b s -> Int -> m (Bytes 'Inc)
+readBytesMArray (MRArray ma#) (I# i#) =
   prim $ \s ->
     case readByteArrayArray# ma# i# s of
       (# s', ba# #) -> (# s', fromByteArray# ba# #)
@@ -333,25 +356,25 @@ readBytesMArray (MArray ma#) (I# i#) =
 --
 -- ==== __Examples__
 --
--- >>> ma <- newMArray 4 (Nothing :: Maybe Int)
--- >>> writeMArray ma 2 (Just 2)
--- >>> freezeMArray ma
+-- >>> ma <- newMRArray 4 (Nothing :: Maybe Int)
+-- >>> writeMRArray ma 2 (Just 2)
+-- >>> freezeMRArray ma
 -- Array [Nothing,Nothing,Just 2,Nothing]
 --
 -- Important to note that an element is evaluated prior to being written into a cell, so
 -- it will not overwrite a value with if it evaluates to an exception:
 --
 -- >>> import Control.Exception
--- >>> writeMArray ma 2 (throw DivideByZero)
+-- >>> writeMRArray ma 2 (throw DivideByZero)
 -- *** Exception: divide by zero
--- >>> freezeMArray ma
+-- >>> freezeMRArray ma
 -- Array [Nothing,Nothing,Just 2,Nothing]
 --
 -- But it is evaluated to Normal Form, so it is still possible to write something that
 -- eventually evaluates to bottom.
 --
--- >>> writeMArray ma 3 (Just (7 `div` 0 ))
--- >>> freezeMArray ma
+-- >>> writeMRArray ma 3 (Just (7 `div` 0 ))
+-- >>> freezeMRArray ma
 -- Array [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 --
 -- Either `deepseq` or `writeMArrayDeep` can be used to alleviate that.
@@ -359,48 +382,48 @@ readBytesMArray (MArray ma#) (I# i#) =
 -- @since 0.1.0
 writeMArray ::
      (KnownNat n, 1 <= n, MonadPrim s m)
-  => MArray n e s
+  => MRArray n e s
   -> Int
-  -> MArray (n - 1) e s
+  -> MRArray (n - 1) e s
   -> m ()
-writeMArray (MArray ma#) (I# i#) (MArray e#) =
+writeMArray (MRArray ma#) (I# i#) (MRArray e#) =
   prim_ (writeMutableArrayArrayArray# ma# i# e#)
 {-# INLINE writeMArray #-}
 
 writeFrozenMArray ::
      (KnownNat n, 1 <= n, MonadPrim s m)
-  => MArray n e s
+  => MRArray n e s
   -> Int
-  -> Array (n - 1) e
+  -> RArray (n - 1) e
   -> m ()
-writeFrozenMArray (MArray ma#) (I# i#) (Array e#) =
+writeFrozenMArray (MRArray ma#) (I# i#) (RArray e#) =
   prim_ (writeArrayArrayArray# ma# i# e#)
 {-# INLINE writeFrozenMArray #-}
 
 writeUnboxedMArray ::
-     MonadPrim s m => MArray 0 e s -> Int -> U.MArray e s -> m ()
-writeUnboxedMArray (MArray ma#) (I# i#) (U.MArray mba#) =
+     MonadPrim s m => MRArray 0 e s -> Int -> U.MUArray e s -> m ()
+writeUnboxedMArray (MRArray ma#) (I# i#) (U.MUArray mba#) =
   prim_ (writeMutableByteArrayArray# ma# i# mba#)
 {-# INLINE writeUnboxedMArray #-}
 
 
 writeUnboxedFrozenMArray ::
-     MonadPrim s m => MArray 0 b s -> Int -> U.Array e -> m ()
-writeUnboxedFrozenMArray (MArray ma#) (I# i#) (U.Array ba#) =
+     MonadPrim s m => MRArray 0 b s -> Int -> U.UArray e -> m ()
+writeUnboxedFrozenMArray (MRArray ma#) (I# i#) (U.UArray ba#) =
   prim_ (writeByteArrayArray# ma# i# ba#)
 {-# INLINE writeUnboxedFrozenMArray #-}
 
 
 writeMBytesMArray ::
-     MonadPrim s m => MArray 0 e s -> Int -> MBytes 'Inc s -> m ()
-writeMBytesMArray (MArray ma#) (I# i#) mb =
+     MonadPrim s m => MRArray 0 e s -> Int -> MBytes 'Inc s -> m ()
+writeMBytesMArray (MRArray ma#) (I# i#) mb =
   prim_ (writeMutableByteArrayArray# ma# i# (toMutableByteArray# mb))
 {-# INLINE writeMBytesMArray #-}
 
 
 writeBytesMArray ::
-     MonadPrim s m => MArray 0 b s -> Int -> Bytes 'Inc -> m ()
-writeBytesMArray (MArray ma#) (I# i#) b =
+     MonadPrim s m => MRArray 0 b s -> Int -> Bytes 'Inc -> m ()
+writeBytesMArray (MRArray ma#) (I# i#) b =
   prim_ (writeByteArrayArray# ma# i# (toByteArray# b))
 {-# INLINE writeBytesMArray #-}
 
@@ -418,13 +441,13 @@ writeBytesMArray (MArray ma#) (I# i#) b =
 -- @since 0.1.0
 copyArray ::
      MonadPrim s m
-  => Array n e -- ^ Source immutable array
+  => RArray n e -- ^ Source immutable array
   -> Int -- ^ Offset into the source immutable array
-  -> MArray n e s -- ^ Destination mutable array
+  -> MRArray n e s -- ^ Destination mutable array
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-copyArray (Array src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
+copyArray (RArray src#) (I# srcOff#) (MRArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyArray #-}
 
@@ -440,13 +463,13 @@ copyArray (Array src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
 -- @since 0.1.0
 moveMArray ::
      MonadPrim s m
-  => MArray n e s -- ^ Source mutable array
+  => MRArray n e s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
-  -> MArray n e s -- ^ Destination mutable array
+  -> MRArray n e s -- ^ Destination mutable array
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-moveMArray (MArray src#) (I# srcOff#) (MArray dst#) (I# dstOff#) (Size (I# n#)) =
+moveMArray (MRArray src#) (I# srcOff#) (MRArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyMutableArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveMArray #-}
 
