@@ -5,6 +5,10 @@
 module Test.Prim.Memory.BytesExtraSpec (spec) where
 
 import Data.Typeable
+import Data.Char
+import System.IO
+import GHC.Conc
+import GHC.IO.Device
 import Data.Semigroup
 import Test.Prim hiding (Arg)
 import Test.Prim.Memory.BytesSpec (primTypeSpec)
@@ -38,7 +42,13 @@ spec = do
                 , CULong
                 )
   primTypeSpec @(Arg CIntMax CUIntMax)
-
-
-instance (Arbitrary a, Arbitrary b) => Arbitrary (Arg a b) where
-  arbitrary = Arg <$> arbitrary <*> arbitrary
+  primTypeSpec @(Atom ( IODeviceType
+                      , SeekMode
+                      , BlockReason
+                      , ThreadStatus
+                      , IOMode
+                      , BufferMode
+                      , Newline
+                      , NewlineMode
+                      , GeneralCategory
+                      ))

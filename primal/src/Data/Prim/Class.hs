@@ -40,7 +40,9 @@ module Data.Prim.Class
 #include "HsBaseConfig.h"
 
 import Control.Prim.Monad.Unsafe
+import Data.Bits
 import Data.Complex
+import Data.Char
 import Data.Type.Equality
 import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
@@ -53,6 +55,7 @@ import GHC.TypeLits as Nats
 import Data.Functor.Compose
 import Data.Functor.Identity
 import Data.Monoid
+import System.IO
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
 import Data.Semigroup
@@ -116,6 +119,10 @@ import Foreign.Ptr
 --
 -- * A single thread write/read sequence must always roundtrip
 --
+-- * This is not a class for serialization, therefore memory layout of unpacked datatype
+--   is selfcontained in `Prim` class and representation is not expected to stay the same
+--   between different versions of software. Primitive types like `Int`, `Word`, `Char`
+--   are an exception to this rule for obvious reasons.
 --
 class Prim a where
   type PrimBase a :: *
@@ -1112,25 +1119,89 @@ instance Prim BlockReason where
   {-# INLINE fromPrimBase #-}
 
 
--- instance Prim ThreadStatus where
---   type PrimBase ThreadStatus = Int8
---   toPrimBase =
---     \case
---       ThreadRunning -> 0
---       ThreadFinished -> 1
---       ThreadBlocked br -> toPrimBase br 2
---       ThreadDied -> 3
---   {-# INLINE toPrimBase #-}
---   fromPrimBase =
---     \case
---       0 -> BlockedOnMVar
---       1 -> BlockedOnBlackHole
---       2 -> BlockedOnException
---       3 -> BlockedOnSTM
---       4 -> BlockedOnForeignCall
---       _ -> BlockedOnOther
---   {-# INLINE fromPrimBase #-}
+instance Prim ThreadStatus where
+  type PrimBase ThreadStatus = Int8
+  toPrimBase =
+    \case
+      ThreadRunning -> 0x00
+      ThreadFinished -> 0x10
+      ThreadBlocked br -> 0x20 .|. toPrimBase br
+      ThreadDied -> 0x30
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      0x00 -> ThreadRunning
+      0x10 -> ThreadFinished
+      0x30 -> ThreadDied
+      x -> ThreadBlocked $ fromPrimBase (x .&. 0xf)
+  {-# INLINE fromPrimBase #-}
 
+instance Prim IOMode where
+  type PrimBase IOMode = Int8
+  toPrimBase =
+    \case
+      ReadMode -> 0
+      WriteMode -> 1
+      AppendMode -> 2
+      ReadWriteMode -> 3
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      0 -> ReadMode
+      1 -> WriteMode
+      2 -> AppendMode
+      _ -> ReadWriteMode
+  {-# INLINE fromPrimBase #-}
+
+instance Prim BufferMode where
+  type PrimBase BufferMode = (Int8, Maybe Int)
+  toPrimBase =
+    \case
+      NoBuffering -> (0, Nothing)
+      LineBuffering -> (1, Nothing)
+      BlockBuffering mb -> (2, mb)
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      (0, _) -> NoBuffering
+      (1, _) -> LineBuffering
+      (_, mb) -> BlockBuffering mb
+  {-# INLINE fromPrimBase #-}
+
+instance Prim Newline where
+  type PrimBase Newline = Int8
+  toPrimBase =
+    \case
+      LF -> 0
+      CRLF -> 1
+  {-# INLINE toPrimBase #-}
+  fromPrimBase =
+    \case
+      0 -> LF
+      _ -> CRLF
+  {-# INLINE fromPrimBase #-}
+
+instance Prim NewlineMode where
+  type PrimBase NewlineMode = Int8
+  toPrimBase (NewlineMode i o) =
+    (toPrimBase i `unsafeShiftL` 1) .|. toPrimBase o
+  {-# INLINE toPrimBase #-}
+  fromPrimBase p =
+    NewlineMode
+      (fromPrimBase ((p `unsafeShiftR` 1) .&. 1))
+      (fromPrimBase (p .&. 1))
+  {-# INLINE fromPrimBase #-}
+
+instance Prim GeneralCategory where
+  type PrimBase GeneralCategory = Word8
+  toPrimBase = fromIntegral . fromEnum
+  {-# INLINE toPrimBase #-}
+  fromPrimBase p
+    | ip > fromEnum (maxBound :: GeneralCategory) = NotAssigned
+    | otherwise = toEnum ip
+    where
+      ip = fromIntegral p
+  {-# INLINE fromPrimBase #-}
 
 
 instance Prim a => Prim (Down a) where

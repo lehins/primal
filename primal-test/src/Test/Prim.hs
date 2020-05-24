@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -9,33 +10,21 @@ module Test.Prim
   ) where
 
 import Control.DeepSeq
+import Data.Char
 import Data.Prim.Memory.Bytes
+import qualified Data.Semigroup as Semigroup
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
 import GHC.Conc
-import GHC.IO.Device
 import GHC.Fingerprint.Type
+import GHC.IO.Device
+import System.IO
 import Test.Prim.Common
 
 
 
 ---- Orphans
-
-
-instance NFData BlockReason where
-  rnf br = seq br ()
-instance Arbitrary BlockReason where
-  arbitrary =
-    elements
-      [ BlockedOnMVar
-      , BlockedOnBlackHole
-      , BlockedOnException
-      , BlockedOnSTM
-      , BlockedOnForeignCall
-      , BlockedOnOther
-      ]
-
 
 deriving instance NFData CDev
 deriving instance Arbitrary CDev
@@ -94,10 +83,6 @@ deriving instance Arbitrary CId
 instance Arbitrary Fingerprint where
   arbitrary = Fingerprint <$> arbitrary <*> arbitrary
 
-instance NFData SeekMode where
-  rnf sm = seq sm ()
-instance Arbitrary SeekMode where
-  arbitrary = elements [toEnum 0 .. ]
 
 instance Arbitrary (Ptr a) where
   arbitrary = intPtrToPtr <$> arbitrary
@@ -124,6 +109,98 @@ deriving instance Arbitrary a => Arbitrary (Down a)
 
 instance a ~ b => Arbitrary (a :~: b) where
   arbitrary = pure Refl
+
+instance a ~ b => Arbitrary (a :~~: b) where
+  arbitrary = pure HRefl
+
+-- Data.Char
+
+instance NFData GeneralCategory where
+  rnf x = x `seq` ()
+
+instance Arbitrary GeneralCategory where
+  arbitrary = arbitraryBoundedEnum
+
+
+
+-- System.IO
+
+instance NFData BufferMode where
+  rnf x = x `seq` ()
+instance Arbitrary BufferMode where
+  arbitrary =
+    oneof [pure NoBuffering, pure LineBuffering, BlockBuffering <$> arbitrary]
+
+instance NFData SeekMode where
+  rnf sm = seq sm ()
+instance Arbitrary SeekMode where
+  arbitrary = elements [toEnum 0 .. ]
+
+instance NFData Newline where
+  rnf x = x `seq` ()
+
+deriving instance Enum Newline
+deriving instance Bounded Newline
+instance Arbitrary Newline where
+  arbitrary = arbitraryBoundedEnum
+
+instance NFData NewlineMode where
+  rnf (NewlineMode i o) = i `seq` o `seq` ()
+
+instance Arbitrary NewlineMode where
+  arbitrary = NewlineMode <$> arbitrary <*> arbitrary
+
+instance NFData IOMode where
+  rnf x = x `seq` ()
+deriving instance Bounded IOMode
+instance Arbitrary IOMode where
+  arbitrary = arbitraryBoundedEnum
+
+-- GHC.IO.Device
+
+deriving instance Show IODeviceType
+instance NFData IODeviceType where
+  rnf x = x `seq` ()
+instance Arbitrary IODeviceType where
+  arbitrary = elements [Directory, Stream, RegularFile, RawDevice]
+
+
+-- GHC.Conc
+
+
+instance NFData BlockReason where
+  rnf br = seq br ()
+deriving instance Enum BlockReason
+deriving instance Bounded BlockReason
+instance Arbitrary BlockReason where
+  arbitrary = arbitraryBoundedEnum
+
+instance NFData ThreadStatus where
+  rnf =
+    \case
+      ThreadRunning -> ()
+      ThreadFinished -> ()
+      ThreadBlocked br -> seq br ()
+      ThreadDied -> ()
+instance Arbitrary ThreadStatus where
+  arbitrary =
+    oneof
+      [ pure ThreadRunning
+      , pure ThreadFinished
+      , ThreadBlocked <$> arbitrary
+      , pure ThreadDied
+      ]
+
+
+-- Data.Semigroup
+
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Semigroup.Arg a b) where
+  arbitrary = Semigroup.Arg <$> arbitrary <*> arbitrary
+
+
+-- Defined in `primal`
+
 
 instance Arbitrary (Off a) where
   arbitrary = Off . getNonNegative <$> arbitrary

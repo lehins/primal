@@ -40,6 +40,7 @@ module Data.Prim.Atomic
 
 import Control.Prim.Monad.Unsafe
 import Data.Bits
+import Data.Char
 import Data.Functor.Identity
 import Data.Monoid
 import Data.Prim.Class
@@ -47,6 +48,7 @@ import Foreign.C.Error (Errno(..))
 import Foreign.Prim hiding (Any)
 import GHC.Conc
 import GHC.IO.Device
+import System.IO
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
 import Data.Semigroup
@@ -1540,6 +1542,16 @@ instance Atomic IODeviceType
 instance Atomic SeekMode
 
 instance Atomic BlockReason
+
+instance Atomic ThreadStatus
+
+instance Atomic IOMode
+
+instance Atomic Newline
+
+instance Atomic NewlineMode
+
+instance Atomic GeneralCategory
 
 instance Atomic a => Atomic (Down a)
 instance AtomicCount a => AtomicCount (Down a)
