@@ -78,6 +78,7 @@ import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.Memory.ByteArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
+import Data.Prim.MRef.Internal
 import Foreign.Prim
 
 instance (Prim e, Show e) => Show (UArray e) where
@@ -104,7 +105,7 @@ instance Eq (MUArray e s) where
 data UArray e = UArray ByteArray#
 
 
-instance Prim e => I.MRef (MUArray e) where
+instance Prim e => MRef (MUArray e) where
   type Elt (MUArray e) = e
   newRawMRef = newRawMArray 1
   {-# INLINE newRawMRef #-}

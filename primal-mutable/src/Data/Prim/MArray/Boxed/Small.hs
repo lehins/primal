@@ -69,6 +69,7 @@ import Data.Bits
 import Data.Prim
 import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.MRef.Atomic
+import Data.Prim.MRef.Internal
 import Foreign.Prim
 
 instance Show e => Show (SBArray e) where
@@ -97,7 +98,7 @@ data SBArray e = SBArray (SmallArray# e)
 instance Functor SBArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MRef (MSBArray e) where
+instance MRef (MSBArray e) where
   type Elt (MSBArray e) = e
   newRawMRef = newRawMArray 1
   {-# INLINE newRawMRef #-}
@@ -213,8 +214,8 @@ newMArrayLazy (Size (I# n#)) a =
 -- when evaluated. This is useful when there is a plan to iterate over the whole array
 -- and write values into each cell monadically or in some index aware fashion.
 --
--- [Unsafe size] Negative or too large of an array size can kill the current thread with `HeapOverflow`
--- asynchronous exception.
+-- [Unsafe size] Negative or too large of an array size can kill the current thread with
+-- `HeapOverflow` asynchronous exception.
 --
 -- ==== __Examples__
 --
@@ -223,16 +224,12 @@ newMArrayLazy (Size (I# n#)) a =
 -- >>> sizeOfMArray ma
 -- Size 10
 -- >>> readMArray ma 1
--- *** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
+-- *** Exception: undefined array element: Data.Prim.Array.Boxed.Small.newRawMArray
 --
 -- @since 0.1.0
 newRawMArray :: MonadPrim s m => Size -> m (MSBArray e s)
-newRawMArray sz = newMArrayLazy sz uninitialized
+newRawMArray sz = newMArrayLazy sz (uninitialized "Data.Prim.MAray.Boxed.Small" "newRawMArray")
 {-# INLINE newRawMArray #-}
-
-uninitialized :: a
-uninitialized = throw (UndefinedElement "Data.Prim.Array.Boxed.uninitialized")
-{-# NOINLINE uninitialized #-}
 
 -- | Get the size of a mutable boxed array
 --

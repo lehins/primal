@@ -20,8 +20,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.MArray.Internal
-  ( MRef(..)
-  , MArray(..)
+  ( MArray(..)
+  , Elt
   , Size(..)
   , toListArray
   , fromListArray

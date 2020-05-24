@@ -62,13 +62,13 @@ module Data.Prim.MArray.Boxed
   ) where
 
 import Control.DeepSeq
-import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim
 import Data.Bits
 import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.MRef.Atomic
+import Data.Prim.MRef.Internal
 import Foreign.Prim
 
 type Array e = BArray e
@@ -99,7 +99,7 @@ data BArray e = Array (Array# e)
 instance Functor BArray where
   fmap f a = runST $ traverseArray (pure . f) a
 
-instance I.MRef (MBArray e) where
+instance MRef (MBArray e) where
   type Elt (MBArray e) = e
   newRawMRef = newRawMArray 1
   {-# INLINE newRawMRef #-}
@@ -225,16 +225,12 @@ newMArrayLazy (Size (I# n#)) a =
 -- >>> sizeOfMArray ma
 -- Size 10
 -- >>> readMArray ma 1
--- *** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
+-- *** Exception: undefined array element: Data.Prim.MAray.Boxed.newRawMArray
 --
 -- @since 0.1.0
 newRawMArray :: MonadPrim s m => Size -> m (MBArray e s)
-newRawMArray sz = newMArrayLazy sz uninitialized
+newRawMArray sz = newMArrayLazy sz (uninitialized "Data.Prim.MAray.Boxed" "newRawMArray")
 {-# INLINE newRawMArray #-}
-
-uninitialized :: a
-uninitialized = throw (UndefinedElement "Data.Prim.Array.Boxed.uninitialized")
-{-# NOINLINE uninitialized #-}
 
 -- | Get the size of a mutable boxed array
 --

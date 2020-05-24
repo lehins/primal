@@ -1,15 +1,16 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Ref
+-- Module      : Data.Prim.MRef.Ref
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Ref
+module Data.Prim.MRef.Ref
   ( Ref(..)
   -- * Create
   , newRef
@@ -65,6 +66,7 @@ module Data.Prim.Ref
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Data.Prim.MRef.Internal
 import Foreign.Prim
 import GHC.STRef
 import GHC.IORef
@@ -82,6 +84,18 @@ instance Eq (Ref a s) where
 
 instance NFData (Ref a s) where
   rnf (Ref _ref#) = ()
+
+instance MRef (Ref a) where
+  type Elt (Ref a) = a
+  newMRef = newRef
+  {-# INLINE newMRef #-}
+  newRawMRef = newRef (uninitialized "Data.Prim.MRef.Ref" "newRawMRef")
+  {-# INLINE newRawMRef #-}
+  writeMRef = writeRef
+  {-# INLINE writeMRef #-}
+  readMRef = readRef
+  {-# INLINE readMRef #-}
+
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --

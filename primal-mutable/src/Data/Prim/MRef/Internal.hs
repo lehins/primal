@@ -9,8 +9,10 @@
 --
 module Data.Prim.MRef.Internal
   ( MRef(..)
+  , uninitialized
   ) where
 
+import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Prim.Monad
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
@@ -71,3 +73,11 @@ instance (Typeable p, Prim e) => MRef (MByteArray p e) where
 
   readMRef mba = readMByteArray mba 0
   {-# INLINE readMRef #-}
+
+
+uninitialized ::
+     String -- ^ Module name
+  -> String -- ^ Function name
+  -> a
+uninitialized mname fname = throw (UndefinedElement (mname ++ "." ++ fname))
+{-# NOINLINE uninitialized #-}

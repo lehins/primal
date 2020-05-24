@@ -1,16 +1,17 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.MVar
+-- Module      : Data.Prim.MRef.MVar
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MVar
+module Data.Prim.MRef.MVar
   ( -- * MVar
     MVar(..)
   , isEmptyMVar
@@ -25,6 +26,7 @@ module Data.Prim.MVar
   , tryReadMVar
   , takeMVar
   , tryTakeMVar
+  , clearMVar
   -- ** Modify
   , swapMVar
   , withMVar
@@ -41,6 +43,7 @@ module Data.Prim.MVar
   ) where
 
 import Control.Prim.Monad
+import Data.Prim.MRef.Internal
 import GHC.Exts
 import GHC.Weak
 import qualified Control.Concurrent.MVar as GHC
@@ -52,6 +55,18 @@ data MVar a s = MVar (MVar# s a)
 -- | Checks whether supplied `MVar`s refer to the exact same one.
 instance Eq (MVar a s) where
   MVar mvar1# == MVar mvar2# = isTrue# (sameMVar# mvar1# mvar2#)
+
+instance MRef (MVar a) where
+  type Elt (MVar a) = a
+  newMRef = newMVar
+  {-# INLINE newMRef #-}
+  newRawMRef = newEmptyMVar
+  {-# INLINE newRawMRef #-}
+  writeMRef mvar a = tryTakeMVar mvar >> putMVar mvar a
+  {-# INLINE writeMRef #-}
+  readMRef = readMVar
+  {-# INLINE readMRef #-}
+
 
 newMVar :: MonadPrim s m => a -> m (MVar a s)
 newMVar a = newEmptyMVar >>= \mvar -> mvar <$ putMVar mvar a
@@ -74,6 +89,12 @@ tryPutMVar (MVar mvar#) x =
 
 readMVar :: MonadPrim s m => MVar a s -> m a
 readMVar (MVar mvar#) = prim (readMVar# mvar#)
+
+clearMVar :: MonadPrim s m => MVar a s -> m ()
+clearMVar (MVar mvar#) =
+  prim $ \s ->
+    case tryReadMVar# mvar# s of
+      (# s', _, _ #) -> (# s', () #)
 
 tryReadMVar :: MonadPrim s m => MVar a s -> m (Maybe a)
 tryReadMVar (MVar mvar#) =
