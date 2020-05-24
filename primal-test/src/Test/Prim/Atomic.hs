@@ -17,7 +17,8 @@ module Test.Prim.Atomic where
 
 import Control.Prim.Monad
 import Data.Prim
-import Data.Prim.Array
+import Data.Prim.MArray
+import Data.Prim.MRef
 import Test.Prim.Common
 
 data MEArray mut = MEArray ![Elt mut] !(Array mut)

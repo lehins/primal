@@ -7,14 +7,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Array.Unboxed
+-- Module      : Data.Prim.MArray.Unboxed
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Array.Unboxed
+module Data.Prim.MArray.Unboxed
   ( UArray(..)
   , MUArray(..)
   , Size(..)
@@ -70,16 +70,14 @@ module Data.Prim.Array.Unboxed
   , traverseArray
   ) where
 
-import Control.DeepSeq
-import Control.Exception (ArrayException(UndefinedElement), throw)
-import Control.Monad.ST
 import Control.Prim.Monad
+import Data.Bits
 import Data.Prim
 import Data.Prim.Class
-import Data.Prim.Memory.Bytes
+import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.Memory.ByteArray
-import Data.Prim.Array.Internal (Size(..))
-import qualified Data.Prim.Array.Internal as I
+import Data.Prim.Memory.Bytes
+import Data.Prim.MRef.Atomic
 import Foreign.Prim
 
 instance (Prim e, Show e) => Show (UArray e) where
@@ -114,6 +112,52 @@ instance Prim e => I.MRef (MUArray e) where
   {-# INLINE readMRef #-}
   writeMRef uma = writeMArray uma 0
   {-# INLINE writeMRef #-}
+
+
+instance Atomic e => AtomicMRef (MUArray e) where
+  atomicReadMRef mba = atomicReadMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef mba = atomicWriteMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicWriteMRef #-}
+  casMRef mba = casBoolFetchMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE casMRef #-}
+  atomicModifyMRef mba = atomicModifyMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicModifyMRef #-}
+
+
+instance (Num e, AtomicCount e) => AtomicCountMRef (MUArray e) where
+  atomicAddFetchOldMRef mba = atomicAddFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicAddFetchOldMRef #-}
+  atomicAddFetchNewMRef mba = atomicAddFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicAddFetchNewMRef #-}
+  atomicSubFetchOldMRef mba = atomicSubFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicSubFetchOldMRef #-}
+  atomicSubFetchNewMRef mba = atomicSubFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicSubFetchNewMRef #-}
+
+
+instance (Bits e, AtomicBits e) => AtomicBitsMRef (MUArray e) where
+  atomicAndFetchOldMRef mba = atomicAndFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicAndFetchOldMRef #-}
+  atomicAndFetchNewMRef mba = atomicAndFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicAndFetchNewMRef #-}
+  atomicNandFetchOldMRef mba = atomicNandFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicNandFetchOldMRef #-}
+  atomicNandFetchNewMRef mba = atomicNandFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicNandFetchNewMRef #-}
+  atomicOrFetchOldMRef mba = atomicOrFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicOrFetchOldMRef #-}
+  atomicOrFetchNewMRef mba = atomicOrFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicOrFetchNewMRef #-}
+  atomicXorFetchOldMRef mba = atomicXorFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicXorFetchOldMRef #-}
+  atomicXorFetchNewMRef mba = atomicXorFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicXorFetchNewMRef #-}
+  atomicNotFetchOldMRef mba = atomicNotFetchOldMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicNotFetchOldMRef #-}
+  atomicNotFetchNewMRef mba = atomicNotFetchNewMBytes (toMBytes mba) (0 :: Off e)
+  {-# INLINE atomicNotFetchNewMRef #-}
+
 
 instance Prim e => I.MArray (MUArray e) where
   type Array (MUArray e) = UArray e

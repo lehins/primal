@@ -40,8 +40,8 @@ import System.Timeout
 import Test.Prim
 import Test.Prim.Atomic
 import Test.Prim.Memory
-import Data.Prim.Array.Boxed as B
-import Data.Prim.Array.Boxed.Small as SB
+import Data.Prim.MArray.Boxed as B
+import Data.Prim.MArray.Boxed.Small as SB
 
 spec :: Spec
 spec = do

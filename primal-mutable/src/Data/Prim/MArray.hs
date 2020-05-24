@@ -3,22 +3,21 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Array
+-- Module      : Data.Prim.MArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Array
-  ( module Data.Prim.Array
-  , module Data.Prim.Array.Internal
-  , module Data.Prim.Array.Atomic
+module Data.Prim.MArray
+  ( module Data.Prim.MArray
+  , module Data.Prim.MArray.Internal
+  , module Data.Prim.MArray.Atomic
   ) where
 
-import Control.Prim.Monad
-import Data.Prim.Array.Atomic
-import Data.Prim.Array.Internal
-import qualified Data.Prim.Array.Boxed as Boxed
+import Data.Prim.MArray.Atomic
+import Data.Prim.MArray.Internal
+import qualified Data.Prim.MArray.Boxed as Boxed
 
 

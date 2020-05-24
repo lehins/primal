@@ -11,14 +11,14 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Array.Unboxed.Ragged
+-- Module      : Data.Prim.MArray.Unboxed.Ragged
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Array.Unboxed.Ragged
+module Data.Prim.MArray.Unboxed.Ragged
   ( RArray(..)
   , MRArray(..)
   , Size(..)
@@ -70,9 +70,9 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.ByteArray
-import Data.Prim.Array.Internal (Size(..))
-import qualified Data.Prim.Array.Unboxed as U
-import qualified Data.Prim.Array.Internal as I
+import Data.Prim
+import qualified Data.Prim.MArray.Unboxed as U
+import qualified Data.Prim.MArray.Internal as I
 import Foreign.Prim
 import GHC.TypeLits
 

@@ -1,4 +1,4 @@
-name:                primal-array
+name:                primal-mutable
 version:             0.1.0.0
 synopsis:            Short description
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
@@ -31,14 +31,19 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Array
-                     , Data.Prim.Array.Atomic
-                     , Data.Prim.Array.Boxed
-                     , Data.Prim.Array.Boxed.Small
-                     , Data.Prim.Array.Internal
-                     , Data.Prim.Array.Unboxed
-                     , Data.Prim.Array.Unboxed.Ragged
-
+  exposed-modules:     Data.Prim.MArray
+                     , Data.Prim.MArray.Atomic
+                     , Data.Prim.MArray.Boxed
+                     , Data.Prim.MArray.Boxed.Small
+                     , Data.Prim.MArray.Internal
+                     , Data.Prim.MArray.Unboxed
+                     , Data.Prim.MArray.Unboxed.Ragged
+                     , Data.Prim.MRef
+                     , Data.Prim.MRef.Atomic
+                     , Data.Prim.MRef.Internal
+                     -- , Data.Prim.MRef.PVar
+                     -- , Data.Prim.MRef.MVar
+                     -- , Data.Prim.MRef.Ref
   other-modules:
   build-depends:       base >= 4.9 && < 5
                      , deepseq

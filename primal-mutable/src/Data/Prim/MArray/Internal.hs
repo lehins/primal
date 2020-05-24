@@ -12,14 +12,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 -- |
--- Module      : Data.Prim.Array.Internal
+-- Module      : Data.Prim.MArray.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Array.Internal
+module Data.Prim.MArray.Internal
   ( MRef(..)
   , MArray(..)
   , Size(..)
@@ -43,20 +43,8 @@ import Data.Prim.Memory
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.ByteArray
 import Data.Prim.Memory.Bytes
-import GHC.Exts
-
-class MRef mut where
-  type Elt mut :: *
-
-  newMRef :: MonadPrim s m => Elt mut -> m (mut s)
-  newMRef a = newRawMRef >>= \mut -> mut <$ writeMRef mut a
-  {-# INLINE newMRef #-}
-
-  newRawMRef :: MonadPrim s m => m (mut s)
-
-  readMRef :: MonadPrim s m => mut s -> m (Elt mut)
-
-  writeMRef :: MonadPrim s m => mut s -> Elt mut -> m ()
+import Data.Prim.MRef
+import Foreign.Prim
 
 
 class MRef mut => MArray mut where
@@ -156,18 +144,6 @@ class MRef mut => MArray mut where
     ma' <$ copyArray a 0 ma' 0 sz
   {-# INLINE resizeMArray #-}
 
-instance Typeable p => MRef (MBytes p) where
-  type Elt (MBytes p) = Word8
-
-  newRawMRef = allocByteCountMem 1
-  {-# INLINE newRawMRef #-}
-
-  writeMRef mb = writeOffMBytes mb 0
-  {-# INLINE writeMRef #-}
-
-  readMRef mb = readOffMBytes mb 0
-  {-# INLINE readMRef #-}
-
 
 instance Typeable p => MArray (MBytes p) where
   type Array (MBytes p) = Bytes p
@@ -213,18 +189,6 @@ instance Typeable p => MArray (MBytes p) where
   resizeMArray mb sz = reallocMBytes mb (coerce sz :: Count Word8)
   {-# INLINE resizeMArray #-}
 
-instance Prim e => MRef (MAddr e) where
-  type Elt (MAddr e) = e
-
-  newRawMRef = allocMAddr 1
-  {-# INLINE newRawMRef #-}
-
-  writeMRef = writeMAddr
-  {-# INLINE writeMRef #-}
-
-  readMRef = readMAddr
-  {-# INLINE readMRef #-}
-
 
 instance Prim e => MArray (MAddr e) where
   type Array (MAddr e) = Addr e
@@ -268,18 +232,6 @@ instance Prim e => MArray (MAddr e) where
   resizeMArray ma sz = reallocMAddr ma (coerce sz :: Count e)
   {-# INLINE resizeMArray #-}
 
-
-instance (Typeable p, Prim e) => MRef (MByteArray p e) where
-  type Elt (MByteArray p e) = e
-
-  newRawMRef = allocMByteArray 1
-  {-# INLINE newRawMRef #-}
-
-  writeMRef mba = writeMByteArray mba 0
-  {-# INLINE writeMRef #-}
-
-  readMRef mba = readMByteArray mba 0
-  {-# INLINE readMRef #-}
 
 
 instance (Typeable p, Prim e) => MArray (MByteArray p e) where
