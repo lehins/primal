@@ -3,38 +3,47 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Data.Prim.Array.Adaptive
+-- Module      : Data.Prim.Adaptive.MArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Array.Adaptive
+module Data.Prim.Adaptive.MArray
   (
     AArray(..)
   , AMArray(..)
-  , AdaptiveRep
+  , AdaptRep
   , createAArray
   ) where
 
 import Control.Prim.Monad
-import Data.Prim.Array.Internal
-import qualified Data.Prim.Array.Boxed as Boxed
-import qualified Data.Prim.Array.Adaptive.Rep as Rep
+import Data.Prim.MArray
+import Data.Prim.MRef
+import qualified Data.Prim.MArray.Boxed as Boxed
+import qualified Data.Prim.Adaptive.Rep as Rep
 
 
-newtype AArray a = AArray (Frozen (Rep.AdaptRep Boxed.BoxedMArray a a))
+newtype AArray a = AArray (Array (Rep.AdaptRep Boxed.MBArray a a))
 
-newtype AMArray a s = AMArray (Rep.AdaptRep Boxed.BoxedMArray a a s)
+newtype AMArray a s = AMArray (Rep.AdaptRep Boxed.MBArray a a s)
 
-class Mutable (Rep.AdaptRep Boxed.BoxedMArray e e) => AdaptRep e
-instance Mutable (Rep.AdaptRep Boxed.BoxedMArray e e) => AdaptRep e
+class MArray (Rep.AdaptRep Boxed.MBArray e e) => AdaptRep e
+instance MArray (Rep.AdaptRep Boxed.MBArray e e) => AdaptRep e
+
+instance AdaptRep e => MRef (AMArray e) where
+  type Elt (AMArray e) = Elt (Rep.AdaptRep Boxed.MBArray e e)
+  newRawMRef = AMArray <$> newRawMRef
+  {-# INLINE newRawMRef #-}
+  readMRef (AMArray ma) = readMRef ma
+  {-# INLINE readMRef #-}
+  writeMRef (AMArray ma) = writeMRef ma
+  {-# INLINE writeMRef #-}
 
 
-instance AdaptRep e => Mutable (AMArray e) where
-  type Frozen (AMArray e) = AArray e
-  type Elt (AMArray e) = Elt (Rep.AdaptRep Boxed.BoxedMArray e e)
+instance AdaptRep e => MArray (AMArray e) where
+  type Array (AMArray e) = AArray e
   sizeOfArray (AArray a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
   indexArray (AArray a) = indexArray a

@@ -19,9 +19,9 @@ module Data.Prim.Array.Adaptive.Atomic
   ) where
 
 import Control.Prim.Monad
-import Data.Prim.Array.Internal
-import qualified Data.Prim.Array.Boxed as Boxed
-import qualified Data.Prim.Array.Adaptive.Rep as Rep
+import Data.Prim.MArray.Internal
+import qualified Data.Prim.MArray.Boxed as Boxed
+import qualified Data.Prim.MArray.Adaptive.Rep as Rep
 
 newtype AtomicArray a = AtomicArray (Frozen (Rep.AtomicRep Boxed.BoxedMArray a a))
 

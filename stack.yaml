@@ -1,9 +1,9 @@
 resolver: lts-15.7
 packages:
 - primal
+- primal-adaptive
 - primal-mutable
 - primal-memory
-#- primal-pvar
 - primal-test
 
 extra-deps:

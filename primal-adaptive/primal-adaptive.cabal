@@ -1,8 +1,8 @@
 name:                primal-adaptive
 version:             0.1.0.0
 synopsis:            Short description
-description:         Please see the README on GitHub at <https://github.com/lehins/primal-adaptive#readme>
-homepage:            https://github.com/lehins/primal-adaptive
+description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
+homepage:            https://github.com/lehins/primal
 license:             BSD3
 license-file:        LICENSE
 author:              Alexey Kuleshevich
@@ -13,7 +13,9 @@ build-type:          Custom
 extra-source-files:  README.md
                    , CHANGELOG.md
 cabal-version:       1.18
-tested-with:         GHC == 8.4.3
+tested-with:         GHC == 8.0.2
+                   , GHC == 8.2.2
+                   , GHC == 8.4.3
                    , GHC == 8.4.4
                    , GHC == 8.6.3
                    , GHC == 8.6.4
@@ -29,10 +31,14 @@ custom-setup
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
+  exposed-modules:     Data.Prim.Adaptive.Rep
+                     , Data.Prim.Adaptive.MArray
+                     --, Data.Prim.Adaptive.MRef
 
   other-modules:
-  build-depends:       base >= 4.8 && < 5
+  build-depends:       base >= 4.9 && < 5
+                     , primal
+                     , primal-mutable
 
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -40,74 +46,56 @@ library
                        -Wincomplete-uni-patterns
                        -Wredundant-constraints
 
+-- test-suite doctests
+--   type:             exitcode-stdio-1.0
+--   hs-source-dirs:   tests
+--   main-is:          doctests.hs
+--   build-depends: base
+--                , doctest >=0.15
+--                , primal-adaptive
+--                , template-haskell
+--   default-language:    Haskell2010
+--   ghc-options:        -Wall
+--                       -Wincomplete-record-updates
+--                       -Wincomplete-uni-patterns
+--                       -Wredundant-constraints
+--                       -fno-warn-orphans
+--                       -threaded
 
-executable primal-adaptive
-  main-is: Main.hs
-  other-modules:
-      Paths_primal_adaptive
-  hs-source-dirs:     app
-  ghc-options:        -Wall
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wredundant-constraints
-                      -O2
-                      -threaded
-                      -rtsopts
-                      -with-rtsopts=-N
-  build-depends:      base
-                    , primal-adaptive
-  default-language: Haskell2010
+-- test-suite tests
+--   type:               exitcode-stdio-1.0
+--   hs-source-dirs:     tests
+--   main-is:            Main.hs
+--   other-modules:      Common
+--                     , LibSpec
+--                     , Spec
+--   build-depends:      base             >= 4.8 && < 5
+--                     , primal-adaptive
+--                     , hspec
+--                     , QuickCheck
 
-test-suite doctests
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   tests
-  main-is:          doctests.hs
-  build-depends: base
-               , doctest >=0.15
-               , primal-adaptive
-               , template-haskell
-  default-language:    Haskell2010
-  ghc-options:        -Wall
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wredundant-constraints
-                      -fno-warn-orphans
-                      -threaded
+--   default-language:   Haskell2010
+--   ghc-options:        -Wall
+--                       -Wincomplete-record-updates
+--                       -Wincomplete-uni-patterns
+--                       -Wredundant-constraints
+--                       -fno-warn-orphans
+--                       -threaded
+--                       -with-rtsopts=-N2
 
-test-suite tests
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     tests
-  main-is:            Main.hs
-  other-modules:      Common
-                    , LibSpec
-                    , Spec
-  build-depends:      base             >= 4.8 && < 5
-                    , primal-adaptive
-                    , hspec
-                    , QuickCheck
-
-  default-language:   Haskell2010
-  ghc-options:        -Wall
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wredundant-constraints
-                      -fno-warn-orphans
-                      -threaded
-                      -with-rtsopts=-N2
-
-benchmark bench
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      bench
-  main-is:             Bench.hs
-  ghc-options:         -Wall
-                       -threaded
-                       -O2
-                       -with-rtsopts=-N
-  build-depends:       base
-                     , criterion
-                     , primal-adaptive
-  default-language:    Haskell2010
+-- benchmark bench
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             Bench.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N
+--   build-depends:       base
+--                      , criterion
+--                      , primal-adaptive
+--   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/lehins/primal-adaptive
+  location: https://github.com/lehins/primal
