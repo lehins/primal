@@ -12,38 +12,63 @@
 --
 module Data.Prim.Adaptive.MRef
   (
-    AMRef(..)
-  , AdaptiveRep
-  --, createAArray
+    ARef(..)
+  , Adapt(..)
+  , Atom(..)
+  , module Data.Prim.Adaptive.MRef
   ) where
 
 import Control.Prim.Monad
+import Data.Prim
 import Data.Prim.MArray.Internal
-import qualified Data.Prim.MArray.Boxed as Boxed
-import qualified Data.Prim.Adaptive.Rep as Rep
+import Data.Prim.MRef
+import Data.Prim.MRef.Atomic
+import Data.Prim.MRef.Ref
+import Data.Prim.Adaptive.Rep
 
 
-newtype AArray a = AArray (Frozen (Rep.AdaptRep Boxed.BoxedMArray a a))
+type ABWrap e = AWrap (AdaptRep Ref e) (IsAtomic e) e
 
-newtype AMArray a s = AMArray (Rep.AdaptRep Boxed.BoxedMArray a a s)
+type ABRep e = AdaptRep Ref e (ABWrap e)
 
-class Mutable (Rep.AdaptRep Boxed.BoxedMArray e e) => AdaptRep e
-instance Mutable (Rep.AdaptRep Boxed.BoxedMArray e e) => AdaptRep e
-
-
-instance AdaptRep e => MRef (AMArray e) where
-  type Elt (AMArray e) = Elt (Rep.AdaptRep Boxed.BoxedMArray e e)
-  newRawMArray = fmap AMArray . newRawMArray
-  {-# INLINE newRawMArray #-}
-  readMArray (AMArray ma) = readMArray ma
-  {-# INLINE readMArray #-}
-  writeMArray (AMArray ma) = writeMArray ma
-  {-# INLINE writeMArray #-}
+newtype ARef e s = ARef (ABRep e s)
 
 
--- createAArray ::
---      (MonadPrim s m, AdaptRep e)
---   => Size
---   -> (AMArray e s -> m b)
---   -> m (b, AArray e)
--- createAArray = createArrayM
+class (Coercible e (Elt (ABRep e)), MRef (ABRep e)) => Adapt e where
+  wrap :: e -> Elt (ABRep e)
+  unwrap :: Elt (ABRep e) -> e
+
+instance (Coercible e (Elt (ABRep e)), MRef (ABRep e)) => Adapt e where
+  wrap = coerce
+  unwrap = coerce
+
+class (Adapt e, AtomicMRef (ABRep e)) => AdaptAtomic e
+
+instance (Adapt e, AtomicMRef (ABRep e)) => AdaptAtomic e
+
+
+instance Adapt e => MRef (ARef e) where
+  type Elt (ARef e) = e
+  newRawMRef = ARef <$> newRawMRef
+  {-# INLINE newRawMRef #-}
+  newMRef e = ARef <$> newMRef (wrap e)
+  {-# INLINE newMRef #-}
+  readMRef (ARef ma) = unwrap <$> readMRef ma
+  {-# INLINE readMRef #-}
+  writeMRef (ARef ma) e = writeMRef ma (wrap e)
+  {-# INLINE writeMRef #-}
+
+instance AdaptAtomic e => AtomicMRef (ARef e) where
+  atomicReadMRef (ARef mut) = unwrap <$> atomicReadMRef mut
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef (ARef mut) = atomicWriteMRef mut . wrap
+  {-# INLINE atomicWriteMRef #-}
+
+
+newARef :: (MonadPrim s m, Adapt e) => e -> m (ARef e s)
+newARef = newMRef
+
+foo :: (MonadPrim s m, AdaptAtomic b) => b -> m b
+foo i = do
+  ref <- newARef i
+  atomicReadMRef ref

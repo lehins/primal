@@ -13,64 +13,81 @@
 module Data.Prim.Adaptive.MArray
   (
     AArray(..)
-  , AMArray(..)
-  , AdaptRep
+  , MAArray(..)
+  , Adaptive
   , createAArray
+  , Atom(..)
   ) where
 
 import Control.Prim.Monad
+import Data.Coerce
+import Data.Prim.Atom
+import Data.Prim.Adaptive.Rep
 import Data.Prim.MArray
+import qualified Data.Prim.MArray.Boxed as B
 import Data.Prim.MRef
-import qualified Data.Prim.MArray.Boxed as Boxed
-import qualified Data.Prim.Adaptive.Rep as Rep
+
+type ABWrap e = AWrap (AdaptRep B.MBArray e) (IsAtomic e) e
+
+type ABRep e = AdaptRep B.MBArray e (ABWrap e)
+
+newtype AArray e = AArray (Array (ABRep e))
+
+newtype MAArray e s = MAArray (ABRep e s)
 
 
-newtype AArray a = AArray (Array (Rep.AdaptRep Boxed.MBArray a a))
+class (Coercible e (Elt (ABRep e)), MArray (ABRep e)) => Adaptive e where
+  wrap :: e -> Elt (ABRep e)
+  unwrap :: Elt (ABRep e) -> e
 
-newtype AMArray a s = AMArray (Rep.AdaptRep Boxed.MBArray a a s)
+instance (Coercible e (Elt (ABRep e)), MArray (ABRep e)) => Adaptive e where
+  wrap = coerce
+  unwrap = coerce
 
-class MArray (Rep.AdaptRep Boxed.MBArray e e) => AdaptRep e
-instance MArray (Rep.AdaptRep Boxed.MBArray e e) => AdaptRep e
-
-instance AdaptRep e => MRef (AMArray e) where
-  type Elt (AMArray e) = Elt (Rep.AdaptRep Boxed.MBArray e e)
-  newRawMRef = AMArray <$> newRawMRef
+instance Adaptive e => MRef (MAArray e) where
+  type Elt (MAArray e) = e
+  newRawMRef = MAArray <$> newRawMRef
   {-# INLINE newRawMRef #-}
-  readMRef (AMArray ma) = readMRef ma
+  newMRef e = MAArray <$> newMRef (wrap e)
+  {-# INLINE newMRef #-}
+  readMRef (MAArray ma) = unwrap <$> readMRef ma
   {-# INLINE readMRef #-}
-  writeMRef (AMArray ma) = writeMRef ma
+  writeMRef (MAArray ma) e = writeMRef ma (wrap e)
   {-# INLINE writeMRef #-}
 
 
-instance AdaptRep e => MArray (AMArray e) where
-  type Array (AMArray e) = AArray e
+instance Adaptive e => MArray (MAArray e) where
+  type Array (MAArray e) = AArray e
   sizeOfArray (AArray a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
-  indexArray (AArray a) = indexArray a
+  indexArray (AArray a) i = unwrap (indexArray a i)
   {-# INLINE indexArray #-}
-  getSizeOfMArray (AMArray ma) = getSizeOfMArray ma
+  getSizeOfMArray (MAArray ma) = getSizeOfMArray ma
   {-# INLINE getSizeOfMArray #-}
-  thawArray (AArray a) = AMArray <$> thawArray a
+  thawArray (AArray a) = MAArray <$> thawArray a
   {-# INLINE thawArray #-}
-  freezeMArray (AMArray ma) = AArray <$> freezeMArray ma
+  freezeMArray (MAArray ma) = AArray <$> freezeMArray ma
   {-# INLINE freezeMArray #-}
-  newRawMArray = fmap AMArray . newRawMArray
+  newRawMArray = fmap MAArray . newRawMArray
   {-# INLINE newRawMArray #-}
-  readMArray (AMArray ma) = readMArray ma
+  readMArray (MAArray ma) i = unwrap <$> readMArray ma i
   {-# INLINE readMArray #-}
-  writeMArray (AMArray ma) = writeMArray ma
+  writeMArray (MAArray ma) i e = writeMArray ma i (wrap e)
   {-# INLINE writeMArray #-}
-  copyArray (AArray as) os (AMArray mad) = copyArray as os mad
+  copyArray (AArray as) os (MAArray mad) = copyArray as os mad
   {-# INLINE copyArray #-}
-  moveMArray (AMArray mas) os (AMArray mad) = moveMArray mas os mad
+  moveMArray (MAArray mas) os (MAArray mad) = moveMArray mas os mad
   {-# INLINE moveMArray #-}
-  setMArray (AMArray ma) = setMArray ma
+  setMArray (MAArray ma) i sz e = setMArray ma i sz (wrap e)
   {-# INLINE setMArray #-}
 
 
+newMAArray :: (MonadPrim s m, Adaptive e) => Size -> e -> m (MAArray e s)
+newMAArray = newMArray
+
 createAArray ::
-     (MonadPrim s m, AdaptRep e)
+     (MonadPrim s m, Adaptive e)
   => Size
-  -> (AMArray e s -> m b)
+  -> (MAArray e s -> m b)
   -> m (b, AArray e)
 createAArray = createArrayM
