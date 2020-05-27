@@ -33,8 +33,8 @@ custom-setup
 library
   hs-source-dirs:      src
   exposed-modules:     Test.Prim
-                     , Test.Prim.Atomic
-                     --, Test.Prim.Array
+                     , Test.Prim.MArray
+                     , Test.Prim.MRef
                      , Test.Prim.Memory
                      --, Test.Prim.Memory.Bytes
 
@@ -47,6 +47,7 @@ library
                      , hspec
                      , QuickCheck
                      , genvalidity
+                     , unliftio
 
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-orphans
@@ -61,7 +62,7 @@ test-suite tests-O1
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
-                    , Test.Prim.Mutable.MArraySpec
+                    , Test.Prim.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -86,7 +87,7 @@ test-suite tests-O0
                     , Test.Prim.Memory.BytesSpec
                     , Test.Prim.Memory.BytesExtraSpec
                     , Test.Prim.Memory.PtrSpec
-                    , Test.Prim.Mutable.MArraySpec
+                    , Test.Prim.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq

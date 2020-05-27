@@ -6,19 +6,20 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Test.Prim.Atomic
+-- Module      : Test.Prim.MArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Test.Prim.Atomic where
+module Test.Prim.MArray where
 
 import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.MArray
 import Data.Prim.MRef
+import Test.Prim.MRef
 import Test.Prim.Common
 
 data MEArray mut = MEArray ![Elt mut] !(Array mut)
@@ -155,7 +156,7 @@ instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (NEArrayIx mut) where
 
 
 prop_writeRead ::
-     (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), MArray mut)
+     (Eq (Elt mut), Show (Elt mut), MArray mut)
   => NEArrayIx mut
   -> Elt mut
   -> Property
@@ -163,21 +164,20 @@ prop_writeRead nea e' = propIO $ do
   ma@(NEMArrayIx i xs _) <- thawArray nea
   e <- readMRef ma
   e `shouldBe` (xs !! i)
-  writeMRef ma e'
-  readMRef ma `shouldReturn` e'
+  expectWriteReadMRef ma e'
 
-prop_atomicWriteRead ::
-     (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), AtomicMArray mut)
+prop_writeReadAtomic ::
+     (Eq (Elt mut), Show (Elt mut), AtomicMArray mut)
   => NEArrayIx mut
   -> Elt mut
   -> Property
-prop_atomicWriteRead nea e' = propIO $ do
+prop_writeReadAtomic nea e' = propIO $ do
   ma@(NEMArrayIx i xs _) <- thawArray nea
   e <- atomicReadMRef ma
   e `shouldBe` (xs !! i)
-  atomicWriteMRef ma e'
-  atomicReadMRef ma `shouldReturn` e'
-  readMRef ma `shouldReturn` e'
+  expectWriteReadAtomicMRef ma e'
+
+
 
 
 specMArray ::
@@ -194,7 +194,7 @@ specMArray = do
   let mutTypeName = showsType (Proxy :: Proxy (NEArrayIx mut)) ""
   describe mutTypeName $ do
     prop "writeRead" $ prop_writeRead @mut
-    prop "atomicWriteRead" $ prop_atomicWriteRead @mut
+    prop "writeReadAtomic" $ prop_writeReadAtomic @mut
 
 
 -- forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property

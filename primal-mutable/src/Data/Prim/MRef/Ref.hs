@@ -66,6 +66,7 @@ module Data.Prim.MRef.Ref
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
 import Foreign.Prim
 import GHC.STRef
@@ -96,6 +97,13 @@ instance MRef (Ref a) where
   readMRef = readRef
   {-# INLINE readMRef #-}
 
+instance AtomicMRef (Ref a) where
+  atomicReadMRef = atomicReadRef
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef = atomicWriteRef
+  {-# INLINE atomicWriteMRef #-}
+  casMRef = casRef
+  {-# INLINE casMRef #-}
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --

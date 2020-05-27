@@ -54,6 +54,7 @@ import GHC.Fingerprint.Type
 import GHC.TypeLits as Nats
 import Data.Functor.Compose
 import Data.Functor.Identity
+import qualified Data.Functor.Product as Functor
 import Data.Monoid
 import System.IO
 #if __GLASGOW_HASKELL__ >= 800
@@ -1053,6 +1054,14 @@ instance Prim (f a) => Prim (Ap f a) where
 
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
+instance (Prim (f a), Prim (g a)) => Prim (Functor.Product f g a) where
+  type PrimBase (Functor.Product f g a) = (f a, g a)
+  toPrimBase (Functor.Pair fa ga) = (fa, ga)
+  {-# INLINE toPrimBase #-}
+  fromPrimBase (fa, ga) = Functor.Pair fa ga
+  {-# INLINE fromPrimBase #-}
+
+
 instance Prim (f (g a)) => Prim (Compose f g a) where
   type PrimBase (Compose f g a) = f (g a)
 
@@ -1065,7 +1074,9 @@ instance Prim (f a) => Prim (Alt f a) where
 instance Prim Ordering where
   type PrimBase Ordering = Int8
   toPrimBase o = I8# (fromOrdering# o)
+  {-# INLINE toPrimBase #-}
   fromPrimBase (I8# i#) = toOrdering# i#
+  {-# INLINE fromPrimBase #-}
 
 instance Prim IODeviceType where
   type PrimBase IODeviceType = Int8

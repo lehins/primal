@@ -172,10 +172,10 @@ instance MonadPrim s m => MonadPrim s (SelectT r m) where
 
 #if MIN_VERSION_transformers(0, 5, 6)
 
-instance (Monoid w, MonadPrim s m) => MonadPrim s (CPS.RWST r w st m) where
+instance MonadPrim s m => MonadPrim s (CPS.RWST r w st m) where
   prim = lift . prim
   {-# INLINE prim #-}
-instance (Monoid w, MonadPrim s m) => MonadPrim s (CPS.WriterT w m) where
+instance MonadPrim s m => MonadPrim s (CPS.WriterT w m) where
   prim = lift . prim
   {-# INLINE prim #-}
 

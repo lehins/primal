@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -32,22 +33,24 @@ import Data.Prim.Memory.Bytes
 
 class MArray mut => AtomicMArray mut where
 
+  -- | Read an element from an array. It is different from a regular `readMArray`, because
+  -- it will issue a memory barrier.
   atomicReadMArray ::
     MonadPrim s m
     => mut s -- ^ Mutable array to read an element from
-    -> Int -- ^ Offset into the array
+    -> Int -- ^ [Unsafe] Offset into the array
     -> m (Elt mut)
   atomicReadMArray mut i = atomicModifyMArray mut i (\x -> (x, x))
   {-# INLINE atomicReadMArray #-}
 
-  -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
+  -- | Write an element into mutable array atomically. Implies full memory barrier.
   atomicWriteMArray ::
        MonadPrim s m
     => mut s -- ^ Mutable array to write an element into
-    -> Int -- ^ Offset into the array
+    -> Int -- ^ [Unsafe] Offset into the array
     -> Elt mut -- ^ Element to write
     -> m ()
-  atomicWriteMArray mut i y = atomicModifyMArray mut i (const (y, ()))
+  atomicWriteMArray mut i !y = atomicModifyMArray mut i (const (y, ()))
   {-# INLINE atomicWriteMArray #-}
 
   -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
@@ -75,7 +78,7 @@ class MArray mut => AtomicMArray mut where
   atomicModifyMArray mut i f =
     let go expected =
           case f expected of
-            (new, artifact) -> do
+            (!new, artifact) -> do
               (isCasSucc, actual) <- casMArray mut i expected new
               if isCasSucc
                 then pure artifact
