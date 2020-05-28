@@ -33,7 +33,7 @@ class MRef mut => AtomicMRef mut where
     MonadPrim s m
     => mut s -- ^ Mutable variable to read an element from
     -> m (Elt mut)
-  atomicReadMRef mut = atomicModifyMRef mut (\x -> (x, x))
+  atomicReadMRef mut = readMRef mut --atomicModifyMRef mut (\x -> (x, x))
   {-# INLINE atomicReadMRef #-}
 
   -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
@@ -42,7 +42,8 @@ class MRef mut => AtomicMRef mut where
     => mut s -- ^ Mutable variable to write an element into
     -> Elt mut -- ^ Element to write
     -> m ()
-  atomicWriteMRef mut y = atomicModifyMRef mut (const (y, ()))
+  atomicWriteMRef mut y = --writeMRef mut y --
+    atomicModifyMRef mut (const (y, ()))
   {-# INLINE atomicWriteMRef #-}
 
   -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of

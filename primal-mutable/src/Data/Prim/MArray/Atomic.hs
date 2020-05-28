@@ -69,7 +69,8 @@ class MArray mut => AtomicMArray mut where
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> m (Elt mut)
-  atomicReadMArray mut i = atomicModifyMArray mut i (\x -> (x, x))
+  atomicReadMArray mut i = --readMArray mut i --
+    atomicModifyMArray mut i (\x -> (x, x))
   {-# INLINE atomicReadMArray #-}
 
   -- | Write an element into mutable array atomically. It is different from a regular
@@ -86,7 +87,8 @@ class MArray mut => AtomicMArray mut where
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> Elt mut -- ^ Element to write
     -> m ()
-  atomicWriteMArray mut i !y = atomicModifyMArray mut i (const (y, ()))
+  atomicWriteMArray mut i !y = writeMArray mut i y
+                               --atomicModifyMArray mut i (const (y, ()))
   {-# INLINE atomicWriteMArray #-}
 
   -- | Perform atomic an modification of an element in a mutable structure.
@@ -359,7 +361,7 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.MUArray e) where
   {-# INLINE atomicNotFetchNewMArray #-}
 
 instance AtomicMArray (B.MBArray e) where
-  casMArray = B.casMArray
+  casMArray = B.casMBArray
   {-# INLINE casMArray #-}
 
 instance Num e => AtomicCountMArray (B.MBArray e)
@@ -367,7 +369,7 @@ instance Bits e => AtomicBitsMArray (B.MBArray e)
 
 
 instance AtomicMArray (SB.MSBArray e) where
-  casMArray = SB.casMArray
+  casMArray = SB.casMSBArray
   {-# INLINE casMArray #-}
 
 instance Num e => AtomicCountMArray (SB.MSBArray e)

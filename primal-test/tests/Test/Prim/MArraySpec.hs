@@ -17,7 +17,10 @@ import Test.Prim.MArray
 import Test.Prim.MRef
 
 
-primMRefSpec :: forall e . (Eq e, Show e, Arbitrary e, Typeable e, Prim e) => Spec
+primMRefSpec ::
+     forall e.
+     (Show e, Arbitrary e, Typeable e, Num e, AtomicCount e, AtomicBits e)
+  => Spec
 primMRefSpec = do
   specMRef @(MAddr e)
   specMRef @(MByteArray 'Inc e)
@@ -27,6 +30,15 @@ primMRefSpec = do
   specMRef @(NEMArrayIx (MByteArray 'Inc e))
   specMRef @(NEMArrayIx (MByteArray 'Pin e))
   specMRef @(NEMArrayIx (MUArray e))
+  specAtomicMRef @(MAddr e)
+  specAtomicMRef @(MByteArray 'Inc e)
+  specAtomicMRef @(MByteArray 'Pin e)
+  specAtomicMRef @(MUArray e)
+  specAtomicMRef @(NEMArrayIx (MAddr e))
+  specAtomicMRef @(NEMArrayIx (MByteArray 'Inc e))
+  specAtomicMRef @(NEMArrayIx (MByteArray 'Pin e))
+  specAtomicMRef @(NEMArrayIx (MUArray e))
+
 
 spec :: Spec
 spec = do
@@ -40,6 +52,8 @@ spec = do
   primMRefSpec @Word16
   primMRefSpec @Word32
   primMRefSpec @Word64
+  specMRef @(MBArray Int)
+  specMArray @(MUArray Int)
   -- specMArray @(MBArray Int)
   -- specMArray @(MBArray Integer)
   specMRef @(Ref Int)

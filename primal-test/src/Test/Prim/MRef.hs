@@ -101,7 +101,7 @@ prop_opFetchOldMRef opMRef op x =
   forAllMRef @mut arbitrary $ \ e ref -> do
     x' <- opMRef ref x
     x' `shouldBe` e
-    readMRef ref `shouldReturn` (x `op` e)
+    readMRef ref `shouldReturn` (e `op` x)
 
 prop_opFetchNewMRef ::
      forall mut. (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), MRef mut)
@@ -112,8 +112,8 @@ prop_opFetchNewMRef ::
 prop_opFetchNewMRef opMRef op x =
   forAllMRef @mut arbitrary $ \ e ref -> do
     x' <- opMRef ref x
-    x' `shouldBe` (x `op` e)
-    readMRef ref `shouldReturn` (x `op` e)
+    x' `shouldBe` (e `op` x)
+    readMRef ref `shouldReturn` (e `op` x)
 
 
 
@@ -149,23 +149,23 @@ specAtomicMRef = do
     describe "AtomicMRef" $ do
       prop "writeReadAtomic" $ prop_writeReadAtomicMRef @mut
     describe "AtomicCountMRef" $ do
-      prop "atomicAddFetchOld" $ prop_opFetchNewMRef @mut atomicAddFetchOldMRef (+)
+      prop "atomicAddFetchOld" $ prop_opFetchOldMRef @mut atomicAddFetchOldMRef (+)
       prop "atomicAddFetchNew" $ prop_opFetchNewMRef @mut atomicAddFetchNewMRef (+)
-      prop "atomicSubFetchOld" $ prop_opFetchNewMRef @mut atomicSubFetchOldMRef (+)
-      prop "atomicSubFetchNew" $ prop_opFetchNewMRef @mut atomicSubFetchNewMRef (+)
+      prop "atomicSubFetchOld" $ prop_opFetchOldMRef @mut atomicSubFetchOldMRef (-)
+      prop "atomicSubFetchNew" $ prop_opFetchNewMRef @mut atomicSubFetchNewMRef (-)
     describe "AtomicBitsMRef" $ do
-      prop "atomicAndFetchOld" $ prop_opFetchNewMRef @mut atomicAndFetchOldMRef (.&.)
+      prop "atomicAndFetchOld" $ prop_opFetchOldMRef @mut atomicAndFetchOldMRef (.&.)
       prop "atomicAndFetchNew" $ prop_opFetchNewMRef @mut atomicAndFetchNewMRef (.&.)
       prop "atomicNandFetchOld" $
-        prop_opFetchNewMRef @mut atomicNandFetchOldMRef (\x y -> complement (x .&. y))
+        prop_opFetchOldMRef @mut atomicNandFetchOldMRef (\x y -> complement (x .&. y))
       prop "atomicNandFetchNew" $
         prop_opFetchNewMRef @mut atomicNandFetchNewMRef (\x y -> complement (x .&. y))
-      prop "atomicOrFetchOld" $ prop_opFetchNewMRef @mut atomicOrFetchOldMRef (.|.)
+      prop "atomicOrFetchOld" $ prop_opFetchOldMRef @mut atomicOrFetchOldMRef (.|.)
       prop "atomicOrFetchNew" $ prop_opFetchNewMRef @mut atomicOrFetchNewMRef (.|.)
-      prop "atomicXorFetchOld" $ prop_opFetchNewMRef @mut atomicXorFetchOldMRef xor
+      prop "atomicXorFetchOld" $ prop_opFetchOldMRef @mut atomicXorFetchOldMRef xor
       prop "atomicXorFetchNew" $ prop_opFetchNewMRef @mut atomicXorFetchNewMRef xor
       prop "atomicNotFetchOld" $
-        prop_opFetchNewMRef @mut (\ref _ -> atomicNotFetchOldMRef ref) (const id)
+        prop_opFetchOldMRef @mut (\ref _ -> atomicNotFetchOldMRef ref) (\x _ -> complement x)
       prop "atomicNotFetchNew" $
-        prop_opFetchNewMRef @mut (\ref _ -> atomicNotFetchNewMRef ref) (const complement)
+        prop_opFetchNewMRef @mut (\ref _ -> atomicNotFetchNewMRef ref) (\x _ -> complement x)
 

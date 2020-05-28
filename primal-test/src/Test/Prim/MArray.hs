@@ -112,6 +112,36 @@ instance AtomicMArray mut => AtomicMRef (NEMArrayIx mut) where
   atomicModifyMRef (NEMArrayIx i _ ma) = atomicModifyMArray ma i
   {-# INLINE atomicModifyMRef #-}
 
+instance AtomicCountMArray mut => AtomicCountMRef (NEMArrayIx mut) where
+  atomicAddFetchOldMRef (NEMArrayIx i _ ma) = atomicAddFetchOldMArray ma i
+  {-# INLINE atomicAddFetchOldMRef #-}
+  atomicAddFetchNewMRef (NEMArrayIx i _ ma) = atomicAddFetchNewMArray ma i
+  {-# INLINE atomicAddFetchNewMRef #-}
+  atomicSubFetchOldMRef (NEMArrayIx i _ ma) = atomicSubFetchOldMArray ma i
+  {-# INLINE atomicSubFetchOldMRef #-}
+  atomicSubFetchNewMRef (NEMArrayIx i _ ma) = atomicSubFetchNewMArray ma i
+  {-# INLINE atomicSubFetchNewMRef #-}
+
+instance AtomicBitsMArray mut => AtomicBitsMRef (NEMArrayIx mut) where
+  atomicAndFetchOldMRef (NEMArrayIx i _ ma) = atomicAndFetchOldMArray ma i
+  {-# INLINE atomicAndFetchOldMRef #-}
+  atomicAndFetchNewMRef (NEMArrayIx i _ ma) = atomicAndFetchNewMArray ma i
+  {-# INLINE atomicAndFetchNewMRef #-}
+  atomicNandFetchOldMRef (NEMArrayIx i _ ma) = atomicNandFetchOldMArray ma i
+  {-# INLINE atomicNandFetchOldMRef #-}
+  atomicNandFetchNewMRef (NEMArrayIx i _ ma) = atomicNandFetchNewMArray ma i
+  {-# INLINE atomicNandFetchNewMRef #-}
+  atomicOrFetchOldMRef (NEMArrayIx i _ ma) = atomicOrFetchOldMArray ma i
+  {-# INLINE atomicOrFetchOldMRef #-}
+  atomicOrFetchNewMRef (NEMArrayIx i _ ma) = atomicOrFetchNewMArray ma i
+  {-# INLINE atomicOrFetchNewMRef #-}
+  atomicXorFetchOldMRef (NEMArrayIx i _ ma) = atomicXorFetchOldMArray ma i
+  {-# INLINE atomicXorFetchOldMRef #-}
+  atomicXorFetchNewMRef (NEMArrayIx i _ ma) = atomicXorFetchNewMArray ma i
+  {-# INLINE atomicXorFetchNewMRef #-}
+
+
+
 instance MArray mut => MArray (NEMArrayIx mut) where
   type Array (NEMArrayIx mut) = NEArrayIx mut
   sizeOfArray (NEArrayIx _ _ a) = sizeOfArray a

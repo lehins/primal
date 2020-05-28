@@ -19,39 +19,39 @@ module Data.Prim.MArray.Unboxed
   , MUArray(..)
   , Size(..)
   -- * Immutable
-  , makeArray
-  , makeArrayM
-  , sizeOfArray
-  , indexArray
+  , makeUArray
+  , makeUArrayM
+  , sizeOfUArray
+  , indexUArray
   -- * Mutable
   -- ** Create
-  , newMArray
-  , newRawMArray
-  , makeMArray
-  , createArrayM
-  , createArrayM_
+  , newMUArray
+  , newRawMUArray
+  , makeMUArray
+  , createUArrayM
+  , createUArrayM_
   -- ** Access
-  , readMArray
-  , writeMArray
+  , readMUArray
+  , writeMUArray
   -- *** Atomic
-  -- , casMArray
-  -- , atomicModifyFetchNewMArray
-  -- , atomicModifyFetchOldMArray
-  -- , atomicModifyMArray
-  -- , atomicModifyMArray_
-  -- , atomicModifyMArray2
+  -- , casMUArray
+  -- , atomicModifyFetchNewMUArray
+  -- , atomicModifyFetchOldMUArray
+  -- , atomicModifyMUArray
+  -- , atomicModifyMUArray_
+  -- , atomicModifyMUArray2
   -- *
-  , shrinkMArray
-  , resizeMArray
-  , thawArray
-  , thawCopyArray
-  , freezeMArray
-  , freezeCopyMArray
-  , copyArray
-  , moveMArray
-  , cloneArray
-  , cloneMArray
-  -- * ByteArray
+  , shrinkMUArray
+  , resizeMUArray
+  , thawUArray
+  , thawCopyUArray
+  , freezeMUArray
+  , freezeCopyMUArray
+  , copyUArray
+  , moveMUArray
+  , cloneUArray
+  , cloneMUArray
+  -- * ByteUArray
   , toByteArray
   , fromByteArray
   , toMByteArray
@@ -62,12 +62,12 @@ module Data.Prim.MArray.Unboxed
   , toMBytes
   , fromMBytes
   -- * List
-  , fromListArray
-  , fromListArrayN
-  , toListArray
+  , fromListUArray
+  , fromListUArrayN
+  , toListUArray
   -- * Helpers
-  , foldrArray
-  , traverseArray
+  , foldrUArray
+  , traverseUArray
   ) where
 
 import Control.Prim.Monad
@@ -107,11 +107,11 @@ data UArray e = UArray ByteArray#
 
 instance Prim e => MRef (MUArray e) where
   type Elt (MUArray e) = e
-  newRawMRef = newRawMArray 1
+  newRawMRef = newRawMUArray 1
   {-# INLINE newRawMRef #-}
-  readMRef uma = readMArray uma 0
+  readMRef uma = readMUArray uma 0
   {-# INLINE readMRef #-}
-  writeMRef uma = writeMArray uma 0
+  writeMRef uma = writeMUArray uma 0
   {-# INLINE writeMRef #-}
 
 
@@ -162,31 +162,31 @@ instance (Bits e, AtomicBits e) => AtomicBitsMRef (MUArray e) where
 
 instance Prim e => I.MArray (MUArray e) where
   type Array (MUArray e) = UArray e
-  sizeOfArray = sizeOfArray
+  sizeOfArray = sizeOfUArray
   {-# INLINE sizeOfArray #-}
-  indexArray = indexArray
+  indexArray = indexUArray
   {-# INLINE indexArray #-}
-  getSizeOfMArray = getSizeOfMArray
+  getSizeOfMArray = getSizeOfMUArray
   {-# INLINE getSizeOfMArray #-}
-  thawArray = thawArray
+  thawArray = thawUArray
   {-# INLINE thawArray #-}
-  freezeMArray = freezeMArray
+  freezeMArray = freezeMUArray
   {-# INLINE freezeMArray #-}
-  newRawMArray = newRawMArray
+  newRawMArray = newRawMUArray
   {-# INLINE newRawMArray #-}
-  readMArray = readMArray
+  readMArray = readMUArray
   {-# INLINE readMArray #-}
-  writeMArray = writeMArray
+  writeMArray = writeMUArray
   {-# INLINE writeMArray #-}
-  copyArray = copyArray
+  copyArray = copyUArray
   {-# INLINE copyArray #-}
-  moveMArray = moveMArray
+  moveMArray = moveMUArray
   {-# INLINE moveMArray #-}
-  setMArray = setMArray
+  setMArray = setMUArray
   {-# INLINE setMArray #-}
-  shrinkMArray ma sz = ma <$ shrinkMArray ma sz
+  shrinkMArray ma sz = ma <$ shrinkMUArray ma sz
   {-# INLINE shrinkMArray #-}
-  resizeMArray = resizeMArray
+  resizeMArray = resizeMUArray
   {-# INLINE resizeMArray #-}
 
 
@@ -250,9 +250,9 @@ fromMBytes mb = MUArray (toMutableByteArray# mb)
 
 
 
-sizeOfArray :: UArray e -> Size
-sizeOfArray (UArray a#) = Size (I# (sizeofByteArray# a#))
-{-# INLINE sizeOfArray #-}
+sizeOfUArray :: UArray e -> Size
+sizeOfUArray (UArray a#) = Size (I# (sizeofByteArray# a#))
+{-# INLINE sizeOfUArray #-}
 
 -- | Index an element of a pure unboxed array.
 --
@@ -261,16 +261,16 @@ sizeOfArray (UArray a#) = Size (I# (sizeofByteArray# a#))
 -- ==== __Examples__
 --
 -- >>> import Data.Prim.Array.Unboxed
--- >>> let a = makeArray 1024 (\i -> [0 .. i])
--- >>> print $ indexArray a 1
+-- >>> let a = makeUArray 1024 (\i -> [0 .. i])
+-- >>> print $ indexUArray a 1
 -- [0,1]
--- >>> print $ indexArray a 5
+-- >>> print $ indexUArray a 5
 -- [0,1,2,3,4,5]
 --
 -- @since 0.1.0
-indexArray :: Prim e => UArray e -> Int -> e
-indexArray (UArray a#) (I# i#) = indexByteArray# a# i#
-{-# INLINE indexArray #-}
+indexUArray :: Prim e => UArray e -> Int -> e
+indexUArray (UArray a#) (I# i#) = indexByteArray# a# i#
+{-# INLINE indexUArray #-}
 
 
 
@@ -284,17 +284,17 @@ indexArray (UArray a#) (I# i#) = indexByteArray# a# i#
 -- ==== __Examples__
 --
 -- >>> import Control.Prim.Monad
--- >>> ma <- newRawMArray 10 :: IO (MArray Int RW)
--- >>> sizeOfMArray ma
+-- >>> ma <- newRawMUArray 10 :: IO (MArray Int RW)
+-- >>> sizeOfMUArray ma
 -- Size 10
--- >>> readMArray ma 1
+-- >>> readMUArray ma 1
 -- *** Exception: undefined array element: Data.Prim.Array.Unboxed.uninitialized
 --
 -- @since 0.1.0
 
 -- | Create a mutable unboxed array where each element is set to the supplied initial
--- value, which is evaluated immediately before that. See `newMArrayLazy` for an ability
--- to initialize with a thunk or `newRawArray` that will set each element to an
+-- value, which is evaluated immediately before that. See `newMUArrayLazy` for an ability
+-- to initialize with a thunk or `newRawUArray` that will set each element to an
 -- `UndefinedElement` exception.
 --
 -- [Unsafe size] Negative or too large of an array size can kill the current thread with
@@ -302,67 +302,67 @@ indexArray (UArray a#) (I# i#) = indexByteArray# a# i#
 --
 -- ====__Examples__
 --
--- >>> newMArray 10 'A' >>= freezeMArray
+-- >>> newMUArray 10 'A' >>= freezeMUArray
 -- UArray "AAAAAAAAAA"
 --
--- | Same as `newMArray`, except initial element is allowed to be a thunk. Prefer using
--- `newRawMArray`, instead of supplying an `error`, whenever initial element is not
+-- | Same as `newMUArray`, except initial element is allowed to be a thunk. Prefer using
+-- `newRawMUArray`, instead of supplying an `error`, whenever initial element is not
 -- known ahead of time. Or even better try using other creation functions that iterate
--- over an array and overwrite each element, such as `makeMArray`.
+-- over an array and overwrite each element, such as `makeMUArray`.
 --
 -- [Unsafe size] Negative or too large of an array size can kill the current thread with `HeapOverflow`
 -- asynchronous exception.
 --
 -- @since 0.1.0
-newRawMArray :: forall e m s . (Prim e, MonadPrim s m) => Size -> m (MUArray e s)
-newRawMArray n =
+newRawMUArray :: forall e m s . (Prim e, MonadPrim s m) => Size -> m (MUArray e s)
+newRawMUArray n =
   prim $ \s ->
     case newByteArray# (fromCount# (coerce n :: Count e)) s of
       (# s', ma# #) -> (# s', MUArray ma# #)
-{-# INLINE newRawMArray #-}
+{-# INLINE newRawMUArray #-}
 
-newMArray :: (Prim e, MonadPrim s m) => Size -> e -> m (MUArray e s)
-newMArray = I.newMArray
-{-# INLINE newMArray #-}
+newMUArray :: (Prim e, MonadPrim s m) => Size -> e -> m (MUArray e s)
+newMUArray = I.newMArray
+{-# INLINE newMUArray #-}
 
 
 -- | Get the size of a mutable unboxed array
 --
--- >>> ma <- newMArray 1024 "Element of each cell"
--- >>> sizeOfMArray ma
+-- >>> ma <- newMUArray 1024 "Element of each cell"
+-- >>> sizeOfMUArray ma
 -- Size 1024
 --
 -- @since 0.1.0
-getSizeOfMArray ::
+getSizeOfMUArray ::
      forall e m s. (Prim e, MonadPrim s m)
   => MUArray e s
   -> m Size
-getSizeOfMArray (MUArray ma#) =
+getSizeOfMUArray (MUArray ma#) =
   prim $ \s ->
     case getSizeofMutableByteArray# ma# s of
       (# s', n# #) -> (# s', coerce (fromByteCount (Count (I# n#)) :: Count e) #)
-{-# INLINE getSizeOfMArray #-}
+{-# INLINE getSizeOfMUArray #-}
 
 
-shrinkMArray ::
+shrinkMUArray ::
      forall e m s. (MonadPrim s m, Prim e)
   => MUArray e s
   -> Size
   -> m ()
-shrinkMArray (MUArray mb#) sz =
+shrinkMUArray (MUArray mb#) sz =
   prim_ (shrinkMutableByteArray# mb# (fromCount# (coerce sz :: Count e)))
-{-# INLINE shrinkMArray #-}
+{-# INLINE shrinkMUArray #-}
 
-resizeMArray ::
+resizeMUArray ::
      forall e m s. (MonadPrim s m, Prim e)
   => MUArray e s
   -> Size
   -> m (MUArray e s)
-resizeMArray (MUArray mb#) sz =
+resizeMUArray (MUArray mb#) sz =
   prim $ \s ->
     case resizeMutableByteArray# mb# (fromCount# (coerce sz :: Count e)) s of
       (# s', mb'# #) -> (# s', MUArray mb'# #)
-{-# INLINE resizeMArray #-}
+{-# INLINE resizeMUArray #-}
 
 
 -- | Read an element from a mutable unboxed array at the supplied index.
@@ -371,14 +371,14 @@ resizeMArray (MUArray mb#) sz =
 --
 -- ==== __Examples__
 --
--- >>> ma <- makeMArray 10 (pure . ("Element ix: " ++) . show)
--- >>> readMArray ma 5
+-- >>> ma <- makeMUArray 10 (pure . ("Element ix: " ++) . show)
+-- >>> readMUArray ma 5
 -- "Element ix: 5"
 --
 -- @since 0.1.0
-readMArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> m e
-readMArray (MUArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
-{-# INLINE readMArray #-}
+readMUArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> m e
+readMUArray (MUArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
+{-# INLINE readMUArray #-}
 
 -- | Write an element into a mutable unboxed array at a supplied index strictly. An
 -- element will be evaluated to WHNF.
@@ -387,49 +387,49 @@ readMArray (MUArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- ==== __Examples__
 --
--- >>> ma <- newMArray 4 (Nothing :: Maybe Int)
--- >>> writeMArray ma 2 (Just 2)
--- >>> freezeMArray ma
+-- >>> ma <- newMUArray 4 (Nothing :: Maybe Int)
+-- >>> writeMUArray ma 2 (Just 2)
+-- >>> freezeMUArray ma
 -- UArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- Important to note that an element is evaluated prior to being written into a cell, so
 -- it will not overwrite a value with if it evaluates to an exception:
 --
 -- >>> import Control.Exception
--- >>> writeMArray ma 2 (throw DivideByZero)
+-- >>> writeMUArray ma 2 (throw DivideByZero)
 -- *** Exception: divide by zero
--- >>> freezeMArray ma
+-- >>> freezeMUArray ma
 -- UArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- But it is evaluated to Normal Form, so it is still possible to write something that
 -- eventually evaluates to bottom.
 --
--- >>> writeMArray ma 3 (Just (7 `div` 0 ))
--- >>> freezeMArray ma
+-- >>> writeMUArray ma 3 (Just (7 `div` 0 ))
+-- >>> freezeMUArray ma
 -- UArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 --
--- Either `deepseq` or `writeMArrayDeep` can be used to alleviate that.
+-- Either `deepseq` or `writeMUArrayDeep` can be used to alleviate that.
 --
 -- @since 0.1.0
-writeMArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> e -> m ()
-writeMArray (MUArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
-{-# INLINE writeMArray #-}
+writeMUArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> e -> m ()
+writeMUArray (MUArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
+{-# INLINE writeMUArray #-}
 
 -- | Convert a pure immutable unboxed array into a mutable unboxed array. See
--- `thawCopyArray` for a safer alternative.
+-- `thawCopyUArray` for a safer alternative.
 --
 -- [Unsafe array] There is no copying being done, therefore any modification done to the
 -- mutable array will be reflected in the immutable as well.
 --
 -- ====__Examples__
 --
--- The correct way to use it is with combining it with something like `cloneArray` or
--- `copyArray`, in order to preserve referential transperancy
+-- The correct way to use it is with combining it with something like `cloneUArray` or
+-- `copyUArray`, in order to preserve referential transperancy
 --
--- >>> let a = fromListArray [1 .. 5 :: Int]
--- >>> ma <- thawArray $ cloneArray a 0 (sizeOfArray a)
--- >>> writeMArray ma 1 10
--- >>> freezeMArray ma
+-- >>> let a = fromListUArray [1 .. 5 :: Int]
+-- >>> ma <- thawUArray $ cloneUArray a 0 (sizeOfUArray a)
+-- >>> writeMUArray ma 1 10
+-- >>> freezeMUArray ma
 -- UArray [1,10,3,4,5]
 -- >>> print a
 -- UArray [1,2,3,4,5]
@@ -437,39 +437,39 @@ writeMArray (MUArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 -- Be careful not mutate pure immutable arrays, that are still being referenced in some pure
 -- setting.
 --
--- >>> ma' <- thawArray a
--- >>> writeMArray ma' 0 100000
+-- >>> ma' <- thawUArray a
+-- >>> writeMUArray ma' 0 100000
 -- >>> print a
 -- UArray [100000,2,3,4,5]
 --
 -- @since 0.1.0
-thawArray :: MonadPrim s m => UArray e -> m (MUArray e s)
-thawArray (UArray a#) = prim $ \s ->
+thawUArray :: MonadPrim s m => UArray e -> m (MUArray e s)
+thawUArray (UArray a#) = prim $ \s ->
   case unsafeThawByteArray# a# s of
     (# s', ma# #) -> (# s', MUArray ma# #)
-{-# INLINE thawArray #-}
+{-# INLINE thawUArray #-}
 
-thawCopyArray :: (Prim e, MonadPrim s m) => UArray e -> Int -> Size -> m (MUArray e s)
-thawCopyArray = I.thawCopyArray
-{-# INLINE thawCopyArray #-}
+thawCopyUArray :: (Prim e, MonadPrim s m) => UArray e -> Int -> Size -> m (MUArray e s)
+thawCopyUArray = I.thawCopyArray
+{-# INLINE thawCopyUArray #-}
 
 -- | Convert a mutable unboxed array into an immutable.
 --
 -- [Unsafe further mutation] After the mutable array is frozen, it is unsafe to mutate
 -- it, because the changes will be reflected in the newly created immutable array as well.
 --
--- See `freezeCopyMArray` for a safer alternative or use `cloneMArray` prior to
+-- See `freezeCopyMUArray` for a safer alternative or use `cloneMUArray` prior to
 -- freezing if further mutation of an arrac
 -- @since 0.1.0
-freezeMArray :: MonadPrim s m => MUArray e s -> m (UArray e)
-freezeMArray (MUArray ma#) = prim $ \s ->
+freezeMUArray :: MonadPrim s m => MUArray e s -> m (UArray e)
+freezeMUArray (MUArray ma#) = prim $ \s ->
   case unsafeFreezeByteArray# ma# s of
     (# s', a# #) -> (# s', UArray a# #)
-{-# INLINE freezeMArray #-}
+{-# INLINE freezeMUArray #-}
 
-freezeCopyMArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> Size -> m (UArray e)
-freezeCopyMArray = I.freezeCopyMArray
-{-# INLINE freezeCopyMArray #-}
+freezeCopyMUArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> Size -> m (UArray e)
+freezeCopyMUArray = I.freezeCopyMArray
+{-# INLINE freezeCopyMUArray #-}
 
 
 -- | Make an exact copy of a subsection of a pure immutable array.
@@ -482,18 +482,18 @@ freezeCopyMArray = I.freezeCopyMArray
 --
 -- ====__Examples__
 --
--- >>> let a = fromListArray ['a'..'z']
+-- >>> let a = fromListUArray ['a'..'z']
 -- >>> a
 -- UArray "abcdefghijklmnopqrstuvwxyz"
--- >>> cloneArray a 23 3
+-- >>> cloneUArray a 23 3
 -- UArray "xyz"
 --
 -- @since 0.1.0
-cloneArray :: Prim e => UArray e -> Int -> Size -> UArray e
-cloneArray = I.cloneArray
-{-# INLINE cloneArray #-}
+cloneUArray :: Prim e => UArray e -> Int -> Size -> UArray e
+cloneUArray = I.cloneArray
+{-# INLINE cloneUArray #-}
 
--- | Same as `cloneArray`, except it works on mutable arrays
+-- | Same as `cloneUArray`, except it works on mutable arrays
 --
 -- [Unsafe offset] Offset cannot be negative or larger than the size of an array,
 -- otherwise it can result in an unchecked exception
@@ -502,9 +502,9 @@ cloneArray = I.cloneArray
 -- array minus the offset.
 --
 -- @since 0.1.0
-cloneMArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> Size -> m (MUArray e s)
-cloneMArray = I.cloneMArray
-{-# INLINE cloneMArray #-}
+cloneMUArray :: (Prim e, MonadPrim s m) => MUArray e s -> Int -> Size -> m (MUArray e s)
+cloneMUArray = I.cloneMArray
+{-# INLINE cloneMUArray #-}
 
 
 -- | Copy a subsection of an immutable array into a subsection of another mutable array.
@@ -518,7 +518,7 @@ cloneMArray = I.cloneMArray
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-copyArray ::
+copyUArray ::
      forall e m s. (Prim e, MonadPrim s m)
   => UArray e -- ^ Source immutable array
   -> Int -- ^ Offset into the source immutable array
@@ -526,15 +526,15 @@ copyArray ::
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-copyArray (UArray src#) srcOff (MUArray dst#) dstOff n =
+copyUArray (UArray src#) srcOff (MUArray dst#) dstOff n =
   let srcOff# = fromOff# (coerce srcOff :: Off e)
       dstOff# = fromOff# (coerce dstOff :: Off e)
       n# = fromCount# (coerce n :: Count e)
   in prim_ (copyByteArray# src# srcOff# dst# dstOff# n#)
-{-# INLINE copyArray #-}
+{-# INLINE copyUArray #-}
 
 -- | Copy a subsection of a mutable array into a subsection of another or the same
--- mutable array. Therefore, unlike `copyArray`, memory overlap is allowed.
+-- mutable array. Therefore, unlike `copyUArray`, memory overlap is allowed.
 --
 -- [Unsafe offset] Each offset cannot be negative or larger than the size of a
 -- corresponding array, otherwise it can result in an unchecked exception
@@ -543,7 +543,7 @@ copyArray (UArray src#) srcOff (MUArray dst#) dstOff n =
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-moveMArray ::
+moveMUArray ::
      forall e m s. (Prim e, MonadPrim s m)
   => MUArray e s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
@@ -551,23 +551,23 @@ moveMArray ::
   -> Int -- ^ Offset into the destination mutable array
   -> Size -- ^ Number of elements to copy over
   -> m ()
-moveMArray (MUArray src#) srcOff (MUArray dst#) dstOff n =
+moveMUArray (MUArray src#) srcOff (MUArray dst#) dstOff n =
   let srcOff# = fromOff# (coerce srcOff :: Off e)
       dstOff# = fromOff# (coerce dstOff :: Off e)
       n# = fromCount# (coerce n :: Count e)
   in prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
-{-# INLINE moveMArray #-}
+{-# INLINE moveMUArray #-}
 
-setMArray ::
+setMUArray ::
      (Prim e, MonadPrim s m)
   => MUArray e s -- ^ Mutable array
   -> Int -- ^ Offset into the mutable array
   -> Size -- ^ Number of elements to overwrite
   -> e -- ^ Element to overwrite the cells with
   -> m ()
-setMArray (MUArray ma#) (I# o#) (Size (I# n#)) a =
+setMUArray (MUArray ma#) (I# o#) (Size (I# n#)) a =
   prim_ (setMutableByteArray# ma# o# n# a)
-{-# INLINE setMArray #-}
+{-# INLINE setMUArray #-}
 
 
 -- -- | Compare-and-swap operation that can be used as a concurrency primitive for
@@ -583,23 +583,23 @@ setMArray (MUArray ma#) (I# o#) (Size (I# n#)) a =
 -- --
 -- -- ====__Examples__
 -- --
--- -- >>> ma <- makeMArray 5 (pure . (*10))
--- -- >>> freezeMArray ma
+-- -- >>> ma <- makeMUArray 5 (pure . (*10))
+-- -- >>> freezeMUArray ma
 -- -- UArray [0,10,20,30,40]
 -- --
 -- -- A possible mistake is to try and pass the expected value, instead of an actual element:
 -- --
--- -- >>> casMArray ma 2 20 1000
+-- -- >>> casMUArray ma 2 20 1000
 -- -- (False,20)
--- -- >>> freezeMArray ma
+-- -- >>> freezeMUArray ma
 -- -- UArray [0,10,20,30,40]
 -- --
 -- -- But this will get us nowhere, since what we really need is the actual reference to the
 -- -- value currently in the array cell
 -- --
--- -- >>> expected <- readMArray ma 2
--- -- >>> r@(_, currentValue) <- casMArray ma 2 expected 1000
--- -- >>> freezeMArray ma
+-- -- >>> expected <- readMUArray ma 2
+-- -- >>> r@(_, currentValue) <- casMUArray ma 2 expected 1000
+-- -- >>> freezeMUArray ma
 -- -- UArray [0,10,1000,30,40]
 -- -- >>> r
 -- -- (True,1000)
@@ -608,107 +608,107 @@ setMArray (MUArray ma#) (I# o#) (Size (I# n#)) a =
 -- -- thread, therefore returned value can be immedieately used as the expected one to the
 -- -- next call, if we don want to retry the atomic modification:
 -- --
--- -- >>> casMArray ma 2 currentValue 2000
+-- -- >>> casMUArray ma 2 currentValue 2000
 -- -- (True,2000)
--- -- >>> freezeMArray ma
+-- -- >>> freezeMUArray ma
 -- -- UArray [0,10,2000,30,40]
 -- --
 -- -- @since 0.1.0
--- casMArray ::
+-- casMUArray ::
 --      MonadPrim s m
 --   => MArray a s -- ^ Mutable array to mutate
 --   -> Int -- ^ Index at which the cell should be set to the new value
 --   -> a -- ^ Reference to the expected unboxed value
 --   -> a -- ^ New value to update the cell with
 --   -> m (Bool, a)
--- casMArray (MUArray ma#) (I# i#) expected new =
+-- casMUArray (MUArray ma#) (I# i#) expected new =
 --   prim $ \s ->
---     case casArray# ma# i# expected new s of
+--     case casUArray# ma# i# expected new s of
 --       (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
--- {-# INLINE casMArray #-}
+-- {-# INLINE casMUArray #-}
 
 
--- atomicModifyMArray# :: MonadPrim s m => MArray a s -> Int -> (a -> (# a, b #)) -> m b
--- atomicModifyMArray# ma@(MUArray ma#) i@(I# i#) f = do
---   current0 <- readMArray ma i
+-- atomicModifyMUArray# :: MonadPrim s m => MArray a s -> Int -> (a -> (# a, b #)) -> m b
+-- atomicModifyMUArray# ma@(MUArray ma#) i@(I# i#) f = do
+--   current0 <- readMUArray ma i
 --   prim $
 --     let go expected s =
 --           case f expected of
 --             (# new, artifact #) ->
---               case casArray# ma# i# expected new s of
+--               case casUArray# ma# i# expected new s of
 --                 (# s', 0#, _ #) -> (# s', artifact #)
 --                 (# s', _, actual #) -> go actual s'
 --      in go current0
--- {-# INLINE atomicModifyMArray# #-}
+-- {-# INLINE atomicModifyMUArray# #-}
 
 
--- atomicModifyFetchNewMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
--- atomicModifyFetchNewMArray ma i f =
---   atomicModifyMArray# ma i (\a -> let a' = f a in (# a', a' #))
--- {-# INLINE atomicModifyFetchNewMArray #-}
+-- atomicModifyFetchNewMUArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+-- atomicModifyFetchNewMUArray ma i f =
+--   atomicModifyMUArray# ma i (\a -> let a' = f a in (# a', a' #))
+-- {-# INLINE atomicModifyFetchNewMUArray #-}
 
--- -- atomicModifyFetchNewMArray ma@(MUArray ma#) i@(I# i#) f = do
--- --   current0 <- readMArray ma i
+-- -- atomicModifyFetchNewMUArray ma@(MUArray ma#) i@(I# i#) f = do
+-- --   current0 <- readMUArray ma i
 -- --   prim $ \s0 ->
 -- --     let go expected s =
--- --           case casArray# ma# i# expected (f expected) s of
+-- --           case casUArray# ma# i# expected (f expected) s of
 -- --             (# s', 0#, actual #) -> go actual s'
 -- --             (# s', _, current #) -> (# s', current #)
 -- --     in go current0 s0
 --   -- let go e =
---   --       casMArray ma i e (f e) >>= \case
+--   --       casMUArray ma i e (f e) >>= \case
 --   --         (True, new) -> pure new
 --   --         (_, current) -> go current
---   --  in readMArray ma i >>= go
+--   --  in readMUArray ma i >>= go
 
--- atomicModifyFetchOldMArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
--- atomicModifyFetchOldMArray ma i f =
---   atomicModifyMArray# ma i (\a -> (# f a, a #))
--- {-# INLINE atomicModifyFetchOldMArray #-}
+-- atomicModifyFetchOldMUArray :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m a
+-- atomicModifyFetchOldMUArray ma i f =
+--   atomicModifyMUArray# ma i (\a -> (# f a, a #))
+-- {-# INLINE atomicModifyFetchOldMUArray #-}
 --   -- let go e =
---   --       casMArray ma i e (f e) >>= \case
+--   --       casMUArray ma i e (f e) >>= \case
 --   --         (True, _new) -> pure e
 --   --         (_, current) -> go current
---   --  in readMArray ma i >>= go
+--   --  in readMUArray ma i >>= go
 
 
 
--- atomicModifyMArray :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m b
--- atomicModifyMArray ma i f =
---   atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
--- {-# INLINE atomicModifyMArray #-}
+-- atomicModifyMUArray :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m b
+-- atomicModifyMUArray ma i f =
+--   atomicModifyMUArray# ma i (\a -> let (a', b) = f a in (# a', b #))
+-- {-# INLINE atomicModifyMUArray #-}
 --   -- let go e =
 --   --       let (new, artifact) = f e
---   --        in casMArray ma i e new >>= \case
+--   --        in casMUArray ma i e new >>= \case
 --   --             (True, _new) -> pure artifact
 --   --             (_, current) -> go current
---   --  in readMArray ma i >>= go
+--   --  in readMUArray ma i >>= go
 
 
--- atomicModifyMArray_ :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m ()
--- atomicModifyMArray_ ma i f =
---   atomicModifyMArray# ma i (\a -> let a' = f a in (# a', () #))
--- {-# INLINE atomicModifyMArray_ #-}
+-- atomicModifyMUArray_ :: MonadPrim s m => MArray a s -> Int -> (a -> a) -> m ()
+-- atomicModifyMUArray_ ma i f =
+--   atomicModifyMUArray# ma i (\a -> let a' = f a in (# a', () #))
+-- {-# INLINE atomicModifyMUArray_ #-}
 
 
--- atomicModifyMArray2 :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m (a, a, b)
--- atomicModifyMArray2 ma i f =
---   atomicModifyMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
--- {-# INLINE atomicModifyMArray2 #-}
+-- atomicModifyMUArray2 :: MonadPrim s m => MArray a s -> Int -> (a -> (a, b)) -> m (a, a, b)
+-- atomicModifyMUArray2 ma i f =
+--   atomicModifyMUArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
+-- {-# INLINE atomicModifyMUArray2 #-}
 
 -- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
 -- to being written into the newly created array. In order to allocate the array ahead
 -- of time, the spine of a list will be evaluated first, in order to get the total
 -- number of elements. Infinite lists will cause the program to halt. On the other hand
--- if the length of a list is known ahead of time, `fromListArrayN` can be used instead as
+-- if the length of a list is known ahead of time, `fromListUArrayN` can be used instead as
 -- optimization.
 --
 -- @since 0.1.0
-fromListArray :: Prim e => [e] -> UArray e
-fromListArray xs = fromListArrayN (Size (length xs)) xs
-{-# INLINE fromListArray #-}
+fromListUArray :: Prim e => [e] -> UArray e
+fromListUArray xs = fromListUArrayN (Size (length xs)) xs
+{-# INLINE fromListUArray #-}
 
--- | Same as `fromListArray`, except it will allocate an array exactly of @n@ size, as
+-- | Same as `fromListUArray`, except it will allocate an array exactly of @n@ size, as
 -- such it will not convert any portion of the list that doesn't fit into the newly
 -- created array.
 --
@@ -717,50 +717,50 @@ fromListArray xs = fromListArrayN (Size (length xs)) xs
 --
 -- ====__Examples__
 --
--- >>> fromListArrayN 3 [1 :: Int, 2, 3]
+-- >>> fromListUArrayN 3 [1 :: Int, 2, 3]
 -- UArray [1,2,3]
--- >>> fromListArrayN 3 [1 :: Int ..]
+-- >>> fromListUArrayN 3 [1 :: Int ..]
 -- UArray [1,2,3]
--- >>> fromListArrayN 3 [1 :: Int, 2]
+-- >>> fromListUArrayN 3 [1 :: Int, 2]
 -- UArray [1,2*** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
 --
 -- @since 0.1.0
-fromListArrayN ::
+fromListUArrayN ::
      Prim e
   => Size -- ^ Expected @n@ size of a list
   -> [e]
   -> UArray e
-fromListArrayN = I.fromListArrayN
-{-# INLINE fromListArrayN #-}
+fromListUArrayN = I.fromListArrayN
+{-# INLINE fromListUArrayN #-}
 
 -- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
 -- fusion.
 --
 -- @since 0.1.0
-toListArray :: Prim e => UArray e -> [e]
-toListArray = I.toListArray
-{-# INLINE toListArray #-}
+toListUArray :: Prim e => UArray e -> [e]
+toListUArray = I.toListArray
+{-# INLINE toListUArray #-}
 
 -- | Strict right fold
-foldrArray :: Prim e => (e -> b -> b) -> b -> UArray e -> b
-foldrArray = I.foldrArray
-{-# INLINE foldrArray #-}
+foldrUArray :: Prim e => (e -> b -> b) -> b -> UArray e -> b
+foldrUArray = I.foldrArray
+{-# INLINE foldrUArray #-}
 
-makeArray :: Prim e => Size -> (Int -> e) -> UArray e
-makeArray = I.makeArray
-{-# INLINE makeArray #-}
+makeUArray :: Prim e => Size -> (Int -> e) -> UArray e
+makeUArray = I.makeArray
+{-# INLINE makeUArray #-}
 
-makeArrayM :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (UArray e)
-makeArrayM = I.makeArrayM
-{-# INLINE makeArrayM #-}
+makeUArrayM :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (UArray e)
+makeUArrayM = I.makeArrayM
+{-# INLINE makeUArrayM #-}
 
-createArrayM :: (Prim e, MonadPrim s m) => Size -> (MUArray e s -> m b) -> m (b, UArray e)
-createArrayM = I.createArrayM
-{-# INLINE createArrayM #-}
+createUArrayM :: (Prim e, MonadPrim s m) => Size -> (MUArray e s -> m b) -> m (b, UArray e)
+createUArrayM = I.createArrayM
+{-# INLINE createUArrayM #-}
 
-createArrayM_ :: (Prim e, MonadPrim s m) => Size -> (MUArray e s -> m b) -> m (UArray e)
-createArrayM_ = I.createArrayM_
-{-# INLINE createArrayM_ #-}
+createUArrayM_ :: (Prim e, MonadPrim s m) => Size -> (MUArray e s -> m b) -> m (UArray e)
+createUArrayM_ = I.createArrayM_
+{-# INLINE createUArrayM_ #-}
 
 
 -- | Create a new mutable array of a supplied size by applying a monadic action to indices
@@ -774,8 +774,8 @@ createArrayM_ = I.createArrayM_
 -- >>> import Control.Monad ((>=>))
 -- >>> import Data.Prim.Ref
 -- >>> ref <- newRef "Numbers: "
--- >>> ma <- makeMArray 5 $ \i -> modifyFetchRef ref (\cur -> cur ++ show i ++ ",")
--- >>> mapM_ (readMArray ma >=> putStrLn) [0 .. 4]
+-- >>> ma <- makeMUArray 5 $ \i -> modifyFetchRef ref (\cur -> cur ++ show i ++ ",")
+-- >>> mapM_ (readMUArray ma >=> putStrLn) [0 .. 4]
 -- Numbers: 0,
 -- Numbers: 0,1,
 -- Numbers: 0,1,2,
@@ -783,13 +783,13 @@ createArrayM_ = I.createArrayM_
 -- Numbers: 0,1,2,3,4,
 --
 -- @since 0.1.0
-makeMArray :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (MUArray e s)
-makeMArray = I.makeMArray
-{-# INLINE makeMArray #-}
+makeMUArray :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (MUArray e s)
+makeMUArray = I.makeMArray
+{-# INLINE makeMUArray #-}
 
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
-traverseArray :: (Prim e, Prim b, MonadPrim s m) => (e -> m b) -> UArray e -> m (UArray b)
-traverseArray = I.traverseArray
-{-# INLINE traverseArray #-}
+traverseUArray :: (Prim e, Prim b, MonadPrim s m) => (e -> m b) -> UArray e -> m (UArray b)
+traverseUArray = I.traverseArray
+{-# INLINE traverseUArray #-}
