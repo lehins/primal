@@ -33,38 +33,61 @@ import Data.Prim.Memory.Bytes
 
 class MArray mut => AtomicMArray mut where
 
-  -- | Read an element from an array. It is different from a regular `readMArray`, because
-  -- it will issue a memory barrier.
+  -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
+  -- elements, an old expected value and a new value, swap the actual old value for the
+  -- new one atomically, but only if the actual old value was an exact match to the
+  -- expected old one that was supplied. Returns the boolean that indicate success or
+  -- failure of the swap as well as the actual old value.
+  --
+  -- It is important to note that comparison does not require an `Eq` instance on the
+  -- element, because in order for compare operation to succeed for boxed values epxected
+  -- and actual must be refer to the exact same value, while for unboxed values it must
+  -- have exact same unpacked representation.
+  --
+  -- @since 0.1.0
+  casMArray ::
+       MonadPrim s m
+    => mut s -- ^ Array to be mutated
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
+    -> Elt mut -- ^ Expected old value
+    -> Elt mut -- ^ New value to write
+    -> m (Bool, Elt mut) -- ^ Was compare and swap successfull and the actual value
+
+  -- | Read an element from an array atomically. It is different from a regular
+  -- `readMArray`, because it might perform steps to guaranty atomicity. Default
+  -- implementation uses `atomicModifyMArray`
+  --
+  -- @since 0.1.0
   atomicReadMArray ::
     MonadPrim s m
     => mut s -- ^ Mutable array to read an element from
-    -> Int -- ^ [Unsafe] Offset into the array
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> m (Elt mut)
   atomicReadMArray mut i = atomicModifyMArray mut i (\x -> (x, x))
   {-# INLINE atomicReadMArray #-}
 
-  -- | Write an element into mutable array atomically. Implies full memory barrier.
+  -- | Write an element into mutable array atomically. It is different from a regular
+  -- `readMArray`, because it might perform steps to guaranty atomicity. Default
+  -- implementation uses `atomicModifyMArray`
+  --
+  -- @since 0.1.0
   atomicWriteMArray ::
        MonadPrim s m
     => mut s -- ^ Mutable array to write an element into
-    -> Int -- ^ [Unsafe] Offset into the array
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> Elt mut -- ^ Element to write
     -> m ()
   atomicWriteMArray mut i !y = atomicModifyMArray mut i (const (y, ()))
   {-# INLINE atomicWriteMArray #-}
-
-  -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
-  -- elements, an old value and a new value atomically swap the old value for the new one,
-  -- but only if the actual old value was an exact match to the expetced old one that was
-  -- supplied. Returns the actual old value, which if compared to supplied expected one
-  -- will tell us whether atomic swap occured or not.
-  casMArray ::
-       MonadPrim s m
-    => mut s -- ^ Array to be mutated
-    -> Int -- ^ Offset into the array
-    -> Elt mut -- ^ Expected old value
-    -> Elt mut -- ^ New value
-    -> m (Bool, Elt mut) -- ^ Was compare and swap successfull and the actual value
 
   -- | Perform atomic an modification of an element in a mutable structure.
   --

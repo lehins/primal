@@ -11,11 +11,44 @@
 -- Portability : non-portable
 --
 module Data.Prim.MArray
-  ( module Data.Prim.MArray
-  , module Data.Prim.MArray.Internal
+  ( MArray
+  , Array
+  , Elt
+  , Size(..)
+  , sizeOfArray
+  , indexArray
+  , thawArray
+  , thawCopyArray
+  , freezeMArray
+  , freezeCopyMArray
+  , newMArray
+  , newRawMArray
+  , readMArray
+  , writeMArray
+  , setMArray
+  , copyArray
+  , cloneArray
+  , moveMArray
+  , cloneMArray
+  , getSizeOfMArray
+  , shrinkMArray
+  , resizeMArray
+  , toListArray
+  , fromListArray
+  , fromListArrayN
+  , foldrArray
+  , makeArray
+  , makeArrayM
+  , createArrayM
+  , createArrayM_
+  , createArrayST
+  , createArrayST_
+  , makeMArray
+  , traverseArray
   , module Data.Prim.MArray.Atomic
   ) where
 
+import Data.Prim
 import Data.Prim.MArray.Atomic
 import Data.Prim.MArray.Internal
 import qualified Data.Prim.MArray.Boxed as Boxed

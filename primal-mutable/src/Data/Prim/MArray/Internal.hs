@@ -11,6 +11,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE Unsafe #-}
 -- |
 -- Module      : Data.Prim.MArray.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -20,21 +21,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.MArray.Internal
-  ( MArray(..)
-  , Elt
-  , Size(..)
-  , toListArray
-  , fromListArray
-  , fromListArrayN
-  , foldrArray
-  , makeArray
-  , makeArrayM
-  , createArrayM
-  , createArrayM_
-  , createArrayST
-  , createArrayST_
-  , makeMArray
-  , traverseArray
+  ( Elt
+  , module Data.Prim.MArray.Internal
   ) where
 
 import Control.Monad.ST
@@ -50,21 +38,107 @@ import Foreign.Prim
 class MRef mut => MArray mut where
   type Array mut = (frozen :: *) | frozen -> mut
 
+  -- | Access the size of an immutable array
+  --
+  -- @since 0.1.0
   sizeOfArray :: Array mut -> Size
 
-  indexArray :: Array mut -> Int -> Elt mut
+  -- | Read an element from an immutable array
+  --
+  -- ====__Examples__
+  --
+  -- >>> :set -XOverloadedStrings
+  -- >>> import Data.Prim.Memory.Addr
+  -- >>> a = "Haskell arrays" :: Addr Char
+  -- >>> a
+  -- "Haskell arrays"
+  -- >>> indexArray a 3
+  -- 'k'
+  --
+  -- @since 0.1.0
+  indexArray ::
+       Array mut -- ^ Array to be indexed
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `sizeOfArray` mut@
+    -> Elt mut
 
+  -- | Get the size of a mutable array. Unlike `sizeOfArray` it is a monadic operation
+  -- because some mutable arrays support in place resizing.
+  --
+  -- @since 0.1.0
   getSizeOfMArray :: MonadPrim s m => mut s -> m Size
 
-  thawArray :: MonadPrim s m => Array mut -> m (mut s)
+  -- | Convert an immutable array into the matching mutable array.
+  --
+  -- ====__Examples__
+  --
+  -- In the example below it is safe to thaw the original immutable array and mutate it
+  -- afterwards because we do not keep around the reference to it.
+  --
+  -- >>> :set -XOverloadedStrings
+  -- >>> import Data.Prim.Memory.Addr
+  -- >>> ma <- thawArray ("A whole bread" :: Addr Char)
+  -- >>> writeMArray ma 4 'a'
+  -- >>> writeMArray ma 11 'e'
+  -- >>> freezeMArray ma
+  -- "A whale breed"
+  --
+  -- @since 0.1.0
+  thawArray :: MonadPrim s m =>
+       Array mut -- ^ Immutable array to thaw
+    -> m (mut s)
+    -- ^ Thawed mutable array. Any mutation will also affect the source immutable array
+    --
+    -- [Unsafe /mutable array/] Allows to break referential transparency.
 
-  freezeMArray :: MonadPrim s m => mut s -> m (Array mut)
+  -- | Convert a mutable array into the matching immutable array.
+  --
+  -- @since 0.1.0
+  freezeMArray :: MonadPrim s m =>
+       mut s
+    -- ^ Mutable array to freeze. Any further mutation will also affect the immutable
+    -- array
+    --
+    -- [Unsafe /mutable array/] Allows to break referential transparency.
+    -> m (Array mut)
 
   newRawMArray :: MonadPrim s m => Size -> m (mut s)
 
-  readMArray :: MonadPrim s m => mut s -> Int -> m (Elt mut)
+  -- | Read an element from a mutable array
+  --
+  -- ====__Examples__
+  --
+  -- >>> import Data.Prim.Memory.Addr
+  -- >>> callocMAddr (Count 5 :: Count Int)
+  -- >>> ma <- callocMAddr (Count 5 :: Count Int)
+  -- >>> readMArray ma 2
+  -- 0
+  -- >>> writeMArray ma 2 99
+  -- >>> readMArray ma 2
+  -- 99
+  --
+  -- @since 0.1.0
+  readMArray :: MonadPrim s m =>
+       mut s -- ^ Array to read element from
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
+    -> m (Elt mut)
 
-  writeMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m ()
+  -- | Write an element into a mutable array
+  --
+  -- @since 0.1.0
+  writeMArray :: MonadPrim s m =>
+       mut s -- ^ Array to write an element into
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
+    -> Elt mut -- ^ Element to be written
+    -> m ()
 
   -- | Copy a subsection of an immutable array into a subsection of another mutable array.
   --

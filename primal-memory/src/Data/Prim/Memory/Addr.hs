@@ -118,7 +118,8 @@ module Data.Prim.Memory.Addr
   , prefetchOffMAddr2
   , prefetchOffAddr3
   , prefetchOffMAddr3
-
+  -- * Re-export
+  , module Data.Prim
   ) where
 
 import Control.Arrow (first)
@@ -158,6 +159,18 @@ type role MAddr representational nominal
 
 instance Eq (Addr e) where
   a1 == a2 = isSameAddr a1 a2 || eqMem a1 a2
+
+instance (Show e, Prim e) => Show (Addr e) where
+  show a = show (toListMem a :: [e])
+
+instance IsString (Addr Char) where
+  fromString = fromListMem
+
+instance Prim e => IsList (Addr e) where
+  type Item (Addr e) = e
+  fromList = fromListMem
+  fromListN n = fromListMemN_ (Count n)
+  toList = toListMem
 
 instance Semigroup.Semigroup (Addr e) where
   (<>) = appendMem

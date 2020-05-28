@@ -104,7 +104,7 @@ class PtrAccess s p where
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/18061 issue #18061> and
   -- related to get more insight why this is needed.
-  withNoHaltPtrAccess :: (MonadUnliftPrim s m, PtrAccess s p) => p -> (Ptr a -> m b) -> m b
+  withNoHaltPtrAccess :: (MonadUnliftPrim s m) => p -> (Ptr a -> m b) -> m b
   withNoHaltPtrAccess p f = do
     ForeignPtr addr# ptrContents <- toForeignPtr p
     withUnliftPrim ptrContents $ f (Ptr addr#)

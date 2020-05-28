@@ -123,7 +123,7 @@ writePtr :: (MonadPrim s m, Prim e) => Ptr e -> e -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
-plusByteOffPtr :: Prim e => Ptr e -> Off Word8 -> Ptr e
+plusByteOffPtr :: Ptr e -> Off Word8 -> Ptr e
 plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteOffPtr #-}
 

@@ -62,7 +62,6 @@ module Data.Prim.MArray.Boxed.Small
   ) where
 
 import Control.DeepSeq
-import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Bits
