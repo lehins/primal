@@ -16,6 +16,9 @@ module Data.Prim.MRef.Atomic
   ( AtomicMRef(..)
   , AtomicCountMRef(..)
   , AtomicBitsMRef(..)
+  , atomicModifyMRef_
+  , atomicModifyFetchOldMRef
+  , atomicModifyFetchNewMRef
   ) where
 
 import Control.Prim.Monad
@@ -33,7 +36,8 @@ class MRef mut => AtomicMRef mut where
     MonadPrim s m
     => mut s -- ^ Mutable variable to read an element from
     -> m (Elt mut)
-  atomicReadMRef mut = readMRef mut --atomicModifyMRef mut (\x -> (x, x))
+  atomicReadMRef mut = --readMRef mut --
+    atomicModifyMRef mut (\x -> (x, x))
   {-# INLINE atomicReadMRef #-}
 
   -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
@@ -277,3 +281,17 @@ instance (Bits e, AtomicBits e) => AtomicBitsMRef (MAddr e) where
   {-# INLINE atomicNotFetchNewMRef #-}
 
 
+atomicModifyMRef_ :: (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m ()
+atomicModifyMRef_ ref f = atomicModifyMRef ref $ \e -> (f e, ())
+{-# INLINE atomicModifyMRef_ #-}
+
+
+atomicModifyFetchOldMRef ::
+     (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m (Elt mut)
+atomicModifyFetchOldMRef ref f = atomicModifyMRef ref $ \e -> (f e, e)
+{-# INLINE atomicModifyFetchOldMRef #-}
+
+atomicModifyFetchNewMRef ::
+     (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m (Elt mut)
+atomicModifyFetchNewMRef ref f = atomicModifyMRef ref $ \e -> let e' = f e in (e', e')
+{-# INLINE atomicModifyFetchNewMRef #-}
