@@ -621,7 +621,7 @@ casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
     prim $ \s ->
       case casBoolOffAddr# addr# i# expected new s of
         (# s', isCasSucc #)
-          | isCasSucc -> (# s', (True, expected) #)
+          | isCasSucc -> (# s', (True, new) #)
           | otherwise ->
             case readOffAddr# addr# i# s' of
               (# s'', actual #) -> (# s'', (False, actual) #)

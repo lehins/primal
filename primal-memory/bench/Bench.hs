@@ -37,7 +37,7 @@ main = do
         [ env (freezeMBytes mb1) $ \b ->
             bench "(==) - isSameBytes" $ whnf (isSameBytes b) b
         , env (freezeMBytes mb1) $ \b ->
-            bench "isSameBytes" $ whnf (isSameBytes b) (relaxPinned b)
+            bench "isSameBytes" $ whnf (isSameBytes b) (relaxPinnedBytes b)
         , env (freezeMBytes mb1) $ \b ->
             bench "isSamePinnedBytes" $ whnf (isSamePinnedBytes b) b
         , bench "(==) - sameByteArray (unexported)" $ whnf (ba ==) ba
@@ -175,4 +175,3 @@ setBytesBench mb1 mb2 mba a c@(Count n) =
     , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ ptr -> setOffPtr ptr 0 c a :: IO ())
     , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
     ]
-

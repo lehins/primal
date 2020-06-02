@@ -66,11 +66,12 @@ module Data.Prim.MRef.Ref
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Data.Bits
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
 import Foreign.Prim
-import GHC.STRef
 import GHC.IORef
+import GHC.STRef
 
 -- | Mutable variable that can store any boxed value. Because it stores just a reference
 -- to the value it is named "Ref". This is just like `Data.STRef.STRef`,
@@ -98,12 +99,17 @@ instance MRef (Ref a) where
   {-# INLINE readMRef #-}
 
 instance AtomicMRef (Ref a) where
-  atomicReadMRef = atomicReadRef
-  {-# INLINE atomicReadMRef #-}
-  atomicWriteMRef = atomicWriteRef
-  {-# INLINE atomicWriteMRef #-}
+  -- atomicReadMRef = atomicReadRef
+  -- {-# INLINE atomicReadMRef #-}
+  -- atomicWriteMRef = atomicWriteRef
+  -- {-# INLINE atomicWriteMRef #-}
   casMRef = casRef
   {-# INLINE casMRef #-}
+
+instance Num a => AtomicCountMRef (Ref a)
+
+instance Bits a => AtomicBitsMRef (Ref a)
+
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --
@@ -452,7 +458,7 @@ atomicModifyFetchNewRef (Ref ref#) f =
 casRef :: MonadPrim s m => Ref a s -> a -> a -> m (Bool, a)
 casRef (Ref ref#) expOld new = prim $ \ s ->
   case casMutVar# ref# expOld new s of
-    (# s', success#, actualOld #) -> (# s', (isTrue# success#, actualOld) #)
+    (# s', failed#, actualOld #) -> (# s', (isTrue# (failed# ==# 0#), actualOld) #)
 
 
 

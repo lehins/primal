@@ -7,6 +7,7 @@ module Test.Prim.MArraySpec
   ) where
 
 import Data.Prim.MArray.Boxed
+import Data.Prim.MArray.Boxed.Small
 import Data.Prim.MArray.Unboxed
 import Data.Prim.MRef.Ref
 import Data.Prim.Memory.Addr
@@ -14,7 +15,7 @@ import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.ByteArray
 import Test.Prim
 import Test.Prim.MArray
-import Test.Prim.MRef
+import qualified Test.Prim.MRef as MRef
 
 
 primMRefSpec ::
@@ -22,22 +23,14 @@ primMRefSpec ::
      (Show e, Arbitrary e, Typeable e, Num e, AtomicCount e, AtomicBits e)
   => Spec
 primMRefSpec = do
-  specMRef @(MAddr e)
-  specMRef @(MByteArray 'Inc e)
-  specMRef @(MByteArray 'Pin e)
-  specMRef @(MUArray e)
-  specMRef @(NEMArrayIx (MAddr e))
-  specMRef @(NEMArrayIx (MByteArray 'Inc e))
-  specMRef @(NEMArrayIx (MByteArray 'Pin e))
-  specMRef @(NEMArrayIx (MUArray e))
-  specAtomicMRef @(MAddr e)
-  specAtomicMRef @(MByteArray 'Inc e)
-  specAtomicMRef @(MByteArray 'Pin e)
-  specAtomicMRef @(MUArray e)
-  specAtomicMRef @(NEMArrayIx (MAddr e))
-  specAtomicMRef @(NEMArrayIx (MByteArray 'Inc e))
-  specAtomicMRef @(NEMArrayIx (MByteArray 'Pin e))
-  specAtomicMRef @(NEMArrayIx (MUArray e))
+  MRef.spec @(MAddr e)
+  MRef.spec @(MByteArray 'Inc e)
+  MRef.spec @(MByteArray 'Pin e)
+  MRef.spec @(MUArray e)
+  MRef.spec @(NEMArrayIx (MAddr e))
+  MRef.spec @(NEMArrayIx (MByteArray 'Inc e))
+  MRef.spec @(NEMArrayIx (MByteArray 'Pin e))
+  MRef.spec @(NEMArrayIx (MUArray e))
 
 
 spec :: Spec
@@ -52,10 +45,11 @@ spec = do
   primMRefSpec @Word16
   primMRefSpec @Word32
   primMRefSpec @Word64
-  specMRef @(MBArray Int)
+  MRef.spec @(MSBArray Int)
+  MRef.spec @(MBArray Int)
   specMArray @(MUArray Int)
   -- specMArray @(MBArray Int)
   -- specMArray @(MBArray Integer)
-  specMRef @(Ref Int)
-  specMRef @(Ref Integer)
-  specMRef @(MBytes 'Pin)
+  MRef.spec @(Ref Int)
+  MRef.spec @(Ref Integer)
+  MRef.spec @(MBytes 'Pin)

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -36,8 +37,7 @@ class MRef mut => AtomicMRef mut where
     MonadPrim s m
     => mut s -- ^ Mutable variable to read an element from
     -> m (Elt mut)
-  atomicReadMRef mut = --readMRef mut --
-    atomicModifyMRef mut (\x -> (x, x))
+  atomicReadMRef mut = atomicModifyMRef mut (\x -> (x, x))
   {-# INLINE atomicReadMRef #-}
 
   -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
@@ -46,8 +46,7 @@ class MRef mut => AtomicMRef mut where
     => mut s -- ^ Mutable variable to write an element into
     -> Elt mut -- ^ Element to write
     -> m ()
-  atomicWriteMRef mut y = --writeMRef mut y --
-    atomicModifyMRef mut (const (y, ()))
+  atomicWriteMRef mut !y = atomicModifyMRef mut (const (y, ()))
   {-# INLINE atomicWriteMRef #-}
 
   -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
@@ -86,55 +85,55 @@ class MRef mut => AtomicMRef mut where
 
 class (Num (Elt mut), AtomicMRef mut) => AtomicCountMRef mut where
   atomicAddFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicAddFetchOldMRef mut y = atomicModifyMRef mut (\x -> let x' = x + y in (x', x))
+  atomicAddFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x + y in (x', x))
   {-# INLINE atomicAddFetchOldMRef #-}
 
   atomicAddFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicAddFetchNewMRef mut y = atomicModifyMRef mut (\x -> let x' = x + y in (x', x'))
+  atomicAddFetchNewMRef mut !y = atomicModifyMRef mut (\x -> let x' = x + y in (x', x'))
   {-# INLINE atomicAddFetchNewMRef #-}
 
   atomicSubFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicSubFetchOldMRef mut y = atomicModifyMRef mut (\x -> let x' = x - y in (x', x))
+  atomicSubFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x - y in (x', x))
   {-# INLINE atomicSubFetchOldMRef #-}
 
   atomicSubFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicSubFetchNewMRef mut y = atomicModifyMRef mut (\x -> let x' = x - y in (x', x'))
+  atomicSubFetchNewMRef mut !y = atomicModifyMRef mut (\x -> let x' = x - y in (x', x'))
   {-# INLINE atomicSubFetchNewMRef #-}
 
 
 class (Bits (Elt mut), AtomicMRef mut) => AtomicBitsMRef mut where
   atomicAndFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicAndFetchOldMRef mut y = atomicModifyMRef mut (\x -> let x' = x .&. y in (x', x))
+  atomicAndFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x .&. y in (x', x))
   {-# INLINE atomicAndFetchOldMRef #-}
 
   atomicAndFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicAndFetchNewMRef mut y = atomicModifyMRef mut (\x -> let x' = x .&. y in (x', x'))
+  atomicAndFetchNewMRef mut !y = atomicModifyMRef mut (\x -> let x' = x .&. y in (x', x'))
   {-# INLINE atomicAndFetchNewMRef #-}
 
   atomicNandFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicNandFetchOldMRef mut y =
+  atomicNandFetchOldMRef mut !y =
     atomicModifyMRef mut (\x -> let x' = complement (x .&. y) in (x', x))
   {-# INLINE atomicNandFetchOldMRef #-}
 
   atomicNandFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicNandFetchNewMRef mut y =
+  atomicNandFetchNewMRef mut !y =
     atomicModifyMRef mut (\x -> let x' = complement (x .&. y) in (x', x'))
   {-# INLINE atomicNandFetchNewMRef #-}
 
   atomicOrFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicOrFetchOldMRef mut y = atomicModifyMRef mut (\x -> let x' = x .|. y in (x', x))
+  atomicOrFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x .|. y in (x', x))
   {-# INLINE atomicOrFetchOldMRef #-}
 
   atomicOrFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicOrFetchNewMRef mut y = atomicModifyMRef mut (\x -> let x' = x .|. y in (x', x'))
+  atomicOrFetchNewMRef mut !y = atomicModifyMRef mut (\x -> let x' = x .|. y in (x', x'))
   {-# INLINE atomicOrFetchNewMRef #-}
 
   atomicXorFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicXorFetchOldMRef mut y = atomicModifyMRef mut (\x -> let x' = x `xor` y in (x', x))
+  atomicXorFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x `xor` y in (x', x))
   {-# INLINE atomicXorFetchOldMRef #-}
 
   atomicXorFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicXorFetchNewMRef mut y = atomicModifyMRef mut (\x -> let x' = x `xor` y in (x', x'))
+  atomicXorFetchNewMRef mut !y = atomicModifyMRef mut (\x -> let x' = x `xor` y in (x', x'))
   {-# INLINE atomicXorFetchNewMRef #-}
 
   atomicNotFetchOldMRef :: MonadPrim s m => mut s -> m (Elt mut)

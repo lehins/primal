@@ -133,11 +133,13 @@ prop_CASMRef ::
   => Elt mut
   -> Elt mut
   -> Property
-prop_CASMRef x y = forAllMRef @mut arbitrary $ \ e ref -> do
+prop_CASMRef x y = forAllMRef @mut arbitrary $ \ e' ref -> do
+  e <- readMRef ref
+  e `shouldBe` e'
   (isSucc, x') <- casMRef ref e y
   -- ensure successful CAS
   isSucc `shouldBe` True
-  x' `shouldBe` e
+  x' `shouldBe` y
   readMRef ref `shouldReturn` y
   when (x /= y) $ do
     (isSucc', y') <- casMRef ref x e
@@ -157,23 +159,6 @@ asyncAssociativeProp opMRef op = asyncProp resExp modifyMRef_ atomicModifyMRef_ 
           -- ensure final value is the same
           x' `shouldBe` z'
           x' `shouldBe` F.foldr' op x xs
--- asyncAssociativeProp opMRef op = do
---   forAllMRef @mut arbitrary $ \x xref ->
---     return $
---     forAllIO (arbitrary @([Elt mut])) $ \xs -> do
---       void $ mapConcurrently (opMRef xref) xs
---       -- ensure order of operations did not affect the end result
---       x' <- readMRef xref
---       yref <- newMRef @mut x
---       void $ mapConcurrently (atomicModifyMRef_ yref . op) xs
---       -- ensure it matches the non-specialized modify
---       y' <- readMRef yref
---       x' `shouldBe` y'
---       -- zref <- newMRef @mut x
---       -- mapM_ (modifyMRef_ zref . op) xs
---       -- -- ensure it matches the sequential non-specialized modify
---       -- z' <- readMRef zref
---       -- x' `shouldBe` z'
 
 asyncAssociativeCommutativeOldProp ::
      forall mut. (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), AtomicMRef mut)
@@ -241,24 +226,8 @@ asyncProp extraExp modMRef atomicModMRef opMRef op =
       z' <- readMRef zref
       extraExp (x, xs) (x', xs') (y', ys') (z', zs')
 
-specMRef ::
-     forall mut.
-     ( Eq (Elt mut)
-     , Show (Elt mut)
-     , Arbitrary (Elt mut)
-     , MRef mut
-     , Typeable mut
-     )
-  => Spec
-specMRef = do
-  let mutTypeName = showsType (Proxy :: Proxy (mut RW)) ""
-  describe mutTypeName $ do
-    describe "MRef" $ do
-      prop "newRead" $ prop_newReadMRef @mut
-      prop "writeRead" $ prop_writeReadMRef @mut
 
-
-specAtomicMRef ::
+spec ::
      forall mut.
      ( Show (Elt mut)
      , Arbitrary (Elt mut)
@@ -267,17 +236,59 @@ specAtomicMRef ::
      , Typeable mut
      )
   => Spec
-specAtomicMRef = do
+spec = do
   let mutTypeName = showsType (Proxy :: Proxy (mut RW)) ""
   describe mutTypeName $ do
-    describe "AtomicMRef" $ do
-      prop "CASMRef" $ prop_CASMRef @mut
-      prop "writeReadAtomic" $ prop_writeReadAtomicMRef @mut
-    describe "AtomicCountMRef" $ do
-      prop "atomicAddFetchOld" $ prop_opFetchOldMRef @mut atomicAddFetchOldMRef (+)
-      prop "atomicAddFetchNew" $ prop_opFetchNewMRef @mut atomicAddFetchNewMRef (+)
-      prop "atomicSubFetchOld" $ prop_opFetchOldMRef @mut atomicSubFetchOldMRef (-)
-      prop "atomicSubFetchNew" $ prop_opFetchNewMRef @mut atomicSubFetchNewMRef (-)
+    specMRef @mut
+    specAtomicMRef @mut
+    specAtomicCountMRef @mut
+    specAtomicBitsMRef @mut
+
+specMRef ::
+     forall mut. (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), MRef mut)
+  => Spec
+specMRef =
+  describe "MRef" $ do
+    prop "newRead" $ prop_newReadMRef @mut
+    prop "writeRead" $ prop_writeReadMRef @mut
+
+
+specAtomicMRef ::
+     forall mut.
+     ( Eq (Elt mut)
+     , Show (Elt mut)
+     , Arbitrary (Elt mut)
+     , AtomicMRef mut
+     , Typeable mut
+     )
+  => Spec
+specAtomicMRef =
+  describe "AtomicMRef" $ do
+    prop "CASMRef" $ prop_CASMRef @mut
+    prop "writeReadAtomic" $ prop_writeReadAtomicMRef @mut
+
+
+specAtomicCountMRef ::
+     forall mut.
+     (Eq (Elt mut), Show (Elt mut), Arbitrary (Elt mut), AtomicCountMRef mut)
+  => Spec
+specAtomicCountMRef =
+  describe "AtomicCountMRef" $ do
+    prop "atomicAddFetchOld" $ prop_opFetchOldMRef @mut atomicAddFetchOldMRef (+)
+    prop "atomicAddFetchNew" $ prop_opFetchNewMRef @mut atomicAddFetchNewMRef (+)
+    prop "atomicSubFetchOld" $ prop_opFetchOldMRef @mut atomicSubFetchOldMRef (-)
+    prop "atomicSubFetchNew" $ prop_opFetchNewMRef @mut atomicSubFetchNewMRef (-)
+    describe "Concurrent" $ do
+      prop "atomicAddFetchOldMRef" $ asyncAssociativeProp @mut atomicAddFetchOldMRef (+)
+      prop "atomicAddFetchNewMRef" $ asyncAssociativeProp @mut atomicAddFetchNewMRef (+)
+      prop "atomicSubFetchOldMRef" $ asyncAssociativeProp @mut atomicSubFetchOldMRef subtract
+      prop "atomicSubFetchNewMRef" $ asyncAssociativeProp @mut atomicSubFetchNewMRef subtract
+
+
+specAtomicBitsMRef ::
+     forall mut. (Show (Elt mut), Arbitrary (Elt mut), AtomicBitsMRef mut)
+  => Spec
+specAtomicBitsMRef = do
     describe "AtomicBitsMRef" $ do
       prop "atomicAndFetchOld" $ prop_opFetchOldMRef @mut atomicAndFetchOldMRef (.&.)
       prop "atomicAndFetchNew" $ prop_opFetchNewMRef @mut atomicAndFetchNewMRef (.&.)
@@ -293,22 +304,16 @@ specAtomicMRef = do
         prop_opFetchOldMRef @mut (\ref !_ -> atomicNotFetchOldMRef ref) (\x !_ -> complement x)
       prop "atomicNotFetchNew" $
         prop_opFetchNewMRef @mut (\ref !_ -> atomicNotFetchNewMRef ref) (\x !_ -> complement x)
-    describe "Concurrent" $ do
-      prop "atomicAddFetchOldMRef" $ asyncAssociativeProp @mut atomicAddFetchOldMRef (+)
-      prop "atomicAddFetchNewMRef" $ asyncAssociativeProp @mut atomicAddFetchNewMRef (+)
-      prop "atomicSubFetchOldMRef" $ asyncAssociativeProp @mut atomicSubFetchOldMRef subtract
-      prop "atomicSubFetchNewMRef" $ asyncAssociativeProp @mut atomicSubFetchNewMRef subtract
-      prop "atomicXorFetchOldMRef" $ asyncAssociativeProp @mut atomicXorFetchOldMRef xor
-      prop "atomicXorFetchNewMRef" $ asyncAssociativeProp @mut atomicXorFetchNewMRef xor
+      describe "Concurrent" $ do
+        prop "atomicXorFetchOldMRef" $ asyncAssociativeProp @mut atomicXorFetchOldMRef xor
+        prop "atomicXorFetchNewMRef" $ asyncAssociativeProp @mut atomicXorFetchNewMRef xor
 
-      prop "atomicAndFetchOldMRef" $
-        asyncAssociativeCommutativeOldProp @mut atomicAndFetchOldMRef (.&.)
-      prop "atomicAndFetchNewMRef" $
-        asyncAssociativeCommutativeNewProp @mut atomicAndFetchNewMRef (.&.)
-      prop "atomicOrFetchOldMRef" $
-        asyncAssociativeCommutativeOldProp @mut atomicOrFetchOldMRef (.|.)
-      prop "atomicOrFetchNewMRef" $
-        asyncAssociativeCommutativeNewProp @mut atomicOrFetchNewMRef (.|.)
-      -- casProp "atomicAndFetchMRef" (.&.) atomicAndFetchMRef
-      -- casProp "atomicOrFetchMRef" (.|.) atomicOrFetchMRef
+        prop "atomicAndFetchOldMRef" $
+          asyncAssociativeCommutativeOldProp @mut atomicAndFetchOldMRef (.&.)
+        prop "atomicAndFetchNewMRef" $
+          asyncAssociativeCommutativeNewProp @mut atomicAndFetchNewMRef (.&.)
+        prop "atomicOrFetchOldMRef" $
+          asyncAssociativeCommutativeOldProp @mut atomicOrFetchOldMRef (.|.)
+        prop "atomicOrFetchNewMRef" $
+          asyncAssociativeCommutativeNewProp @mut atomicOrFetchNewMRef (.|.)
 

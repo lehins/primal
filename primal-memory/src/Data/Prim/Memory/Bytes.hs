@@ -513,7 +513,7 @@ casBoolFetchMBytes mb off expected new = do
   isCasSucc <- casBoolMBytes mb off expected new
   actual <-
     if isCasSucc
-      then pure expected
+      then pure new
       else readOffMBytes mb off
   pure (isCasSucc, actual)
 {-# INLINE casBoolFetchMBytes #-}

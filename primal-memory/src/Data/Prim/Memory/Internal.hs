@@ -26,6 +26,7 @@ module Data.Prim.Memory.Internal
   , module Data.Prim.Memory.Internal
   ) where
 
+import Control.Exception
 import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad.ST
 import Control.Prim.Monad
@@ -823,30 +824,6 @@ izipWithOffMemM_ r1 off1 r2 off2 nc f =
    in go off1 off2
 
 
--- class NoConstraint a
--- instance NoConstraint a
-
--- class Mut f where
---   type Elt f :: * -> Constraint
---   type Elt f = NoConstraint
---   newMut :: (Elt f a, MonadPrim s m) => m (f a s)
-
---   readMut :: (Elt f a, MonadPrim s m) => f a s -> m a
-
---   writeMut :: (Elt f a, MonadPrim s m) => f a s -> a -> m ()
-
---   makeMut :: (Elt f a, MonadPrim s m) => a -> m (f a s)
---   makeMut a = do
---     mut <- newMut
---     mut <$ writeMut mut a
-
-
--- instance Mut MAddr where
---   type Elt MAddr = Prim
---   newMut = allocMAddr (Count 1)
---   readMut = readMAddr
---   writeMut = writeMAddr
-
 -- class Mut f => MFunctor f where
 --   mmap :: (Elt f a, Elt f b, MonadPrim s m) => (a -> b) -> f a s -> m (f b s)
 
@@ -989,3 +966,15 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
          then ('0' :)
          else id) .
       showHex b8
+
+-- | Ensure that memory is filled with zeros before and after it is used.
+withScrubbedMem ::
+     (MonadUnliftPrim RW m, Prim e, MemAlloc mem)
+  => Count e
+  -> (mem RW -> m a)
+  -> m a
+withScrubbedMem c f = do
+  mem <- allocZeroMem c
+  f mem `finallyPrim` setMem mem 0 (toByteCount c) 0
+  where
+    finallyPrim m1 m2 = withRunInPrimBase $ \run -> finally (run m1) (run m2)

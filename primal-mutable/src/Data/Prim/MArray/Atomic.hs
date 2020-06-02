@@ -69,8 +69,7 @@ class MArray mut => AtomicMArray mut where
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> m (Elt mut)
-  atomicReadMArray mut i = --readMArray mut i --
-    atomicModifyMArray mut i (\x -> (x, x))
+  atomicReadMArray mut i = atomicModifyMArray mut i (\x -> (x, x))
   {-# INLINE atomicReadMArray #-}
 
   -- | Write an element into mutable array atomically. It is different from a regular
@@ -87,8 +86,7 @@ class MArray mut => AtomicMArray mut where
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
     -> Elt mut -- ^ Element to write
     -> m ()
-  atomicWriteMArray mut i !y = writeMArray mut i y
-                               --atomicModifyMArray mut i (const (y, ()))
+  atomicWriteMArray mut i !y = atomicModifyMArray mut i (const (y, ()))
   {-# INLINE atomicWriteMArray #-}
 
   -- | Perform atomic an modification of an element in a mutable structure.
@@ -103,7 +101,7 @@ class MArray mut => AtomicMArray mut where
   atomicModifyMArray mut i f =
     let go expected =
           case f expected of
-            (!new, artifact) -> do
+            (new, artifact) -> do
               (isCasSucc, actual) <- casMArray mut i expected new
               if isCasSucc
                 then pure artifact
@@ -118,55 +116,55 @@ class MArray mut => AtomicMArray mut where
 
 class (Num (Elt mut), AtomicMArray mut) => AtomicCountMArray mut where
   atomicAddFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicAddFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x))
+  atomicAddFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x))
   {-# INLINE atomicAddFetchOldMArray #-}
 
   atomicAddFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicAddFetchNewMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x'))
+  atomicAddFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x'))
   {-# INLINE atomicAddFetchNewMArray #-}
 
   atomicSubFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicSubFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x))
+  atomicSubFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x))
   {-# INLINE atomicSubFetchOldMArray #-}
 
   atomicSubFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicSubFetchNewMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x'))
+  atomicSubFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x'))
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
 class (Bits (Elt mut), AtomicMArray mut) => AtomicBitsMArray mut where
   atomicAndFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicAndFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x))
+  atomicAndFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x))
   {-# INLINE atomicAndFetchOldMArray #-}
 
   atomicAndFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicAndFetchNewMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x'))
+  atomicAndFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x'))
   {-# INLINE atomicAndFetchNewMArray #-}
 
   atomicNandFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicNandFetchOldMArray mut i y =
+  atomicNandFetchOldMArray mut i !y =
     atomicModifyMArray mut i (\x -> let x' = complement (x .&. y) in (x', x))
   {-# INLINE atomicNandFetchOldMArray #-}
 
   atomicNandFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicNandFetchNewMArray mut i y =
+  atomicNandFetchNewMArray mut i !y =
     atomicModifyMArray mut i (\x -> let x' = complement (x .&. y) in (x', x'))
   {-# INLINE atomicNandFetchNewMArray #-}
 
   atomicOrFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicOrFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x))
+  atomicOrFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x))
   {-# INLINE atomicOrFetchOldMArray #-}
 
   atomicOrFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicOrFetchNewMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x'))
+  atomicOrFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x'))
   {-# INLINE atomicOrFetchNewMArray #-}
 
   atomicXorFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicXorFetchOldMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x))
+  atomicXorFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x))
   {-# INLINE atomicXorFetchOldMArray #-}
 
   atomicXorFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
-  atomicXorFetchNewMArray mut i y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x'))
+  atomicXorFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x'))
   {-# INLINE atomicXorFetchNewMArray #-}
 
   atomicNotFetchOldMArray :: MonadPrim s m => mut s -> Int -> m (Elt mut)
