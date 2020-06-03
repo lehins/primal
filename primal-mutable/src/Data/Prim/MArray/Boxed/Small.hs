@@ -87,6 +87,10 @@ instance IsList (SBArray e) where
 
 data MSBArray e s = MSBArray (SmallMutableArray# s e)
 
+-- | Does not force the content of mutable array
+instance NFData (MSBArray s e) where
+  rnf (MSBArray _) = ()
+
 -- | Check if both of the arrays refer to the exact same one. None of the elements are
 -- evaluated.
 instance Eq (MSBArray e s) where

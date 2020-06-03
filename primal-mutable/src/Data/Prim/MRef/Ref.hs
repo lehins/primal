@@ -106,6 +106,16 @@ instance AtomicMRef (Ref a) where
   casMRef = casRef
   {-# INLINE casMRef #-}
 
+  -- atomicModifyMRef = atomicModifyRef
+  -- {-# INLINE atomicModifyMRef #-}
+
+  -- atomicModifyFetchOldMRef = atomicModifyFetchOldRef
+  -- {-# INLINE atomicModifyFetchOldMRef #-}
+
+  -- atomicModifyFetchNewMRef = atomicModifyFetchNewRef
+  -- {-# INLINE atomicModifyFetchNewMRef #-}
+
+
 instance Num a => AtomicCountMRef (Ref a)
 
 instance Bits a => AtomicBitsMRef (Ref a)
@@ -396,10 +406,16 @@ atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 atomicModifyRef (Ref ref#) f =
   let g a =
         case f a of
-          t@(a', _) -> a' `seq` t
+          t@(!_, _) -> t
    in prim $ \s ->
         case atomicModifyMutVar# ref# g s of
           (# s', b #) -> seq# b s'
+  -- let g a =
+  --       case f a of
+  --         t@(a', _) -> a' `seq` t
+  --  in prim $ \s ->
+  --       case atomicModifyMutVar# ref# g s of
+  --         (# s', b #) -> seq# b s'
 {-# INLINE atomicModifyRef #-}
 
 atomicModifyRef_ :: MonadPrim s m => Ref a s -> (a -> a) -> m ()
@@ -441,24 +457,35 @@ atomicModifyRef2_ (Ref ref#) f =
 {-# INLINE atomicModifyRef2_ #-}
 
 
+-- atomicModifyFetchOldRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+-- atomicModifyFetchOldRef (Ref ref#) f =
+--   prim $ \s ->
+--     case atomicModifyMutVar2# ref# (\x -> let !x' = f x in (x' , ())) s of
+--       (# s', prev, (_cur, ()) #) -> (# s', prev #)
+-- {-# INLINE atomicModifyFetchOldRef #-}
 
 
 atomicModifyFetchOldRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicModifyFetchOldRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
-      (# s', prev, _cur #) -> (# s', prev #)
+      (# s', prev, !_cur #) -> (# s', prev #)
+{-# INLINE atomicModifyFetchOldRef #-}
 
 atomicModifyFetchNewRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 atomicModifyFetchNewRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
-      (# s', _prev, cur #) -> seq# cur s'
+      (# s', _prev, !cur #) -> (# s', cur #)
+{-# INLINE atomicModifyFetchNewRef #-}
 
 casRef :: MonadPrim s m => Ref a s -> a -> a -> m (Bool, a)
-casRef (Ref ref#) expOld new = prim $ \ s ->
-  case casMutVar# ref# expOld new s of
-    (# s', failed#, actualOld #) -> (# s', (isTrue# (failed# ==# 0#), actualOld) #)
+casRef (Ref ref#) expOld new =
+  prim $ \s ->
+    case casMutVar# ref# expOld new s of
+      (# s', failed#, actualOld #) ->
+        (# s', (isTrue# (failed# ==# 0#), actualOld) #)
+{-# INLINE casRef #-}
 
 
 

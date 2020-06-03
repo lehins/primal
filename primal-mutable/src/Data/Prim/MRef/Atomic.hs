@@ -18,8 +18,6 @@ module Data.Prim.MRef.Atomic
   , AtomicCountMRef(..)
   , AtomicBitsMRef(..)
   , atomicModifyMRef_
-  , atomicModifyFetchOldMRef
-  , atomicModifyFetchNewMRef
   ) where
 
 import Control.Prim.Monad
@@ -80,12 +78,48 @@ class MRef mut => AtomicMRef mut where
      in readMRef mut >>= go
   {-# INLINE atomicModifyMRef #-}
 
+  -- | Perform atomic modification of an element in a mutable structure and return the
+  -- previous value.
+  --
+  -- @since 0.1.0
+  atomicModifyFetchOldMRef ::
+       MonadPrim s m
+    => mut s -- ^ Variable to be mutated
+    -> (Elt mut -> Elt mut) -- ^ Function to be applied atomically to the element
+    -> m (Elt mut)
+  atomicModifyFetchOldMRef mut f =
+    let go expected = do
+          (isCasSucc, actual) <- casMRef mut expected (f expected)
+          if isCasSucc
+            then pure expected
+            else go actual
+     in readMRef mut >>= go
+  {-# INLINE atomicModifyFetchOldMRef #-}
+
+  -- | Perform atomic modification of an element in a mutable structure and return the
+  -- previous value.
+  --
+  -- @since 0.1.0
+  atomicModifyFetchNewMRef ::
+       MonadPrim s m
+    => mut s -- ^ Variable to be mutated
+    -> (Elt mut -> Elt mut) -- ^ Function to be applied atomically to the element
+    -> m (Elt mut)
+  atomicModifyFetchNewMRef mut f =
+    let go expected = do
+          let new = f expected
+          (isCasSucc, actual) <- casMRef mut expected new
+          if isCasSucc
+            then pure new
+            else go actual
+     in readMRef mut >>= go
+  {-# INLINE atomicModifyFetchNewMRef #-}
 
 
 
 class (Num (Elt mut), AtomicMRef mut) => AtomicCountMRef mut where
   atomicAddFetchOldMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
-  atomicAddFetchOldMRef mut !y = atomicModifyMRef mut (\x -> let x' = x + y in (x', x))
+  atomicAddFetchOldMRef mut !y = atomicModifyFetchOldMRef mut (+ y)
   {-# INLINE atomicAddFetchOldMRef #-}
 
   atomicAddFetchNewMRef :: MonadPrim s m => mut s -> Elt mut -> m (Elt mut)
@@ -283,14 +317,3 @@ instance (Bits e, AtomicBits e) => AtomicBitsMRef (MAddr e) where
 atomicModifyMRef_ :: (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m ()
 atomicModifyMRef_ ref f = atomicModifyMRef ref $ \e -> (f e, ())
 {-# INLINE atomicModifyMRef_ #-}
-
-
-atomicModifyFetchOldMRef ::
-     (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m (Elt mut)
-atomicModifyFetchOldMRef ref f = atomicModifyMRef ref $ \e -> (f e, e)
-{-# INLINE atomicModifyFetchOldMRef #-}
-
-atomicModifyFetchNewMRef ::
-     (AtomicMRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m (Elt mut)
-atomicModifyFetchNewMRef ref f = atomicModifyMRef ref $ \e -> let e' = f e in (e', e')
-{-# INLINE atomicModifyFetchNewMRef #-}

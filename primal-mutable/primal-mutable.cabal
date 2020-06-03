@@ -84,6 +84,25 @@ library
 --                       -threaded
 --                       -with-rtsopts=-N2
 
+benchmark atomic
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      bench
+  main-is:             Atomic.hs
+  ghc-options:         -Wall
+                       -threaded
+                       -O2
+                       -with-rtsopts=-N
+  build-depends:       base
+                     , atomic-primops
+                     , criterion
+                     , primal
+                     , primal-memory
+                     , primal-mutable
+                     , deepseq
+                     , unliftio
+  default-language:    Haskell2010
+
+
 -- benchmark bench
 --   type:                exitcode-stdio-1.0
 --   hs-source-dirs:      bench
