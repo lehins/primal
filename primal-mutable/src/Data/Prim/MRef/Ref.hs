@@ -99,21 +99,18 @@ instance MRef (Ref a) where
   {-# INLINE readMRef #-}
 
 instance AtomicMRef (Ref a) where
-  -- atomicReadMRef = atomicReadRef
-  -- {-# INLINE atomicReadMRef #-}
-  -- atomicWriteMRef = atomicWriteRef
-  -- {-# INLINE atomicWriteMRef #-}
+  atomicReadMRef = atomicReadRef
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef = atomicWriteRef
+  {-# INLINE atomicWriteMRef #-}
   casMRef = casRef
   {-# INLINE casMRef #-}
-
-  -- atomicModifyMRef = atomicModifyRef
-  -- {-# INLINE atomicModifyMRef #-}
-
-  -- atomicModifyFetchOldMRef = atomicModifyFetchOldRef
-  -- {-# INLINE atomicModifyFetchOldMRef #-}
-
-  -- atomicModifyFetchNewMRef = atomicModifyFetchNewRef
-  -- {-# INLINE atomicModifyFetchNewMRef #-}
+  atomicModifyMRef = atomicModifyRef
+  {-# INLINE atomicModifyMRef #-}
+  atomicModifyFetchOldMRef = atomicModifyFetchOldRef
+  {-# INLINE atomicModifyFetchOldMRef #-}
+  atomicModifyFetchNewMRef = atomicModifyFetchNewRef
+  {-# INLINE atomicModifyFetchNewMRef #-}
 
 
 instance Num a => AtomicCountMRef (Ref a)

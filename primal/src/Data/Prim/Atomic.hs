@@ -805,7 +805,10 @@ instance Atomic Int where
   {-# INLINE casBoolOffAddr# #-}
 
 instance AtomicCount Int where
-  atomicAddFetchOldMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchOldIntArrayIO mba# i# a)
+  atomicAddFetchOldMutableByteArray# mba# i# a@(I# a#) s =
+    case fetchAddIntArray# mba# i# a# s of
+      (# s', a'# #) -> (# s', I# a'# #)
+    --unsafePrimBase (syncAddFetchOldIntArrayIO mba# i# a)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
   atomicAddFetchNewMutableByteArray# mba# i# a = unsafePrimBase (syncAddFetchNewIntArrayIO mba# i# a)
   {-# INLINE atomicAddFetchNewMutableByteArray# #-}

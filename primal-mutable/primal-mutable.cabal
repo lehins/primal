@@ -91,7 +91,7 @@ benchmark atomic
   ghc-options:         -Wall
                        -threaded
                        -O2
-                       -with-rtsopts=-N
+                       -with-rtsopts=-N4
   build-depends:       base
                      , atomic-primops
                      , criterion

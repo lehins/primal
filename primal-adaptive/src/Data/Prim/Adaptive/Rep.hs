@@ -32,6 +32,7 @@ import Data.Prim.MArray.Unboxed
 import Data.Prim.MArray.Unboxed.Ragged
 import Data.Prim.Memory.ByteArray
 import Data.Prim.Memory.Bytes
+import Data.Prim.Unbox
 import Data.Semigroup
 import Data.Type.Equality
 import Foreign.C.Error (Errno(..))
@@ -59,6 +60,7 @@ type family AdaptRep def e :: Type -> Type -> Type where
   AdaptRep def Word64 = MUArray
   AdaptRep def CLLong = MUArray
   AdaptRep def CULLong = MUArray
+  AdaptRep def (Unbox a) = MUArray
 #if __GLASGOW_HASKELL__ >= 802
   AdaptRep def (a :~~: b) = MUArray
 #if __GLASGOW_HASKELL__ >= 806

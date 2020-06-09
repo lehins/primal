@@ -71,7 +71,7 @@ import Foreign.Prim hiding (Any)
 import GHC.IO
 import GHC.TypeLits
 
-newtype Atom a = Atom a
+newtype Atom a = Atom { unAtom :: a }
   deriving (Show, Eq, Ord, Num, Enum, Integral, Real, RealFrac, Fractional, Floating, RealFloat, Bits, NFData)
 
 

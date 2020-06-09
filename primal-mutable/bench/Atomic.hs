@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
+import Control.Concurrent
 import Control.Monad
 import Criterion.Main
 import Data.Int
@@ -22,15 +23,31 @@ import GHC.IORef
 
 main :: IO ()
 main = do
+  c <- getNumCapabilities
   let !k = 17 :: Int
-      !c = 4 -- caps
       !n = 100000 :: Int
       !e0 = 16 :: Int
       !off0 = 0 :: Off Int
       !toff0 = 0 :: Off (Int, Int)
-      benchSeq name f = bench name $ whnfIO $ forM_ [1 .. n] f
-      benchConc name f =
-        bench name $ whnfIO $ pooledForConcurrentlyN_ c [1 .. n] f
+      tup x = (x, x)
+      addTup k' (x, y) =
+        let a'@(!_, !_) = (x + k', y - k')
+         in a'
+      mkMBytes :: Prim e => (Int -> e) -> IO (MBytes 'Inc RW)
+      mkMBytes f = singletonMBytes (f e0)
+      mkMByteArray :: Prim e => (Int -> e) -> IO (MByteArray 'Inc e RW)
+      mkMByteArray f = newMRef (f e0)
+      mkRef :: (Int -> e) -> IO (Ref e RW)
+      mkRef f = newMRef (f e0)
+      mkMSBArray :: (Int -> e) -> IO (MSBArray e RW)
+      mkMSBArray f = newMRef (f e0)
+      mkIORef :: (Int -> e) -> IO (IORef e)
+      mkIORef f = newIORef (f e0)
+      benchSeq mkEnv name f =
+        env mkEnv $ \ref -> bench name $ whnfIO $ forM_ [1 .. n] (f ref)
+      benchConc mkEnv name f =
+        env mkEnv $ \ref ->
+          bench name $ whnfIO $ pooledForConcurrentlyN_ c [1 .. n] (f ref)
   defaultMain
     [ bgroup
         "Single"
@@ -185,131 +202,131 @@ main = do
         "Sequential"
         [ bgroup
             "AddFetchOld"
-            [ env (singletonMBytes e0 :: IO (MBytes 'Inc RW)) $ \mb ->
-                bgroup
-                  "MBytes"
-                  [ benchSeq "modifyFetchOldMem (single core)" $ \k' ->
-                      modifyFetchOldMem mb off0 (+ k')
-                  ]
-            , env (singletonMBytes (Atom e0) :: IO (MBytes 'Inc RW)) $ \mb ->
-                bgroup
-                  "MBytes (Atom)"
-                  [ benchConc "atomicModifyFetchOldMBytes" $ \k' ->
-                      atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k')
-                  ]
-            , env (newRef 0) $ \ref ->
-                bgroup
-                  "Ref"
-                  [ benchSeq "modifyFetchOldRef  (single core)" $ \k' ->
-                      modifyFetchOldRef ref (+ k')
-                  ]
-            , env (newIORef 0) $ \ioRef ->
-                bgroup
-                  "IORef"
-                  [ benchSeq "modifyFetchOldIORef (single core)" $ \k' -> do
-                      a <- readIORef ioRef
-                      let a' = a + k'
-                      a' `seq` (a <$ writeIORef ioRef a')
-                  ]
+            [ bgroup
+                "MBytes"
+                [ benchSeq (mkMBytes id) "modifyFetchOldMem (Int)" $ \mb k' ->
+                    modifyFetchOldMem mb off0 (+ k')
+                , benchSeq (mkMBytes tup) "modifyFetchOldMem (Int, Int)" $ \mb k' ->
+                    modifyFetchOldMem
+                      mb
+                      (coerce toff0 :: Off (Int, Int))
+                      (addTup k')
+                , benchSeq (mkMBytes Atom) "modifyFetchOldMem (Atom Int)" $ \mb k' ->
+                    modifyFetchOldMem mb (coerce off0) (+ Atom k')
+                , benchSeq
+                    (mkMBytes (Atom . tup))
+                    "modifyFetchOldMem (Atom (Int, Int))" $ \mb k' ->
+                    modifyFetchOldMem
+                      mb
+                      (coerce toff0 :: Off (Atom (Int, Int)))
+                      (\(Atom a) -> Atom (addTup k' a))
+                ]
+            , bgroup
+                "Ref"
+                [ benchSeq (mkRef id) "modifyFetchOldRef  (Int)" $ \ref k' ->
+                    modifyFetchOldRef ref (+ k')
+                , benchSeq (mkRef tup) "modifyFetchOldRef (Int, Int)" $ \ref k' -> do
+                    modifyFetchOldRef ref (addTup k')
+                ]
+            , bgroup
+                "IORef"
+                [ benchSeq (mkIORef id) "modifyFetchOldIORef (Int)" $ \ioRef k' -> do
+                    a <- readIORef ioRef
+                    writeIORef ioRef $! a + k'
+                    pure a
+                , benchSeq (mkIORef tup) "modifyFetchOldIORef (Int, Int)" $ \ioRef k' -> do
+                    a <- readIORef ioRef
+                    writeIORef ioRef $! addTup k' a
+                    pure a
+                ]
             ]
         ]
     , bgroup
         "Concurrent"
         [ bgroup
             "AddFetchOld"
-            [ env (singletonMBytes e0 :: IO (MBytes 'Inc RW)) $ \mb ->
-                bgroup
-                  "MBytes"
-                  [ benchConc "atomicModifyFetchOldMBytes" $ \k' ->
-                      atomicModifyFetchOldMBytes mb off0 (+ k')
-                  , benchConc "atomicBoolModifyFetchOldMBytes" $ \k' ->
-                      atomicBoolModifyFetchOldMBytes mb off0 (+ k')
-                  , benchConc "atomicAddFetchOldMBytes" $ \k' ->
-                      atomicAddFetchOldMBytes mb off0 k'
-                  , benchConc "atomicAddFetchOldMBytes" $
+            [ bgroup
+                "MBytes"
+                [ benchConc (mkMBytes id) "atomicModifyFetchOldMBytes" $ \mb k' ->
+                    atomicModifyFetchOldMBytes mb off0 (+ k')
+                , benchConc (mkMBytes id) "atomicBoolModifyFetchOldMBytes" $ \mb k' ->
+                    atomicBoolModifyFetchOldMBytes mb off0 (+ k')
+                , benchConc (mkMBytes id) "atomicAddFetchOldMBytes" $ \mb ->
                     atomicAddFetchOldMBytes mb off0
-                  ]
-            , env (singletonMBytes (Atom e0) :: IO (MBytes 'Inc RW)) $ \mb ->
-                bgroup
-                  "MBytes (Atom)"
-                  [ benchConc "atomicModifyFetchOldMBytes" $ \k' ->
-                      atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k')
-                  ]
-            , env (newMRef 0 :: IO (MSBArray Int RW)) $ \ref ->
-                bgroup
-                  "MSBArray"
-                  [ benchConc "atomicModifyFetchOldMRef" $ \k' ->
-                      atomicModifyFetchOldMRef ref (+ k')
-                  , benchConc "atomicAddFetchOldMRef" $
-                    atomicAddFetchOldMRef ref
-                  ]
-            , env (newRef 0) $ \ref ->
-                bgroup
-                  "Ref"
-                  [ benchConc "atomicModifyRef" $ \k' ->
-                      atomicModifyRef ref (\x -> (x + k', x))
-                  , benchConc "atomicModifyFetchOldRef" $ \k' ->
-                      atomicModifyFetchOldRef ref (+ k')
-                  , benchConc "atomicModifyFetchOldMRef" $ \k' ->
-                      atomicModifyFetchOldMRef ref (+ k')
-                  , benchConc "atomicAddFetchOldMRef" $
-                    atomicAddFetchOldMRef ref
-                  ]
-            , env (newIORef 0) $ \ioRef ->
-                bgroup
-                  "IORef"
-                  [ benchConc "atomicModifyIORef'" $ \k' ->
-                      atomicModifyIORef' ioRef (\x -> (x + k', x))
-                  , benchConc "atomicModifyIORefCAS" $ \k' ->
-                      atomicModifyIORefCAS ioRef (\x -> (x + k', x))
-                  ]
+                ]
+            , bgroup
+                "MBytes (Atom)"
+                [ benchConc (mkMBytes Atom) "atomicModifyFetchOldMBytes" $ \mb k' ->
+                    atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k')
+                ]
+            , bgroup
+                "MByteArray"
+                [ benchConc (mkMByteArray id) "atomicModifyFetchOldMRef" $ \mb k' ->
+                    atomicModifyFetchOldMRef mb (+ k')
+                , benchConc (mkMByteArray id) "atomicAddFetchOldMRef" $ \mb ->
+                    atomicAddFetchOldMRef mb
+                ]
+            , bgroup
+                "MSBArray"
+                [ benchConc (mkMSBArray id) "atomicModifyFetchOldMRef" $ \ref k' ->
+                    atomicModifyFetchOldMRef ref (+ k')
+                , benchConc (mkMSBArray id) "atomicAddFetchOldMRef" $ \ref k' ->
+                    atomicAddFetchOldMRef ref k'
+                ]
+            , bgroup
+                "Ref"
+                  -- benchConc (mkRef id) "atomicModifyRef" $ \ref k' ->
+                  --     atomicModifyRef ref (\x -> (x + k', x))
+                  -- , benchConc (mkRef id) "atomicModifyFetchOldRef" $ \ref k' ->
+                  --     atomicModifyFetchOldRef ref (+ k')
+                  -- ,
+                [ benchConc (mkRef id) "atomicAddFetchOldMRef" $ \ref k' ->
+                    atomicAddFetchOldMRef ref k'
+                , benchConc (mkRef id) "atomicAddFetchNewMRef" $ \ref k' ->
+                    atomicAddFetchOldMRef ref k'
+                ]
+            , bgroup
+                "IORef"
+                [ benchConc (mkIORef id) "atomicModifyIORef'" $ \ioRef k' ->
+                    atomicModifyIORef' ioRef (\x -> (x + k', x))
+                , benchConc (mkIORef id) "atomicModifyIORefCAS" $ \ioRef k' ->
+                    atomicModifyIORefCAS ioRef (\x -> (x + k', x))
+                ]
             ]
         ]
     , bgroup
         "TupleConcurrent"
         [ bgroup
             "AddFetchOld"
-            [ env (singletonMBytes (Atom (e0, e0)) :: IO (MBytes 'Inc RW)) $ \mb ->
-                bgroup
-                  "MBytes"
-                  [ benchSeq "modifyFetchOldMem (single core)" $ \k' ->
-                      modifyFetchOldMem
-                        mb
-                        (coerce toff0 :: Off (Atom (Int, Int)))
-                        (\(Atom (x, y)) -> Atom (x + k', y - k'))
-                  , benchConc "atomicModifyFetchOldMBytes" $ \k' ->
-                      atomicModifyFetchOldMBytes
-                        mb
-                        (coerce toff0 :: Off (Atom (Int, Int)))
-                        (\(Atom (x, y)) -> Atom (x + k', y - k'))
-                  ]
-            , env (newRef (0, 0)) $ \ref ->
-                bgroup
-                  "Ref"
-                  [ bench "modifyFetchOldRef  (single core)" $
-                    nfIO $
-                    forM_ [1 .. n] $ \k' -> modifyFetchOldRef ref (fmap (+ k'))
-                  , benchConc "atomicModifyFetchOldRef" $ \k' ->
-                      atomicModifyFetchOldRef ref (\(x, y) -> (x + k', y - k'))
-                  , benchConc "atomicModifyFetchOldMRef" $ \k' ->
-                      atomicModifyFetchOldMRef ref (\(x, y) -> (x + k', y - k'))
-                  ]
-            , env (newIORef (0, 0)) $ \ioRef ->
-                bgroup
-                  "IORef"
-                  [ benchSeq "modifyFetchOldIORef (single core)" $ \k' -> do
-                      a@(x, y) <- readIORef ioRef
-                      let a' = (x + k', y - k')
-                      a' `seq` (a <$ writeIORef ioRef a')
-                  , benchConc "atomicModifyIORef'" $ \k' ->
-                      atomicModifyIORef'
-                        ioRef
-                        (\(x, y) -> ((x + k', y - k'), (x, y)))
-                  , benchConc "atomicModifyIORefCAS" $ \k' ->
-                      atomicModifyIORefCAS
-                        ioRef
-                        (\(x, y) -> ((x + k', y - k'), (x, y)))
-                  ]
+            [ bgroup
+                "MBytes"
+                [ benchConc (mkMBytes (Atom . tup)) "atomicModifyFetchOldMBytes" $ \mb k' ->
+                    atomicModifyFetchOldMBytes
+                      mb
+                      (coerce toff0 :: Off (Atom (Int, Int)))
+                      (\(Atom a) -> Atom (addTup k' a))
+                ]
+            , bgroup
+                "MByteArray"
+                [ benchConc (mkMByteArray (Atom . tup)) "atomicModifyFetchOldMRef" $ \mb k' ->
+                    atomicModifyFetchOldMRef
+                      mb
+                      (\(Atom a) -> Atom (addTup k' a))
+                ]
+            , bgroup
+                "Ref"
+                [ benchConc (mkRef tup) "atomicModifyFetchOldRef" $ \ref k' ->
+                    atomicModifyFetchOldRef ref (addTup k')
+                , benchConc (mkRef tup) "atomicModifyFetchOldMRef" $ \ref k' ->
+                    atomicModifyFetchOldMRef ref (addTup k')
+                ]
+            , bgroup
+                "IORef"
+                [ benchConc (mkIORef tup) "atomicModifyIORef'" $ \ioRef k' ->
+                    atomicModifyIORef' ioRef (\a -> (addTup k' a, a))
+                , benchConc (mkIORef tup) "atomicModifyIORefCAS" $ \ioRef k' ->
+                    atomicModifyIORefCAS ioRef (\a -> (addTup k' a, a))
+                ]
             ]
         ]
         -- , bgroup
