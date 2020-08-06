@@ -3,6 +3,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnliftedFFITypes #-}
 -- |
 -- Module      : Control.Prim.Concurrent
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -21,6 +22,7 @@ import Control.Prim.Exception
 import Control.Prim.Monad.Internal
 import GHC.Exts
 import System.Posix.Types
+import Foreign.C.Types
 
 
 spark :: MonadPrim s m => a -> m a
@@ -110,5 +112,18 @@ threadStatus = liftPrimBase . GHC.threadStatus
 
 threadCapability :: MonadPrim RW m => GHC.ThreadId -> m (Int, Bool)
 threadCapability = liftPrimBase . GHC.threadCapability
+
+-- | Something that is not available in @base@. Convert a `GHC.ThreadId` to a regular
+-- integral type.
+--
+-- @since 0.0.0
+threadIdToCInt :: GHC.ThreadId -> CInt
+threadIdToCInt tid = getThreadId (id2TSO tid)
+
+id2TSO :: GHC.ThreadId -> ThreadId#
+id2TSO (GHC.ThreadId t) = t
+
+-- Relevant ticket: https://gitlab.haskell.org/ghc/ghc/-/issues/8281
+foreign import ccall unsafe "rts_getThreadId" getThreadId :: ThreadId# -> CInt
 
 

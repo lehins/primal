@@ -42,7 +42,7 @@ seqPrim :: MonadPrim s m => a -> m a
 seqPrim a = prim (seq# a)
 
 
--- | Forward compatible operator that will be introduced in some future ghc version.
+-- | Forward compatible operator that might get introduced in some future ghc version.
 --
 -- See: [!2961](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961)
 with# ::

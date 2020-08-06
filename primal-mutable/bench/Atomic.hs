@@ -132,12 +132,15 @@ main = do
                     nfIO $
                     atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k)
                   ]
-            , env (newMRef e0 :: IO (MByteArray 'Inc Int RW)) $ \mb ->
-                bgroup
-                  "MBytesArray"
-                  [ bench "atomicAddFetchOldMRef" $
+            , bgroup
+                "MByteArray"
+                [ env (newMRef e0 :: IO (MByteArray 'Inc Int RW)) $ \mb ->
+                    bench "atomicAddFetchOldMRef" $
                     nfIO $ atomicAddFetchOldMRef mb k
-                  ]
+                , env (newMRef (fromIntegral e0) :: IO (MByteArray 'Inc Int64 RW)) $ \mb ->
+                    bench "atomicAddFetchOldMRef" $
+                    nfIO $ atomicAddFetchOldMRef mb (fromIntegral k)
+                ]
             , env (newRef 0) $ \ref ->
                 bgroup
                   "Ref"
@@ -265,6 +268,8 @@ main = do
                     atomicModifyFetchOldMRef mb (+ k')
                 , benchConc (mkMByteArray id) "atomicAddFetchOldMRef" $ \mb ->
                     atomicAddFetchOldMRef mb
+                , benchConc (mkMByteArray fromIntegral) "atomicAddFetchOldMRef" $ \mb k' ->
+                    atomicAddFetchOldMRef mb (fromIntegral k' :: Int64)
                 ]
             , bgroup
                 "MSBArray"
@@ -308,7 +313,9 @@ main = do
                 ]
             , bgroup
                 "MByteArray"
-                [ benchConc (mkMByteArray (Atom . tup)) "atomicModifyFetchOldMRef" $ \mb k' ->
+                [ benchConc
+                    (mkMByteArray (Atom . tup))
+                    "atomicModifyFetchOldMRef" $ \mb k' ->
                     atomicModifyFetchOldMRef
                       mb
                       (\(Atom a) -> Atom (addTup k' a))
