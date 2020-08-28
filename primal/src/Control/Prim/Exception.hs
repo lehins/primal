@@ -14,8 +14,6 @@
 module Control.Prim.Exception
   ( module Control.Prim.Exception
   ) where
-  -- , withPrimBase
-  -- , with#
 
 import Control.Exception as GHC
 import qualified GHC.Conc as GHC
@@ -26,6 +24,16 @@ import GHC.Exts
 
 
 ----- Exceptions
+
+isSyncException :: Exception e => e -> Bool
+isSyncException = not . isAsyncException
+
+isAsyncException :: Exception e => e -> Bool
+isAsyncException exc =
+  case fromException (toException exc) of
+    Just (SomeAsyncException _) -> True
+    Nothing -> False
+
 
 throw :: (Exception e, MonadPrim s m) => e -> m a
 throw e = unsafeIOToPrim $ prim (raiseIO# (toException e))
@@ -45,29 +53,53 @@ catch action handler =
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
 catchAny ::
-     forall a m. (MonadUnliftPrim RW m)
+     forall a m. MonadUnliftPrim RW m
+  => m a
+  -> (SomeException -> m a)
+  -> m a
+catchAny action handler =
+  withRunInPrimBase $ \run ->
+    let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
+        handler# exc = primBase (run (handler exc) :: IO a)
+     in prim (catch# (primBase (run action :: IO a)) handler#)
+
+catchAnySync ::
+     forall a m. MonadUnliftPrim RW m
+  => m a
+  -> (SomeException -> m a)
+  -> m a
+catchAnySync action handler =
+  withRunInPrimBase $ \run ->
+    let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
+        handler# exc
+          | isAsyncException exc = raiseIO# exc
+          | otherwise = primBase (run (handler exc) :: IO a)
+     in prim (catch# (primBase (run action :: IO a)) handler#)
+
+catchAll ::
+     forall a m. MonadUnliftPrim RW m
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAny action handler =
+catchAll action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# (SomeException e) = primBase (run (handler e) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAnySync ::
-     forall a m. (MonadUnliftPrim RW m)
+catchAllSync ::
+     forall a m. MonadUnliftPrim RW m
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAnySync action handler =
+catchAllSync action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
-        handler# exc@(SomeException e) =
-          case fromException exc of
-            Just (SomeAsyncException _asyncExc) -> raiseIO# exc
-            Nothing -> primBase (run (handler e) :: IO a)
+        handler# exc@(SomeException e)
+          | isAsyncException exc = raiseIO# exc
+          | otherwise = primBase (run (handler e) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
+
 
 maskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
 maskAsyncExceptions action =
@@ -81,10 +113,17 @@ maskUninterruptible :: forall a m. MonadUnliftPrim RW m => m a -> m a
 maskUninterruptible action =
   withRunInPrimBase $ \run -> prim (maskUninterruptible# (primBase (run action :: IO a)))
 
-
+-- | Same as `GHC.getMaskingState`, but generalized to `MonadPrim`
 getMaskingState :: MonadPrim RW m => m MaskingState
 getMaskingState = liftPrimBase GHC.getMaskingState
 
-
+-- | Similar to `unliftio` this will wrap any known non-async exception with
+-- `SomeAsyncException`, because otherwise semantics of `throwTo` with respect to
+-- asynchronous exceptions are violated.
 throwTo :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
-throwTo tid = liftPrimBase . GHC.throwTo tid
+throwTo tid e =
+  liftPrimBase $
+  GHC.throwTo tid $
+  if isAsyncException e
+    then toException e
+    else toException $ SomeAsyncException e
