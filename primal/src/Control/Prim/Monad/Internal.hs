@@ -25,6 +25,8 @@ module Control.Prim.Monad.Internal
   , prim_
   , primBase_
   , runInPrimBase
+  , liftPrimIO
+  , liftPrimST
   , liftPrimBase
   , primBaseToIO
   , primBaseToST
@@ -191,6 +193,18 @@ primBase_ m s = case primBase m s of
 prim_ :: MonadPrim s m => (State# s -> State# s) -> m ()
 prim_ f = prim $ \s -> (# f s, () #)
 {-# INLINE prim_ #-}
+
+-- | Lift an `IO` action to `MonadPrim` with the `RealWorld` state token. Type restricted
+-- synonym for `liftPrimBase`
+liftPrimIO :: MonadPrim RW m => IO a -> m a
+liftPrimIO m = prim (primBase m)
+{-# INLINE liftPrimIO #-}
+
+-- | Lift an `ST` action to `MonadPrim` with the same state token. Type restricted synonym
+-- for `liftPrimBase`
+liftPrimST :: MonadPrim s m => ST s a -> m a
+liftPrimST m = prim (primBase m)
+{-# INLINE liftPrimST #-}
 
 -- | Lift an action from the `MonadPrimBase` to another `MonadPrim` with the same state
 -- token.

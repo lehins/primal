@@ -35,8 +35,8 @@ isAsyncException exc =
     Nothing -> False
 
 
-throw :: (Exception e, MonadPrim s m) => e -> m a
-throw e = unsafeIOToPrim $ prim (raiseIO# (toException e))
+throwPrim :: (Exception e, MonadPrim s m) => e -> m a
+throwPrim e = unsafeIOToPrim $ prim (raiseIO# (toException e))
 
 catch ::
      forall e a m. (Exception e, MonadUnliftPrim RW m)
@@ -117,9 +117,10 @@ maskUninterruptible action =
 getMaskingState :: MonadPrim RW m => m MaskingState
 getMaskingState = liftPrimBase GHC.getMaskingState
 
--- | Similar to `unliftio` this will wrap any known non-async exception with
--- `SomeAsyncException`, because otherwise semantics of `throwTo` with respect to
--- asynchronous exceptions are violated.
+-- | Similar to @throwTo@ from
+-- [unliftio](https://hackage.haskell.org/package/unliftio/docs/UnliftIO-Exception.html#v:throwTo)
+-- this will wrap any known non-async exception with `SomeAsyncException`, because
+-- otherwise semantics of `throwTo` with respect to asynchronous exceptions are violated.
 throwTo :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
 throwTo tid e =
   liftPrimBase $
