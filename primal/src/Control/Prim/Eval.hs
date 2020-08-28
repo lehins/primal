@@ -45,21 +45,21 @@ seqPrim a = prim (seq# a)
 -- | Forward compatible operator that might get introduced in some future ghc version.
 --
 -- See: [!2961](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/2961)
-with# ::
+withAlive# ::
      a
   -> (State# s -> (# State# s, b #))
   -> State# s
   -> (# State# s, b #)
-with# a m s =
+withAlive# a m s =
   case m s of
     (# s', r #) -> (# unsafeCoerce# (touch# a) s', r #)
-{-# NOINLINE with# #-}
+{-# NOINLINE withAlive# #-}
 
 
-withPrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
-withPrimBase a m = prim (with# a (primBase m))
-{-# INLINE withPrimBase #-}
+withAlivePrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
+withAlivePrimBase a m = prim (withAlive# a (primBase m))
+{-# INLINE withAlivePrimBase #-}
 
-withUnliftPrim :: MonadUnliftPrim s m => a -> m b -> m b
-withUnliftPrim a m = runInPrimBase m (with# a)
-{-# INLINE withUnliftPrim #-}
+withAliveUnliftPrim :: MonadUnliftPrim s m => a -> m b -> m b
+withAliveUnliftPrim a m = runInPrimBase m (withAlive# a)
+{-# INLINE withAliveUnliftPrim #-}

@@ -107,7 +107,7 @@ class PtrAccess s p where
   withNoHaltPtrAccess :: (MonadUnliftPrim s m) => p -> (Ptr a -> m b) -> m b
   withNoHaltPtrAccess p f = do
     ForeignPtr addr# ptrContents <- toForeignPtr p
-    withUnliftPrim ptrContents $ f (Ptr addr#)
+    withAliveUnliftPrim ptrContents $ f (Ptr addr#)
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance PtrAccess s (ForeignPtr a) where
@@ -164,14 +164,13 @@ withForeignPtr (ForeignPtr addr# ptrContents) f = do
 {-# INLINE withForeignPtr #-}
 
 -- | Same thing as `withForeignPtr` except it should be used for never ending actions. See
--- `withNoHaltPtrAccess` for more information on how this and how this differes from
--- `withForeignPtr`.
+-- `withNoHaltPtrAccess` for more information on how this differes from `withForeignPtr`.
 --
 -- @since 0.1.0
 withNoHaltForeignPtr ::
      MonadUnliftPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
-  withUnliftPrim ptrContents $ f (Ptr addr#)
+  withAliveUnliftPrim ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltForeignPtr #-}
 
 -- | Lifted version of `GHC.touchForeignPtr`.

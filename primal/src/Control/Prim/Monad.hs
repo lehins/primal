@@ -10,8 +10,8 @@ module Control.Prim.Monad
   ( module Control.Prim.Monad.Internal
   , touch
   , seqPrim
-  , withPrimBase
-  , withUnliftPrim
+  , withAlivePrimBase
+  , withAliveUnliftPrim
   , showsType
   -- * Re-export
   , module Control.Monad

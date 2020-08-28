@@ -276,7 +276,7 @@ moveMByteArrayToMByteArray ba srcOff mba dstOff sz =
 
 -- -- | Same as `withPtrByteArray`, but is suitable for actions that don't terminate
 -- withNoHaltPtrByteArray :: MonadUnliftPrim s m => ByteArray Pin e -> (Ptr e -> m b) -> m b
--- withNoHaltPtrByteArray b f = withUnliftPrim b $ f (toPtrByteArray b)
+-- withNoHaltPtrByteArray b f = withAliveUnliftPrim b $ f (toPtrByteArray b)
 -- {-# INLINE withNoHaltPtrByteArray #-}
 
 -- withPtrMByteArray :: MonadPrim s m => MByteArray Pin e s -> (Ptr e -> m b) -> m b
@@ -286,7 +286,7 @@ moveMByteArrayToMByteArray ba srcOff mba dstOff sz =
 -- {-# INLINE withPtrMByteArray #-}
 
 -- withNoHaltPtrMByteArray :: MonadUnliftPrim s m => MByteArray Pin e s -> (Ptr e -> m b) -> m b
--- withNoHaltPtrMByteArray mb f = withUnliftPrim mb $ f (toPtrMByteArray mb)
+-- withNoHaltPtrMByteArray mb f = withAliveUnliftPrim mb $ f (toPtrMByteArray mb)
 -- {-# INLINE withNoHaltPtrMByteArray #-}
 
 

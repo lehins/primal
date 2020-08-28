@@ -119,5 +119,5 @@ withPtrByteString (PS (ForeignPtr addr# ptrContents) (I# o#) _) f = do
 
 withNoHaltPtrByteString :: MonadUnliftPrim s m => ByteString -> (Ptr a -> m b) -> m b
 withNoHaltPtrByteString (PS (ForeignPtr addr# ptrContents) (I# o#) _) f =
-  withUnliftPrim ptrContents $ f (Ptr (addr# `plusAddr#` o#))
+  withAliveUnliftPrim ptrContents $ f (Ptr (addr# `plusAddr#` o#))
 {-# INLINE withNoHaltPtrByteString #-}
