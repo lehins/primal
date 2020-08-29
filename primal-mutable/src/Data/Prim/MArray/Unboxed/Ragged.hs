@@ -38,6 +38,7 @@ module Data.Prim.MArray.Unboxed.Ragged
   , sizeOfMRArray
   -- ** Access
   , readMRArray
+  , readUnboxedMRArray
   , writeMRArray
   , readMBytesMRArray
   , writeMBytesMRArray
@@ -58,15 +59,10 @@ module Data.Prim.MArray.Unboxed.Ragged
   -- , traverseRArray
   ) where
 
-import Control.DeepSeq
-import Control.Exception (ArrayException(UndefinedElement), throw)
-import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.ByteArray
-import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
-import Data.Prim
 import qualified Data.Prim.MArray.Unboxed as U
 import qualified Data.Prim.MArray.Internal as I
 import Foreign.Prim
