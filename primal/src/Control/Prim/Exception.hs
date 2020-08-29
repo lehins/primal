@@ -12,9 +12,11 @@
 -- Portability : non-portable
 --
 module Control.Prim.Exception
-  ( module Control.Prim.Exception
+  ( module Control.Prim.Monad.Throw
+  , module Control.Prim.Exception
   ) where
 
+import Control.Prim.Monad.Throw
 import Control.Exception as GHC
 import qualified GHC.Conc as GHC
 import Control.Prim.Monad.Internal
@@ -34,7 +36,7 @@ isAsyncException exc =
     Just (SomeAsyncException _) -> True
     Nothing -> False
 
-
+-- | This is the same as `throwM`, but restricted to `MonadPrim`
 throwPrim :: (Exception e, MonadPrim s m) => e -> m a
 throwPrim e = unsafeIOToPrim $ prim (raiseIO# (toException e))
 

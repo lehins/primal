@@ -28,6 +28,7 @@ library
                      , Control.Prim.Eval
                      , Control.Prim.Exception
                      , Control.Prim.Monad
+                     , Control.Prim.Monad.Throw
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
                      , Data.Prim.Atom

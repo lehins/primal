@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -35,6 +34,7 @@ module Control.Prim.Monad.Internal
 import GHC.Exts
 import GHC.IO
 import GHC.ST
+import Control.Prim.Monad.Throw
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Except (ExceptT)
@@ -60,7 +60,7 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 -- | A shorter synonym for the magical `RealWorld`
 type RW = RealWorld
 
-class MonadPrim s m => MonadPrimBase s m where
+class MonadUnliftPrim s m => MonadPrimBase s m where
   -- | Unwrap a primitive action
   primBase :: m a -> State# s -> (# State# s, a #)
 
@@ -107,7 +107,7 @@ instance MonadUnliftPrim s m => MonadUnliftPrim s (ReaderT r m) where
   {-# INLINE withRunInPrimBase #-}
 
 
-class Monad m => MonadPrim s m | m -> s where
+class MonadThrow m => MonadPrim s m | m -> s where
   -- | Construct a primitive action
   prim :: (State# s -> (# State# s, a #)) -> m a
 

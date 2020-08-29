@@ -49,12 +49,16 @@ seqPrim a = prim (seq# a)
 --
 -- See: [!3131](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/3131)
 --
+-- Current version is not as efficient as the version that will be introduced in the
+-- future, because it works around the ghc bug by simply preventing inlining and relying
+-- on the `touch` function.
+--
 -- @since 0.1.0
 keepAlive# ::
      a
-  -- ^ the value to preserve
+  -- ^ The value to preserve
   -> (State# s -> (# State# s, r #))
-  -- ^ the continuation in which the value will be preserved
+  -- ^ The continuation in which the value will be preserved
   -> State# s
   -> (# State# s, r #)
 keepAlive# a m s =
@@ -65,13 +69,23 @@ keepAlive# a m s =
 -- | Similar to `touch`. See `withAlive#` for more info.
 --
 -- @since 0.1.0
-withAlivePrimBase :: (MonadPrimBase s n, MonadPrim s m) => a -> n b -> m b
+withAlivePrimBase :: (MonadPrimBase s n, MonadPrim s m) => a
+  -- ^ The value to preserve
+  -> n b
+  -- ^ Action to run in which the value will be preserved
+  -> m b
 withAlivePrimBase a m = prim (keepAlive# a (primBase m))
 {-# INLINE withAlivePrimBase #-}
 
 -- | Similar to `touch`. See `withAlive#` for more info.
 --
 -- @since 0.1.0
-withAliveUnliftPrim :: MonadUnliftPrim s m => a -> m b -> m b
+withAliveUnliftPrim ::
+     MonadUnliftPrim s m
+  => a
+  -- ^ The value to preserve
+  -> m b
+  -- ^ Action to run in which the value will be preserved
+  -> m b
 withAliveUnliftPrim a m = runInPrimBase m (keepAlive# a)
 {-# INLINE withAliveUnliftPrim #-}
