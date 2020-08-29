@@ -209,7 +209,7 @@ coerceStateMBytes = unsafeCoerce#
 
 
 emptyBytes :: Bytes p
-emptyBytes = castPinnesBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
+emptyBytes = castPinnedBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
 {-# INLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool
@@ -425,10 +425,10 @@ concatBytes = concatMem
 {-# INLINE concatBytes #-}
 
 relaxPinnedBytes :: Bytes p -> Bytes 'Inc
-relaxPinnedBytes = castPinnesBytes
+relaxPinnedBytes = castPinnedBytes
 
 relaxPinnedMBytes :: MBytes p e -> MBytes 'Inc e
-relaxPinnedMBytes = castPinnesMBytes
+relaxPinnedMBytes = castPinnedMBytes
 
 
 

@@ -25,8 +25,8 @@ module Data.Prim.Memory.Bytes.Internal
   , isSamePinnedBytes
   , isPinnedBytes
   , isPinnedMBytes
-  , castPinnesBytes
-  , castPinnesMBytes
+  , castPinnedBytes
+  , castPinnedMBytes
   , allocMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
@@ -99,7 +99,7 @@ data Pinned = Pin | Inc
 -- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
 -- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
 -- the actual constructor is available in "Data.Prim.Memory.Internal" module and specially
--- unsafe function `castPinnesBytes` was crafted.
+-- unsafe function `castPinnedBytes` was crafted.
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes nominal
 
@@ -109,7 +109,7 @@ type role Bytes nominal
 -- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromMutableByteArray#` and
 -- unwrapper `Data.Prim.Memory.Bytes.toMutableByteArray#` should be used instead. As a
 -- backdoor, of course, the actual constructor is available in "Data.Prim.Memory.Internal"
--- module and specially unsafe function `castPinnesMBytes` was crafted.
+-- module and specially unsafe function `castPinnedMBytes` was crafted.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes nominal nominal
 
@@ -271,14 +271,14 @@ reallocMBytes mb c = do
              b <- freezeMBytes mb
              mb' <- allocPinnedMBytes newByteCount
              mb' <$ copyByteOffBytesToMBytes b 0 mb' 0 oldByteCount
-           Nothing -> castPinnesMBytes <$> resizeMBytes mb newByteCount
+           Nothing -> castPinnedMBytes <$> resizeMBytes mb newByteCount
 {-# INLINABLE reallocMBytes #-}
 
-castPinnesBytes :: Bytes p' -> Bytes p
-castPinnesBytes (Bytes b#) = Bytes b#
+castPinnedBytes :: Bytes p' -> Bytes p
+castPinnedBytes (Bytes b#) = Bytes b#
 
-castPinnesMBytes :: MBytes p' s -> MBytes p s
-castPinnesMBytes (MBytes b#) = MBytes b#
+castPinnedMBytes :: MBytes p' s -> MBytes p s
+castPinnedMBytes (MBytes b#) = MBytes b#
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`

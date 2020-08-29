@@ -1,6 +1,6 @@
 name:                primal
 version:             0.1.0.0
-synopsis:            Short description
+synopsis:            Primeval world of Haskell.
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
 homepage:            https://github.com/lehins/primal
 license:             BSD3

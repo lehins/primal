@@ -1,6 +1,6 @@
 name:                primal-memory
 version:             0.1.0.0
-synopsis:            Short description
+synopsis:            Unified interface for memory managemenet.
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
 homepage:            https://github.com/lehins/primal
 license:             BSD3
