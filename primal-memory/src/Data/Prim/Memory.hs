@@ -11,11 +11,19 @@ module Data.Prim.Memory
   -- * Immutable
   , Bytes
   , MemRead
+  -- ** Size
   , countMem
   , countRemMem
+  , byteCountMem
+  -- ** Indexing
   , indexOffMem
+  , indexByteOffMem
+  -- ** Compare
   , eqMem
   , compareMem
+  , compareByteOffMem
+  , compareByteOffToPtrMem
+  , compareByteOffToBytesMem
   -- * Mutable
   , MBytes
   , MemAlloc(FrozenMem)
@@ -29,8 +37,16 @@ module Data.Prim.Memory
   , modifyFetchNewMem
   , modifyFetchNewMemM
   , setMem
-  , copyMem
+  -- ** Move
   , moveMem
+  , moveByteOffMem
+  , moveByteOffToMBytesMem
+  , moveByteOffToPtrMem
+  -- ** Copy
+  , copyMem
+  , copyByteOffMem
+  , copyByteOffToMBytesMem
+  , copyByteOffToPtrMem
 
   , MemState(..)
   , allocMem
@@ -50,10 +66,6 @@ module Data.Prim.Memory
   , cycleMemN
   -- * Byte operations
   -- $byteOperations
-  -- ** Immutable
-  , byteCountMem
-  , indexByteOffMem
-  , compareByteOffMem
   -- ** Mutable
   , allocByteCountMem
   , getByteCountMem

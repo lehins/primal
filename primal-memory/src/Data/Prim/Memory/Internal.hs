@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_HADDOCK hide, not-home #-}
 -- |
 -- Module      : Data.Prim.Memory.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -20,10 +21,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory.Internal
-  ( Bytes(..)
-  , MBytes(..)
-  , Pinned(..)
-  , module Data.Prim.Memory.Internal
+  ( module Data.Prim.Memory.Internal
+  , module Data.Prim.Memory.Bytes.Internal
   ) where
 
 import Control.Exception
@@ -34,27 +33,6 @@ import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
 import Data.Prim
 import Data.Prim.Memory.Bytes.Internal
-  ( Bytes(..)
-  , MBytes(..)
-  , Pinned(..)
-  , allocMBytes
-  , reallocMBytes
-  , byteCountBytes
-  , compareByteOffBytes
-  , copyByteOffBytesToMBytes
-  , freezeMBytes
-  , getByteCountMBytes
-  , indexByteOffBytes
-  , indexOffBytes
-  , isSameBytes
-  , moveByteOffMBytesToMBytes
-  , readByteOffMBytes
-  , readOffMBytes
-  , setMBytes
-  , thawBytes
-  , writeByteOffMBytes
-  , writeOffMBytes
-  )
 import Data.List as List
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
@@ -65,30 +43,142 @@ import qualified Data.Semigroup as Semigroup
 import qualified Data.Monoid as Monoid
 import Data.Kind
 
+-- | Type class that can be implemented for a read-only immutable data type that provides
+-- direct access to memory
+class MemRead mr where
 
-class MemRead r where
-  byteCountMem :: r -> Count Word8
+  -- | Number of bytes allocated by the data type available for reading. This is primarily
+  -- used for cloning and conversion.
+  --
+  -- @since 0.1.0
+  byteCountMem :: mr -> Count Word8
 
-  indexOffMem :: Prim e => r -> Off e -> e
+  -- | Read an element with an offset in number of elements, rather than bytes as it is
+  -- the case with `indexByteOffMem`.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+  -- result is either unpredictable output or failure with a segfault.
+  --
+  -- @since 0.1.0
+  indexOffMem :: Prim e
+    => mr -- ^ /memRead/ - Memory to read an element from
+    -> Off e
+    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff (toByteOff off)
+    --
+    -- > unOff (toByteOff off) <= unCount (byteCountMem memRead - byteCountType @e)
+    --
+    -> e
+  indexOffMem mr off = indexByteOffMem mr (toByteOff off)
+  {-# INLINE indexOffMem #-}
 
-  indexByteOffMem :: Prim e => r -> Off Word8 -> e
+  -- | Read an element with an offset in number of bytes. Bounds are not checked.
+  --
+  -- [Unsafe] When precondition for @off@ argument is violated the result is either
+  -- unpredictable output or failure with a segfault.
+  --
+  -- @since 0.1.0
+  indexByteOffMem :: Prim e
+    => mr -- ^ /memRead/ - Memory to read an element from
+    -> Off Word8
+    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff off
+    --
+    -- > unOff off <= unCount (byteCountMem memRead - byteCountType @e)
+    --
+    -> e
 
-  -- | Source and target can't refer to the same memory chunks
+  -- | Copy contiguous chunk of memory from the read only memory into the target mutable
+  -- `MBytes`. Source and target can't refer to the same memory chunks, that would of
+  -- course mean that the source is not immutable thus imply a violation of some other
+  -- invariant elsewhere in the code.
+  --
+  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+  -- or the byte count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
+  --
+  -- @since 0.1.0
   copyByteOffToMBytesMem ::
-    (MonadPrim s m, Prim e) => r -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
+       (MonadPrim s m, Prim e)
+    => mr -- ^ /memSourceRead/ - Source from where to copy
+    -> Off Word8
+    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+    --
+    -- /__Precondition:__/
+    --
+    -- > 0 <= unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -> MBytes p s -- ^ /memTargetWrite/ - Target mutable memory
+    -> Off Word8 -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+    --
+    -- /__Precondition:__/
+    --
+    -- > 0 <= unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
+    -> Count e
+    -- ^ /memCount/ - Number of elements to copy
+    --
+    -- /__Precondition:__/
+    --
+    -- > 0 <= unCount memCount
+    --
+    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    --
+    -- > fromCount memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
+    -> m ()
 
-  -- | Source and target can't refer to the same memory chunks
+  -- | Copy contiguous chunk of memory from the read only memory into the target mutable
+  -- `MBytes`. Source and target can't refer to the same memory chunks, that would of
+  -- course mean that the source is not immutable thus imply a violation of some other
+  -- invariant elsewhere in the code.
+  --
+  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+  -- or the byte count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
+  --
+  -- @since 0.1.0
   copyByteOffToPtrMem ::
-    (MonadPrim s m, Prim e) => r -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
-
+       (MonadPrim s m, Prim e)
+    => mr
+    -> Off Word8
+    -> Ptr e
+    -> Off Word8
+    -> Count e
+    -> m ()
+  --
+  -- @since 0.1.0
   compareByteOffToPtrMem ::
-    (MonadPrim s m, Prim e) => r -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m Ordering
-
+       (MonadPrim s m, Prim e)
+    => mr
+    -> Off Word8
+    -> Ptr e
+    -> Off Word8
+    -> Count e
+    -> m Ordering
+  --
+  -- @since 0.1.0
   compareByteOffToBytesMem ::
-    (MonadPrim s m, Prim e) => r -> Off Word8 -> Bytes p -> Off Word8 -> Count e -> m Ordering
-
+       (MonadPrim s m, Prim e)
+    => mr
+    -> Off Word8
+    -> Bytes p
+    -> Off Word8
+    -> Count e
+    -> m Ordering
+  --
+  -- @since 0.1.0
   compareByteOffMem ::
-    (MemRead r', Prim e) => r' -> Off Word8 -> r -> Off Word8 -> Count e -> Ordering
+       (MemRead mr', Prim e)
+    => mr'
+    -> Off Word8
+    -> mr
+    -> Off Word8
+    -> Count e
+    -> Ordering
 
 -- | Generalized memory allocation and pure/mutable state conversion.
 class (MemRead (FrozenMem a), MemWrite a) => MemAlloc a where

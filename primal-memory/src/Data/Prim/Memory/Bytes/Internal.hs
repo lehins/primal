@@ -73,17 +73,18 @@ import Data.Typeable
 import Foreign.Prim
 
 
--- | In Haskell there is a distinction between pinned or unpinned memory.
+-- | In GHC there is a distinction between pinned and unpinned memory.
 --
--- Pinned memory is such, when allocated, it is guaranteed not to move throughout the
+-- Pinned memory is such that when allocated, it is guaranteed not to move throughout the
 -- lifetime of a program. In other words the address pointer that refers to allocated
--- bytes will not change until it gets garbage collected because it is no longer
--- referenced by anything. Unpinned memory on the other hand can be moved around during
--- GC, which helps to reduce memory fragmentation.
+-- bytes will not change until the associated `ByteArray#` or `MutableByteArray#` is no
+-- longer referenced anywhere in the program at which point it gets garbage collected. On
+-- the other hand unpinned memory can be moved around during GC, which helps to reduce
+-- memory fragmentation.
 --
 -- Pinned/unpinnned choice during allocation is a bit of a lie, because when attempt is
 -- made to allocate memory as unpinned, but requested size is a bit more than a certain
--- threashold (somewhere around 3KiB) it might still be allocated as pinned. Because of
+-- threshold (somewhere around 3KiB) it might still be allocated as pinned. Because of
 -- that fact through out the "primal" universe there is a distinction between memory that
 -- is either @`Pin`ned@ or @`Inc`onclusive@.
 --
@@ -91,15 +92,16 @@ import Foreign.Prim
 -- `Data.Prim.Memory.Bytes.toPinnedMBytes` to get a conclusive type.
 --
 -- @since 0.1.0
-data Pinned = Pin | Inc
+data Pinned
+  = Pin -- ^ Pinned, which indicates that allocated memory will not move
+  | Inc -- ^ Inconclusive, thus memory could be pinned or unpinned
 
 -- | An immutable region of memory which was allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
 -- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
 -- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
--- the actual constructor is available in "Data.Prim.Memory.Internal" module and specially
--- unsafe function `castPinnedBytes` was crafted.
+-- the actual constructor is available from @Data.Prim.Memory.Internal@
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes nominal
 

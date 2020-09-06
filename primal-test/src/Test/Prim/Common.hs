@@ -12,7 +12,7 @@ module Test.Prim.Common
   ) where
 
 import Control.DeepSeq
-import Test.Hspec as X
+import Test.Hspec as X hiding (Arg(..))
 import Test.Hspec.QuickCheck as X
 import Test.QuickCheck as X hiding ((.&.))
 import Test.QuickCheck.Function as X

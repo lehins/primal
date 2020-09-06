@@ -6,6 +6,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -57,9 +58,9 @@ import Data.Functor.Identity
 import qualified Data.Functor.Product as Functor
 import Data.Monoid
 import System.IO
+import Data.Semigroup
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Functor.Const
-import Data.Semigroup
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
 #if __GLASGOW_HASKELL__ < 802
@@ -971,9 +972,6 @@ instance Prim CRLim where
   type PrimBase CRLim = HTYPE_RLIM_T
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-
-
 instance Prim a => Prim (Max a) where
   type PrimBase (Max a) = a
 instance Prim a => Prim (Min a) where
@@ -1051,8 +1049,6 @@ instance Prim (f a) => Prim (Ap f a) where
 
 #endif /* __GLASGOW_HASKELL__ >= 802 */
 
-
-#endif /* __GLASGOW_HASKELL__ >= 800 */
 
 instance (Prim (f a), Prim (g a)) => Prim (Functor.Product f g a) where
   type PrimBase (Functor.Product f g a) = (f a, g a)

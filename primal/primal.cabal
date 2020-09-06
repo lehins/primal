@@ -63,6 +63,8 @@ library
         if impl(ghc < 8.2)
            include-dirs: cbits
            install-includes: primal_compat.h
+           if impl(ghc < 8.0)
+              build-depends: semigroups >= 0.18
   if !os(solaris)
       cc-options: -ftree-vectorize
   if arch(i386) || arch(x86_64)

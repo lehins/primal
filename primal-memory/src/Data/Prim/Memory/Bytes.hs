@@ -155,7 +155,6 @@ import Data.Maybe (fromMaybe)
 import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
-import Data.Prim.Memory.Bytes.Internal
 import Foreign.Prim
 
 -- | Wrap `ByteArray#` into `Bytes`

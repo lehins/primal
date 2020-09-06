@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -97,13 +98,16 @@ instance Prim e => IsList (UArray e) where
 data MUArray e s = MUArray (MutableByteArray# s)
 
 
--- | Check if both of the arrays refer to the exact same one. None of the elements are
--- evaluated.
+-- | Check if both of the arrays refer to the exact same one through poiner equality. None
+-- of the elements are evaluated.
 instance Eq (MUArray e s) where
   MUArray ma1# == MUArray ma2# = isTrue# (sameMutableByteArray# ma1# ma2#)
 
+
+
 data UArray e = UArray ByteArray#
 
+type role UArray representational
 
 instance Prim e => MRef (MUArray e) where
   type Elt (MUArray e) = e

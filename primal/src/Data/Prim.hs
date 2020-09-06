@@ -28,20 +28,29 @@ module Data.Prim
   , alignment
   , alignmentType
   , alignmentProxy
+  -- * Size
   , Size(..)
+  -- * Count
   , Count(..)
   , fromCount
   , toByteCount
   , fromCount#
   , fromByteCount
   , fromByteCountRem
+  , countToOff
   , countAsProxy
+  , countForType
+  , countForProxyTypeOf
+  -- * Offset
   , Off(..)
   , toByteOff
   , fromOff#
   , fromByteOff
   , fromByteOffRem
+  , offToCount
   , offAsProxy
+  , offForType
+  , offForProxyTypeOf
   -- * Prefetch
   , prefetchValue0
   , prefetchValue1
@@ -54,30 +63,38 @@ module Data.Prim
   , ForeignPtr
   , Typeable
   , Proxy(..)
+  , module Data.Semigroup
   , module Data.Monoid
   , module Data.Coerce
   ) where
 
 import Control.DeepSeq
 import Control.Prim.Monad
+import Data.Coerce
+import Data.Int
+import Data.Monoid hiding (First(..), Last(..))
 import Data.Prim.Atom
 import Data.Prim.Atomic
 import Data.Prim.Class
-import GHC.Base (quotInt,  quotRemInt)
-import GHC.Exts
-import Data.Word
-import Data.Int
-import Foreign.ForeignPtr (ForeignPtr)
-import Data.Monoid
-import Data.Coerce
+import Data.Semigroup
 import Data.Typeable
+import Data.Word
+import Foreign.ForeignPtr (ForeignPtr)
+import GHC.Base (quotInt, quotRemInt)
+import GHC.Exts
 
 newtype Size = Size { unSize :: Int }
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
-byteCount :: forall a . Prim a => a -> Count Word8
-byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
+--
+-- >>> import Data.Prim
+-- >>> byteCount (Just 'a')
+-- Count {unCount = 5}
+--
+-- @since 0.1.0
+byteCount :: forall e . Prim e => e -> Count Word8
+byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCount #-}
 
 -- | Same as `sizeOf`, except that the type can be supplied as a type level argument
@@ -87,8 +104,9 @@ byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
 -- >>> byteCountType @Int64
 -- Count {unCount = 8}
 --
-byteCountType :: forall a . Prim a => Count Word8
-byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
+-- @since 0.1.0
+byteCountType :: forall e . Prim e => Count Word8
+byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCountType #-}
 
 -- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
@@ -98,15 +116,18 @@ byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
 -- >>> byteCountProxy (Proxy :: Proxy Int64)
 -- Count {unCount = 8}
 --
-byteCountProxy :: forall proxy a . Prim a => proxy a -> Count Word8
-byteCountProxy _ = coerce (I# (sizeOf# (proxy# :: Proxy# a)))
+-- @since 0.1.0
+byteCountProxy :: forall proxy e . Prim e => proxy e -> Count Word8
+byteCountProxy _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCountProxy #-}
 
 
 
 -- | Get the alignemnt of the type in bytes. Argument is not evaluated.
-alignment :: forall a . Prim a => a -> Int
-alignment _ = I# (alignment# (proxy# :: Proxy# a))
+--
+-- @since 0.1.0
+alignment :: forall e . Prim e => e -> Int
+alignment _ = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignment #-}
 
 -- | Same as `alignment`, except that the type can be supplied with @TypeApplications@
@@ -116,8 +137,9 @@ alignment _ = I# (alignment# (proxy# :: Proxy# a))
 -- >>> alignmentType @Int32
 -- 4
 --
-alignmentType :: forall a . Prim a => Int
-alignmentType = I# (alignment# (proxy# :: Proxy# a))
+-- @since 0.1.0
+alignmentType :: forall e . Prim e => Int
+alignmentType = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignmentType #-}
 
 -- | Same as `alignment`, but argument is a `Proxy` of @a@, instead of the type itself.
@@ -126,19 +148,20 @@ alignmentType = I# (alignment# (proxy# :: Proxy# a))
 -- >>> alignmentProxy (Proxy :: Proxy Int64)
 -- 8
 --
-alignmentProxy :: forall proxy a . Prim a => proxy a -> Int
-alignmentProxy _ = I# (alignment# (proxy# :: Proxy# a))
+-- @since 0.1.0
+alignmentProxy :: forall proxy e . Prim e => proxy e -> Int
+alignmentProxy _ = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignmentProxy #-}
 
 
 
 -- | Number of elements
-newtype Count a = Count
+newtype Count e = Count
   { unCount :: Int
   } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
-instance Prim (Count a) where
-  type PrimBase (Count a) = Int
+instance Prim (Count e) where
+  type PrimBase (Count e) = Int
 
 fromCountWord8# :: Count Word8 -> Int#
 fromCountWord8# (Count (I# n#)) = n#
@@ -147,7 +170,7 @@ fromCountInt8# :: Count Int8 -> Int#
 fromCountInt8# (Count (I# n#)) = n#
 {-# INLINE fromCountInt8# #-}
 
-fromCount# :: Prim a => Count a -> Int#
+fromCount# :: Prim e => Count e -> Int#
 fromCount# c@(Count (I# n#)) =
   case coerce (byteCountProxy c) of
     I# sz# -> sz# *# n#
@@ -160,30 +183,50 @@ fromCount# c@(Count (I# n#)) =
 -- | Covert to number of bytes as an `Int`
 --
 -- @since 0.1.0
-fromCount :: Prim a => Count a -> Int
+fromCount :: Prim e => Count e -> Int
 fromCount c = I# (fromCount# c)
 {-# INLINE fromCount #-}
 
 -- | Covert to the `Count` of bytes
 --
 -- @since 0.1.0
-toByteCount :: Prim a => Count a -> Count Word8
+toByteCount :: Prim e => Count e -> Count Word8
 toByteCount = Count . fromCount
 {-# INLINE toByteCount #-}
+
+-- | Cast a count to an offset of the same type
+--
+-- @since 0.1.1
+countToOff :: Count e -> Off e
+countToOff = coerce
 
 
 -- | Helper noop function that restricts `Count` to the type of proxy
 --
 -- @since 0.1.0
-countAsProxy :: proxy a -> Count a -> Count a
+countAsProxy :: proxy e -> Count e -> Count e
 countAsProxy _ = id
+{-# DEPRECATED countAsProxy "In favor of `countForProxyTypeOf` that provides more consistent order of arguments" #-}
+
+-- | Helper noop function that restricts `Count` to the type of proxy
+--
+-- @since 0.1.1
+countForProxyTypeOf :: Count e -> proxy e -> Count e
+countForProxyTypeOf count _ = count
+
+-- | Restrict type argument of `Count` to the same type as the second argument, which
+-- itself is not evaluated
+--
+-- @since 0.1.1
+countForType :: Count e -> e -> Count e
+countForType count _ = count
 
 fromByteCountInt8 :: Count Word8 -> Count Int8
 fromByteCountInt8 = coerce
 {-# INLINE fromByteCountInt8 #-}
 
-fromByteCount :: forall a . Prim a => Count Word8 -> Count a
-fromByteCount sz = coerce (quotSizeOfWith (proxy# :: Proxy# a) (coerce sz) 0 quotInt)
+fromByteCount :: forall e . Prim e => Count Word8 -> Count e
+fromByteCount sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quotInt)
 {-# INLINE[0] fromByteCount #-}
 {-# RULES
 "fromByteCount" fromByteCount = id
@@ -199,15 +242,15 @@ fromByteCountRemInt8 i = (coerce i, 0)
 {-# INLINE fromByteCountRemInt8 #-}
 
 
-fromByteCountRem :: forall a . Prim a => Count Word8 -> (Count a, Count Word8)
-fromByteCountRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# a) (coerce sz) (0, 0) quotRemInt)
+fromByteCountRem :: forall e . Prim e => Count Word8 -> (Count e, Count Word8)
+fromByteCountRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 0) quotRemInt)
 {-# INLINE[0] fromByteCountRem #-}
 {-# RULES
 "fromByteCountRemWord8" fromByteCountRem = fromByteCountRemWord8
 "fromByteCountRemInt8"  fromByteCountRem = fromByteCountRemInt8
   #-}
 
-quotSizeOfWith :: forall a b. Prim a => Proxy# a -> Int -> b -> (Int -> Int -> b) -> b
+quotSizeOfWith :: forall e b. Prim e => Proxy# e -> Int -> b -> (Int -> Int -> b) -> b
 quotSizeOfWith px# sz onZero quotWith
   | tySize <= 0 = onZero
   | otherwise = sz `quotWith` tySize
@@ -217,20 +260,45 @@ quotSizeOfWith px# sz onZero quotWith
 
 
 -- | Offset in number of elements
-newtype Off a = Off
+newtype Off e = Off
   { unOff :: Int
   } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
-instance Prim (Off a) where
-  type PrimBase (Off a) = Int
+instance Prim (Off e) where
+  type PrimBase (Off e) = Int
 
 
 -- | Helper noop function that restricts `Off`set to the type of proxy
 --
 -- @since 0.1.0
-offAsProxy :: proxy a -> Off a -> Off a
+offAsProxy :: proxy e -> Off e -> Off e
 offAsProxy _ = id
+{-# DEPRECATED offAsProxy "In favor of `offForProxyTypeOf` that provides more consistent order of arguments" #-}
 
+-- | Helper noop function that restricts `Off`set to the type of proxy
+--
+-- @since 0.1.1
+offForProxyTypeOf :: Off e -> proxy e -> Off e
+offForProxyTypeOf off _ = off
+
+-- | Restrict type argument of `Off` to the same type as the second argument, which itself
+-- is not evaluated
+--
+-- @since 0.1.1
+offForType :: Off e -> e -> Off e
+offForType c _ = c
+
+-- | Cast an offset to count. Useful for dealing with reagions.
+--
+-- >>> import Data.Prim
+-- >>> totalCount = Count 10 :: Count Word
+-- >>> startOffset = Off 4 :: Off Word
+-- >>> totalCount - offToCount startOffset
+-- Count {unCount = 6}
+--
+-- @since 0.1.1
+offToCount :: Off e -> Count e
+offToCount = coerce
 
 -- | Compute byte offset from an offset of `Prim` type
 --
@@ -250,7 +318,7 @@ fromOffInt8# (Off (I# o#)) = o#
 {-# INLINE fromOffInt8# #-}
 
 -- | Convert offset of some type into number of bytes
-fromOff# :: Prim a => Off a -> Int#
+fromOff# :: Prim e => Off e -> Int#
 fromOff# o@(Off (I# o#)) =
   case coerce (byteCountProxy o) of
     I# sz# -> sz# *# o#
@@ -266,8 +334,8 @@ fromByteOffInt8 :: Off Word8 -> Off Int8
 fromByteOffInt8 = coerce
 {-# INLINE fromByteOffInt8 #-}
 
-fromByteOff :: forall a . Prim a => Off Word8 -> Off a
-fromByteOff sz = coerce (quotSizeOfWith (proxy# :: Proxy# a) (coerce sz) 0 quotInt)
+fromByteOff :: forall e . Prim e => Off Word8 -> Off e
+fromByteOff sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quotInt)
 {-# INLINE[0] fromByteOff #-}
 {-# RULES
 "fromByteOff" fromByteOff = id
@@ -283,8 +351,8 @@ fromByteOffRemInt8 i = (coerce i, 0)
 {-# INLINE fromByteOffRemInt8 #-}
 
 
-fromByteOffRem :: forall a . Prim a => Off Word8 -> (Off a, Off Word8)
-fromByteOffRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# a) (coerce sz) (0, 0) quotRemInt)
+fromByteOffRem :: forall e . Prim e => Off Word8 -> (Off e, Off Word8)
+fromByteOffRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 0) quotRemInt)
 {-# INLINE[0] fromByteOffRem #-}
 {-# RULES
 "fromByteOffRemWord8" fromByteOffRem = fromByteOffRemWord8

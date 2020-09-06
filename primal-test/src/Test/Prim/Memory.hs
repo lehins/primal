@@ -1,6 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -76,8 +78,70 @@ getZeroElement = do
   z :: MBytes 'Inc s <- callocMBytes (1 :: Count e)
   readOffMem z (0 :: Off e)
 
+prop_byteCountMem ::
+     forall ma e. (Prim e, MemAlloc ma)
+  => Mem ma e
+  -> Property
+prop_byteCountMem (Mem xs fm) =
+  property $ byteCountMem fm `shouldBe` (Count (length xs) * byteCountType @e)
+
+prop_indexOffMem ::
+     forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
+  => NEMem ma e
+  -> NonNegative Int
+  -> APrim
+  -> Property
+prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
+  conjoin
+    [ propIO (indexOffMem fm off `shouldBe` xs !! o)
+    , withAPrim aPrim $ \e ->
+        let tOff = Off k `offForType` e
+          -- test precondition from documentation
+         in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
+              mfm <- thawMem fm
+              writeOffMem mfm tOff e
+              fm' <- freezeMem mfm
+              indexOffMem fm' tOff `shouldBe` e
+    ]
+
+prop_indexByteOffMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NonNegative Int
+  -> APrim
+  -> Property
+prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
+  conjoin
+    [ propIO (indexByteOffMem fm (toByteOff off) `shouldBe` xs !! o)
+    , withAPrim aPrim $ \e ->
+        let tOff = Off k
+          -- test precondition from documentation
+         in (unOff tOff <= unCount (byteCountMem fm - byteCount e)) ==> do
+              mfm <- thawMem fm
+              writeByteOffMem mfm tOff e
+              fm' <- freezeMem mfm
+              indexByteOffMem fm' tOff `shouldBe` e
+    ]
+
+
+prop_copyByteOffToMBytesMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NonNegative (Off Word8)
+  -> NonNegative (Count e)
+  -> Property
+prop_copyByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) (NonNegative n) =
+  propIO $ do
+    let count = min (countMem fm - offToCount offSrc) n
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    mb :: MBytes 'Pin RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
+    copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
+    forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
+      readByteOffMem mb i `shouldReturn` x
+
+
 prop_emptyMem ::
-     forall a e. (Arbitrary e, Show e, Prim e, Eq e, MemAlloc a)
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => Mem a e
   -> Property
 prop_emptyMem (Mem xs fm') = propIO $ do
@@ -105,7 +169,7 @@ prop_emptyMem (Mem xs fm') = propIO $ do
 
 
 prop_setMem ::
-     forall a e. (Arbitrary e, Show e, Prim e, Eq e, MemAlloc a)
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> e
   -> NonNegative (Count e)
@@ -133,6 +197,11 @@ memSpec ::
 memSpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem a e)) ""
   describe memTypeName $ do
+    describe "MemRead" $ do
+      prop "byteCountMem" $ prop_byteCountMem @a @e
+      prop "indexOffMem" $ prop_indexOffMem @a @e
+      prop "indexByteOffMem" $ prop_indexByteOffMem @a @e
+      prop "copyByteOffToMBytesMem" $ prop_copyByteOffToMBytesMem @a @e
     prop "emptyMem" $ prop_emptyMem @a @e
     prop "setMem" $ prop_setMem @a @e
 
