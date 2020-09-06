@@ -717,13 +717,13 @@ loadListMemN_ (Count n) ys mb =
 loadListMem :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m Ordering
 loadListMem ys mb = do
   (c, slack) <- getCountRemMem mb
-  loadListMemN (countAsProxy ys c) slack ys mb
+  loadListMemN (c `countForProxyTypeOf` ys) slack ys mb
 {-# INLINE loadListMem #-}
 
 loadListMem_ :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m ()
 loadListMem_ ys mb = do
   c <- getCountMem mb
-  loadListMemN_ (countAsProxy ys c) ys mb
+  loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
 {-# INLINE loadListMem_ #-}
 
 
@@ -736,7 +736,7 @@ fromListMemN_ !n xs = createMemST_ n (loadListMemN_ n xs)
 {-# INLINE fromListMemN_ #-}
 
 fromListMem :: (MemAlloc a, Prim e) => [e] -> FrozenMem a
-fromListMem xs = fromListMemN_ (countAsProxy xs (coerce (length xs))) xs
+fromListMem xs = fromListMemN_ (coerce (length xs) `countForProxyTypeOf` xs) xs
 {-# INLINE fromListMem #-}
 
 
@@ -798,7 +798,7 @@ mapByteOffMemM ::
   -> m (FrozenMem a)
 mapByteOffMemM f r = do
   let bc@(Count n) = byteCountMem r
-      c = countAsProxy (f 0 0) (Count n)
+      c = Count n `countForProxyTypeOf` f 0 0
   mem <- allocMem c
   _ <- forByteOffMemM_ r 0 bc f
   -- let go i =

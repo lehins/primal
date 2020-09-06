@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
@@ -223,7 +222,7 @@ writeMByteArray (MByteArray mb) o = writeOffMBytes mb (coerce o)
 
 
 setMByteArray ::
-     (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Prim e)
   => MByteArray p e s -- ^ Chunk of memory to fill
   -> Int -- ^ Offset in number of elements
   -> Size -- ^ Number of cells to fill
@@ -233,7 +232,7 @@ setMByteArray (MByteArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
 {-# INLINE setMByteArray #-}
 
 copyByteArrayToMByteArray ::
-     (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Prim e)
   => ByteArray p e
   -> Int
   -> MByteArray p e s
@@ -241,7 +240,7 @@ copyByteArrayToMByteArray ::
   -> Size
   -> m ()
 copyByteArrayToMByteArray ba srcOff mba dstOff sz =
-  copyMem ba (coerce srcOff) mba (coerce dstOff) (countAsProxy ba (coerce sz))
+  copyMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz `countForProxyTypeOf` ba)
 {-# INLINE copyByteArrayToMByteArray #-}
 
 moveMByteArrayToMByteArray ::

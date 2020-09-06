@@ -375,13 +375,13 @@ toListSlackBytes = toListSlackMem
 loadListMBytes :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m Ordering
 loadListMBytes ys mb = do
   (c, slack) <- getCountRemOfMBytes mb
-  loadListMemN (countAsProxy ys c) slack ys mb
+  loadListMemN (c `countForProxyTypeOf` ys) slack ys mb
 {-# INLINE loadListMBytes #-}
 
 loadListMBytes_ :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m ()
 loadListMBytes_ ys mb = do
   c <- getCountMBytes mb
-  loadListMemN_ (countAsProxy ys c) ys mb
+  loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
 {-# INLINE loadListMBytes_ #-}
 
 fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p

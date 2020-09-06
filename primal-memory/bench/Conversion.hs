@@ -13,7 +13,6 @@ import Control.Prim.Monad
 import qualified Foreign.ForeignPtr as GHC
 import Foreign.Storable
 import Data.Prim.Memory.ForeignPtr
-import Data.Semigroup
 import qualified Data.Primitive.ByteArray as BA
 
 main :: IO ()

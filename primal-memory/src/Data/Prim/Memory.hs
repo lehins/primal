@@ -71,8 +71,6 @@ module Data.Prim.Memory
   , getByteCountMem
   , readByteOffMem
   , writeByteOffMem
-  , copyByteOffMem
-  , moveByteOffMem
   -- * Conversion
   , convertMem
   -- ** List

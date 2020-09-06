@@ -251,7 +251,7 @@ plusOffMAddr :: Prim e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` fromOff# off) mb
 
 curOffAddr :: Prim e => Addr e -> Off e
-curOffAddr a@(Addr addr# b) = offAsProxy a (Ptr addr# `minusOffPtr` toPtrBytes b)
+curOffAddr a@(Addr addr# b) = (Ptr addr# `minusOffPtr` toPtrBytes b) `offForProxyTypeOf` a
 
 curByteOffAddr :: Addr e -> Off Word8
 curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b

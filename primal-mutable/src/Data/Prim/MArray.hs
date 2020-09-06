@@ -51,6 +51,5 @@ module Data.Prim.MArray
 import Data.Prim
 import Data.Prim.MArray.Atomic
 import Data.Prim.MArray.Internal
-import qualified Data.Prim.MArray.Boxed as Boxed
 
 
