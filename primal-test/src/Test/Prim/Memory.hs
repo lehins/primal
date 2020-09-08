@@ -136,7 +136,7 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
   propIO $ do
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
-    mb :: MBytes 'Pin RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
+    mb :: MBytes 'Inc RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
     copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
     b <- freezeMem mb
     -- Ensure copy was successfull
@@ -233,6 +233,77 @@ prop_readWriteByteOffMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
               readByteOffMem mm (toByteOff tOff) `shouldReturn` e
     ]
 
+prop_moveByteOffToMBytesMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NonNegative (Off Word8)
+  -> NonNegative (Count e)
+  -> Property
+prop_moveByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
+  propIO $ do
+    let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    mm <- thawMem fm
+    mb :: MBytes 'Inc RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
+    moveByteOffToMBytesMem mm (toByteOff offSrc) mb offByteDst count
+    -- Ensure copy was successfull
+    forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
+      readByteOffMem mb i `shouldReturn` x
+
+
+prop_moveByteOffToPtrMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NonNegative (Off Word8)
+  -> NonNegative (Count e)
+  -> Property
+prop_moveByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
+  propIO $ do
+    let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    mm <- thawMem fm
+    maddr :: MAddr e RW <- castMAddr <$> allocMAddr (toByteCount count + offToCount offByteDst)
+    withPtrMAddr maddr $ \ ptr -> moveByteOffToPtrMem mm (toByteOff offSrc) ptr offByteDst count
+    -- Ensure copy was successfull
+    forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
+      readByteOffMem maddr i `shouldReturn` x
+
+prop_copyMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NEMem a e
+  -> Property
+prop_copyMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
+  propIO $ do
+    let count = min (countMem fmSrc - offToCount offSrc) (countMem fmDst - offToCount offDst)
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    mmDst <- thawMem fmDst
+    copyMem fmSrc offSrc mmDst offDst count
+    -- Ensure copy was successfull
+    forM_ (zip [offDst, offDst + 1 ..] xs') $ \ (i, x) ->
+      readOffMem mmDst i `shouldReturn` x
+
+
+prop_moveMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NEMem a e
+  -> Property
+prop_moveMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
+  propIO $ do
+    let count = min (countMem fmSrc - offToCount offSrc) (countMem fmDst - offToCount offDst)
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    mmSrc <- thawMem fmSrc
+    mmDst <- thawMem fmDst
+    moveMem mmSrc offSrc mmDst offDst count
+    -- Ensure copy was successfull
+    forM_ (zip [offDst, offDst + 1 ..] xs') $ \ (i, x) ->
+      readOffMem mmDst i `shouldReturn` x
+    moveMem mmSrc offSrc mmSrc 0 count
+    -- Ensure copy within the same region was successfull
+    forM_ (zip [0 ..] xs') $ \ (i, x) ->
+      readOffMem mmSrc i `shouldReturn` x
+
 
 prop_emptyMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
@@ -302,7 +373,11 @@ memSpec = do
     describe "MemWrite" $ do
       prop "readWriteOffMem" $ prop_readWriteOffMem @a @e
       prop "readWriteByteOffMem" $ prop_readWriteByteOffMem @a @e
+      prop "moveByteOffToPtrMem" $ prop_moveByteOffToPtrMem @a @e
+      prop "moveByteOffToMBytesMem" $ prop_moveByteOffToMBytesMem @a @e
     prop "emptyMem" $ prop_emptyMem @a @e
+    prop "copyMem" $ prop_copyMem @a @e
+    prop "moveMem" $ prop_moveMem @a @e
     prop "setMem" $ prop_setMem @a @e
 
 

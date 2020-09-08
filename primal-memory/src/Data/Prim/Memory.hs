@@ -35,19 +35,18 @@ module Data.Prim.Memory
 
   , fromListMem
   , fromListMemN
-  , loadListMem
-  , loadListMem_
-  , loadListMemN
-  , loadListMemN_
   -- *** Helpers
   , foldrCountMem
   -- * Mutable
-  , MemState(..)
-  -- ** Allocate
+  , MBytes
+  , MemWrite
   , MemAlloc(FrozenMem)
+  , MemState(..)
+  -- ** Size
   , getCountMem
   , getCountRemMem
   , getByteCountMem
+  -- ** Allocate
   , allocByteCountMem
   , allocMem
   , allocZeroMem
@@ -61,9 +60,6 @@ module Data.Prim.Memory
   , createMemST_
   , createZeroMemST
   , createZeroMemST_
-  -- ** Mutate
-  , MBytes
-  , MemWrite
   , readOffMem
   , readByteOffMem
   , writeOffMem
@@ -83,6 +79,11 @@ module Data.Prim.Memory
   , copyByteOffMem
   , copyByteOffToMBytesMem
   , copyByteOffToPtrMem
+  -- *** From List
+  , loadListMem
+  , loadListMem_
+  , loadListMemN
+  , loadListMemN_
 
   , emptyMem
   , singletonMem

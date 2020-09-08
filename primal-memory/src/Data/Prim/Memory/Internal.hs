@@ -44,11 +44,10 @@ import Foreign.Prim
 import Numeric (showHex)
 
 -- | Type class that can be implemented for an immutable data type that provides
--- direct read-only access to memory
+-- read-only direct access to memory
 class MemRead mr where
 
-  -- | Number of bytes allocated by the data type available for reading. This is primarily
-  -- used for cloning and conversion.
+  -- | Number of bytes allocated by the data type available for reading.
   --
   -- @since 0.1.0
   byteCountMem :: mr -> Count Word8
@@ -95,7 +94,7 @@ class MemRead mr where
     -> e
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `MBytes`. Source and target can't refer to the same memory regions, that would of
+  -- `MBytes`. Source and target /must not/ refer to the same memory region, that would of
   -- course mean that the source is not immutable thus imply a violation of some other
   -- invariant elsewhere in the code.
   --
@@ -137,7 +136,7 @@ class MemRead mr where
     -> m ()
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `Ptr`. Source and target can't refer to the same memory regions, that would of
+  -- `Ptr`. Source and target /must not/ refer to the same memory region, that would of
   -- course mean that the source is not immutable thus imply a violation of some other
   -- invariant elsewhere in the code.
   --
@@ -417,9 +416,59 @@ class MemWrite mw where
     --
     -> e -> m ()
 
-  -- | Source and target can be overlapping memory chunks
+  -- | Copy contiguous chunk of memory from the source mutable memory into the target
+  -- mutable `MBytes`. Source and target /may/ refer to overlapping memory regions.
+  --
+  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
+  --
+  -- @since 0.1.0
   moveByteOffToMBytesMem ::
-    (MonadPrim s m, Prim e) => mw s -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e)
+    => mw s -- ^ /memSource/ - Source memory from where to copy
+    -> Off Word8
+    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memSourceOff
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+    -> MBytes p s -- ^ /memTarget/ - Target memory into where to copy
+    -> Off Word8
+    -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memTargetOff
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memCount
+    --
+    -- Both source and target memory regions should have enough memory to perform a copy
+    -- of @memCount@ elements starting at their respective offsets. For types that also
+    -- implement `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToPtrMem ::
@@ -499,7 +548,7 @@ instance MemAlloc MByteString where
   resizeMem bsm@(MByteString (PS fp o n)) newc
     | newn > n = defaultResizeMem bsm newc
     | otherwise = pure $ MByteString (PS fp o newn)
-    where -- constant slice if we need to reduce the size
+    where -- constant time slice if we need to reduce the size
       Count newn = toByteCount newc
   {-# INLINE resizeMem #-}
 
