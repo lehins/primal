@@ -8,6 +8,7 @@
 --
 module Data.Prim.Memory
   ( Pinned(..)
+  , module Data.Prim
   -- * Immutable
   , Bytes
   , MemRead
@@ -89,6 +90,7 @@ module Data.Prim.Memory
   , foldrCountMem
   ) where
 
+import Data.Prim
 import Data.Prim.Memory.Internal
 
 

@@ -6,7 +6,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Data.Prim.Memory.Bytes
@@ -186,14 +185,6 @@ eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
 {-# INLINE eqBytes #-}
 
 ---- Pure
-
--- -- This works exactly the same as `compareBytes` except it is implemented with FFI
--- -- call instead of a primop. It will probably prove to be useless and will be removed in
--- -- the future.
--- memcmpBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
--- memcmpBytes (Bytes ba1#) off1 (Bytes ba2#) off2 c =
---   toOrdering# (memcmpByteArray# ba1# (fromOff# off1) ba2# (fromOff# off2) (fromCount# c))
--- {-# INLINE memcmpBytes #-}
 
 compareBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =

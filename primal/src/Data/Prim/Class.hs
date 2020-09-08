@@ -1296,7 +1296,7 @@ instance (Prim a, Prim b) => Prim (a, b) where
   writeOffAddr# addr# i# (a0, a1) s =
     let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
         addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-    in writeOffAddr# addr0# 0# a1 (writeOffAddr# addr1# 0# a0 s)
+    in writeOffAddr# addr1# 0# a1 (writeOffAddr# addr0# 0# a0 s)
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
     -- TODO: optimize with rewrite rules?
@@ -1356,7 +1356,7 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
   readOffAddr# addr# i# s =
     let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
         addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-        addr2# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
+        addr2# = addr1# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
     in case readOffAddr# addr0# 0# s  of { (# s0, a0 #) ->
        case readOffAddr# addr1# 0# s0 of { (# s1, a1 #) ->
        case readOffAddr# addr2# 0# s1 of { (# s2, a2 #) ->
@@ -1377,10 +1377,10 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
   writeOffAddr# addr# i# (a0, a1, a2) s =
     let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
         addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-        addr2# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
-    in writeOffAddr# addr0# 0# a2
+        addr2# = addr1# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
+    in writeOffAddr# addr2# 0# a2
        (writeOffAddr# addr1# 0# a1
-        (writeOffAddr# addr2# 0# a0 s))
+        (writeOffAddr# addr0# 0# a0 s))
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
     --  | a0 == a1 && a1 == a2 = setMutableByteArray# mba# (o# *# 3#) (n# *# 3#) a0 s
@@ -1389,7 +1389,7 @@ instance (Prim a, Prim b, Prim c) => Prim (a, b, c) where
     --  | a0 == a1 && a1 == a2 = setOffAddr# addr# (o# *# 3#) (n# *# 3#) a0 s
   {-# INLINE setOffAddr# #-}
 
--- TODO: Write optimized versions for higher tuples
+-- TODO: Write optimized versions for larger tuples
 instance (Prim a, Prim b, Prim c, Prim d) => Prim (a, b, c, d) where
   type PrimBase (a, b, c, d) = ((a, b), (c, d))
   toPrimBase (a, b, c, d) = ((a, b), (c, d))

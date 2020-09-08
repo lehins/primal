@@ -26,22 +26,22 @@ module Data.Prim.Memory.Internal
   ) where
 
 import Control.Exception
-import Data.List.NonEmpty (NonEmpty(..))
 import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Foldable as Foldable
+import Data.Kind
+import Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Monoid as Monoid
 import Data.Prim
 import Data.Prim.Memory.Bytes.Internal
-import Data.List as List
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Ptr
+import qualified Data.Semigroup as Semigroup
 import Foreign.Prim
 import Numeric (showHex)
-import qualified Data.Semigroup as Semigroup
-import qualified Data.Monoid as Monoid
-import Data.Kind
 
 -- | Type class that can be implemented for a read-only immutable data type that provides
 -- direct access to memory
@@ -95,12 +95,12 @@ class MemRead mr where
     -> e
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `MBytes`. Source and target can't refer to the same memory chunks, that would of
+  -- `MBytes`. Source and target can't refer to the same memory regions, that would of
   -- course mean that the source is not immutable thus imply a violation of some other
   -- invariant elsewhere in the code.
   --
   -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the byte count @memCount@ is violated the result is either unpredictable output or
+  -- or the element count @memCount@ is violated the result is either unpredictable output or
   -- failure with a segfault.
   --
   -- @since 0.1.0
@@ -110,19 +110,24 @@ class MemRead mr where
     -> Off Word8
     -- ^ /memSourceOff/ - Offset into source memory in number of bytes
     --
-    -- /__Precondition:__/
+    -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -- > 0 <= unOff memSourceOff
+    --
+    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> MBytes p s -- ^ /memTargetWrite/ - Target mutable memory
-    -> Off Word8 -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+    -> Off Word8
+    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
     --
-    -- /__Precondition:__/
+    -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
+    -- > 0 <= unOff memTargetOff
+    --
+    -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements to copy
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
     --
-    -- /__Precondition:__/
+    -- /__Preconditions:__/
     --
     -- > 0 <= unCount memCount
     --
@@ -132,92 +137,222 @@ class MemRead mr where
     -> m ()
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `MBytes`. Source and target can't refer to the same memory chunks, that would of
+  -- `Ptr`. Source and target can't refer to the same memory regions, that would of
   -- course mean that the source is not immutable thus imply a violation of some other
   -- invariant elsewhere in the code.
   --
   -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the byte count @memCount@ is violated the result is either unpredictable output or
+  -- or the element count @memCount@ is violated the result is either unpredictable output or
   -- failure with a segfault.
   --
   -- @since 0.1.0
   copyByteOffToPtrMem ::
        (MonadPrim s m, Prim e)
-    => mr
+    => mr -- ^ /memSourceRead/ - Source from where to copy
     -> Off Word8
+    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memSourceOff
+    --
+    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> Ptr e
+    -- ^ /memTargetWrite/ - Pointer to the target mutable memory
+    --
+    -- /__Preconditions:__/
+    --
+    -- Once the pointer is advanced by @memTargetOff@ the next @fromCount memCount@ bytes must
+    -- still belong to the same region of memory @memTargetWrite@
     -> Off Word8
+    -- ^ /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
+    --
+    -- /__Precondition:__/
+    --
+    -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
+    -- memory region @memTargetWrite@
     -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unCount memCount
+    --
+    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    --
+    -- > fromCount memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
     -> m ()
+
+  -- | Same as `compareByteOffMem`, but compare inside of a `MonadPrim` the read-only
+  -- memory region to a region addressed by a `Ptr`.
+  --
+  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@, the
+  -- pointer @memRead2@ or the element count @memCount@ is violated the result is either
+  -- unpredictable output or failure with a segfault.
   --
   -- @since 0.1.0
   compareByteOffToPtrMem ::
        (MonadPrim s m, Prim e)
-    => mr
+    => mr -- ^ /memRead1/ - First memory region
     -> Off Word8
+    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memOff1
+    --
+    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> Ptr e
+    -- ^ /memRead2/- Second memory region that can be accessed by a pointer
+    --
+    -- /__Preconditions__/
+    --
+    -- Once the pointer is advanced by @memOff2@ the next @fromCount memCount@ bytes must
+    -- still belong to the same region of memory @memRead2@
     -> Off Word8
-    -> Count e
+    -- ^ /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
+    --
+    -- /__Precondition:__/
+    --
+    -- Once the pointer is advanced by @memOff2@ it must still refer to the same memory
+    -- region @memRead2@
+    -> Count e -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unCount memCount
+    --
+    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> m Ordering
+
+  -- | Same as `compareByteOffMem`, but compare the read-only memory region to `Bytes`
+  -- inside of a `MonadPrim`.
+  --
+  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
+  -- element count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
   --
   -- @since 0.1.0
   compareByteOffToBytesMem ::
        (MonadPrim s m, Prim e)
-    => mr
+    => mr -- ^ /memRead1/ - First memory region
     -> Off Word8
-    -> Bytes p
+    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memOff1
+    --
+    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    -> Bytes p -- ^ /memRead2/- Second memory region that is backed by `Bytes`
     -> Off Word8
+    -- ^ /memOff2/ - Offset for @memRead2@ in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memOff2
+    --
+    -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unCount memCount
+    --
+    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    --
+    -- > fromCount memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> m Ordering
+
+  -- | Compare two read-only regions of memory byte-by-byte. The very first mismatched
+  -- byte will cause this function to produce `LT` if the byte in @memRead1@ is smaller
+  -- than the one in @memRead2@ and `GT` if it is bigger. It is not a requirement to
+  -- short-circuit on the first mismatch, but it is a good optimization to have for
+  -- non-sensitive data. Memory regions that store security critical data may choose to
+  -- implement this function to work in constant time.
+  --
+  -- This function is usually implemented by either one of `compareByteOffToPtrMem` or
+  -- `compareByteOffToBytesMem`, depending on the nature of @mr@ type. However it differs
+  -- from the aforementioned functions with a fact that it is pure non-monadic
+  -- computation.
+  --
+  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
+  -- element count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
   --
   -- @since 0.1.0
   compareByteOffMem ::
        (MemRead mr', Prim e)
-    => mr'
+    => mr' -- ^ /memRead1/ - First memory region
     -> Off Word8
-    -> mr
+    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memOff1
+    --
+    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    -> mr -- ^ /memRead2/ - Second memory region
     -> Off Word8
+    -- ^ /memOff2/ - Offset for @memRead2@ in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unOff memOff2
+    --
+    -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= unCount memCount
+    --
+    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    --
+    -- > fromCount memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Ordering
 
 -- | Generalized memory allocation and pure/mutable state conversion.
-class (MemRead (FrozenMem a), MemWrite a) => MemAlloc a where
-  type FrozenMem a = (fa :: Type) | fa -> a
+class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
+  type FrozenMem ma = (fm :: Type) | fm -> ma
 
-  getByteCountMem :: MonadPrim s m => a s -> m (Count Word8)
+  getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
 
-  allocByteCountMem :: MonadPrim s m => Count Word8 -> m (a s)
+  allocByteCountMem :: MonadPrim s m => Count Word8 -> m (ma s)
 
-  thawMem :: MonadPrim s m => FrozenMem a -> m (a s)
+  thawMem :: MonadPrim s m => FrozenMem ma -> m (ma s)
 
-  freezeMem :: MonadPrim s m => a s -> m (FrozenMem a)
+  freezeMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
 
-  resizeMem :: (MonadPrim s m, Prim e) => a s -> Count e -> m (a s)
+  resizeMem :: (MonadPrim s m, Prim e) => ma s -> Count e -> m (ma s)
   resizeMem = defaultResizeMem
 
 
-class MemWrite w where
-  readOffMem :: (MonadPrim s m, Prim e) => w s -> Off e -> m e
+class MemWrite mw where
+  readOffMem :: (MonadPrim s m, Prim e) => mw s -> Off e -> m e
 
-  readByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> m e
+  readByteOffMem :: (MonadPrim s m, Prim e) => mw s -> Off Word8 -> m e
 
-  writeOffMem :: (MonadPrim s m, Prim e) => w s -> Off e -> e -> m ()
+  writeOffMem :: (MonadPrim s m, Prim e) => mw s -> Off e -> e -> m ()
 
-  writeByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> e -> m ()
+  writeByteOffMem :: (MonadPrim s m, Prim e) => mw s -> Off Word8 -> e -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToMBytesMem ::
-    (MonadPrim s m, Prim e) => w s -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e) => mw s -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToPtrMem ::
-    (MonadPrim s m, Prim e) => w s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e) => mw s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
 
   copyByteOffMem ::
-    (MonadPrim s m, MemRead r, Prim e) => r -> Off Word8 -> w s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, MemRead mr, Prim e) => mr -> Off Word8 -> mw s -> Off Word8 -> Count e -> m ()
 
   moveByteOffMem ::
-    (MonadPrim s m, MemWrite w', Prim e) => w' s -> Off Word8 -> w s -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, MemWrite mw', Prim e) => mw' s -> Off Word8 -> mw s -> Off Word8 -> Count e -> m ()
 
   -- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
   --setByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> Count e -> e -> m ()
@@ -225,7 +360,7 @@ class MemWrite w where
   -- | Write the same value into each cell starting at an offset.
   setMem
     :: (MonadPrim s m, Prim e)
-    => w s -- ^ Writable memory. Must have enough bytes, at least: (off+count)*(sizeOf e)
+    => mw s -- ^ Writable memory. Must have enough bytes, at least: (off+count)*(sizeOf e)
     -> Off e -- ^ An offset into writable memory at which element setting should start.
     -> Count e -- ^ Numer of cells to write the elemnt into
     -> e -- ^ Element to write into all memory cells specified by offset and count. Even
@@ -319,7 +454,7 @@ instance MemRead ShortByteString where
   compareByteOffMem mem off1 sbs = compareByteOffMem mem off1 (fromShortByteStringBytes sbs)
   {-# INLINE compareByteOffMem #-}
 
--- | A wrapper that adds a phantom state token. It can be use with types that either
+-- | A wrapper that adds a phantom state token. It can be used with types that either
 -- doesn't have such state token or are designed to work in `IO` and therefore restricted
 -- to `RW`. Using this wrapper is very much unsafe, so make sure you know what you are
 -- doing.
@@ -354,19 +489,19 @@ instance MemWrite (MemState (ForeignPtr a)) where
   {-# INLINE setMem #-}
 
 modifyFetchOldMem ::
-     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> b) -> m b
 modifyFetchOldMem mem o f = modifyFetchOldMemM mem o (pure . f)
 {-# INLINE modifyFetchOldMem #-}
 
 
 modifyFetchNewMem ::
-     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> b) -> m b
 modifyFetchNewMem mem o f = modifyFetchNewMemM mem o (pure . f)
 {-# INLINE modifyFetchNewMem #-}
 
 
 modifyFetchOldMemM ::
-     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> m b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> m b) -> m b
 modifyFetchOldMemM mem o f = do
   a <- readOffMem mem o
   a <$ (writeOffMem mem o =<< f a)
@@ -374,7 +509,7 @@ modifyFetchOldMemM mem o f = do
 
 
 modifyFetchNewMemM ::
-     (MemWrite w, MonadPrim s m, Prim b) => w s -> Off b -> (b -> m b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> m b) -> m b
 modifyFetchNewMemM mem o f = do
   a <- readOffMem mem o
   a' <- f a
@@ -383,7 +518,7 @@ modifyFetchNewMemM mem o f = do
 
 
 defaultResizeMem ::
-     (Prim e, MemAlloc a, MonadPrim s m) => a s -> Count e -> m (a s)
+     (Prim e, MemAlloc ma, MonadPrim s m) => ma s -> Count e -> m (ma s)
 defaultResizeMem mem c = do
   let newByteCount = toByteCount c
   oldByteCount <- getByteCountMem mem
@@ -395,7 +530,7 @@ defaultResizeMem mem c = do
 
 
 -- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
-cycleMemN :: (MemAlloc a, MemRead r) => Int -> r -> FrozenMem a
+cycleMemN :: (MemAlloc ma, MemRead mr) => Int -> mr -> FrozenMem ma
 cycleMemN n r
   | n <= 0 = emptyMem
   | otherwise =
@@ -410,15 +545,15 @@ cycleMemN n r
 
 
 -- | Chunk of empty memory.
-emptyMem :: MemAlloc a => FrozenMem a
+emptyMem :: MemAlloc ma => FrozenMem ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
 
 -- | A region of memory that hold a single element.
 singletonMem ::
-     forall e a. (MemAlloc a, Prim e)
+     forall e ma. (MemAlloc ma, Prim e)
   => e
-  -> FrozenMem a
+  -> FrozenMem ma
 singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 {-# INLINE singletonMem #-}
 
@@ -428,7 +563,7 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 -- [Unsafe Count] Negative element count will result in unpredictable behavior
 --
 -- @since 0.1.0
-allocMem :: (MemAlloc a, MonadPrim s m, Prim e) => Count e -> m (a s)
+allocMem :: (MemAlloc ma, MonadPrim s m, Prim e) => Count e -> m (ma s)
 allocMem n = allocByteCountMem (toByteCount n)
 {-# INLINE allocMem #-}
 
@@ -439,14 +574,18 @@ allocMem n = allocByteCountMem (toByteCount n)
 --
 -- @since 0.1.0
 allocZeroMem ::
-     (MemAlloc a, MonadPrim s m, Prim e) => Count e -> m (a s)
+     (MemAlloc ma, MonadPrim s m, Prim e) => Count e -> m (ma s)
 allocZeroMem n = do
   m <- allocMem n
   m <$ setMem m 0 (toByteCount n) (0 :: Word8)
 {-# INLINE allocZeroMem #-}
 
 
-createMemST :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> (b, FrozenMem a)
+createMemST ::
+     forall e b ma. (MemAlloc ma, Prim e)
+  => Count e
+  -> (forall s. ma s -> ST s b)
+  -> (b, FrozenMem ma)
 createMemST n f = runST $ do
   m <- allocMem n
   res <- f m
@@ -454,11 +593,11 @@ createMemST n f = runST $ do
   pure (res, i)
 {-# INLINE createMemST #-}
 
-createMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
+createMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> FrozenMem ma
 createMemST_ n f = runST (allocMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createMemST_ #-}
 
-createZeroMemST :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> (b, FrozenMem a)
+createZeroMemST :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> (b, FrozenMem ma)
 createZeroMemST n f = runST $ do
   m <- allocZeroMem n
   res <- f m
@@ -466,16 +605,16 @@ createZeroMemST n f = runST $ do
   pure (res, i)
 {-# INLINE createZeroMemST #-}
 
-createZeroMemST_ :: (MemAlloc a, Prim e) => Count e -> (forall s . a s -> ST s b) -> FrozenMem a
+createZeroMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> FrozenMem ma
 createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createZeroMemST_ #-}
 
 
 copyMem ::
-     (MonadPrim s m, MemRead r, MemWrite w, Prim e)
-  => r -- ^ Source memory region
+     (MonadPrim s m, MemRead mr, MemWrite mw, Prim e)
+  => mr -- ^ Source memory region
   -> Off e -- ^ Offset into the source in number of elements
-  -> w s -- ^ Destination memory region
+  -> mw s -- ^ Destination memory region
   -> Off e -- ^ Offset into destination in number of elements
   -> Count e -- ^ Number of elements to copy over
   -> m ()
@@ -484,10 +623,10 @@ copyMem src srcOff dst dstOff = copyByteOffMem src (toByteOff srcOff) dst (toByt
 
 
 moveMem ::
-     (MonadPrim s m, MemWrite w1, MemWrite w2, Prim e)
-  => w1 s -- ^ Source memory region
+     (MonadPrim s m, MemWrite mw1, MemWrite mw2, Prim e)
+  => mw1 s -- ^ Source memory region
   -> Off e -- ^ Offset into the source in number of elements
-  -> w2 s -- ^ Destination memory region
+  -> mw2 s -- ^ Destination memory region
   -> Off e -- ^ Offset into destination in number of elements
   -> Count e -- ^ Number of elements to copy over
   -> m ()
@@ -495,7 +634,11 @@ moveMem src srcOff dst dstOff = moveByteOffMem src (toByteOff srcOff) dst (toByt
 {-# INLINE moveMem #-}
 
 
-appendMem :: (MemRead r1, MemRead r2, MemAlloc a) => r1 -> r2 -> FrozenMem a
+appendMem ::
+     forall mr1 mr2 ma. (MemRead mr1, MemRead mr2, MemAlloc ma)
+  => mr1
+  -> mr2
+  -> FrozenMem ma
 appendMem r1 r2 =
   createMemST_ (n1 + n2) $ \mem -> do
     copyMem r1 0 mem 0 n1
@@ -505,7 +648,10 @@ appendMem r1 r2 =
     n2 = byteCountMem r2
 {-# INLINABLE appendMem #-}
 
-concatMem :: (MemRead r, MemAlloc a) => [r] -> FrozenMem a
+concatMem ::
+     forall mr ma. (MemRead mr, MemAlloc ma)
+  => [mr]
+  -> FrozenMem ma
 concatMem xs = do
   let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
   createMemST_ c $ \mb -> do
@@ -517,27 +663,37 @@ concatMem xs = do
 
 
 thawCopyMem ::
-     (MemRead r, MemAlloc a, MonadPrim s m, Prim e) => r -> Off e -> Count e -> m (a s)
+     forall e mr ma m s. (Prim e, MemRead mr, MemAlloc ma, MonadPrim s m)
+  => mr
+  -> Off e
+  -> Count e
+  -> m (ma s)
 thawCopyMem a off c = do
   mem <- allocMem c
   mem <$ copyMem a off mem 0 c
 {-# INLINE thawCopyMem #-}
 
 freezeCopyMem ::
-     (MemAlloc a, MonadPrim s m, Prim e)
-  => a s
+     forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
+  => ma s
   -> Off e
   -> Count e
-  -> m (FrozenMem a)
+  -> m (FrozenMem ma)
 freezeCopyMem mem off c = freezeMem mem >>= \r -> thawCopyMem r off c >>= freezeMem
 {-# INLINE freezeCopyMem #-}
 
 
-thawCloneMem :: (MemRead r, MemAlloc a, MonadPrim s m) => r -> m (a s)
+thawCloneMem ::
+     forall mr ma m s. (MemRead mr, MemAlloc ma, MonadPrim s m)
+  => mr
+  -> m (ma s)
 thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 {-# INLINE thawCloneMem #-}
 
-freezeCloneMem :: (MemAlloc a, MonadPrim s m) => a s -> m (FrozenMem a)
+freezeCloneMem ::
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => ma s
+  -> m (FrozenMem ma)
 freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
 {-# INLINE freezeCloneMem #-}
 
@@ -552,7 +708,7 @@ freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
 -- [0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20]
 --
 -- @since 0.1.0
-convertMem :: (MemRead r, MemAlloc a) => r -> FrozenMem a
+convertMem :: (MemRead mr, MemAlloc ma) => mr -> FrozenMem ma
 convertMem a = runST $ thawCloneMem a >>= freezeMem
 {-# INLINE convertMem #-}
 
@@ -571,8 +727,8 @@ convertMem a = runST $ thawCloneMem a >>= freezeMem
 --
 -- @since 0.1.0
 countMem ::
-     forall e r. (MemRead r, Prim e)
-  => r -- ^ Read-only memory type
+     forall e mr. (MemRead mr, Prim e)
+  => mr -- ^ Read-only memory type
   -> Count e
 countMem = fromByteCount . byteCountMem
 {-# INLINE countMem #-}
@@ -590,28 +746,39 @@ countMem = fromByteCount . byteCountMem
 -- (Count {unCount = 1},2)
 --
 -- @since 0.1.0
-countRemMem :: forall e r. (MemRead r, Prim e) => r -> (Count e, Count Word8)
+countRemMem :: forall e mr. (MemRead mr, Prim e) => mr -> (Count e, Count Word8)
 countRemMem = fromByteCountRem . byteCountMem
 {-# INLINE countRemMem #-}
 
-getCountMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e)
+getCountMem :: forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e) => ma s -> m (Count e)
 getCountMem = fmap (fromByteCount . coerce) . getByteCountMem
 {-# INLINE getCountMem #-}
 
 
-getCountRemMem :: (MemAlloc r, MonadPrim s m, Prim e) => r s -> m (Count e, Count Word8)
+getCountRemMem ::
+     forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
+  => ma s
+  -> m (Count e, Count Word8)
 getCountRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
 {-# INLINE getCountRemMem #-}
 
 
-clone :: (MemAlloc r, MonadPrim s m) => r s -> m (r s)
+clone ::
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => ma s
+  -> m (ma s)
 clone mb = do
   n <- getByteCountMem mb
   mb' <- allocMem n
   mb' <$ moveMem mb 0 mb' 0 n
 {-# INLINE clone #-}
 
-eqMem :: (MemRead r1, MemRead r2) => r1 -> r2 -> Bool
+-- | Compare two memory regions byte-by-byte. False is returned immendiately if sizes
+-- reported by `byteCountMem` do not match. Computation may be short-circuited on the
+-- first mismatch, but it is `MemRead` implementation specific.
+--
+-- @since 0.1.0
+eqMem :: (MemRead mr1, MemRead mr2) => mr1 -> mr2 -> Bool
 eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
   where
     n = byteCountMem b1
@@ -623,10 +790,10 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 -- one. It is safe for both regions to refer to the same part of memory, since this is a
 -- pure function and both regions of memory are read-only.
 compareMem ::
-     (MemRead r1, MemRead r2, Prim e)
-  => r1 -- ^ First region of memory
+     forall e mr1 mr2. (MemRead mr1, MemRead mr2, Prim e)
+  => mr1 -- ^ First region of memory
   -> Off e -- ^ Offset in number of elements into the first region
-  -> r2 -- ^ Second region of memory
+  -> mr2 -- ^ Second region of memory
   -> Off e -- ^ Offset in number of elements into the second region
   -> Count e -- ^ Number of elements to compare
   -> Ordering
@@ -636,7 +803,7 @@ compareMem r1 off1 r2 off2 = compareByteOffMem r1 (toByteOff off1) r2 (toByteOff
 -- | It is only guaranteed to convert the whole memory to a list whenever the size of
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
-toListMem :: (MemRead r, Prim e) => r -> [e]
+toListMem :: forall e mr. (MemRead mr, Prim e) => mr -> [e]
 toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 {-# INLINE toListMem #-}
 {-# SPECIALIZE toListMem :: Prim e => Bytes p -> [e] #-}
@@ -662,8 +829,8 @@ toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 --
 -- @since 0.1.0
 toListSlackMem ::
-     forall e r. (MemRead r, Prim e)
-  => r
+     forall e mr. (MemRead mr, Prim e)
+  => mr
   -> ([e], [Word8])
 toListSlackMem mem =
   (build (\c n -> foldrCountMem k c n mem), getSlack (k8 + r8) [])
@@ -678,7 +845,7 @@ toListSlackMem mem =
 {-# INLINABLE toListSlackMem #-}
 
 -- | Right fold that is useful for converting to list while tapping into list fusion.
-foldrCountMem :: (MemRead r, Prim e) => Count e -> (e -> b -> b) -> b -> r -> b
+foldrCountMem :: forall e b mr. (MemRead mr, Prim e) => Count e -> (e -> b -> b) -> b -> mr -> b
 foldrCountMem (Count k) c nil bs = go 0
   where
     go i
@@ -690,11 +857,11 @@ foldrCountMem (Count k) c nil bs = go 0
 
 
 loadListMemN ::
-     (MemWrite r, MonadPrim s m, Prim e)
+     (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
   -> Count Word8
   -> [e]
-  -> r s
+  -> mw s
   -> m Ordering
 loadListMemN (Count n) (Count slack) ys mb = do
   let go [] !i = pure (compare i n <> compare 0 slack)
@@ -704,7 +871,12 @@ loadListMemN (Count n) (Count slack) ys mb = do
   go ys 0
 {-# INLINABLE loadListMemN #-}
 
-loadListMemN_ :: (MemWrite r, MonadPrim s m, Prim e) => Count e -> [e] -> r s -> m ()
+loadListMemN_ ::
+     forall e mw m s. (Prim e, MemWrite mw, MonadPrim s m)
+  => Count e
+  -> [e]
+  -> mw s
+  -> m ()
 loadListMemN_ (Count n) ys mb =
   let go [] _     = pure ()
       go (x:xs) i = when (i < n) $ writeOffMem mb (Off i) x >> go xs (i + 1)
@@ -714,28 +886,47 @@ loadListMemN_ (Count n) ys mb =
 -- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
 -- Otherwise it will return either `LT` if the list was smaller than allocated memory or
 -- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
-loadListMem :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m Ordering
+loadListMem ::
+     forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
+  => [e]
+  -> ma s
+  -> m Ordering
 loadListMem ys mb = do
   (c, slack) <- getCountRemMem mb
   loadListMemN (c `countForProxyTypeOf` ys) slack ys mb
 {-# INLINE loadListMem #-}
 
-loadListMem_ :: (MonadPrim s m, MemAlloc r, Prim e) => [e] -> r s -> m ()
+loadListMem_ ::
+     forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
+  => [e]
+  -> ma s
+  -> m ()
 loadListMem_ ys mb = do
   c <- getCountMem mb
   loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
 {-# INLINE loadListMem_ #-}
 
 
-fromListMemN :: (MemAlloc a, Prim e) => Count e -> [e] -> (Ordering, FrozenMem a)
+fromListMemN ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e
+  -> [e]
+  -> (Ordering, FrozenMem ma)
 fromListMemN n xs = createMemST n (loadListMemN n 0 xs)
 {-# INLINE fromListMemN #-}
 
-fromListMemN_ :: (MemAlloc a, Prim e) => Count e -> [e] -> FrozenMem a
+fromListMemN_ ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e
+  -> [e]
+  -> FrozenMem ma
 fromListMemN_ !n xs = createMemST_ n (loadListMemN_ n xs)
 {-# INLINE fromListMemN_ #-}
 
-fromListMem :: (MemAlloc a, Prim e) => [e] -> FrozenMem a
+fromListMem ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => [e]
+  -> FrozenMem ma
 fromListMem xs = fromListMemN_ (coerce (length xs) `countForProxyTypeOf` xs) xs
 {-# INLINE fromListMem #-}
 
@@ -749,7 +940,10 @@ fromListMem xs = fromListMemN_ (coerce (length xs) `countForProxyTypeOf` xs) xs
 -- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
 --
 -- @since 0.1.0
-fromByteListMem :: MemAlloc a => [Word8] -> FrozenMem a
+fromByteListMem ::
+     forall ma. MemAlloc ma
+  => [Word8]
+  -> FrozenMem ma
 fromByteListMem = fromListMem
 {-# INLINE fromByteListMem #-}
 
@@ -760,12 +954,19 @@ fromByteListMem = fromListMem
 -- [0,1,2,3,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0
-toByteListMem :: MemAlloc a => FrozenMem a -> [Word8]
+toByteListMem ::
+     forall ma. MemAlloc ma
+  => FrozenMem ma
+  -> [Word8]
 toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
 
 
-mapByteMem :: (MemRead r, MemAlloc a, Prim e) => (Word8 -> e) -> r -> FrozenMem a
+mapByteMem ::
+     forall e mr ma. (MemRead mr, MemAlloc ma, Prim e)
+  => (Word8 -> e)
+  -> mr
+  -> FrozenMem ma
 mapByteMem f = mapByteOffMem (const f)
 
 -- | Map an index aware function over memory region
@@ -778,24 +979,24 @@ mapByteMem f = mapByteOffMem (const f)
 --
 -- @since 0.1.0
 mapByteOffMem ::
-     (MemRead r, MemAlloc a, Prim e) => (Off Word8 -> Word8 -> e) -> r -> FrozenMem a
+     (MemRead mr, MemAlloc ma, Prim e) => (Off Word8 -> Word8 -> e) -> mr -> FrozenMem ma
 mapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
 mapByteMemM ::
-     (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
+     (MemRead mr, MemAlloc ma, MonadPrim s m, Prim e)
   => (Word8 -> m e)
-  -> r
-  -> m (FrozenMem a)
+  -> mr
+  -> m (FrozenMem ma)
 mapByteMemM f = mapByteOffMemM (const f)
 
 
 -- @since 0.1.0
 mapByteOffMemM ::
-     (MemRead r, MemAlloc a, MonadPrim s m, Prim e)
+     forall e mr ma m s. (MemRead mr, MemAlloc ma, MonadPrim s m, Prim e)
   => (Off Word8 -> Word8 -> m e)
-  -> r
-  -> m (FrozenMem a)
+  -> mr
+  -> m (FrozenMem ma)
 mapByteOffMemM f r = do
   let bc@(Count n) = byteCountMem r
       c = Count n `countForProxyTypeOf` f 0 0
@@ -812,8 +1013,8 @@ mapByteOffMemM f r = do
 
 -- | Iterate over a region of memory
 forByteOffMemM_ ::
-     (MemRead r, MonadPrim s m, Prim e)
-  => r
+     (MemRead mr, MonadPrim s m, Prim e)
+  => mr
   -> Off Word8
   -> Count e
   -> (Off Word8 -> e -> m b)
@@ -846,7 +1047,7 @@ loopShortM' !startAt condition increment !initAcc f = go startAt initAcc
 
 -- -- | Iterate over a region of memory
 -- loopMemM_ ::
---      (MemRead r, MonadPrim s m, Prim e)
+--      (MemRead mr, MonadPrim s m, Prim e)
 --   => r
 --   -> Off Word8
 --   -> Count e
@@ -865,21 +1066,21 @@ loopShortM' !startAt condition increment !initAcc f = go startAt initAcc
 
 data MemView a = MemView
   { mvOffset :: {-# UNPACK #-} !(Off Word8)
-  , mvCount :: {-# UNPACK #-} !(Count Word8)
-  , mvMem :: !a
+  , mvCount  :: {-# UNPACK #-} !(Count Word8)
+  , mvMem    :: !a
   }
 
 data MMemView a s = MMemView
   { mmvOffset :: {-# UNPACK #-} !(Off Word8)
-  , mmvCount :: {-# UNPACK #-} !(Count Word8)
-  , mmvMem :: !(a s)
+  , mmvCount  :: {-# UNPACK #-} !(Count Word8)
+  , mmvMem    :: !(a s)
   }
 
 izipWithByteOffMemM_ ::
-     (MemRead r1, MemRead r2, MonadPrim s m, Prim e)
-  => r1
+     (MemRead mr1, MemRead mr2, MonadPrim s m, Prim e)
+  => mr1
   -> Off Word8
-  -> r2
+  -> mr2
   -> Off Word8
   -> Count e
   -> (Off Word8 -> e -> Off Word8 -> e -> m b)
@@ -898,10 +1099,10 @@ izipWithByteOffMemM_ r1 (Off byteOff1) r2 off2 c f =
 
 
 izipWithOffMemM_ ::
-     (MemRead r1, MemRead r2, MonadPrim s m, Prim e1, Prim e2)
-  => r1
+     (MemRead mr1, MemRead mr2, MonadPrim s m, Prim e1, Prim e2)
+  => mr1
   -> Off e1
-  -> r2
+  -> mr2
   -> Off e2
   -> Int
   -> (Off e1 -> e1 -> Off e2 -> e2 -> m b)
@@ -950,9 +1151,9 @@ izipWithOffMemM_ r1 off1 r2 off2 nc f =
 --     maddr' <$ go 0
 
 
--------------------
--- Bytes orphans --
--------------------
+---------------------
+-- Bytes instances --
+---------------------
 
 instance MemRead (Bytes p) where
   byteCountMem = byteCountBytes
@@ -1048,7 +1249,7 @@ instance Typeable p => Monoid.Monoid (Bytes p) where
 -- >>> foldr ($) "" . showsBytesHex <$> freezeMBytes mb
 -- "01000000000000000200000000000000030000000000000004000000000000000500000000000000"
 --
-showsHexMem :: MemRead r => r -> [ShowS]
+showsHexMem :: MemRead mr => mr -> [ShowS]
 showsHexMem b = map toHex (toListMem b :: [Word8])
   where
     toHex b8 =
@@ -1059,12 +1260,13 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
 
 -- | Ensure that memory is filled with zeros before and after it is used.
 withScrubbedMem ::
-     (MonadUnliftPrim RW m, Prim e, MemAlloc mem)
+     (MonadUnliftPrim RW m, Prim e, MemAlloc ma)
   => Count e
-  -> (mem RW -> m a)
+  -> (ma RW -> m a)
   -> m a
 withScrubbedMem c f = do
   mem <- allocZeroMem c
   f mem `finallyPrim` setMem mem 0 (toByteCount c) 0
   where
     finallyPrim m1 m2 = withRunInPrimBase $ \run -> finally (run m1) (run m2)
+{-# INLINE withScrubbedMem #-}

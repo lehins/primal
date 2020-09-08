@@ -136,8 +136,42 @@ prop_copyByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) (NonNe
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mb :: MBytes 'Pin RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
     copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
+    b <- freezeMem mb
+    compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldReturn` EQ
+    compareByteOffMem b offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
       readByteOffMem mb i `shouldReturn` x
+
+prop_copyAndCompareByteOffToPtrMem ::
+     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
+  => NEMem a e
+  -> NonNegative (Off Word8)
+  -> NonNegative (Count e)
+  -> NonNegative (Off e)
+  -> e
+  -> Property
+prop_copyAndCompareByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn off e =
+  propIO $ do
+    let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
+        xs' = take (unCount count) $ drop (unOff offSrc) xs
+    maddr :: MAddr e RW <- castMAddr <$> allocMAddr (toByteCount count + offToCount offByteDst)
+    withPtrMAddr maddr $ \ ptr -> copyByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count
+    -- Ensure copy was successfull
+    forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
+      readByteOffMem maddr i `shouldReturn` x
+    -- Ensure copy was successfull with compare
+    withPtrMAddr maddr $ \ ptr -> do
+      compareByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count `shouldReturn` EQ
+      addr <- freezeMAddr maddr
+      compareByteOffMem addr offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
+    -- validate compareByteOffToPtrMem
+    when (count > 0) $ do
+      let offDelta = countToOff (offToCount (getNonNegative off) `mod` count)
+      let eOrdering = compare (singletonBytes (xs !! unOff (offSrc + offDelta)))
+                              (singletonBytes e :: Bytes 'Inc)
+      writeByteOffMem maddr (offByteDst + toByteOff offDelta) e
+      withPtrMAddr maddr $ \ ptr ->
+        compareByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count `shouldReturn` eOrdering
 
 
 prop_emptyMem ::
@@ -202,6 +236,7 @@ memSpec = do
       prop "indexOffMem" $ prop_indexOffMem @a @e
       prop "indexByteOffMem" $ prop_indexByteOffMem @a @e
       prop "copyByteOffToMBytesMem" $ prop_copyByteOffToMBytesMem @a @e
+      prop "copyByteOffToPtrMem/compareByteOffToPtrMem" $ prop_copyAndCompareByteOffToPtrMem @a @e
     prop "emptyMem" $ prop_emptyMem @a @e
     prop "setMem" $ prop_setMem @a @e
 

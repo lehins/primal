@@ -6,7 +6,7 @@ HsInt primal_ptreq(HsWord8 *ptr1, HsWord8 *ptr2){
   return ptr1 == ptr2;
 }
 
-HsInt8 primal_memcmp(HsWord8 *ptr1, HsInt offset1, HsWord8 *ptr2, HsInt offset2, HsInt n){
+HsInt primal_memcmp(HsWord8 *ptr1, HsInt offset1, HsWord8 *ptr2, HsInt offset2, HsInt n){
   return memcmp(ptr1 + offset1, ptr2 + offset2, n);
 }
 
