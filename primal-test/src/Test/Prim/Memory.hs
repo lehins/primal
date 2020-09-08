@@ -98,9 +98,9 @@ prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
         let tOff = Off k `offForType` e
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
-              mfm <- thawMem fm
-              writeOffMem mfm tOff e
-              fm' <- freezeMem mfm
+              mm <- thawMem fm
+              writeOffMem mm tOff e
+              fm' <- freezeMem mm
               indexOffMem fm' tOff `shouldBe` e
     ]
 
@@ -117,30 +117,42 @@ prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
         let tOff = Off k
           -- test precondition from documentation
          in (unOff tOff <= unCount (byteCountMem fm - byteCount e)) ==> do
-              mfm <- thawMem fm
-              writeByteOffMem mfm tOff e
-              fm' <- freezeMem mfm
+              mm <- thawMem fm
+              writeByteOffMem mm tOff e
+              fm' <- freezeMem mm
               indexByteOffMem fm' tOff `shouldBe` e
     ]
 
 
-prop_copyByteOffToMBytesMem ::
+prop_copyAndCompareByteOffToMBytesMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
+  -> NonNegative (Off e)
+  -> e
   -> Property
-prop_copyByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) (NonNegative n) =
+prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn off e =
   propIO $ do
-    let count = min (countMem fm - offToCount offSrc) n
+    let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mb :: MBytes 'Pin RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
     copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
     b <- freezeMem mb
-    compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldReturn` EQ
-    compareByteOffMem b offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
+    -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
       readByteOffMem mb i `shouldReturn` x
+    -- Ensure copy was successfull with compare
+    compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldReturn` EQ
+    compareByteOffMem b offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
+    -- validate compareByteOffToBytesMem
+    when (count > 0) $ do
+      let offDelta = countToOff (offToCount (getNonNegative off) `mod` count)
+      let eOrdering = compare (singletonBytes (xs !! unOff (offSrc + offDelta)))
+                              (singletonBytes e :: Bytes 'Inc)
+      writeByteOffMem mb (offByteDst + toByteOff offDelta) e
+      b' <- freezeMem mb
+      compareByteOffToBytesMem fm (toByteOff offSrc) b' offByteDst count `shouldReturn` eOrdering
 
 prop_copyAndCompareByteOffToPtrMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
@@ -172,6 +184,54 @@ prop_copyAndCompareByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst)
       writeByteOffMem maddr (offByteDst + toByteOff offDelta) e
       withPtrMAddr maddr $ \ ptr ->
         compareByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count `shouldReturn` eOrdering
+
+
+prop_readWriteOffMem ::
+     forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
+  => NEMem ma e
+  -> e
+  -> NonNegative Int
+  -> APrim
+  -> Property
+prop_readWriteOffMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
+  conjoin
+    [ propIO $ do
+        mm <- thawMem fm
+        readOffMem mm off `shouldReturn` xs !! o
+        writeOffMem mm off e'
+        readOffMem mm off `shouldReturn` e'
+    , withAPrim aPrim $ \e ->
+        let tOff = Off k `offForType` e
+          -- test precondition from documentation
+         in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
+              mm <- thawMem fm
+              writeOffMem mm tOff e
+              readOffMem mm tOff `shouldReturn` e
+    ]
+
+
+prop_readWriteByteOffMem ::
+     forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
+  => NEMem ma e
+  -> e
+  -> NonNegative Int
+  -> APrim
+  -> Property
+prop_readWriteByteOffMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
+  conjoin
+    [ propIO $ do
+        mm <- thawMem fm
+        readByteOffMem mm (toByteOff off) `shouldReturn` xs !! o
+        writeByteOffMem mm (toByteOff off) e'
+        readByteOffMem mm (toByteOff off) `shouldReturn` e'
+    , withAPrim aPrim $ \e ->
+        let tOff = Off k `offForType` e
+          -- test precondition from documentation
+         in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
+              mm <- thawMem fm
+              writeByteOffMem mm (toByteOff tOff) e
+              readByteOffMem mm (toByteOff tOff) `shouldReturn` e
+    ]
 
 
 prop_emptyMem ::
@@ -235,8 +295,13 @@ memSpec = do
       prop "byteCountMem" $ prop_byteCountMem @a @e
       prop "indexOffMem" $ prop_indexOffMem @a @e
       prop "indexByteOffMem" $ prop_indexByteOffMem @a @e
-      prop "copyByteOffToMBytesMem" $ prop_copyByteOffToMBytesMem @a @e
-      prop "copyByteOffToPtrMem/compareByteOffToPtrMem" $ prop_copyAndCompareByteOffToPtrMem @a @e
+      prop "copyByteOffToMBytesMem/compareByteOffToBytesMem" $
+        prop_copyAndCompareByteOffToMBytesMem @a @e
+      prop "copyByteOffToPtrMem/compareByteOffToPtrMem" $
+        prop_copyAndCompareByteOffToPtrMem @a @e
+    describe "MemWrite" $ do
+      prop "readWriteOffMem" $ prop_readWriteOffMem @a @e
+      prop "readWriteByteOffMem" $ prop_readWriteByteOffMem @a @e
     prop "emptyMem" $ prop_emptyMem @a @e
     prop "setMem" $ prop_setMem @a @e
 

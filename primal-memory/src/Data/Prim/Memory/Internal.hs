@@ -43,8 +43,8 @@ import qualified Data.Semigroup as Semigroup
 import Foreign.Prim
 import Numeric (showHex)
 
--- | Type class that can be implemented for a read-only immutable data type that provides
--- direct access to memory
+-- | Type class that can be implemented for an immutable data type that provides
+-- direct read-only access to memory
 class MemRead mr where
 
   -- | Number of bytes allocated by the data type available for reading. This is primarily
@@ -67,7 +67,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff (toByteOff off)
+    -- > 0 <= off
     --
     -- > unOff (toByteOff off) <= unCount (byteCountMem memRead - byteCountType @e)
     --
@@ -112,7 +112,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memSourceOff
+    -- > 0 <= memSourceOff
     --
     -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> MBytes p s -- ^ /memTargetWrite/ - Target mutable memory
@@ -121,7 +121,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memTargetOff
+    -- > 0 <= memTargetOff
     --
     -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
     -> Count e
@@ -129,7 +129,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unCount memCount
+    -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     --
@@ -154,7 +154,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memSourceOff
+    -- > 0 <= memSourceOff
     --
     -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> Ptr e
@@ -176,7 +176,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unCount memCount
+    -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     --
@@ -199,7 +199,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memOff1
+    -- > 0 <= memOff1
     --
     -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> Ptr e
@@ -221,7 +221,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unCount memCount
+    -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> m Ordering
@@ -242,7 +242,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memOff1
+    -- > 0 <= memOff1
     --
     -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> Bytes p -- ^ /memRead2/- Second memory region that is backed by `Bytes`
@@ -251,7 +251,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memOff2
+    -- > 0 <= memOff2
     --
     -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
@@ -259,7 +259,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unCount memCount
+    -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     --
@@ -291,7 +291,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memOff1
+    -- > 0 <= memOff1
     --
     -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> mr -- ^ /memRead2/ - Second memory region
@@ -300,7 +300,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unOff memOff2
+    -- > 0 <= memOff2
     --
     -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
@@ -308,37 +308,114 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= unCount memCount
+    -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     --
     -- > fromCount memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Ordering
 
--- | Generalized memory allocation and pure/mutable state conversion.
-class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
-  type FrozenMem ma = (fm :: Type) | fm -> ma
-
-  getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
-
-  allocByteCountMem :: MonadPrim s m => Count Word8 -> m (ma s)
-
-  thawMem :: MonadPrim s m => FrozenMem ma -> m (ma s)
-
-  freezeMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
-
-  resizeMem :: (MonadPrim s m, Prim e) => ma s -> Count e -> m (ma s)
-  resizeMem = defaultResizeMem
-
-
+-- | Type class that can be implemented for a mutable data type that provides direct read
+-- and write access to memory
 class MemWrite mw where
-  readOffMem :: (MonadPrim s m, Prim e) => mw s -> Off e -> m e
+  -- | Read an element with an offset in number of elements, rather than bytes as it is
+  -- the case with `readByteOffMem`.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+  -- result is either unpredictable output or failure with a segfault.
+  --
+  -- @since 0.1.0
+  readOffMem :: (MonadPrim s m, Prim e)
+    => mw s -- ^ /memRead/ - Memory region to read an element from
+    -> Off e
+    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= off
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > count <- getByteCountMem memRead
+    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+    --
+    -> m e
+  readOffMem mw off = readByteOffMem mw (toByteOff off)
+  {-# INLINE readOffMem #-}
 
-  readByteOffMem :: (MonadPrim s m, Prim e) => mw s -> Off Word8 -> m e
+  -- | Read an element with an offset in number of bytes.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+  -- result is either unpredictable output or failure with a segfault.
+  --
+  -- @since 0.1.0
+  readByteOffMem :: (MonadPrim s m, Prim e)
+    => mw s -- ^ /memRead/ - Memory region to read an element from
+    -> Off Word8
+    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= off
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > count <- getByteCountMem memRead
+    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+    --
+    -> m e
 
-  writeOffMem :: (MonadPrim s m, Prim e) => mw s -> Off e -> e -> m ()
+  -- | Write an element with an offset in number of elements, rather than bytes as it is
+  -- the case with `writeByteOffMem`.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+  -- result is either memory corruption or failure with a segfault.
+  --
+  -- @since 0.1.0
+  writeOffMem :: (MonadPrim s m, Prim e)
+    => mw s -- ^ /memWrite/ - Memory region to write an element into
+    -> Off e
+    -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= off
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > count <- getByteCountMem memWrite
+    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+    --
+    -> e -- ^ /elt/ - Element to write
+    -> m ()
+  writeOffMem mw off = writeByteOffMem mw (toByteOff off)
+  {-# INLINE writeOffMem #-}
 
-  writeByteOffMem :: (MonadPrim s m, Prim e) => mw s -> Off Word8 -> e -> m ()
+  -- | Write an element with an offset in number of bytes.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+  -- result is either memory corruption or failure with a segfault.
+  --
+  -- @since 0.1.0
+  writeByteOffMem :: (MonadPrim s m, Prim e)
+    => mw s -- ^ /memWrite/ - Memory region to write an element into
+    -> Off Word8
+    -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= off
+    --
+    -- Offset should refer to the same memory region. For types that also implement
+    -- `MemAlloc` this can be described as:
+    --
+    -- > count <- getByteCountMem memWrite
+    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+    --
+    -> e -> m ()
 
   -- | Source and target can be overlapping memory chunks
   moveByteOffToMBytesMem ::
@@ -366,6 +443,21 @@ class MemWrite mw where
     -> e -- ^ Element to write into all memory cells specified by offset and count. Even
          -- if the count is @0@ this element might be still fully evaluated.
     -> m ()
+
+-- | Generalized memory allocation and pure/mutable state conversion.
+class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
+  type FrozenMem ma = (fm :: Type) | fm -> ma
+
+  getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
+
+  allocByteCountMem :: MonadPrim s m => Count Word8 -> m (ma s)
+
+  thawMem :: MonadPrim s m => FrozenMem ma -> m (ma s)
+
+  freezeMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
+
+  resizeMem :: (MonadPrim s m, Prim e) => ma s -> Count e -> m (ma s)
+  resizeMem = defaultResizeMem
 
 
 instance MemRead ByteString where

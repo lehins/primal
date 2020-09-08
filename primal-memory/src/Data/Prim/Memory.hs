@@ -7,8 +7,8 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory
-  ( Pinned(..)
-  , module Data.Prim
+  ( module Data.Prim
+  , Pinned(..)
   -- * Immutable
   , Bytes
   , MemRead
@@ -25,53 +25,6 @@ module Data.Prim.Memory
   , compareByteOffMem
   , compareByteOffToPtrMem
   , compareByteOffToBytesMem
-  -- * Mutable
-  , MBytes
-  , MemAlloc(FrozenMem)
-  , MemWrite
-  , getCountMem
-  , getCountRemMem
-  , readOffMem
-  , writeOffMem
-  , modifyFetchOldMem
-  , modifyFetchOldMemM
-  , modifyFetchNewMem
-  , modifyFetchNewMemM
-  , setMem
-  -- ** Move
-  , moveMem
-  , moveByteOffMem
-  , moveByteOffToMBytesMem
-  , moveByteOffToPtrMem
-  -- ** Copy
-  , copyMem
-  , copyByteOffMem
-  , copyByteOffToMBytesMem
-  , copyByteOffToPtrMem
-
-  , MemState(..)
-  , allocMem
-  , allocZeroMem
-  , thawMem
-  , thawCloneMem
-  , thawCopyMem
-  , freezeMem
-  , freezeCloneMem
-  , freezeCopyMem
-  , createMemST
-  , createMemST_
-  , createZeroMemST
-  , createZeroMemST_
-  , emptyMem
-  , singletonMem
-  , cycleMemN
-  -- * Byte operations
-  -- $byteOperations
-  -- ** Mutable
-  , allocByteCountMem
-  , getByteCountMem
-  , readByteOffMem
-  , writeByteOffMem
   -- * Conversion
   , convertMem
   -- ** List
@@ -88,6 +41,54 @@ module Data.Prim.Memory
   , loadListMemN_
   -- *** Helpers
   , foldrCountMem
+  -- * Mutable
+  , MemState(..)
+  -- ** Allocate
+  , MemAlloc(FrozenMem)
+  , getCountMem
+  , getCountRemMem
+  , getByteCountMem
+  , allocByteCountMem
+  , allocMem
+  , allocZeroMem
+  , thawMem
+  , thawCloneMem
+  , thawCopyMem
+  , freezeMem
+  , freezeCloneMem
+  , freezeCopyMem
+  , createMemST
+  , createMemST_
+  , createZeroMemST
+  , createZeroMemST_
+  -- ** Mutate
+  , MBytes
+  , MemWrite
+  , readOffMem
+  , readByteOffMem
+  , writeOffMem
+  , writeByteOffMem
+  , modifyFetchOldMem
+  , modifyFetchOldMemM
+  , modifyFetchNewMem
+  , modifyFetchNewMemM
+  , setMem
+  -- ** Move
+  , moveMem
+  , moveByteOffMem
+  , moveByteOffToMBytesMem
+  , moveByteOffToPtrMem
+  -- ** Copy
+  , copyMem
+  , copyByteOffMem
+  , copyByteOffToMBytesMem
+  , copyByteOffToPtrMem
+
+  , emptyMem
+  , singletonMem
+  , cycleMemN
+  -- * Byte operations
+  -- $byteOperations
   ) where
 
 import Data.Prim
