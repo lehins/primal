@@ -1346,11 +1346,11 @@ loadListMem_ ys mb = do
 -- * or a count of surplus memory allocated because the input @list@ turned out to be
 --   smaller than @memCount@.
 --
--- In the latter case a zero value would indicacte that the list did fit into the
--- newly allocated memory region exactly, which is perfectly fine. But a positive
--- value would mean that the tail of the memory region is still unset and might
--- contain garbage data. Make sure to overwrite the surplus yourself or user
--- `fromListZeroMemN`
+-- In the latter case a zero value would indicacte that the list did fit into the newly
+-- allocated memory region exactly, which is perfectly fine. But a positive value would
+-- mean that the tail of the memory region is still unset and might contain garbage
+-- data. Make sure to overwrite the surplus memory yourself or use the safe version
+-- `fromListZeroMemN` that fills the surplus with zeros.
 --
 -- [Unsafe] Whenever @memCount@ precodition is violated, because on each call with the
 -- same input it can produce different output therefore it will break referential
@@ -1384,7 +1384,7 @@ fromListMemN count xs =
     (ys, off) <- loadListOffMemN count xs mm 0
     let surplus = count - offToCount off
     pure $
-      if surplus >= 0
+      if surplus >= 0 && null ys
         then Right surplus
         else Left ys
 {-# INLINE fromListMemN #-}

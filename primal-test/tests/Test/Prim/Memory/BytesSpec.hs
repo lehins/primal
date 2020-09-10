@@ -89,11 +89,11 @@ primSpec = do
             (order, b') = fromListBytesN n xs
             (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
             (order'', b''' :: Bytes p) = fromListBytesN (n + n') xs
-        order `shouldBe` EQ
+        order `shouldBe` Right 0
         b' `shouldBe` b
-        order' `shouldBe` GT
+        order' `shouldBe` Left (drop i xs)
         xs `shouldStartWith` toListBytes b''
-        order'' `shouldBe` LT
+        order'' `shouldBe` Right n'
         let xs' = toListBytes b'''
         xs' `deepseq` (xs' `shouldStartWith` xs)
       prop "concatBytes (empty)" $ \ (NonNegative n) ->
