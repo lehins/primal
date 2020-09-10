@@ -32,23 +32,22 @@ module Data.Prim
   , Size(..)
   -- * Count
   , Count(..)
-  , fromCount
+  , unCountBytes
   , toByteCount
-  , fromCount#
+  , unCountBytes#
   , fromByteCount
   , fromByteCountRem
   , countToOff
-  , countAsProxy
   , countForType
   , countForProxyTypeOf
   -- * Offset
   , Off(..)
+  , unOffBytes
   , toByteOff
-  , fromOff#
+  , unOffBytes#
   , fromByteOff
   , fromByteOffRem
   , offToCount
-  , offAsProxy
   , offForType
   , offForProxyTypeOf
   -- * Prefetch
@@ -163,61 +162,55 @@ newtype Count e = Count
 instance Prim (Count e) where
   type PrimBase (Count e) = Int
 
-fromCountWord8# :: Count Word8 -> Int#
-fromCountWord8# (Count (I# n#)) = n#
-{-# INLINE fromCountWord8# #-}
-fromCountInt8# :: Count Int8 -> Int#
-fromCountInt8# (Count (I# n#)) = n#
-{-# INLINE fromCountInt8# #-}
+unCountWord8# :: Count Word8 -> Int#
+unCountWord8# (Count (I# n#)) = n#
+{-# INLINE unCountWord8# #-}
+unCountInt8# :: Count Int8 -> Int#
+unCountInt8# (Count (I# n#)) = n#
+{-# INLINE unCountInt8# #-}
 
-fromCount# :: Prim e => Count e -> Int#
-fromCount# c@(Count (I# n#)) =
+unCountBytes# :: Prim e => Count e -> Int#
+unCountBytes# c@(Count (I# n#)) =
   case coerce (byteCountProxy c) of
     I# sz# -> sz# *# n#
-{-# INLINE[0] fromCount# #-}
+{-# INLINE[0] unCountBytes# #-}
 {-# RULES
-"fromCountWord8#" fromCount# = fromCountWord8#
-"fromCountInt8#" fromCount# = fromCountInt8#
+"unCountWord8#" unCountBytes# = unCountWord8#
+"unCountInt8#" unCountBytes# = unCountInt8#
   #-}
 
--- | Covert to number of bytes as an `Int`
+-- | Covert an element count to number of bytes it coresponds to as an `Int`. See
+-- `toByteCount` for preserving the `Count` wrapper.
 --
 -- @since 0.1.0
-fromCount :: Prim e => Count e -> Int
-fromCount c = I# (fromCount# c)
-{-# INLINE fromCount #-}
+unCountBytes :: Prim e => Count e -> Int
+unCountBytes c = I# (unCountBytes# c)
+{-# INLINE unCountBytes #-}
+
 
 -- | Covert to the `Count` of bytes
 --
 -- @since 0.1.0
 toByteCount :: Prim e => Count e -> Count Word8
-toByteCount = Count . fromCount
+toByteCount = Count . unCountBytes
 {-# INLINE toByteCount #-}
 
 -- | Cast a count to an offset of the same type
 --
--- @since 0.1.1
+-- @since 0.2.0
 countToOff :: Count e -> Off e
 countToOff = coerce
 
-
 -- | Helper noop function that restricts `Count` to the type of proxy
 --
--- @since 0.1.0
-countAsProxy :: proxy e -> Count e -> Count e
-countAsProxy _ = id
-{-# DEPRECATED countAsProxy "In favor of `countForProxyTypeOf` that provides more consistent order of arguments" #-}
-
--- | Helper noop function that restricts `Count` to the type of proxy
---
--- @since 0.1.1
+-- @since 0.2.0
 countForProxyTypeOf :: Count e -> proxy e -> Count e
 countForProxyTypeOf count _ = count
 
 -- | Restrict type argument of `Count` to the same type as the second argument, which
 -- itself is not evaluated
 --
--- @since 0.1.1
+-- @since 0.2.0
 countForType :: Count e -> e -> Count e
 countForType count _ = count
 
@@ -225,6 +218,10 @@ fromByteCountInt8 :: Count Word8 -> Count Int8
 fromByteCountInt8 = coerce
 {-# INLINE fromByteCountInt8 #-}
 
+
+-- | Compute how many elements of type @e@ can fit in the supplied number of bytes.
+--
+-- @since 0.1.0
 fromByteCount :: forall e . Prim e => Count Word8 -> Count e
 fromByteCount sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quotInt)
 {-# INLINE[0] fromByteCount #-}
@@ -270,25 +267,18 @@ instance Prim (Off e) where
 
 -- | Helper noop function that restricts `Off`set to the type of proxy
 --
--- @since 0.1.0
-offAsProxy :: proxy e -> Off e -> Off e
-offAsProxy _ = id
-{-# DEPRECATED offAsProxy "In favor of `offForProxyTypeOf` that provides more consistent order of arguments" #-}
-
--- | Helper noop function that restricts `Off`set to the type of proxy
---
--- @since 0.1.1
+-- @since 0.2.0
 offForProxyTypeOf :: Off e -> proxy e -> Off e
 offForProxyTypeOf off _ = off
 
 -- | Restrict type argument of `Off` to the same type as the second argument, which itself
 -- is not evaluated
 --
--- @since 0.1.1
+-- @since 0.2.0
 offForType :: Off e -> e -> Off e
 offForType c _ = c
 
--- | Cast an offset to count. Useful for dealing with reagions.
+-- | Cast an offset to count. Useful for dealing with regions.
 --
 -- >>> import Data.Prim
 -- >>> totalCount = Count 10 :: Count Word
@@ -296,7 +286,7 @@ offForType c _ = c
 -- >>> totalCount - offToCount startOffset
 -- Count {unCount = 6}
 --
--- @since 0.1.1
+-- @since 0.2.0
 offToCount :: Off e -> Count e
 offToCount = coerce
 
@@ -307,25 +297,39 @@ offToCount = coerce
 --
 -- @since 0.1.0
 toByteOff :: Prim e => Off e -> Off Word8
-toByteOff off = Off (I# (fromOff# off))
+toByteOff off = Off (I# (unOffBytes# off))
 {-# INLINE toByteOff #-}
 
-fromOffWord8# :: Off Word8 -> Int#
-fromOffWord8# (Off (I# o#)) = o#
-{-# INLINE fromOffWord8# #-}
-fromOffInt8# :: Off Int8 -> Int#
-fromOffInt8# (Off (I# o#)) = o#
-{-# INLINE fromOffInt8# #-}
+
+-- | Convert an offset for some type @e@ with `Prim` instance to the number of bytes as an
+-- `Int`.
+--
+-- >>> unOffBytes (10 :: Off Word64)
+-- 80
+--
+-- @since 0.2.0
+unOffBytes :: Prim e => Off e -> Int
+unOffBytes off = I# (unOffBytes# off)
+{-# INLINE unOffBytes #-}
+
+
+
+unOffWord8# :: Off Word8 -> Int#
+unOffWord8# (Off (I# o#)) = o#
+{-# INLINE unOffWord8# #-}
+unOffInt8# :: Off Int8 -> Int#
+unOffInt8# (Off (I# o#)) = o#
+{-# INLINE unOffInt8# #-}
 
 -- | Convert offset of some type into number of bytes
-fromOff# :: Prim e => Off e -> Int#
-fromOff# o@(Off (I# o#)) =
+unOffBytes# :: Prim e => Off e -> Int#
+unOffBytes# o@(Off (I# o#)) =
   case coerce (byteCountProxy o) of
     I# sz# -> sz# *# o#
-{-# INLINE[0] fromOff# #-}
+{-# INLINE[0] unOffBytes# #-}
 {-# RULES
-"fromOffWord8#" fromOff# = fromOffWord8#
-"fromOffInt8#" fromOff# = fromOffInt8#
+"unOffWord8#" unOffBytes# = unOffWord8#
+"unOffInt8#" unOffBytes# = unOffInt8#
   #-}
 
 

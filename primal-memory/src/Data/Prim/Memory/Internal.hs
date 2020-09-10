@@ -130,9 +130,9 @@ class MemRead mr where
     --
     -- > 0 <= memCount
     --
-    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     --
-    -- > fromCount memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
+    -- > unCountBytes memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
     -> m ()
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
@@ -163,7 +163,7 @@ class MemRead mr where
     --
     -- /__Preconditions:__/
     --
-    -- Once the pointer is advanced by @memTargetOff@ the next @fromCount memCount@ bytes must
+    -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
     -- still belong to the same region of memory @memTargetWrite@
     -> Off Word8
     -- ^ /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
@@ -179,7 +179,7 @@ class MemRead mr where
     --
     -- > 0 <= memCount
     --
-    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> m ()
 
   -- | Same as `compareByteOffMem`, but compare inside of a `MonadPrim` the read-only
@@ -206,7 +206,7 @@ class MemRead mr where
     --
     -- /__Preconditions__/
     --
-    -- Once the pointer is advanced by @memOff2@ the next @fromCount memCount@ bytes must
+    -- Once the pointer is advanced by @memOff2@ the next @unCountBytes memCount@ bytes must
     -- still belong to the same region of memory @memRead2@
     -> Off Word8
     -- ^ /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
@@ -222,7 +222,7 @@ class MemRead mr where
     --
     -- > 0 <= memCount
     --
-    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> m Ordering
 
   -- | Same as `compareByteOffMem`, but compare the read-only memory region to `Bytes`
@@ -260,9 +260,9 @@ class MemRead mr where
     --
     -- > 0 <= memCount
     --
-    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     --
-    -- > fromCount memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
+    -- > unCountBytes memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> m Ordering
 
   -- | Compare two read-only regions of memory byte-by-byte. The very first mismatched
@@ -309,9 +309,9 @@ class MemRead mr where
     --
     -- > 0 <= memCount
     --
-    -- > fromCount memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     --
-    -- > fromCount memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
+    -- > unCountBytes memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Ordering
 
 -- | Type class that can be implemented for a mutable data type that provides direct read
@@ -461,15 +461,15 @@ class MemWrite mw where
     --
     -- > 0 <= memCount
     --
-    -- Both source and target memory regions should have enough memory to perform a copy
+    -- Both source and target memory regions must have enough memory to perform a copy
     -- of @memCount@ elements starting at their respective offsets. For types that also
     -- implement `MemAlloc` this can be described as:
     --
     -- > sourceByteCount <- getByteCountMem memSource
-    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
     -> m ()
 
   -- | Copy contiguous chunk of memory from the source mutable memory into the target
@@ -501,7 +501,7 @@ class MemWrite mw where
     --
     -- /__Precondition:__/
     --
-    -- Once the pointer is advanced by @memTargetOff@ the next @fromCount memCount@ bytes must
+    -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
     -- still belong to the same region of memory @memTargetWrite@
     -> Off Word8
     -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
@@ -519,12 +519,12 @@ class MemWrite mw where
     --
     -- > 0 <= memCount
     --
-    -- Both source and target memory regions should have enough memory to perform a copy
+    -- Both source and target memory regions must have enough memory to perform a copy
     -- of @memCount@ elements starting at their respective offsets. For /memSource/ that also
     -- implements `MemAlloc` this can be described as:
     --
     -- > sourceByteCount <- getByteCountMem memSource
-    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
     -> m ()
 
   -- | Copy contiguous chunk of memory from the read only memory region into the target
@@ -537,10 +537,9 @@ class MemWrite mw where
   -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
   -- a segfault.
   --
-  --
   -- @since 0.1.0
   copyByteOffMem :: (MonadPrim s m, MemRead mr, Prim e)
-    => mr -- ^ /memSourceRead/ - Read-only source from where to copy
+    => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
     -> Off Word8
     -- ^ /memSourceOff/ - Offset into source memory in number of bytes
     --
@@ -561,7 +560,7 @@ class MemWrite mw where
     -- also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTargetWrite
-    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> Count e
     -- ^ /memCount/ - Number of elements of type @e@ to copy
     --
@@ -569,15 +568,15 @@ class MemWrite mw where
     --
     -- > 0 <= memCount
     --
-    -- Both source and target memory regions should have enough memory to perform a copy
-    -- of @memCount@ elements starting at their respective offsets. For /memSourceRead/:
+    -- Both source and target memory regions must have enough memory to perform a copy
+    -- of @memCount@ elements starting at their respective offsets. For @memSourceRead@:
     --
-    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -- > unOff memSourceOff + unCountBytes memCount <= unCount (byteCountMem memSourceRead - byteCountType @e)
     --
-    -- and for /memTargetWrite/ that also implements `MemAlloc` this can be described as:
+    -- and for @memTargetWrite@ that also implements `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTargetWrite
-    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
     -> m ()
 
   -- | Copy contiguous chunk of memory from a mutable memory region into the target
@@ -602,7 +601,7 @@ class MemWrite mw where
     -- also implement `MemAlloc` this can be described as:
     --
     -- > sourceByteCount <- getByteCountMem memSource
-    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+    -- > unOffBytes memSourceOff <= unCount (sourceByteCount - byteCountType @e)
     -> mw s -- ^ /memTarget/ - Target memory into where to copy
     -> Off Word8
     -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
@@ -615,7 +614,7 @@ class MemWrite mw where
     -- also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -- > unOffBytes (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
     -> Count e
     -- ^ /memCount/ - Number of elements of type @e@ to copy
     --
@@ -623,15 +622,15 @@ class MemWrite mw where
     --
     -- > 0 <= memCount
     --
-    -- Both source and target memory regions should have enough memory to perform a copy
+    -- Both source and target memory regions must have enough memory to perform a copy
     -- of @memCount@ elements starting at their respective offsets. For types that also
     -- implement `MemAlloc` this can be described as:
     --
     -- > sourceByteCount <- getByteCountMem memSource
-    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
     -> m ()
 
   -- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
@@ -659,7 +658,7 @@ class MemWrite mw where
     -- also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> Count e
     -- ^ /memCount/ - Number of times the element @elt@ should be written
     --
@@ -672,7 +671,7 @@ class MemWrite mw where
     -- types that also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -- > unCountBytes memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> e -- ^ /elt/ - Element to write into memory cells. This function is strict with
          -- respect to element, which means that the even @memCount = 0@ it might be still
          -- fully evaluated.
@@ -935,24 +934,23 @@ createZeroMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s
 createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createZeroMemST_ #-}
 
--- | Allocate a new memory region of identical size and copy all of the data to it leaving
--- the source intact.
+-- | Copy all of the data from the source into a newly allocate memory region of identical
+-- size.
 --
 -- ====__Example:__
 --
--- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
 -- >>> import Data.Prim.Memory
--- >>> let xs = fromByteListMem @(MBytes 'Pin) [0..15]
+-- >>> let xs = fromByteListMem @(MBytes 'Pin) [0..15] :: Bytes 'Pin
 -- >>> let ys = cloneMem xs
 -- >>> let report bEq pEq = print $ "Bytes equal: " ++ show bEq ++ ", their pointers equal: " ++ show pEq
 -- >>> withPtrBytes xs $ \ xsPtr -> withPtrBytes ys $ \ ysPtr -> report (xs == ys) (xsPtr == ysPtr)
 -- "Bytes equal: True, their pointers equal: False"
 --
--- @since 0.1.1
+-- @since 0.2.0
 cloneMem ::
      forall ma. MemAlloc ma
-  => FrozenMem ma
+  => FrozenMem ma -- ^ /memSource/ - immutable source memory.
   -> FrozenMem ma
 cloneMem fm =
   runST $ do
@@ -962,14 +960,58 @@ cloneMem fm =
     freezeMem mm
 {-# INLINE cloneMem #-}
 
-
+-- | Similar to `copyByteOffMem`, but use offsets in elements instead of bytes. Copy
+-- contiguous chunk of memory from the read only memory region into the target mutable
+-- memory region. Source and target /must not/ refer to the same memory region, that would
+-- of course mean that the source is not immutable thus imply a violation of some other
+-- invariant elsewhere in the code.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated a call to this function can result in:
+-- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+-- a segfault.
+--
+-- @since 0.1.0
 copyMem ::
      (MonadPrim s m, MemRead mr, MemWrite mw, Prim e)
-  => mr -- ^ Source memory region
-  -> Off e -- ^ Offset into the source in number of elements
-  -> mw s -- ^ Destination memory region
-  -> Off e -- ^ Offset into destination in number of elements
-  -> Count e -- ^ Number of elements to copy over
+  => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
+  -> Off e
+  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type @e@
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- > unOff memSourceOff < unCount (countMem memSourceRead)
+  -> mw s -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off e
+  -- ^ /memTargetOff/ -  Offset into target memory in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > targetCount <- getCountMem memTargetWrite
+  -- > unOff memTargetOff < unCount targetCount
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type @e@ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Both source and target memory regions must have enough memory to perform a copy
+  -- of @memCount@ elements starting at their respective offsets. For @memSourceRead@:
+  --
+  -- > unOff memSourceOff + unCount memCount < unCount (countMem memSourceRead)
+  --
+  -- and for @memTargetWrite@ that also implements `MemAlloc` this can be described as:
+  --
+  -- > targetCount <- getCountMem memTargetWrite
+  -- > unOff memTargetOff + unCount memCount < unCount targetCount
   -> m ()
 copyMem src srcOff dst dstOff = copyByteOffMem src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyMem #-}
@@ -1366,7 +1408,7 @@ loadListMem_ ys mb = do
 -- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hi"
 -- (Right (Count {unCount = 0}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
 --
--- @since 0.1.1
+-- @since 0.2.0
 fromListMemN ::
      forall e ma. (Prim e, MemAlloc ma)
   => Count e

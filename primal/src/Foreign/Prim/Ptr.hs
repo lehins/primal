@@ -129,7 +129,7 @@ plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 
 
 plusOffPtr :: Prim e => Ptr e -> Off e -> Ptr e
-plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` fromOff# off)
+plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unOffBytes# off)
 {-# INLINE plusOffPtr #-}
 
 -- | Find the offset in bytes that is between the two pointers by subtracting one address
@@ -163,7 +163,7 @@ copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
   copyBytes
     (dstPtr `plusOffPtr` dstOff)
     (srcPtr `plusOffPtr` srcOff)
-    (fromCount c)
+    (unCountBytes c)
 {-# INLINE copyPtrToPtr #-}
 
 copyByteOffPtrToPtr ::
@@ -179,7 +179,7 @@ copyByteOffPtrToPtr srcPtr (Off srcOff) dstPtr (Off dstOff) c =
   copyBytes
     (dstPtr `plusPtr` dstOff)
     (srcPtr `plusPtr` srcOff)
-    (fromCount c)
+    (unCountBytes c)
 {-# INLINE copyByteOffPtrToPtr #-}
 
 movePtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
@@ -196,21 +196,21 @@ moveByteOffPtrToPtr ::
   -> Count e
   -> m ()
 moveByteOffPtrToPtr (Ptr srcAddr#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# dstOff#)) c =
-  unsafeIOToPrim $ memmoveAddr# srcAddr# srcOff# dstAddr# dstOff# (fromCount# c)
+  unsafeIOToPrim $ memmoveAddr# srcAddr# srcOff# dstAddr# dstOff# (unCountBytes# c)
 {-# INLINE moveByteOffPtrToPtr #-}
 
 -- | Compare memory between two pointers. Offsets and count is in number of elements,
 -- instead of byte count. Use `compareByteOffPtrToPtr` when offset in bytes is required.
 comparePtrToPtr :: Prim e => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> Ordering
 comparePtrToPtr (Ptr addr1#) off1 (Ptr addr2#) off2 c =
-  toOrdering# (memcmpAddr# addr1# (fromOff# off1) addr2# (fromOff# off2) (fromCount# c))
+  toOrdering# (memcmpAddr# addr1# (unOffBytes# off1) addr2# (unOffBytes# off2) (unCountBytes# c))
 {-# INLINE comparePtrToPtr #-}
 
 -- | Same as `comparePtrToPtr`, except offset is in bytes instead of number of elements.
 compareByteOffPtrToPtr ::
      Prim e => Ptr e -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
 compareByteOffPtrToPtr (Ptr addr1#) (Off (I# off1#)) (Ptr addr2#) (Off (I# off2#)) c =
-  toOrdering# (memcmpAddr# addr1# off1# addr2# off2# (fromCount# c))
+  toOrdering# (memcmpAddr# addr1# off1# addr2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffPtrToPtr #-}
 
 
@@ -583,19 +583,19 @@ prefetchPtr3 (Ptr b#) = prim_ (prefetchAddr3# b# 0#)
 {-# INLINE prefetchPtr3 #-}
 
 prefetchOffPtr0 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
-prefetchOffPtr0 (Ptr b#) off = prim_ (prefetchAddr0# b# (fromOff# off))
+prefetchOffPtr0 (Ptr b#) off = prim_ (prefetchAddr0# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr0 #-}
 
 prefetchOffPtr1 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
-prefetchOffPtr1 (Ptr b#) off = prim_ (prefetchAddr1# b# (fromOff# off))
+prefetchOffPtr1 (Ptr b#) off = prim_ (prefetchAddr1# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr1 #-}
 
 prefetchOffPtr2 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
-prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (fromOff# off))
+prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr2 #-}
 
 prefetchOffPtr3 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
-prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (fromOff# off))
+prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr3 #-}
 
 -- | Same as `GHC.freeHaskellFunPtr`

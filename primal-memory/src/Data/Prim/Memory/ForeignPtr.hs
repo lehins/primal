@@ -198,7 +198,7 @@ mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
 -- use `Prim`.
 mallocCountForeignPtr :: (MonadPrim RW m, Prim e) => Count e -> m (ForeignPtr e)
-mallocCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . fromCount
+mallocCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . unCountBytes
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
 mallocCountForeignPtrAligned :: (MonadPrim RW m, Prim e) => Count e -> m (ForeignPtr e)
@@ -252,7 +252,7 @@ mallocCountPlainForeignPtrAligned ::
 mallocCountPlainForeignPtrAligned c =
   prim $ \s ->
     let a# = alignment# (proxy# :: Proxy# e)
-     in case newAlignedPinnedByteArray# (fromCount# c) a# s of
+     in case newAlignedPinnedByteArray# (unCountBytes# c) a# s of
           (# s', mba# #) ->
             let addr# = mutableByteArrayContents# mba#
              in (# s', ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#)) #)
@@ -304,7 +304,7 @@ finalizeForeignPtr = liftPrimBase . GHC.finalizeForeignPtr
 -- @since 0.1.0
 plusOffForeignPtr :: Prim e => ForeignPtr e -> Off e -> ForeignPtr e
 plusOffForeignPtr (ForeignPtr addr# content) off =
-  ForeignPtr (addr# `plusAddr#` fromOff# off) content
+  ForeignPtr (addr# `plusAddr#` unOffBytes# off) content
 {-# INLINE plusOffForeignPtr #-}
 
 

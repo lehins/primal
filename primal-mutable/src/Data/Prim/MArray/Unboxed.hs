@@ -321,7 +321,7 @@ indexUArray (UArray a#) (I# i#) = indexByteArray# a# i#
 newRawMUArray :: forall e m s . (Prim e, MonadPrim s m) => Size -> m (MUArray e s)
 newRawMUArray n =
   prim $ \s ->
-    case newByteArray# (fromCount# (coerce n :: Count e)) s of
+    case newByteArray# (unCountBytes# (coerce n :: Count e)) s of
       (# s', ma# #) -> (# s', MUArray ma# #)
 {-# INLINE newRawMUArray #-}
 
@@ -354,7 +354,7 @@ shrinkMUArray ::
   -> Size
   -> m ()
 shrinkMUArray (MUArray mb#) sz =
-  prim_ (shrinkMutableByteArray# mb# (fromCount# (coerce sz :: Count e)))
+  prim_ (shrinkMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)))
 {-# INLINE shrinkMUArray #-}
 
 resizeMUArray ::
@@ -364,7 +364,7 @@ resizeMUArray ::
   -> m (MUArray e s)
 resizeMUArray (MUArray mb#) sz =
   prim $ \s ->
-    case resizeMutableByteArray# mb# (fromCount# (coerce sz :: Count e)) s of
+    case resizeMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)) s of
       (# s', mb'# #) -> (# s', MUArray mb'# #)
 {-# INLINE resizeMUArray #-}
 
@@ -531,9 +531,9 @@ copyUArray ::
   -> Size -- ^ Number of elements to copy over
   -> m ()
 copyUArray (UArray src#) srcOff (MUArray dst#) dstOff n =
-  let srcOff# = fromOff# (coerce srcOff :: Off e)
-      dstOff# = fromOff# (coerce dstOff :: Off e)
-      n# = fromCount# (coerce n :: Count e)
+  let srcOff# = unOffBytes# (coerce srcOff :: Off e)
+      dstOff# = unOffBytes# (coerce dstOff :: Off e)
+      n# = unCountBytes# (coerce n :: Count e)
   in prim_ (copyByteArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyUArray #-}
 
@@ -556,9 +556,9 @@ moveMUArray ::
   -> Size -- ^ Number of elements to copy over
   -> m ()
 moveMUArray (MUArray src#) srcOff (MUArray dst#) dstOff n =
-  let srcOff# = fromOff# (coerce srcOff :: Off e)
-      dstOff# = fromOff# (coerce dstOff :: Off e)
-      n# = fromCount# (coerce n :: Count e)
+  let srcOff# = unOffBytes# (coerce srcOff :: Off e)
+      dstOff# = unOffBytes# (coerce dstOff :: Off e)
+      n# = unCountBytes# (coerce n :: Count e)
   in prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveMUArray #-}
 

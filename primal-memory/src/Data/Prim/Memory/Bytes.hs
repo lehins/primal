@@ -188,7 +188,7 @@ eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
 
 compareBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
-  toOrdering# (compareByteArrays# b1# (fromOff# off1) b2# (fromOff# off2) (fromCount# c))
+  toOrdering# (compareByteArrays# b1# (unOffBytes# off1) b2# (unOffBytes# off2) (unCountBytes# c))
 {-# INLINE compareBytes #-}
 
 
@@ -234,14 +234,14 @@ copyBytesToMBytes ::
      (MonadPrim s m, Prim e) => Bytes ps -> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ $
-  copyByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c)
+  copyByteArray# src# (unOffBytes# srcOff) dst# (unOffBytes# dstOff) (unCountBytes# c)
 {-# INLINE copyBytesToMBytes #-}
 
 
 moveMBytesToMBytes ::
      (MonadPrim s m, Prim e) => MBytes ps s-> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
-  prim_ (copyMutableByteArray# src# (fromOff# srcOff) dst# (fromOff# dstOff) (fromCount# c))
+  prim_ (copyMutableByteArray# src# (unOffBytes# srcOff) dst# (unOffBytes# dstOff) (unCountBytes# c))
 {-# INLINE moveMBytesToMBytes #-}
 
 -- | Allocated memory is not cleared, so make sure to fill it in properly, otherwise you
@@ -891,34 +891,34 @@ atomicNotFetchNewMBytes (MBytes mba#) (Off (I# i#)) =
 
 
 prefetchBytes0 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
-prefetchBytes0 (Bytes b#) off = prim_ (prefetchByteArray0# b# (fromOff# off))
+prefetchBytes0 (Bytes b#) off = prim_ (prefetchByteArray0# b# (unOffBytes# off))
 {-# INLINE prefetchBytes0 #-}
 
 prefetchMBytes0 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
-prefetchMBytes0 (MBytes mb#) off = prim_ (prefetchMutableByteArray0# mb# (fromOff# off))
+prefetchMBytes0 (MBytes mb#) off = prim_ (prefetchMutableByteArray0# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes0 #-}
 
 prefetchBytes1 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
-prefetchBytes1 (Bytes b#) off = prim_ (prefetchByteArray1# b# (fromOff# off))
+prefetchBytes1 (Bytes b#) off = prim_ (prefetchByteArray1# b# (unOffBytes# off))
 {-# INLINE prefetchBytes1 #-}
 
 prefetchMBytes1 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
-prefetchMBytes1 (MBytes mb#) off = prim_ (prefetchMutableByteArray1# mb# (fromOff# off))
+prefetchMBytes1 (MBytes mb#) off = prim_ (prefetchMutableByteArray1# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes1 #-}
 
 prefetchBytes2 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
-prefetchBytes2 (Bytes b#) off = prim_ (prefetchByteArray2# b# (fromOff# off))
+prefetchBytes2 (Bytes b#) off = prim_ (prefetchByteArray2# b# (unOffBytes# off))
 {-# INLINE prefetchBytes2 #-}
 
 prefetchMBytes2 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
-prefetchMBytes2 (MBytes mb#) off = prim_ (prefetchMutableByteArray2# mb# (fromOff# off))
+prefetchMBytes2 (MBytes mb#) off = prim_ (prefetchMutableByteArray2# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes2 #-}
 
 prefetchBytes3 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
-prefetchBytes3 (Bytes b#) off = prim_ (prefetchByteArray3# b# (fromOff# off))
+prefetchBytes3 (Bytes b#) off = prim_ (prefetchByteArray3# b# (unOffBytes# off))
 {-# INLINE prefetchBytes3 #-}
 
 prefetchMBytes3 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
-prefetchMBytes3 (MBytes mb#) off = prim_ (prefetchMutableByteArray3# mb# (fromOff# off))
+prefetchMBytes3 (MBytes mb#) off = prim_ (prefetchMutableByteArray3# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes3 #-}
 

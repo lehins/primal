@@ -128,7 +128,7 @@ instance NFData (MBytes p s) where
 
 compareByteOffBytes :: Prim e => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count e -> Ordering
 compareByteOffBytes (Bytes b1#) (Off (I# off1#)) (Bytes b2#) (Off (I# off2#)) c =
-  toOrdering# (compareByteArrays# b1# off1# b2# off2# (fromCount# c))
+  toOrdering# (compareByteArrays# b1# off1# b2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffBytes #-}
 
 indexOffBytes :: Prim e => Bytes p -> Off e -> e
@@ -166,7 +166,7 @@ allocMBytes c =
 allocUnpinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
   prim $ \s ->
-    case newByteArray# (fromCount# c) s of
+    case newByteArray# (unCountBytes# c) s of
       (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocUnpinnedMBytes #-}
 
@@ -174,7 +174,7 @@ allocUnpinnedMBytes c =
 allocPinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Pin s)
 allocPinnedMBytes c =
   prim $ \s ->
-    case newPinnedByteArray# (fromCount# c) s of
+    case newPinnedByteArray# (unCountBytes# c) s of
       (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocPinnedMBytes #-}
 
@@ -185,7 +185,7 @@ allocAlignedMBytes ::
 allocAlignedMBytes c =
   prim $ \s ->
     case newAlignedPinnedByteArray#
-           (fromCount# c)
+           (unCountBytes# c)
            (alignment# (proxy# :: Proxy# e))
            s of
       (# s', ba# #) -> (# s', MBytes ba# #)
@@ -223,13 +223,13 @@ thawBytes (Bytes ba#) =
 copyByteOffBytesToMBytes ::
      (MonadPrim s m, Prim e) => Bytes ps -> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
 copyByteOffBytesToMBytes (Bytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
-  prim_ $ copyByteArray# src# srcOff# dst# dstOff# (fromCount# c)
+  prim_ $ copyByteArray# src# srcOff# dst# dstOff# (unCountBytes# c)
 {-# INLINE copyByteOffBytesToMBytes #-}
 
 moveByteOffMBytesToMBytes ::
      (MonadPrim s m, Prim e) => MBytes ps s-> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
 moveByteOffMBytesToMBytes (MBytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
-  prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# (fromCount# c))
+  prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# (unCountBytes# c))
 {-# INLINE moveByteOffMBytesToMBytes #-}
 
 
@@ -241,7 +241,7 @@ byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountMBytes`.
 shrinkMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m ()
-shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (fromCount# c))
+shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (unCountBytes# c))
 {-# INLINE shrinkMBytes #-}
 
 
@@ -254,7 +254,7 @@ resizeMBytes ::
      (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
 resizeMBytes (MBytes mb#) c =
   prim $ \s ->
-    case resizeMutableByteArray# mb# (fromCount# c) s of
+    case resizeMutableByteArray# mb# (unCountBytes# c) s of
       (# s', mb'# #) -> (# s', MBytes mb'# #)
 {-# INLINE resizeMBytes #-}
 

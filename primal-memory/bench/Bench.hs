@@ -24,11 +24,11 @@ main = do
   mb1 <- allocAlignedMBytes n64
   mb2 <- allocAlignedMBytes n64
   b1 <- freezeMBytes mb1
-  mba <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
+  mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
   -- Ensure that arrays are equal by filling them with zeros
-  mbaEq1 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
-  mbaEq2 <- BA.newAlignedPinnedByteArray (fromCount (n :: Count Word64)) 8
+  mbaEq1 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
+  mbaEq2 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)
   BA.setByteArray mbaEq2 0 (unCount n64) (0 :: Word64)
   defaultMain
