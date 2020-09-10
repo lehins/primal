@@ -30,7 +30,7 @@ import Data.Prim
 import Data.Prim.Class
 import Data.Prim.MArray.Unboxed
 import Data.Prim.MArray.Unboxed.Ragged
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.Unbox
 import Data.Semigroup
@@ -104,7 +104,7 @@ type family AdaptRep def e :: Type -> Type -> Type where
     BestRep def (AdaptRep def (a, b, c, d, e)) (AdaptRep def (f, g, h, i))
   AdaptRep def (UArray a) = MRArray 0
   AdaptRep def (Bytes 'Inc) = MRArray 0
-  AdaptRep def (ByteArray 'Inc a) = MRArray 0
+  AdaptRep def (PrimArray 'Inc a) = MRArray 0
   AdaptRep def (RArray n a) = MRArray (n + 1)
   AdaptRep def a = AtomicPrimRep def (IsBasicAtomic a)
 

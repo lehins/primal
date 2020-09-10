@@ -25,13 +25,13 @@ tested-with:         GHC == 8.4.3
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Prim.Memory
-                     , Data.Prim.Memory.ByteArray
-                     , Data.Prim.Memory.Bytes
                      , Data.Prim.Memory.Addr
                      , Data.Prim.Memory.ByteString
+                     , Data.Prim.Memory.Bytes
+                     , Data.Prim.Memory.ForeignPtr
+                     , Data.Prim.Memory.PrimArray
                      , Data.Prim.Memory.Ptr
                      , Data.Prim.Memory.Internal
-                     , Data.Prim.Memory.ForeignPtr
   other-modules:       Data.Prim.Memory.Bytes.Internal
   build-depends:       base >= 4.8 && < 5
                      , bytestring

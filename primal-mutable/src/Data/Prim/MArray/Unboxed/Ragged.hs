@@ -61,7 +61,7 @@ module Data.Prim.MArray.Unboxed.Ragged
 
 import Control.Prim.Monad
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.MRef.Internal
 import qualified Data.Prim.MArray.Unboxed as U
 import qualified Data.Prim.MArray.Internal as I
@@ -149,8 +149,8 @@ instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (U.UArray e)) where
   moveMArray = moveMRArray
   {-# INLINE moveMArray #-}
 
-instance {-# OVERLAPPING #-} MRef (MRArray 0 (ByteArray 'Inc e)) where
-  type Elt (MRArray 0 (ByteArray 'Inc e)) = RElt 0 (ByteArray 'Inc e)
+instance {-# OVERLAPPING #-} MRef (MRArray 0 (PrimArray 'Inc e)) where
+  type Elt (MRArray 0 (PrimArray 'Inc e)) = RElt 0 (PrimArray 'Inc e)
   newRawMRef = newRawMRArray 1
   {-# INLINE newRawMRef #-}
   readMRef rma = coerce <$> readBytesMRArray rma 0
@@ -158,8 +158,8 @@ instance {-# OVERLAPPING #-} MRef (MRArray 0 (ByteArray 'Inc e)) where
   writeMRef rma ba = writeBytesMRArray rma 0 (coerce ba)
   {-# INLINE writeMRef #-}
 
-instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (ByteArray 'Inc e)) where
-  type Array (MRArray 0 (ByteArray 'Inc e)) = RArray 0 (ByteArray 'Inc e)
+instance {-# OVERLAPPING #-} I.MArray (MRArray 0 (PrimArray 'Inc e)) where
+  type Array (MRArray 0 (PrimArray 'Inc e)) = RArray 0 (PrimArray 'Inc e)
 
   indexArray = coerce . indexBytesRArray
   {-# INLINE indexArray #-}

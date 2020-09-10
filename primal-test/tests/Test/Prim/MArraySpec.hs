@@ -12,7 +12,7 @@ import Data.Prim.MArray.Unboxed
 import Data.Prim.MRef.Ref
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Test.Prim
 import Test.Prim.MArray
 import qualified Test.Prim.MRef as MRef
@@ -24,12 +24,12 @@ primMRefSpec ::
   => Spec
 primMRefSpec = do
   MRef.spec @(MAddr e)
-  MRef.spec @(MByteArray 'Inc e)
-  MRef.spec @(MByteArray 'Pin e)
+  MRef.spec @(MPrimArray 'Inc e)
+  MRef.spec @(MPrimArray 'Pin e)
   MRef.spec @(MUArray e)
   MRef.spec @(NEMArrayIx (MAddr e))
-  MRef.spec @(NEMArrayIx (MByteArray 'Inc e))
-  MRef.spec @(NEMArrayIx (MByteArray 'Pin e))
+  MRef.spec @(NEMArrayIx (MPrimArray 'Inc e))
+  MRef.spec @(NEMArrayIx (MPrimArray 'Pin e))
   MRef.spec @(NEMArrayIx (MUArray e))
 
 

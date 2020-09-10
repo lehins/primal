@@ -26,7 +26,7 @@ import qualified Data.Prim.MArray.Boxed as B
 import qualified Data.Prim.MArray.Boxed.Small as SB
 import qualified Data.Prim.MArray.Unboxed as U
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
 
 
@@ -222,7 +222,7 @@ instance Typeable p => AtomicBitsMArray (MBytes p) where
 
 
 
-instance (Typeable p, Atomic e) => AtomicMArray (MByteArray p e) where
+instance (Typeable p, Atomic e) => AtomicMArray (MPrimArray p e) where
   atomicReadMArray mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (coerce mba) (coerce i :: Off e)
@@ -233,7 +233,7 @@ instance (Typeable p, Atomic e) => AtomicMArray (MByteArray p e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MByteArray p e) where
+instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MPrimArray p e) where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -244,7 +244,7 @@ instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MByteArray p e
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (MByteArray p e) where
+instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (MPrimArray p e) where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (coerce mba) (coerce i :: Off e)

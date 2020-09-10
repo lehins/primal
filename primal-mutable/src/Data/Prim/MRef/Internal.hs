@@ -24,7 +24,7 @@ import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Prim.Monad
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
 
 
@@ -70,16 +70,16 @@ instance Prim e => MRef (MAddr e) where
 
 
 
-instance (Typeable p, Prim e) => MRef (MByteArray p e) where
-  type Elt (MByteArray p e) = e
+instance (Typeable p, Prim e) => MRef (MPrimArray p e) where
+  type Elt (MPrimArray p e) = e
 
-  newRawMRef = allocMByteArray 1
+  newRawMRef = allocMPrimArray 1
   {-# INLINE newRawMRef #-}
 
-  writeMRef mba = writeMByteArray mba 0
+  writeMRef mba = writeMPrimArray mba 0
   {-# INLINE writeMRef #-}
 
-  readMRef mba = readMByteArray mba 0
+  readMRef mba = readMPrimArray mba 0
   {-# INLINE readMRef #-}
 
 

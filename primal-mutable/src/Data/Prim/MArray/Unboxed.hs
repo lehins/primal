@@ -52,11 +52,11 @@ module Data.Prim.MArray.Unboxed
   , moveMUArray
   , cloneUArray
   , cloneMUArray
-  -- * ByteUArray
-  , toByteArray
-  , fromByteArray
-  , toMByteArray
-  , fromMByteArray
+  -- * PrimArray
+  , toPrimArray
+  , fromPrimArray
+  , toMPrimArray
+  , fromMPrimArray
   -- * Bytes (unsafe)
   , toBytes
   , fromBytes
@@ -76,7 +76,7 @@ import Data.Bits
 import Data.Prim
 import Data.Prim.Class
 import qualified Data.Prim.MArray.Internal as I
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
@@ -194,34 +194,34 @@ instance Prim e => I.MArray (MUArray e) where
   {-# INLINE resizeMArray #-}
 
 
--- | /O(1)/ - Cast an unboxed array into a `ByteArray`
+-- | /O(1)/ - Cast an unboxed array into a `PrimArray`
 --
 -- @since 0.1.0
-toByteArray :: UArray e -> ByteArray 'Inc e
-toByteArray (UArray a#) = ByteArray (fromByteArray# a#)
-{-# INLINE toByteArray #-}
+toPrimArray :: UArray e -> PrimArray 'Inc e
+toPrimArray (UArray a#) = PrimArray (fromByteArray# a#)
+{-# INLINE toPrimArray #-}
 
--- | /O(1)/ - Cast a `ByteArray` into an unboxed array
+-- | /O(1)/ - Cast a `PrimArray` into an unboxed array
 --
 -- @since 0.1.0
-fromByteArray :: ByteArray p e -> UArray e
-fromByteArray (ByteArray ba) = UArray (toByteArray# ba)
-{-# INLINE fromByteArray #-}
+fromPrimArray :: PrimArray p e -> UArray e
+fromPrimArray (PrimArray ba) = UArray (toByteArray# ba)
+{-# INLINE fromPrimArray #-}
 
 
--- | /O(1)/ - Cast a mutable unboxed array into a `MByteArray`
+-- | /O(1)/ - Cast a mutable unboxed array into a `MPrimArray`
 --
 -- @since 0.1.0
-toMByteArray :: MUArray e s -> MByteArray 'Inc e s
-toMByteArray (MUArray mba#) = MByteArray (fromMutableByteArray# mba#)
-{-# INLINE toMByteArray #-}
+toMPrimArray :: MUArray e s -> MPrimArray 'Inc e s
+toMPrimArray (MUArray mba#) = MPrimArray (fromMutableByteArray# mba#)
+{-# INLINE toMPrimArray #-}
 
--- | /O(1)/ - Cast an `MByteArray` into a mutable unboxed array
+-- | /O(1)/ - Cast an `MPrimArray` into a mutable unboxed array
 --
 -- @since 0.1.0
-fromMByteArray :: MByteArray p e s -> MUArray e s
-fromMByteArray (MByteArray mb) = MUArray (toMutableByteArray# mb)
-{-# INLINE fromMByteArray #-}
+fromMPrimArray :: MPrimArray p e s -> MUArray e s
+fromMPrimArray (MPrimArray mb) = MUArray (toMutableByteArray# mb)
+{-# INLINE fromMPrimArray #-}
 
 
 -- | /O(1)/ - Cast an unboxed array into a `Bytes`
@@ -238,14 +238,14 @@ fromBytes :: Bytes p -> UArray e
 fromBytes b = UArray (toByteArray# b)
 {-# INLINE fromBytes #-}
 
--- | /O(1)/ - Cast a mutable unboxed array into a `MByteArray`
+-- | /O(1)/ - Cast a mutable unboxed array into a `MPrimArray`
 --
 -- @since 0.1.0
 toMBytes :: MUArray e s -> MBytes 'Inc s
 toMBytes (MUArray a#) = fromMutableByteArray# a#
 {-# INLINE toMBytes #-}
 
--- | /O(1)/ - Cast an `MByteArray` into a mutable unboxed array
+-- | /O(1)/ - Cast an `MPrimArray` into a mutable unboxed array
 --
 -- @since 0.1.0
 fromMBytes :: MBytes p s -> MUArray e s

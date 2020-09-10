@@ -29,7 +29,7 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.ByteArray
+import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef
 import Foreign.Prim
@@ -308,46 +308,46 @@ instance Prim e => MArray (MAddr e) where
 
 
 
-instance (Typeable p, Prim e) => MArray (MByteArray p e) where
-  type Array (MByteArray p e) = ByteArray p e
+instance (Typeable p, Prim e) => MArray (MPrimArray p e) where
+  type Array (MPrimArray p e) = PrimArray p e
 
-  sizeOfArray = sizeByteArray
+  sizeOfArray = sizePrimArray
   {-# INLINE sizeOfArray #-}
 
   indexArray a i = indexOffMem a (coerce i)
   {-# INLINE indexArray #-}
 
-  getSizeOfMArray = getSizeMByteArray
+  getSizeOfMArray = getSizeMPrimArray
   {-# INLINE getSizeOfMArray #-}
 
-  thawArray = thawByteArray
+  thawArray = thawPrimArray
   {-# INLINE thawArray #-}
 
-  freezeMArray = freezeMByteArray
+  freezeMArray = freezeMPrimArray
   {-# INLINE freezeMArray #-}
 
-  newRawMArray = allocMByteArray
+  newRawMArray = allocMPrimArray
   {-# INLINE newRawMArray #-}
 
-  writeMArray = writeMByteArray
+  writeMArray = writeMPrimArray
   {-# INLINE writeMArray #-}
 
-  readMArray = readMByteArray
+  readMArray = readMPrimArray
   {-# INLINE readMArray #-}
 
-  copyArray = copyByteArrayToMByteArray
+  copyArray = copyPrimArrayToMPrimArray
   {-# INLINE copyArray #-}
 
-  moveMArray = moveMByteArrayToMByteArray
+  moveMArray = moveMPrimArrayToMPrimArray
   {-# INLINE moveMArray #-}
 
-  setMArray = setMByteArray
+  setMArray = setMPrimArray
   {-# INLINE setMArray #-}
 
-  shrinkMArray ma sz = ma <$ shrinkMByteArray ma sz
+  shrinkMArray ma sz = ma <$ shrinkMPrimArray ma sz
   {-# INLINE shrinkMArray #-}
 
-  resizeMArray = reallocMByteArray
+  resizeMArray = reallocMPrimArray
   {-# INLINE resizeMArray #-}
 
 -- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
