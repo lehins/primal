@@ -140,9 +140,11 @@ class MemRead mr where
   -- course mean that the source is not immutable thus imply a violation of some other
   -- invariant elsewhere in the code.
   --
-  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
+  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated a call to this function can result in:
+  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+  -- a segfault.
+  --
   --
   -- @since 0.1.0
   copyByteOffToPtrMem ::
@@ -368,7 +370,7 @@ class MemWrite mw where
   -- the case with `writeByteOffMem`.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- outcome is either memory corruption or failure with a segfault.
+  -- outcome is either heap corruption or failure with a segfault.
   --
   -- @since 0.1.0
   writeOffMem :: (MonadPrim s m, Prim e)
@@ -394,7 +396,7 @@ class MemWrite mw where
   -- | Write an element with an offset in number of bytes.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- outcome is either memory corruption or failure with a segfault.
+  -- outcome is either heap corruption or failure with a segfault.
   --
   -- @since 0.1.0
   writeByteOffMem :: (MonadPrim s m, Prim e)
@@ -417,9 +419,11 @@ class MemWrite mw where
   -- | Copy contiguous chunk of memory from the source mutable memory into the target
   -- mutable `MBytes`. Source and target /may/ refer to overlapping memory regions.
   --
-  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
+  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated a call to this function can result in:
+  -- copy of data that doesn't belong to @memSource@, heap corruption or failure with
+  -- a segfault.
+  --
   --
   -- @since 0.1.0
   moveByteOffToMBytesMem ::
@@ -471,9 +475,10 @@ class MemWrite mw where
   -- | Copy contiguous chunk of memory from the source mutable memory into the target
   -- `Ptr`. Source and target /may/ refer to overlapping memory regions.
   --
-  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
+  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@ or
+  -- @memTargetOff@, a target pointer @memTarget@ or the element count @memCount@ is
+  -- violated a call to this function can result in: copy of data that doesn't belong to
+  -- @memSource@, heap corruption or failure with a segfault.
   --
   -- @since 0.1.0
   moveByteOffToPtrMem ::
@@ -527,9 +532,11 @@ class MemWrite mw where
   -- that would of course mean that the source is not immutable thus imply a violation of
   -- some other invariant elsewhere in the code.
   --
-  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
+  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated a call to this function can result in:
+  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+  -- a segfault.
+  --
   --
   -- @since 0.1.0
   copyByteOffMem :: (MonadPrim s m, MemRead mr, Prim e)
@@ -573,22 +580,102 @@ class MemWrite mw where
     -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> m ()
 
+  -- | Copy contiguous chunk of memory from a mutable memory region into the target
+  -- mutable memory region. Source and target /may/ refer to the same memory region.
+  --
+  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated a call to this function can result in:
+  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+  -- a segfault.
   --
   -- @since 0.1.0
-  moveByteOffMem ::
-    (MonadPrim s m, MemWrite mw', Prim e) => mw' s -> Off Word8 -> mw s -> Off Word8 -> Count e -> m ()
+  moveByteOffMem :: (MonadPrim s m, MemWrite mw', Prim e)
+    => mw' s -- ^ /memSource/ - Source memory from where to copy
+    -> Off Word8
+    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memSourceOff
+    --
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+    -> mw s -- ^ /memTarget/ - Target memory into where to copy
+    -> Off Word8
+    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memTargetOff
+    --
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memCount
+    --
+    -- Both source and target memory regions should have enough memory to perform a copy
+    -- of @memCount@ elements starting at their respective offsets. For types that also
+    -- implement `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -> m ()
 
   -- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
   --setByteOffMem :: (MonadPrim s m, Prim e) => w s -> Off Word8 -> Count e -> e -> m ()
 
-  -- | Write the same value into each cell starting at an offset.
+  -- | Write the same value @memCount@ times into each cell of @memTarget@ starting at an
+  -- offset @memTargetOff@.
+  --
+  -- [Unsafe] Bounds are not checked. When precondition for @memTargetOff@ argument is
+  -- violated the outcome is either heap corruption or failure with a segfault.
+  --
+  -- @since 0.1.0
   setMem
     :: (MonadPrim s m, Prim e)
-    => mw s -- ^ Writable memory. Must have enough bytes, at least: (off+count)*(sizeOf e)
-    -> Off e -- ^ An offset into writable memory at which element setting should start.
-    -> Count e -- ^ Numer of cells to write the elemnt into
-    -> e -- ^ Element to write into all memory cells specified by offset and count. Even
-         -- if the count is @0@ this element might be still fully evaluated.
+    => mw s -- ^ /memTarget/ - Target memory into where to write the element
+    -> Off e
+    -- ^ /memTargetOff/ - Offset into target memory in number of elements at which element
+    -- setting should start.
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memTargetOff
+    --
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -> Count e
+    -- ^ /memCount/ - Number of times the element @elt@ should be written
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memCount
+    --
+    -- Target memory region should have enough memory to perform a set operation of the
+    -- supplied element @memCount@ number of times starting at the supplied offset. For
+    -- types that also implement `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTarget
+    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -> e -- ^ /elt/ - Element to write into memory cells. This function is strict with
+         -- respect to element, which means that the even @memCount = 0@ it might be still
+         -- fully evaluated.
     -> m ()
 
 -- | Generalized memory allocation and pure/mutable state conversion.
