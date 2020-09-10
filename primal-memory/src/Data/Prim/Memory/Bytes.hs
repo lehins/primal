@@ -379,17 +379,12 @@ fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
 fromListBytesN_ = fromListMemN_
 {-# INLINE fromListBytesN_ #-}
 
--- | If the list is bigger than the supplied @`Count` a@ then `GT` ordering will be
--- returned, along with the `Bytes` fully filled with the prefix of the list. On the other
--- hand if the list is smaller than the supplied `Count`, `LT` with partially filled
--- `Bytes` will returned. In the latter case expect some garbage at the end of the
--- allocated memory, since no attempt is made to zero it out. Exact match obviously
--- results in an `EQ`.
+-- | Exactly like `fromListMemN`, but restricted to `Bytes`.
 fromListBytesN ::
      (Prim e, Typeable p)
   => Count e
   -> [e]
-  -> (Ordering, Bytes p)
+  -> (Either [e] (Count e), Bytes p)
 fromListBytesN = fromListMemN
 {-# INLINE fromListBytesN #-}
 

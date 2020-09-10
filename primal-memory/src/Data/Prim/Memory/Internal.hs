@@ -178,8 +178,6 @@ class MemRead mr where
     -- > 0 <= memCount
     --
     -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    --
-    -- > fromCount memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
     -> m ()
 
   -- | Same as `compareByteOffMem`, but compare inside of a `MonadPrim` the read-only
@@ -333,8 +331,8 @@ class MemWrite mw where
     --
     -- > 0 <= off
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > count <- getByteCountMem memRead
     -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
@@ -358,8 +356,8 @@ class MemWrite mw where
     --
     -- > 0 <= off
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > count <- getByteCountMem memRead
     -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
@@ -370,7 +368,7 @@ class MemWrite mw where
   -- the case with `writeByteOffMem`.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- result is either memory corruption or failure with a segfault.
+  -- outcome is either memory corruption or failure with a segfault.
   --
   -- @since 0.1.0
   writeOffMem :: (MonadPrim s m, Prim e)
@@ -382,8 +380,8 @@ class MemWrite mw where
     --
     -- > 0 <= off
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > count <- getByteCountMem memWrite
     -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
@@ -396,7 +394,7 @@ class MemWrite mw where
   -- | Write an element with an offset in number of bytes.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- result is either memory corruption or failure with a segfault.
+  -- outcome is either memory corruption or failure with a segfault.
   --
   -- @since 0.1.0
   writeByteOffMem :: (MonadPrim s m, Prim e)
@@ -408,8 +406,8 @@ class MemWrite mw where
     --
     -- > 0 <= off
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > count <- getByteCountMem memWrite
     -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
@@ -434,8 +432,8 @@ class MemWrite mw where
     --
     -- > 0 <= memSourceOff
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > sourceByteCount <- getByteCountMem memSource
     -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
@@ -447,8 +445,8 @@ class MemWrite mw where
     --
     -- > 0 <= memTargetOff
     --
-    -- Offset should refer to the same memory region. For types that also implement
-    -- `MemAlloc` this can be described as:
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTarget
     -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
@@ -470,13 +468,113 @@ class MemWrite mw where
     -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> m ()
 
-  -- | Source and target can be overlapping memory chunks
+  -- | Copy contiguous chunk of memory from the source mutable memory into the target
+  -- `Ptr`. Source and target /may/ refer to overlapping memory regions.
+  --
+  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
+  --
+  -- @since 0.1.0
   moveByteOffToPtrMem ::
-    (MonadPrim s m, Prim e) => mw s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
+    (MonadPrim s m, Prim e)
+    => mw s -- ^ /memSource/ - Source memory from where to copy
+    -> Off Word8
+    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memSourceOff
+    --
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+    -> Ptr e
+    -- ^ /memTarget/ - Target memory into where to copy
+    --
+    -- /__Precondition:__/
+    --
+    -- Once the pointer is advanced by @memTargetOff@ the next @fromCount memCount@ bytes must
+    -- still belong to the same region of memory @memTargetWrite@
+    -> Off Word8
+    -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memTargetOff
+    --
+    -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
+    -- memory region @memTarget@
+    -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memCount
+    --
+    -- Both source and target memory regions should have enough memory to perform a copy
+    -- of @memCount@ elements starting at their respective offsets. For /memSource/ that also
+    -- implements `MemAlloc` this can be described as:
+    --
+    -- > sourceByteCount <- getByteCountMem memSource
+    -- > fromCount memCount + unOff memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+    -> m ()
 
-  copyByteOffMem ::
-    (MonadPrim s m, MemRead mr, Prim e) => mr -> Off Word8 -> mw s -> Off Word8 -> Count e -> m ()
+  -- | Copy contiguous chunk of memory from the read only memory region into the target
+  -- mutable memory region. Source and target /must not/ refer to the same memory region,
+  -- that would of course mean that the source is not immutable thus imply a violation of
+  -- some other invariant elsewhere in the code.
+  --
+  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+  -- or the element count @memCount@ is violated the result is either unpredictable output or
+  -- failure with a segfault.
+  --
+  -- @since 0.1.0
+  copyByteOffMem :: (MonadPrim s m, MemRead mr, Prim e)
+    => mr -- ^ /memSourceRead/ - Read-only source from where to copy
+    -> Off Word8
+    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memSourceOff
+    --
+    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    -> mw s -- ^ /memTargetWrite/ - Target mutable memory
+    -> Off Word8
+    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memTargetOff
+    --
+    -- With offset applied it should still refer to the same memory region. For types that
+    -- also implement `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTargetWrite
+    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -> Count e
+    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memCount
+    --
+    -- Both source and target memory regions should have enough memory to perform a copy
+    -- of @memCount@ elements starting at their respective offsets. For /memSourceRead/:
+    --
+    -- > fromCount memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+    --
+    -- and for /memTargetWrite/ that also implements `MemAlloc` this can be described as:
+    --
+    -- > targetByteCount <- getByteCountMem memTargetWrite
+    -- > fromCount memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+    -> m ()
 
+  --
+  -- @since 0.1.0
   moveByteOffMem ::
     (MonadPrim s m, MemWrite mw', Prim e) => mw' s -> Off Word8 -> mw s -> Off Word8 -> Count e -> m ()
 
@@ -750,6 +848,33 @@ createZeroMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s
 createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createZeroMemST_ #-}
 
+-- | Allocate a new memory region of identical size and copy all of the data to it leaving
+-- the source intact.
+--
+-- ====__Example:__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> let xs = fromByteListMem @(MBytes 'Pin) [0..15]
+-- >>> let ys = cloneMem xs
+-- >>> let report bEq pEq = print $ "Bytes equal: " ++ show bEq ++ ", their pointers equal: " ++ show pEq
+-- >>> withPtrBytes xs $ \ xsPtr -> withPtrBytes ys $ \ ysPtr -> report (xs == ys) (xsPtr == ysPtr)
+-- "Bytes equal: True, their pointers equal: False"
+--
+-- @since 0.1.1
+cloneMem ::
+     forall ma. MemAlloc ma
+  => FrozenMem ma
+  -> FrozenMem ma
+cloneMem fm =
+  runST $ do
+    let n = byteCountMem fm
+    mm <- allocMem n
+    copyMem fm 0 mm 0 n
+    freezeMem mm
+{-# INLINE cloneMem #-}
+
 
 copyMem ::
      (MonadPrim s m, MemRead mr, MemWrite mw, Prim e)
@@ -914,7 +1039,7 @@ clone mb = do
   mb' <$ moveMem mb 0 mb' 0 n
 {-# INLINE clone #-}
 
--- | Compare two memory regions byte-by-byte. False is returned immendiately if sizes
+-- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
 -- reported by `byteCountMem` do not match. Computation may be short-circuited on the
 -- first mismatch, but it is `MemRead` implementation specific.
 --
@@ -997,6 +1122,77 @@ foldrCountMem (Count k) c nil bs = go 0
 {-# INLINE[0] foldrCountMem #-}
 
 
+loadListByteOffHelper ::
+     (MemWrite mw, MonadPrim s m, Prim a)
+  => [a]
+  -> mw s
+  -> Off Word8 -- ^ Offset
+  -> Off Word8 -- ^ Upper bound
+  -> Off Word8 -- ^ Element size
+  -> m ([a], Off Word8)
+loadListByteOffHelper ys mw byteOff k step =
+  let go []       !i = pure ([], i)
+      go a@(x:xs) !i
+        | i < k = writeByteOffMem mw i x >> go xs (i + step)
+        | otherwise = pure (a, i)
+   in go ys byteOff
+
+loadListByteOffMemN ::
+     (MemWrite mw, MonadPrim s m, Prim e)
+  => Count e
+  -> [e]
+  -> mw s
+  -> Off Word8
+  -> m ([e], Off Word8)
+loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k step
+  where
+    k = byteOff + countToOff (toByteCount count)
+    step = countToOff $ byteCountProxy count
+{-# INLINABLE loadListByteOffMemN #-}
+
+
+loadListByteOffMem ::
+     (MemAlloc ma, MonadPrim s m, Prim e)
+  => [e]
+  -> ma s
+  -> Off Word8
+  -> m ([e], Off Word8)
+loadListByteOffMem ys ma byteOff = do
+  count <- getByteCountMem ma
+  let k = countToOff count - byteOff
+      step = countToOff $ byteCountProxy count
+  loadListByteOffHelper ys ma byteOff k step
+{-# INLINABLE loadListByteOffMem #-}
+
+
+loadListOffMemN ::
+     (MemWrite mw, MonadPrim s m, Prim e)
+  => Count e
+  -> [e]
+  -> mw s
+  -> Off e
+  -> m ([e], Off e)
+loadListOffMemN count ys mw off =
+  let go []       !i = pure ([], i)
+      go a@(x:xs) !i
+        | i < k = writeOffMem mw i x >> go xs (i + 1)
+        | otherwise = pure (a, i)
+      k = off + countToOff count
+  in go ys off
+{-# INLINABLE loadListOffMemN #-}
+
+
+loadListOffMem ::
+     (MemAlloc ma, MonadPrim s m, Prim e)
+  => [e]
+  -> ma s
+  -> Off e
+  -> m ([e], Off e)
+loadListOffMem ys ma off = do
+  count <- getCountMem ma
+  loadListOffMemN (count - offToCount off) ys ma off
+{-# INLINABLE loadListOffMem #-}
+
 loadListMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
@@ -1004,12 +1200,12 @@ loadListMemN ::
   -> [e]
   -> mw s
   -> m Ordering
-loadListMemN (Count n) (Count slack) ys mb = do
+loadListMemN (Count n) (Count slack) ys mb =
   let go [] !i = pure (compare i n <> compare 0 slack)
       go (x:xs) !i
         | i < n = writeOffMem mb (Off i) x >> go xs (i + 1)
         | otherwise = pure GT
-  go ys 0
+   in go ys 0
 {-# INLINABLE loadListMemN #-}
 
 loadListMemN_ ::
@@ -1019,7 +1215,7 @@ loadListMemN_ ::
   -> mw s
   -> m ()
 loadListMemN_ (Count n) ys mb =
-  let go [] _     = pure ()
+  let go []     _ = pure ()
       go (x:xs) i = when (i < n) $ writeOffMem mb (Off i) x >> go xs (i + 1)
    in go ys 0
 {-# INLINABLE loadListMemN_ #-}
@@ -1048,13 +1244,92 @@ loadListMem_ ys mb = do
 {-# INLINE loadListMem_ #-}
 
 
+-- | Similarly to `fromListMem` load a list into a newly allocated memory region, but
+-- unlike the forementioned function it also accepts a hint of how many elements is
+-- expected to be in the list. Because the number of expected an actual elements might
+-- not match we return not only the frozen memory region, but also:
+--
+-- * either a list with left over elements from the input @list@, if
+--   it did not fully fit into the allocated region:
+--
+--     @
+--     unCount memCount < length list
+--     @
+--
+-- * or a count of surplus memory allocated because the input @list@ turned out to be
+--   smaller than @memCount@.
+--
+-- In the latter case a zero value would indicacte that the list did fit into the
+-- newly allocated memory region exactly, which is perfectly fine. But a positive
+-- value would mean that the tail of the memory region is still unset and might
+-- contain garbage data. Make sure to overwrite the surplus yourself or user
+-- `fromListZeroMemN`
+--
+-- [Unsafe] Whenever @memCount@ precodition is violated, because on each call with the
+-- same input it can produce different output therefore it will break referential
+-- transparency.
+--
+-- ====__Examples:__
+--
+-- >>> :set -XTypeApplications
+-- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hello"
+-- (Left "llo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00])
+-- >>> fromListMemN @Char @(MBytes 'Inc) 3 "Hello"
+-- (Left "lo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00])
+-- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hi"
+-- (Right (Count {unCount = 0}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
+--
+-- @since 0.1.1
 fromListMemN ::
      forall e ma. (Prim e, MemAlloc ma)
   => Count e
+  -- ^ /memCount/ - Expected number of elements in the list, which exactly how much
+  -- memory will be allocated.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > unCount memCount <= length list
   -> [e]
-  -> (Ordering, FrozenMem ma)
-fromListMemN n xs = createMemST n (loadListMemN n 0 xs)
+  -- ^ /list/ - A list of elements to load into the newly allocated memory region.
+  -> (Either [e] (Count e), FrozenMem ma)
+fromListMemN count xs =
+  createMemST count $ \mm -> do
+    (ys, off) <- loadListOffMemN count xs mm 0
+    let surplus = count - offToCount off
+    pure $
+      if surplus >= 0
+        then Right surplus
+        else Left ys
 {-# INLINE fromListMemN #-}
+
+
+-- | Just like `fromListMemN`, except it ensures safety by filling tail with zeros,
+-- whenever the list is not long enough.
+--
+-- ====__Examples:__
+--
+-- >>> import Data.Prim.Memory
+-- >>> :set -XTypeApplications
+-- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
+-- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+--
+-- @since 0.1.0
+fromListZeroMemN ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e -- ^ /memCount/ - Number of elements to load from the list.
+  -> [e]
+  -> (Either [e] (Count e), FrozenMem ma)
+fromListZeroMemN count xs =
+  createMemST count $ \mm -> do
+    (ys, off) <- loadListOffMemN count xs mm 0
+    let surplusCount = count - offToCount off
+    setMem mm (toByteOff off) (toByteCount surplusCount) 0
+    pure $
+      if surplusCount >= 0
+        then Right surplusCount
+        else Left ys
+{-# INLINE fromListZeroMemN #-}
+
 
 fromListMemN_ ::
      forall e ma. (Prim e, MemAlloc ma)
@@ -1064,6 +1339,18 @@ fromListMemN_ ::
 fromListMemN_ !n xs = createMemST_ n (loadListMemN_ n xs)
 {-# INLINE fromListMemN_ #-}
 
+-- | Just like `fromListMemN`, except it ensures safety by using the length of the
+-- list for allocation. Because it has to figure out the length of the list first it
+-- will be just a little bit slower, but that much safer.
+--
+-- ====__Examples:__
+--
+-- >>> import Data.Prim.Memory
+-- >>> :set -XTypeApplications
+-- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
+-- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+--
+-- @since 0.1.0
 fromListMem ::
      forall e ma. (Prim e, MemAlloc ma)
   => [e]
@@ -1101,6 +1388,13 @@ toByteListMem ::
   -> [Word8]
 toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
+
+-- mapMem ::
+--      forall e e' mr ma. (MemRead mr, MemAlloc ma, Prim e, Prim e')
+--   => (e -> e')
+--   -> mr
+--   -> (FrozenMem ma, [Word8])
+-- mapMem f = undefined
 
 
 mapByteMem ::

@@ -16,25 +16,32 @@ module Data.Prim.Memory
   , countMem
   , countRemMem
   , byteCountMem
-  -- ** Indexing
+  -- ** Index
   , indexOffMem
   , indexByteOffMem
+  -- ** Copy
+  , cloneMem
+  , copyMem
+  , copyByteOffMem
+  , copyByteOffToMBytesMem
+  , copyByteOffToPtrMem
   -- ** Compare
   , eqMem
   , compareMem
   , compareByteOffMem
   , compareByteOffToPtrMem
   , compareByteOffToBytesMem
-  -- * Conversion
+  -- ** Convert
   , convertMem
-  -- ** List
+  -- *** To list
   , toListMem
   , toListSlackMem
   , toByteListMem
-  , fromByteListMem
 
+  -- *** From list
   , fromListMem
   , fromListMemN
+  , fromByteListMem
   -- *** Helpers
   , foldrCountMem
   -- * Mutable
@@ -46,6 +53,13 @@ module Data.Prim.Memory
   , getCountMem
   , getCountRemMem
   , getByteCountMem
+  -- ** Read
+  , readOffMem
+  , readByteOffMem
+  -- ** Write
+  , writeOffMem
+  , writeByteOffMem
+  , setMem
   -- ** Allocate
   , allocByteCountMem
   , allocMem
@@ -60,25 +74,15 @@ module Data.Prim.Memory
   , createMemST_
   , createZeroMemST
   , createZeroMemST_
-  , readOffMem
-  , readByteOffMem
-  , writeOffMem
-  , writeByteOffMem
   , modifyFetchOldMem
   , modifyFetchOldMemM
   , modifyFetchNewMem
   , modifyFetchNewMemM
-  , setMem
   -- ** Move
   , moveMem
   , moveByteOffMem
   , moveByteOffToMBytesMem
   , moveByteOffToPtrMem
-  -- ** Copy
-  , copyMem
-  , copyByteOffMem
-  , copyByteOffToMBytesMem
-  , copyByteOffToPtrMem
   -- *** From List
   , loadListMem
   , loadListMem_
