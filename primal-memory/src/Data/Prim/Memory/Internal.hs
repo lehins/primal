@@ -431,7 +431,6 @@ class MemWrite mw where
   -- copy of data that doesn't belong to @memSource@, heap corruption or failure with
   -- a segfault.
   --
-  --
   -- @since 0.1.0
   moveByteOffToMBytesMem ::
     (MonadPrim s m, Prim e)
@@ -460,7 +459,7 @@ class MemWrite mw where
     -- also implement `MemAlloc` this can be described as:
     --
     -- > targetByteCount <- getByteCountMem memTarget
-    -- > unOff (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> Count e
     -- ^ /memCount/ - Number of elements of type @e@ to copy
     --
@@ -918,11 +917,7 @@ createMemST ::
   => Count e
   -> (forall s. ma s -> ST s b)
   -> (b, FrozenMem ma)
-createMemST n f = runST $ do
-  m <- allocMem n
-  res <- f m
-  i <- freezeMem m
-  pure (res, i)
+createMemST n f = runST $ allocMem n >>= \m -> (,) <$> f m <*> freezeMem m
 {-# INLINE createMemST #-}
 
 createMemST_ :: (MemAlloc ma, Prim e)
@@ -943,11 +938,7 @@ createZeroMemST ::
   => Count e
   -> (forall s. ma s -> ST s b)
   -> (b, FrozenMem ma)
-createZeroMemST n f = runST $ do
-  m <- allocZeroMem n
-  res <- f m
-  i <- freezeMem m
-  pure (res, i)
+createZeroMemST n f = runST $ allocZeroMem n >>= \m -> (,) <$> f m <*> freezeMem m
 {-# INLINE createZeroMemST #-}
 
 -- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros prior
@@ -1498,40 +1489,133 @@ loadListByteOffHelper ::
   -> Off Word8 -- ^ Element size
   -> m ([a], Off Word8)
 loadListByteOffHelper ys mw byteOff k step =
-  let go []       !i = pure ([], i)
-      go a@(x:xs) !i
+  let go []       i = pure ([], i)
+      go a@(x:xs) i
         | i < k = writeByteOffMem mw i x >> go xs (i + step)
         | otherwise = pure (a, i)
    in go ys byteOff
+{-# INLINE loadListByteOffHelper #-}
 
+
+-- | Load elements from the supplied list into a mutable memory region. Loading will start
+-- at the supplied offset in number of bytes and will stop when either supplied
+-- @elemCount@ number is reached or there are no more elements left in the list to
+-- load. Whenever the supplied count turns out to be smaller than the number of elements
+-- in the @listSource@ this action returns the list with leftover elements that did not
+-- get loaded, otherwise an empty list is returned. It also returns the byte offset into
+-- the memory region where the next element would have been loaded.
+--
+-- [Unsafe] When a precondition for the offset @memTargetOff@ or the element count
+-- @memCount@ is violated a call to this function can result in heap corruption or failure
+-- with a segfault.
+--
+-- ====__Examples__
+--
+-- For example load the @"Hell"@ somewhere in the middle of `MBytes`:
+--
+-- >>> ma <- allocZeroMem (6 :: Count Char) :: IO (MBytes 'Inc RW)
+-- >>> loadListByteOffMemN 4 "Hello!" ma (toByteOff (1 :: Off Char))
+-- ("o!",Off {unOff = 20})
+-- >>> freezeMem ma
+-- [0x00,0x00,0x00,0x00,0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
+--
+-- Or something more usful like loading prefixes from nested lists:
+--
+-- >>> import Control.Monad
+-- >>> foldM_ (\o xs -> snd <$> loadListByteOffMemN 4 xs ma o) 2 [[x..] | x <- [1..5] :: [Word8]]
+-- >>> freezeMem ma
+-- [0x00,0x00,0x01,0x02,0x03,0x04,0x02,0x03,0x04,0x05,0x03,0x04,0x05,0x06,0x04,0x05,0x06,0x07,0x05,0x06,0x07,0x08,0x00,0x00]
+--
+-- @since 0.2.0
 loadListByteOffMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
-  -> [e]
-  -> mw s
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Target memory region must have enough memory to perform loading of @elemCount@
+  -- elements starting at the @memTargetOff@ offset. For types that also implement
+  -- `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMem memTarget
+  -- > unOff memTargetOff + unCountBytes elemCount <= unCount (targetByteCount - byteCountType @e)
+  -> [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same memory
+  -- region @memTarget@. For types that also implement `MemAlloc` this can be described
+  -- as:
+  --
+  -- > targetByteCount <- getByteCountMem memTarget
+  -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
   -> m ([e], Off Word8)
 loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k step
   where
     k = byteOff + countToOff (toByteCount count)
-    step = countToOff $ byteCountProxy count
+    step = countToOff $ byteCountProxy ys
 {-# INLINABLE loadListByteOffMemN #-}
 
-
+-- | Same as `loadListByteOffMemN`, but infer the count from number of bytes that is
+-- available in the memory region.
+--
+-- [Unsafe]
+--
+-- ====__Examples__
+--
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> ma <- allocZeroMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
+-- >>> freezeMem ma
+-- [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
+-- >>> loadListByteOffMem "Hello World" ma 0
+-- (" World",Off {unOff = 20})
+-- >>> freezeMem ma
+-- [0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
+-- >>> loadListByteOffMem ([0xff,0xff,0xff] :: [Word8]) ma 1
+-- ([],Off {unOff = 4})
+-- >>> freezeMem ma
+-- [0x48,0xff,0xff,0xff,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
+  --
+-- @since 0.2.0
 loadListByteOffMem ::
      (MemAlloc ma, MonadPrim s m, Prim e)
-  => [e]
-  -> ma s
+  => [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> ma s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same memory
+  -- region @memTarget@. For types that also implement `MemAlloc` this can be described
+  -- as:
+  --
+  -- > targetByteCount <- getByteCountMem memTarget
+  -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
   -> m ([e], Off Word8)
 loadListByteOffMem ys ma byteOff = do
   count <- getByteCountMem ma
   let k = countToOff count - byteOff
-      step = countToOff $ byteCountProxy count
+      step = countToOff $ byteCountProxy ys
   loadListByteOffHelper ys ma byteOff k step
 {-# INLINABLE loadListByteOffMem #-}
 
 
+--
+-- [Unsafe]
+--
+-- @since 0.2.0
 loadListOffMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
@@ -1548,6 +1632,10 @@ loadListOffMemN count ys mw off =
   in go ys off
 {-# INLINABLE loadListOffMemN #-}
 
+--
+-- [Unsafe]
+--
+-- @since 0.2.0
 loadListMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
@@ -1560,6 +1648,10 @@ loadListMemN count xs mw = loadListOffMemN count xs mw 0
 
 
 
+--
+-- [Unsafe]
+--
+-- @since 0.2.0
 loadListMemN_ ::
      forall e mw m s. (Prim e, MemWrite mw, MonadPrim s m)
   => Count e
