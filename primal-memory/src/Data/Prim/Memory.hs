@@ -13,85 +13,91 @@ module Data.Prim.Memory
   , Bytes
   , MemRead
   -- ** Size
-  , countMem
-  , countRemMem
-  , byteCountMem
+  , countMem                  -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , countRemMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , byteCountMem              -- DOC: [x], DOCTEST [x], TEST: [x]
   -- ** Index
-  , indexOffMem
-  , indexByteOffMem
+  , indexOffMem               -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , indexByteOffMem           -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Copy
-  , cloneMem
-  , copyMem
-  , copyByteOffMem
-  , copyByteOffToMBytesMem
-  , copyByteOffToPtrMem
+  , cloneMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , copyMem                   -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , copyByteOffMem            -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , copyByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , copyByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Compare
-  , eqMem
-  , compareMem
-  , compareByteOffMem
-  , compareByteOffToPtrMem
-  , compareByteOffToBytesMem
+  , eqMem                     -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , compareMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , compareByteOffMem         -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , compareByteOffToPtrMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , compareByteOffToBytesMem  -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Convert
-  , convertMem
+  , convertMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- *** To list
-  , toListMem
-  , toListSlackMem
-  , toByteListMem
+  , toListMem                 -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , toByteListMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , foldrCountMem             -- DOC: [x], DOCTEST [-], TEST: [-]
 
   -- *** From list
-  , fromListMem
-  , fromListMemN
-  , fromByteListMem
-  -- *** Helpers
-  , foldrCountMem
+  , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- * Mutable
   , MBytes
   , MemWrite
   , MemAlloc(FrozenMem)
   , MemState(..)
   -- ** Size
-  , getCountMem
-  , getCountRemMem
-  , getByteCountMem
+  , getCountMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , getCountRemMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , getByteCountMem           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Read
-  , readOffMem
-  , readByteOffMem
+  , readOffMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , readByteOffMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Write
-  , writeOffMem
-  , writeByteOffMem
-  , setMem
+  , writeOffMem               -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , writeByteOffMem           -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , setMem                    -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , modifyFetchOldMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , modifyFetchOldMemM        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , modifyFetchNewMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , modifyFetchNewMemM        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Allocate
-  , allocByteCountMem
-  , allocMem
-  , allocZeroMem
-  , thawMem
-  , thawCloneMem
-  , thawCopyMem
-  , freezeMem
-  , freezeCloneMem
-  , freezeCopyMem
-  , createMemST
-  , createMemST_
-  , createZeroMemST
-  , createZeroMemST_
-  , modifyFetchOldMem
-  , modifyFetchOldMemM
-  , modifyFetchNewMem
-  , modifyFetchNewMemM
+  , allocByteCountMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , allocMem                  -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , allocZeroMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , thawMem                   -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , thawCloneMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , thawCopyMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , freezeMem                 -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , freezeCloneMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , freezeCopyMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createMemST               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createMemST_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createZeroMemST           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createZeroMemST_          -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- ** Move
-  , moveMem
-  , moveByteOffMem
-  , moveByteOffToMBytesMem
-  , moveByteOffToPtrMem
+  , moveMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]
+  , moveByteOffMem            -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , moveByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , moveByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- *** From List
-  , loadListMem
-  , loadListMem_
-  , loadListMemN
-  , loadListMemN_
+  , loadListMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListMem_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListMemN              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListMemN_             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  -- **** With offset
+  , loadListOffMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListOffMemN           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  -- **** With byte offset
+  , loadListByteOffMem        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListByteOffMemN       -- DOC: [ ], DOCTEST [ ], TEST: [ ]
 
-  , emptyMem
-  , singletonMem
-  , cycleMemN
+  , emptyMem                  -- DOC: [ ], DOCTEST [ ], TEST: [x]
+  , singletonMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , cycleMemN                 -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- * Byte operations
   -- $byteOperations
   ) where

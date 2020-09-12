@@ -77,13 +77,15 @@ primSpec = do
         in xs' === xs .&&. fromListBytes xs' === b
       prop "loadListMBytes" $ \ (xs :: [e]) (b :: Bytes p) -> do
         mb <- thawBytes b
-        (Count n :: Count e, r) <- getCountRemOfMBytes mb
+        Count n :: Count e <- getCountMBytes mb
         loadListMBytes xs mb >>= \case
-          GT ->
-            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off e) `shouldReturn` x) [0.. n - 1] xs
-          elt -> do
-            when (elt == EQ) $ r `shouldBe` 0
-            zipWithM_ (\i x -> readOffMBytes mb (i :: Off e) `shouldReturn` x) [0..] xs
+          ([], stoppedAt) -> do
+            stoppedAt `shouldBe` Off (length xs)
+            zipWithM_ (\i x -> readOffMBytes mb (i :: Off e) `shouldReturn` x) [0 ..] xs
+          (leftOver, stoppedAt) -> do
+            leftOver `shouldBe` drop n xs
+            stoppedAt `shouldBe` Off n
+            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off e) `shouldReturn` x) [0 .. n - 1] xs
       prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p e) (Positive n') -> do
         let n = Count $ length xs
             (order, b') = fromListBytesN n xs

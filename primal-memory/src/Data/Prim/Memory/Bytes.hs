@@ -360,23 +360,16 @@ toListSlackBytes :: Prim e => Bytes p -> ([e], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
--- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
--- Otherwise it will return either `LT` if the list was smaller than allocated memory or
--- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
-loadListMBytes :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m Ordering
-loadListMBytes ys mb = do
-  (c, slack) <- getCountRemOfMBytes mb
-  loadListMemN (c `countForProxyTypeOf` ys) slack ys mb
+loadListMBytes :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Off e)
+loadListMBytes = loadListMem
 {-# INLINE loadListMBytes #-}
 
-loadListMBytes_ :: (MonadPrim s m, Prim e) => [e] -> MBytes p s -> m ()
-loadListMBytes_ ys mb = do
-  c <- getCountMBytes mb
-  loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
+loadListMBytes_ :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ()
+loadListMBytes_ = loadListMem_
 {-# INLINE loadListMBytes_ #-}
 
 fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
-fromListBytesN_ = fromListMemN_
+fromListBytesN_ = fromListZeroMemN_
 {-# INLINE fromListBytesN_ #-}
 
 -- | Exactly like `fromListMemN`, but restricted to `Bytes`.

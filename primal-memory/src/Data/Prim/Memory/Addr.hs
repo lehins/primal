@@ -169,7 +169,7 @@ instance IsString (Addr Char) where
 instance Prim e => IsList (Addr e) where
   type Item (Addr e) = e
   fromList = fromListMem
-  fromListN n = fromListMemN_ (Count n)
+  fromListN n = fromListZeroMemN_ (Count n)
   toList = toListMem
 
 instance Semigroup.Semigroup (Addr e) where

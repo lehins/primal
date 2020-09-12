@@ -99,7 +99,7 @@ instance Typeable p => MemAlloc (MPrimArray p e) where
 instance (Typeable p, Prim e) => IsList (PrimArray p e) where
   type Item (PrimArray p e) = e
   fromList = fromListMem
-  fromListN n = fromListMemN_ (Count n)
+  fromListN n = fromListZeroMemN_ (Count n)
   toList = toListMem
 
 instance Typeable p => IsString (PrimArray p Char) where

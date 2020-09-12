@@ -49,11 +49,18 @@ class MemRead mr where
 
   -- | Number of bytes allocated by the data type available for reading.
   --
+  -- ====__Example__
+  --
+  -- >>> :set -XDataKinds
+  -- >>> import Data.Prim.Memory
+  -- >>> byteCountMem (fromByteListMem [1,2,3] :: Bytes 'Inc)
+  -- Count {unCount = 3}
+  --
   -- @since 0.1.0
   byteCountMem :: mr -> Count Word8
 
-  -- | Read an element with an offset in number of elements, rather than bytes as it is
-  -- the case with `indexByteOffMem`.
+  -- | Read an element with an offset in number of elements, rather than bytes as is the
+  -- case with `indexByteOffMem`.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
   -- result is either unpredictable output or failure with a segfault.
@@ -68,7 +75,7 @@ class MemRead mr where
     --
     -- > 0 <= off
     --
-    -- > unOff (toByteOff off) <= unCount (byteCountMem memRead - byteCountType @e)
+    -- > unOffBytes off <= unCount (byteCountMem memRead - byteCountType @e)
     --
     -> e
   indexOffMem mr off = indexByteOffMem mr (toByteOff off)
@@ -94,9 +101,9 @@ class MemRead mr where
     -> e
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `MBytes`. Source and target /must not/ refer to the same memory region, that would of
-  -- course mean that the source is not immutable thus imply a violation of some other
-  -- invariant elsewhere in the code.
+  -- `MBytes`. Source and target /must not/ refer to the same memory region, otherwise
+  -- that would imply that the source is not immutable which would be a violation of some
+  -- other invariant elsewhere in the code.
   --
   -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
   -- or the element count @memCount@ is violated the result is either unpredictable output or
@@ -136,8 +143,8 @@ class MemRead mr where
     -> m ()
 
   -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `Ptr`. Source and target /must not/ refer to the same memory region, that would of
-  -- course mean that the source is not immutable thus imply a violation of some other
+  -- `Ptr`. Source and target /must not/ refer to the same memory region, otherwise that
+  -- would imply that the source is not immutable which would be a violation of some other
   -- invariant elsewhere in the code.
   --
   -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
@@ -529,8 +536,8 @@ class MemWrite mw where
 
   -- | Copy contiguous chunk of memory from the read only memory region into the target
   -- mutable memory region. Source and target /must not/ refer to the same memory region,
-  -- that would of course mean that the source is not immutable thus imply a violation of
-  -- some other invariant elsewhere in the code.
+  -- otherwise that would imply that the source is not immutable which would be a
+  -- violation of some other invariant elsewhere in the code.
   --
   -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
   -- or the element count @memCount@ is violated a call to this function can result in:
@@ -874,7 +881,7 @@ emptyMem :: MemAlloc ma => FrozenMem ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
 
--- | A region of memory that hold a single element.
+-- | Allocate a region of memory that holds a single element.
 singletonMem ::
      forall e ma. (MemAlloc ma, Prim e)
   => e
@@ -918,11 +925,24 @@ createMemST n f = runST $ do
   pure (res, i)
 {-# INLINE createMemST #-}
 
-createMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> FrozenMem ma
+createMemST_ :: (MemAlloc ma, Prim e)
+  => Count e
+  -> (forall s . ma s -> ST s b)
+  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
+  -- memory.
+  --
+  -- /__Required invariant:__/
+  --
+  -- It is important that this action overwrites all of newly allocated memory.
+  -> FrozenMem ma
 createMemST_ n f = runST (allocMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createMemST_ #-}
 
-createZeroMemST :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> (b, FrozenMem ma)
+createZeroMemST ::
+     forall e ma b. (MemAlloc ma, Prim e)
+  => Count e
+  -> (forall s. ma s -> ST s b)
+  -> (b, FrozenMem ma)
 createZeroMemST n f = runST $ do
   m <- allocZeroMem n
   res <- f m
@@ -930,14 +950,50 @@ createZeroMemST n f = runST $ do
   pure (res, i)
 {-# INLINE createZeroMemST #-}
 
-createZeroMemST_ :: (MemAlloc ma, Prim e) => Count e -> (forall s . ma s -> ST s b) -> FrozenMem ma
+-- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros prior
+-- to applying the @ST@ filling action @fillAction@.
+--
+-- [Unsafe] Violation of precondition for @memCount@ may result in undefined behavior.
+--
+-- ====__Example__
+--
+-- Note that this example will work correctly only on little-endian machines:
+--
+-- >>> :set -XTypeApplications
+-- >>> import Data.Prim
+-- >>> import Control.Monad
+-- >>> let ibs = zip [0, 4 ..] [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: [(Off Word8, Word8)]
+-- >>> let c = Count (length ibs) :: Count Char
+-- >>> let bc = createZeroMemST_ @(MBytes 'Inc) c $ \m -> forM_ ibs $ \(i, b) -> writeByteOffMem m i b
+-- >>> toListMem bc :: String
+-- "Haskell"
+--
+-- @since 0.1.0
+createZeroMemST_ ::
+     forall e ma b. (MemAlloc ma, Prim e)
+  => Count e
+  -- ^ /memCount/ - Size of the newly allocated memory region in number of elements of
+  -- type @e@
+  --
+  -- /__Precoditions:__/
+  --
+  -- Size should be non-negative, but smaller than amount of available memory. Note that the
+  -- second condition simply describes overflow.
+  --
+  -- > 0 <= memCount
+  -- > unCount memCount <= maxBound `div` unCountBytes @e 1
+  -> (forall s. ma s -> ST s b)
+  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
+  -- memory. It is not required to overwrite the full region, since it was reset to zeros
+  -- right after allocation.
+  -> FrozenMem ma
 createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 {-# INLINE createZeroMemST_ #-}
 
 -- | Copy all of the data from the source into a newly allocate memory region of identical
 -- size.
 --
--- ====__Example:__
+-- ====__Examples__
 --
 -- >>> :set -XDataKinds
 -- >>> import Data.Prim.Memory
@@ -960,11 +1016,11 @@ cloneMem fm =
     freezeMem mm
 {-# INLINE cloneMem #-}
 
--- | Similar to `copyByteOffMem`, but use offsets in elements instead of bytes. Copy
--- contiguous chunk of memory from the read only memory region into the target mutable
--- memory region. Source and target /must not/ refer to the same memory region, that would
--- of course mean that the source is not immutable thus imply a violation of some other
--- invariant elsewhere in the code.
+-- | Similar to `copyByteOffMem`, but supply offsets in number of elements instead of
+-- bytes. Copy contiguous chunk of memory from the read only memory region into the target
+-- mutable memory region. Source and target /must not/ refer to the same memory region,
+-- otherwise that would imply that the source is not immutable which would be a violation
+-- of some other invariant elsewhere in the code.
 --
 -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
 -- or the element count @memCount@ is violated a call to this function can result in:
@@ -1195,16 +1251,39 @@ compareMem ::
 compareMem r1 off1 r2 off2 = compareByteOffMem r1 (toByteOff off1) r2 (toByteOff off2)
 {-# INLINE compareMem #-}
 
--- | It is only guaranteed to convert the whole memory to a list whenever the size of
--- allocated memory is exactly divisible by the size of the element, otherwise there will
--- be some slack left unaccounted for.
+-- =============== --
+-- List conversion --
+-- =============== --
+
+-------------
+-- To List --
+-------------
+
+-- | Convert an immutable memory region to a list. Whenever memory byte count is not
+-- exactly divisible by the size of the element there will be some slack left unaccounted
+-- for. In order to get a hold of this slack use `toListSlackMem` instead.
+--
+-- ====__Examples__
+--
+-- >>> import Data.Prim.Memory
+-- >>> import Numeric (showHex)
+-- >>> let b = fromByteListMem [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: Bytes 'Inc
+-- >>> toListMem b :: [Int8]
+-- [72,97,115,107,101,108,108]
+-- >>> let xs = toListMem b :: [Word32]
+-- >>> xs
+-- [1802723656]
+-- >>> showHex (head xs) ""
+-- "6b736148"
+--
+-- @since 0.1.0
 toListMem :: forall e mr. (MemRead mr, Prim e) => mr -> [e]
 toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 {-# INLINE toListMem #-}
 {-# SPECIALIZE toListMem :: Prim e => Bytes p -> [e] #-}
 
--- | Same as `toListMem`, except if there is some slack at the end of the memory that
--- didn't fit in a list it will be returned as a list of bytes
+-- | Same as `toListMem`, except when there is some slack towards the end of the memory
+-- region that didn't fit into a list it will be returned as a list of bytes.
 --
 -- ====__Examples__
 --
@@ -1239,7 +1318,12 @@ toListSlackMem mem =
          in getSlack i' (indexByteOffMem mem (Off i') : acc)
 {-# INLINABLE toListSlackMem #-}
 
--- | Right fold that is useful for converting to list while tapping into list fusion.
+-- | Right fold that is useful for converting to a list while tapping into list fusion.
+--
+-- [Unsafe] Supplying Count larger than memory holds will result in reading out of bounds
+-- and a potential segfault.
+--
+-- @since 0.1.0
 foldrCountMem :: forall e b mr. (MemRead mr, Prim e) => Count e -> (e -> b -> b) -> b -> mr -> b
 foldrCountMem (Count k) c nil bs = go 0
   where
@@ -1249,6 +1333,160 @@ foldrCountMem (Count k) c nil bs = go 0
         let !v = indexOffMem bs (Off i)
          in v `c` go (i + 1)
 {-# INLINE[0] foldrCountMem #-}
+
+---------------
+-- From List --
+---------------
+
+-- Pure immutable conversion --
+
+-- | Just like `fromListMemN`, except it ensures safety by using the length of the
+-- list for allocation. Because it has to figure out the length of the list first it
+-- will be just a little bit slower, but that much safer.
+--
+-- ====__Examples__
+--
+-- >>> import Data.Prim.Memory
+-- >>> :set -XDataKinds
+-- >>> fromListMem "Hi" :: Bytes 'Inc
+-- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00]
+--
+-- @since 0.1.0
+fromListMem ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => [e]
+  -> FrozenMem ma
+fromListMem xs =
+  let count = coerce (length xs) `countForProxyTypeOf` xs
+   in createMemST_ count (loadListMemN_ count xs)
+{-# INLINE fromListMem #-}
+
+
+-- | Same as `fromListMem` but restricted to a list of `Word8`. Load a list of bytes into
+-- a newly allocated memory region. Equivalent to `Data.ByteString.pack` for
+-- `Data.ByteString.ByteString`
+--
+-- ====__Examples__
+--
+-- >>> fromByteListMem [0..10] :: Bytes 'Pin
+-- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
+--
+-- @since 0.1.0
+fromByteListMem ::
+     forall ma. MemAlloc ma
+  => [Word8]
+  -> FrozenMem ma
+fromByteListMem = fromListMem
+{-# INLINE fromByteListMem #-}
+
+
+-- | Similarly to `fromListMem` load a list into a newly allocated memory region, but
+-- unlike the forementioned function it also accepts a hint of how many elements is
+-- expected to be in the list. Because the number of expected an actual elements might
+-- not match we return not only the frozen memory region, but also:
+--
+-- * either a list with left over elements from the input @list@, if
+--   it did not fully fit into the allocated region:
+--
+--     @
+--     unCount memCount < length list
+--     @
+--
+-- * or a count of surplus memory allocated because the input @list@ turned out to be
+--   smaller than @memCount@.
+--
+-- In the latter case a zero value would indicacte that the list did fit into the newly
+-- allocated memory region exactly, which is perfectly fine. But a positive value would
+-- mean that the tail of the memory region is still unset and might contain garbage
+-- data. Make sure to overwrite the surplus memory yourself or use the safe version
+-- `fromListZeroMemN` that fills the surplus with zeros.
+--
+-- [Unsafe] Whenever @memCount@ precodition is violated, because on each call with the
+-- same input it can produce different output therefore it will break referential
+-- transparency.
+--
+-- ====__Examples__
+--
+-- >>> :set -XTypeApplications
+-- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hello"
+-- (Left "llo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00])
+-- >>> fromListMemN @Char @(MBytes 'Inc) 3 "Hello"
+-- (Left "lo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00])
+-- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hi"
+-- (Right (Count {unCount = 0}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
+--
+-- @since 0.2.0
+fromListMemN ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e
+  -- ^ /memCount/ - Expected number of elements in the list, which exactly how much
+  -- memory will be allocated.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  -- > unCount memCount <= length list
+  -> [e]
+  -- ^ /list/ - A list of elements to load into the newly allocated memory region.
+  -> (Either [e] (Count e), FrozenMem ma)
+fromListMemN count xs =
+  createMemST count $ \mm -> do
+    (ys, off) <- loadListOffMemN count xs mm 0
+    let surplus = count - offToCount off
+    pure $
+      if surplus >= 0 && null ys
+        then Right surplus
+        else Left ys
+{-# INLINE fromListMemN #-}
+
+
+-- | Just like `fromListMemN`, except it ensures safety by filling tail with zeros,
+-- whenever the list is not long enough.
+--
+-- ====__Examples__
+--
+-- >>> import Data.Prim.Memory
+-- >>> :set -XTypeApplications
+-- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
+-- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+--
+-- @since 0.2.0
+fromListZeroMemN ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e -- ^ /memCount/ - Number of elements to load from the list.
+  -> [e]
+  -> (Either [e] (Count e), FrozenMem ma)
+fromListZeroMemN count xs =
+  createMemST (max 0 count) $ \mm -> do
+    (ys, off) <- loadListOffMemN count xs mm 0
+    let surplusCount = count - offToCount off
+    setMem mm (toByteOff off) (toByteCount surplusCount) 0
+    pure $
+      if surplusCount >= 0
+        then Right surplusCount
+        else Left ys
+{-# INLINE fromListZeroMemN #-}
+
+-- | Same as `fromListZeroMemN`, but ignore the extra information about how the loading went.
+--
+-- ====__Examples__
+--
+-- >>> import Data.Prim.Memory
+-- >>> fromListZeroMemN_ 3 "Hi" :: Bytes 'Inc
+-- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
+--
+-- @since 0.2.0
+fromListZeroMemN_ ::
+     forall e ma. (Prim e, MemAlloc ma)
+  => Count e
+  -> [e]
+  -> FrozenMem ma
+fromListZeroMemN_ !n xs = createMemST_ (max 0 n) (loadListMemN_ n xs)
+{-# INLINE fromListZeroMemN_ #-}
+
+
+
+-- Mutable loading --
 
 
 loadListByteOffHelper ::
@@ -1302,40 +1540,25 @@ loadListOffMemN ::
   -> Off e
   -> m ([e], Off e)
 loadListOffMemN count ys mw off =
-  let go []       !i = pure ([], i)
-      go a@(x:xs) !i
+  let go []       i = pure ([], i)
+      go a@(x:xs) i
         | i < k = writeOffMem mw i x >> go xs (i + 1)
         | otherwise = pure (a, i)
       k = off + countToOff count
   in go ys off
 {-# INLINABLE loadListOffMemN #-}
 
-
-loadListOffMem ::
-     (MemAlloc ma, MonadPrim s m, Prim e)
-  => [e]
-  -> ma s
-  -> Off e
-  -> m ([e], Off e)
-loadListOffMem ys ma off = do
-  count <- getCountMem ma
-  loadListOffMemN (count - offToCount off) ys ma off
-{-# INLINABLE loadListOffMem #-}
-
 loadListMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
-  -> Count Word8
   -> [e]
   -> mw s
-  -> m Ordering
-loadListMemN (Count n) (Count slack) ys mb =
-  let go [] !i = pure (compare i n <> compare 0 slack)
-      go (x:xs) !i
-        | i < n = writeOffMem mb (Off i) x >> go xs (i + 1)
-        | otherwise = pure GT
-   in go ys 0
+  -> m ([e], Off e)
+loadListMemN count xs mw = loadListOffMemN count xs mw 0
 {-# INLINABLE loadListMemN #-}
+
+
+
 
 loadListMemN_ ::
      forall e mw m s. (Prim e, MemWrite mw, MonadPrim s m)
@@ -1349,18 +1572,35 @@ loadListMemN_ (Count n) ys mb =
    in go ys 0
 {-# INLINABLE loadListMemN_ #-}
 
--- | Returns `EQ` if the full list did fit into the supplied memory chunk exactly.
--- Otherwise it will return either `LT` if the list was smaller than allocated memory or
--- `GT` if the list was bigger than the available memory and did not fit into `MBytes`.
+
+
+
+-- | Similar to `loadListByteOffMemN`, but try to fit as many elements into the mutable
+-- memory region starting at the beginning.
+loadListOffMem ::
+     forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
+  => [e] -- ^ List to load
+  -> ma s -- ^ Memory where the list should be loaded into
+  -> Off e
+  -> m ([e], Off e)
+loadListOffMem ys ma off = do
+  count <- getCountMem ma
+  loadListOffMemN (count - offToCount off) ys ma off
+{-# INLINE loadListOffMem #-}
+
+
+-- | Similar to `loadListByteOffMemN`, but try to fit as many elements into the mutable
+-- memory region starting at the beginning.
 loadListMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => [e]
-  -> ma s
-  -> m Ordering
-loadListMem ys mb = do
-  (c, slack) <- getCountRemMem mb
-  loadListMemN (c `countForProxyTypeOf` ys) slack ys mb
+  => [e] -- ^ /listSource/ - List to load
+  -> ma s -- ^ /memTarget/ - Mutable reagion where to load elements from the list
+  -> m ([e], Off e)
+loadListMem ys ma = do
+  count <- getCountMem ma
+  loadListOffMemN (count `countForProxyTypeOf` ys) ys ma 0
 {-# INLINE loadListMem #-}
+
 
 loadListMem_ ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
@@ -1373,139 +1613,10 @@ loadListMem_ ys mb = do
 {-# INLINE loadListMem_ #-}
 
 
--- | Similarly to `fromListMem` load a list into a newly allocated memory region, but
--- unlike the forementioned function it also accepts a hint of how many elements is
--- expected to be in the list. Because the number of expected an actual elements might
--- not match we return not only the frozen memory region, but also:
---
--- * either a list with left over elements from the input @list@, if
---   it did not fully fit into the allocated region:
---
---     @
---     unCount memCount < length list
---     @
---
--- * or a count of surplus memory allocated because the input @list@ turned out to be
---   smaller than @memCount@.
---
--- In the latter case a zero value would indicacte that the list did fit into the newly
--- allocated memory region exactly, which is perfectly fine. But a positive value would
--- mean that the tail of the memory region is still unset and might contain garbage
--- data. Make sure to overwrite the surplus memory yourself or use the safe version
--- `fromListZeroMemN` that fills the surplus with zeros.
---
--- [Unsafe] Whenever @memCount@ precodition is violated, because on each call with the
--- same input it can produce different output therefore it will break referential
--- transparency.
---
--- ====__Examples:__
---
--- >>> :set -XTypeApplications
--- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hello"
--- (Left "llo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00])
--- >>> fromListMemN @Char @(MBytes 'Inc) 3 "Hello"
--- (Left "lo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00])
--- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hi"
--- (Right (Count {unCount = 0}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
---
--- @since 0.2.0
-fromListMemN ::
-     forall e ma. (Prim e, MemAlloc ma)
-  => Count e
-  -- ^ /memCount/ - Expected number of elements in the list, which exactly how much
-  -- memory will be allocated.
-  --
-  -- /__Preconditions:__/
-  --
-  -- > unCount memCount <= length list
-  -> [e]
-  -- ^ /list/ - A list of elements to load into the newly allocated memory region.
-  -> (Either [e] (Count e), FrozenMem ma)
-fromListMemN count xs =
-  createMemST count $ \mm -> do
-    (ys, off) <- loadListOffMemN count xs mm 0
-    let surplus = count - offToCount off
-    pure $
-      if surplus >= 0 && null ys
-        then Right surplus
-        else Left ys
-{-# INLINE fromListMemN #-}
-
-
--- | Just like `fromListMemN`, except it ensures safety by filling tail with zeros,
--- whenever the list is not long enough.
---
--- ====__Examples:__
---
--- >>> import Data.Prim.Memory
--- >>> :set -XTypeApplications
--- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
--- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
---
--- @since 0.1.0
-fromListZeroMemN ::
-     forall e ma. (Prim e, MemAlloc ma)
-  => Count e -- ^ /memCount/ - Number of elements to load from the list.
-  -> [e]
-  -> (Either [e] (Count e), FrozenMem ma)
-fromListZeroMemN count xs =
-  createMemST count $ \mm -> do
-    (ys, off) <- loadListOffMemN count xs mm 0
-    let surplusCount = count - offToCount off
-    setMem mm (toByteOff off) (toByteCount surplusCount) 0
-    pure $
-      if surplusCount >= 0
-        then Right surplusCount
-        else Left ys
-{-# INLINE fromListZeroMemN #-}
-
-
-fromListMemN_ ::
-     forall e ma. (Prim e, MemAlloc ma)
-  => Count e
-  -> [e]
-  -> FrozenMem ma
-fromListMemN_ !n xs = createMemST_ n (loadListMemN_ n xs)
-{-# INLINE fromListMemN_ #-}
-
--- | Just like `fromListMemN`, except it ensures safety by using the length of the
--- list for allocation. Because it has to figure out the length of the list first it
--- will be just a little bit slower, but that much safer.
---
--- ====__Examples:__
---
--- >>> import Data.Prim.Memory
--- >>> :set -XTypeApplications
--- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
--- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
---
--- @since 0.1.0
-fromListMem ::
-     forall e ma. (Prim e, MemAlloc ma)
-  => [e]
-  -> FrozenMem ma
-fromListMem xs = fromListMemN_ (coerce (length xs) `countForProxyTypeOf` xs) xs
-{-# INLINE fromListMem #-}
-
-
--- | Load a list of bytes into a newly allocated memory region. Equivalent to
--- `Data.ByteString.pack` for `Data.ByteString.ByteString`
---
--- ====__Examples__
---
--- >>> fromByteListMem [0..10] :: Bytes 'Pin
--- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
---
--- @since 0.1.0
-fromByteListMem ::
-     forall ma. MemAlloc ma
-  => [Word8]
-  -> FrozenMem ma
-fromByteListMem = fromListMem
-{-# INLINE fromByteListMem #-}
-
 -- | Convert a memory region to a list of bytes. Equivalent to `Data.ByteString.unpack`
 -- for `Data.ByteString.ByteString`
+--
+-- ====__Example__
 --
 -- >>> toByteListMem (fromByteListMem [0..10] :: Bytes 'Pin)
 -- [0,1,2,3,4,5,6,7,8,9,10]
@@ -1531,7 +1642,7 @@ mapByteMem ::
   => (Word8 -> e)
   -> mr
   -> FrozenMem ma
-mapByteMem f = mapByteOffMem (const f)
+mapByteMem f = imapByteOffMem (const f)
 
 -- | Map an index aware function over memory region
 --
@@ -1542,9 +1653,9 @@ mapByteMem f = mapByteOffMem (const f)
 -- [0x00,0xf1,0x01,0xf2,0x02,0xf3,0x03,0xf4,0x04,0xf5,0x05,0xf6,0x06,0xf7,0x07,0xf8,0x08,0xf9,0x09,0xfa]
 --
 -- @since 0.1.0
-mapByteOffMem ::
+imapByteOffMem ::
      (MemRead mr, MemAlloc ma, Prim e) => (Off Word8 -> Word8 -> e) -> mr -> FrozenMem ma
-mapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
+imapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
 mapByteMemM ::
@@ -1782,7 +1893,7 @@ instance Show (Bytes p) where
 instance Typeable p => IsList (Bytes p) where
   type Item (Bytes p) = Word8
   fromList = fromListMem
-  fromListN n = fromListMemN_ (Count n)
+  fromListN n = fromListZeroMemN_ (Count n)
   toList = toListMem
 
 instance Eq (Bytes p) where
