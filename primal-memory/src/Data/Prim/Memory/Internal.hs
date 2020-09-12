@@ -964,7 +964,7 @@ createZeroMemST n f = runST $ do
 -- >>> import Control.Monad
 -- >>> let ibs = zip [0, 4 ..] [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: [(Off Word8, Word8)]
 -- >>> let c = Count (length ibs) :: Count Char
--- >>> let bc = createZeroMemST_ @(MBytes 'Inc) c $ \m -> forM_ ibs $ \(i, b) -> writeByteOffMem m i b
+-- >>> let bc = createZeroMemST_ @_ @(MBytes 'Inc) c $ \m -> forM_ ibs $ \(i, b) -> writeByteOffMem m i b
 -- >>> toListMem bc :: String
 -- "Haskell"
 --
@@ -1151,7 +1151,7 @@ freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
 -- | /O(n)/ - Convert a read-only memory region into a newly allocated other type of
 -- memory region
 --
--- >>> import Data.ByteString
+-- >>> import Data.ByteString (pack)
 -- >>> bs = pack [0x10 .. 0x20]
 -- >>> bs
 -- "\DLE\DC1\DC2\DC3\DC4\NAK\SYN\ETB\CAN\EM\SUB\ESC\FS\GS\RS\US "
@@ -1192,9 +1192,9 @@ countMem = fromByteCount . byteCountMem
 -- >>> b
 -- [0x00,0x01,0x02,0x03,0x04,0x05]
 -- >>> countRemMem @Word16 b
--- (Count {unCount = 3},0)
+-- (Count {unCount = 3},Count {unCount = 0})
 -- >>> countRemMem @Word32 b
--- (Count {unCount = 1},2)
+-- (Count {unCount = 1},Count {unCount = 2})
 --
 -- @since 0.1.0
 countRemMem :: forall e mr. (MemRead mr, Prim e) => mr -> (Count e, Count Word8)
@@ -1481,7 +1481,7 @@ fromListZeroMemN_ ::
   => Count e
   -> [e]
   -> FrozenMem ma
-fromListZeroMemN_ !n xs = createMemST_ (max 0 n) (loadListMemN_ n xs)
+fromListZeroMemN_ !n = snd . fromListZeroMemN n
 {-# INLINE fromListZeroMemN_ #-}
 
 
@@ -1644,12 +1644,13 @@ mapByteMem ::
   -> FrozenMem ma
 mapByteMem f = imapByteOffMem (const f)
 
--- | Map an index aware function over memory region
+-- Map an index aware function over memory region
 --
+-- >>> import Data.Prim.Memory
 -- >>> a = fromListMem [1 .. 10 :: Word8] :: Bytes 'Inc
 -- >>> a
 -- [0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
--- >>> imapMem (\i e -> (fromIntegral i :: Int8, e + 0xf0)) a :: Bytes 'Pin
+-- >>> imapByteOffMem (\i e -> (fromIntegral i :: Int8, e + 0xf0)) a :: Bytes 'Pin
 -- [0x00,0xf1,0x01,0xf2,0x02,0xf3,0x03,0xf4,0x04,0xf5,0x05,0xf6,0x06,0xf7,0x07,0xf8,0x08,0xf9,0x09,0xfa]
 --
 -- @since 0.1.0
@@ -1916,14 +1917,15 @@ instance Typeable p => Monoid.Monoid (Bytes p) where
   mempty = emptyMem
 
 
--- | A list of `ShowS` that covert bytes to base16 encoded strings. Each element of the list
+-- | A list of `ShowS` which covert bytes to base16 encoded strings. Each element of the list
 -- is a function that will convert one byte.
 --
--- >>> mb <- newPinnedMBytes (Count 5 :: Count Int)
--- >>> mapM_ (\i -> writeOffMBytes mb (pred i) i) [1 .. 5]
--- >>> foldr ($) "" . showsBytesHex <$> freezeMBytes mb
--- "01000000000000000200000000000000030000000000000004000000000000000500000000000000"
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> concatMap ($ " ") $ showsHexMem (fromListMem [1 :: Int16 .. 15] :: Bytes 'Inc)
+-- "01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0a 00 0b 00 0c 00 0d 00 0e 00 0f 00 "
 --
+-- @since 0.1.0
 showsHexMem :: MemRead mr => mr -> [ShowS]
 showsHexMem b = map toHex (toListMem b :: [Word8])
   where

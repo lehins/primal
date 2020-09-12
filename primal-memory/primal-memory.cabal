@@ -41,18 +41,19 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall
 
--- test-suite doctests
---   type:             exitcode-stdio-1.0
---   hs-source-dirs:   tests
---   main-is:          doctests.hs
---   build-depends: base
---                , doctest >=0.15
---                , prim-bytes
---                , template-haskell
---   default-language:    Haskell2010
---   ghc-options:        -Wall
---                       -fno-warn-orphans
---                       -threaded
+test-suite doctests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  main-is:          doctests.hs
+  build-depends: base
+               , doctest >=0.15
+               , primal
+               , primal-memory
+               , template-haskell
+  default-language:    Haskell2010
+  ghc-options:        -Wall
+                      -threaded
+
 
 benchmark bench
   type:                exitcode-stdio-1.0

@@ -38,12 +38,14 @@ module Data.Prim.Memory
   , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
   , toByteListMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , foldrCountMem             -- DOC: [x], DOCTEST [-], TEST: [-]
+  , showsHexMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
 
   -- *** From list
   , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- * Mutable
   , MBytes
   , MemWrite
@@ -78,6 +80,7 @@ module Data.Prim.Memory
   , createMemST_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , createZeroMemST           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , createZeroMemST_          -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , withScrubbedMem           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , moveMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]
   , moveByteOffMem            -- DOC: [x], DOCTEST [ ], TEST: [ ]
