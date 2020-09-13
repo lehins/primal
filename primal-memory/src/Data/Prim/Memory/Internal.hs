@@ -1752,9 +1752,7 @@ loadListOffMem ::
   -- > unOff memTargetOff < unCount targetCount
   -> m ([e], Off e)
   -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
-loadListOffMem ys ma off = do
-  count <- getCountMem ma
-  loadListOffMemN (count - offToCount off) ys ma off
+loadListOffMem ys ma off = getCountMem ma >>= \c -> loadListOffMemN (c - offToCount off) ys ma off
 {-# INLINE loadListOffMem #-}
 
 
@@ -1781,14 +1779,12 @@ loadListMem ::
   -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ([e], Off e)
   -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
-loadListMem ys ma = do
-  count <- getCountMem ma
-  loadListOffMemN (count `countForProxyTypeOf` ys) ys ma 0
+loadListMem ys ma = getCountMem ma >>= \c -> loadListOffMemN (c `countForProxyTypeOf` ys) ys ma 0
 {-# INLINE loadListMem #-}
 
--- | Same as `loadListMem`, but ignores the result.
+-- | Same as `loadListMem`, but ignores the result. Equivalence as property:
 --
--- prop> createZeroMemST_ c (void . loadListMem xs) == createZeroMemST_ c (loadListMem_ xs)
+-- prop> let c = fromInteger (abs i) :: Count Int in (createZeroMemST_ c (loadListMem_ (xs :: [Int])) :: Bytes 'Inc) == createZeroMemST_ c (void . loadListMem xs)
 --
 -- @since 0.2.0
 loadListMem_ ::
@@ -1796,9 +1792,7 @@ loadListMem_ ::
   => [e] -- ^ /listSource/ - List with elements to load
   -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ()
-loadListMem_ ys mb = do
-  c <- getCountMem mb
-  loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
+loadListMem_ ys mb = getCountMem mb >>= \c -> loadListMemN_ (c `countForProxyTypeOf` ys) ys mb
 {-# INLINE loadListMem_ #-}
 
 
