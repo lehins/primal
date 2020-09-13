@@ -1376,7 +1376,7 @@ fromByteListMem = fromListMem
 -- expected to be in the list. Because the number of expected an actual elements might
 -- not match we return not only the frozen memory region, but also:
 --
--- * either a list with left over elements from the input @list@, if
+-- * either a list with leftover elements from the input @list@, if
 --   it did not fully fit into the allocated region:
 --
 --     @
@@ -1505,9 +1505,9 @@ loadListByteOffHelper ys mw byteOff k step =
 -- get loaded, otherwise an empty list is returned. It also returns the byte offset into
 -- the memory region where the next element would have been loaded.
 --
--- [Unsafe] When a precondition for the offset @memTargetOff@ or the element count
--- @memCount@ is violated a call to this function can result in heap corruption or failure
--- with a segfault.
+-- [Unsafe] When any precondition for either the offset @memTargetOff@ or the element
+-- count @memCount@ is violated then a call to this function can result in heap corruption
+-- or failure with a segfault.
 --
 -- ====__Examples__
 --
@@ -1558,6 +1558,7 @@ loadListByteOffMemN ::
   -- > targetByteCount <- getByteCountMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
   -> m ([e], Off Word8)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k step
   where
     k = byteOff + countToOff (toByteCount count)
@@ -1565,9 +1566,10 @@ loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k 
 {-# INLINABLE loadListByteOffMemN #-}
 
 -- | Same as `loadListByteOffMemN`, but infer the count from number of bytes that is
--- available in the memory region.
+-- available in the target memory region.
 --
--- [Unsafe]
+-- [Unsafe] When a precondition for the element count @memCount@ is violated then a call
+-- to this function can result in heap corruption or failure with a segfault.
 --
 -- ====__Examples__
 --
@@ -1584,7 +1586,7 @@ loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k 
 -- ([],Off {unOff = 4})
 -- >>> freezeMem ma
 -- [0x48,0xff,0xff,0xff,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
-  --
+--
 -- @since 0.2.0
 loadListByteOffMem ::
      (MemAlloc ma, MonadPrim s m, Prim e)
@@ -1604,6 +1606,7 @@ loadListByteOffMem ::
   -- > targetByteCount <- getByteCountMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
   -> m ([e], Off Word8)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListByteOffMem ys ma byteOff = do
   count <- getByteCountMem ma
   let k = countToOff count - byteOff
@@ -1611,18 +1614,46 @@ loadListByteOffMem ys ma byteOff = do
   loadListByteOffHelper ys ma byteOff k step
 {-# INLINABLE loadListByteOffMem #-}
 
-
+-- | Same as `loadListByteOffMemN`, but works with offset in number of elements instead of
+-- bytes.
 --
--- [Unsafe]
+-- [Unsafe] When preconditions for either the offset @memTargetOff@ or the element count
+-- @memCount@ is violated then a call to this function can result in heap corruption or
+-- failure with a segfault.
 --
 -- @since 0.2.0
 loadListOffMemN ::
      (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
-  -> [e]
-  -> mw s
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Target memory region must have enough memory to perform loading of @elemCount@
+  -- elements starting at the @memTargetOff@ offset. For types that also implement
+  -- `MemAlloc` this can be described as:
+  --
+  -- > targetCount <- getCountMem memTarget
+  -- > unOff memTargetOff + unCount elemCount < unCount targetCount
+  -> [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off e
+  -- ^ /memTargetOff/ - Offset in number of elements into target memory where writing will start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same memory
+  -- region @memTarget@. For types that also implement `MemAlloc` this can be described
+  -- as:
+  --
+  -- > targetCount <- getByteCountMem memTarget
+  -- > unOff memTargetOff < unCount targetCount
   -> m ([e], Off e)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListOffMemN count ys mw off =
   let go []       i = pure ([], i)
       go a@(x:xs) i
@@ -1632,31 +1663,58 @@ loadListOffMemN count ys mw off =
   in go ys off
 {-# INLINABLE loadListOffMemN #-}
 
+
+-- | Same as `loadListOffMemN`, but start loading at @0@ offset.
 --
--- [Unsafe]
+-- [Unsafe] When any precondition for the element count @memCount@ is violated then a call to
+-- this function can result in heap corruption or failure with a segfault.
 --
 -- @since 0.2.0
 loadListMemN ::
-     (MemWrite mw, MonadPrim s m, Prim e)
+     forall e mw m s. (MemWrite mw, MonadPrim s m, Prim e)
   => Count e
-  -> [e]
-  -> mw s
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Target memory region must have enough memory to perform loading of @elemCount@
+  -- elements. For types that also implement `MemAlloc` this can be described as:
+  --
+  -- > targetCount <- getCountMem memTarget
+  -- > elemCount <= targetCount
+  -> [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s -- ^ /memTarget/ - Memory region where to load the elements into
   -> m ([e], Off e)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListMemN count xs mw = loadListOffMemN count xs mw 0
 {-# INLINABLE loadListMemN #-}
 
 
 
-
+-- | Same as `loadListMemN`, but ignores the result.
 --
--- [Unsafe]
+-- [Unsafe] When any precondition for the element count @memCount@ is violated then a call
+-- to this function can result in heap corruption or failure with a segfault.
 --
 -- @since 0.2.0
 loadListMemN_ ::
      forall e mw m s. (Prim e, MemWrite mw, MonadPrim s m)
   => Count e
-  -> [e]
-  -> mw s
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Target memory region must have enough memory to perform loading of @elemCount@
+  -- elements. For types that also implement `MemAlloc` this can be described as:
+  --
+  -- > targetCount <- getCountMem memTarget
+  -- > elemCount <= targetCount
+  -> [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s -- ^ /memTarget/ - Memory region where to load the elements into
   -> m ()
 loadListMemN_ (Count n) ys mb =
   let go []     _ = pure ()
@@ -1667,37 +1725,76 @@ loadListMemN_ (Count n) ys mb =
 
 
 
--- | Similar to `loadListByteOffMemN`, but try to fit as many elements into the mutable
--- memory region starting at the beginning.
+-- | Same as `loadListOffMemN`, but infer the count from number of bytes that is available
+-- in the target memory region.
+--
+-- [Unsafe] When a precondition for the element count @memCount@ is violated then a call
+-- to this function can result in heap corruption or failure with a segfault.
+--
+-- @since 0.2.0
 loadListOffMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => [e] -- ^ List to load
-  -> ma s -- ^ Memory where the list should be loaded into
+  => [e] -- ^ /listSource/ - List with elements that should be loaded
+  -> ma s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off e
+  -- ^ /memTargetOff/ - Offset in number of elements into target memory where writing will
+  -- start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same memory
+  -- region @memTarget@. For types that also implement `MemAlloc` this can be described
+  -- as:
+  --
+  -- > targetCount <- getCountMem memTarget
+  -- > unOff memTargetOff < unCount targetCount
   -> m ([e], Off e)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListOffMem ys ma off = do
   count <- getCountMem ma
   loadListOffMemN (count - offToCount off) ys ma off
 {-# INLINE loadListOffMem #-}
 
 
--- | Similar to `loadListByteOffMemN`, but try to fit as many elements into the mutable
--- memory region starting at the beginning.
+-- | Same as `loadListMemN`, but tries to fit as many elements as possible into the mutable
+-- memory region starting at the beginning. This operation is always safe.
+--
+-- ====__Examples:__
+--
+-- >>> import Data.Prim.Memory
+-- >>> ma <- allocMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
+-- >>> loadListMem "HelloWorld" ma
+-- ("World",Off {unOff = 5})
+-- >>> freezeMem ma
+-- [0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
+-- >>> loadListMem (replicate 6 (0xff :: Word8)) ma
+-- ([],Off {unOff = 6})
+-- >>> freezeMem ma
+-- [0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
+--
+-- @since 0.2.0
 loadListMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => [e] -- ^ /listSource/ - List to load
-  -> ma s -- ^ /memTarget/ - Mutable reagion where to load elements from the list
+  => [e] -- ^ /listSource/ - List with elements to load
+  -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ([e], Off e)
+  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
 loadListMem ys ma = do
   count <- getCountMem ma
   loadListOffMemN (count `countForProxyTypeOf` ys) ys ma 0
 {-# INLINE loadListMem #-}
 
-
+-- | Same as `loadListMem`, but ignores the result.
+--
+-- prop> createZeroMemST_ c (void . loadListMem xs) == createZeroMemST_ c (loadListMem_ xs)
+--
+-- @since 0.2.0
 loadListMem_ ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => [e]
-  -> ma s
+  => [e] -- ^ /listSource/ - List with elements to load
+  -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ()
 loadListMem_ ys mb = do
   c <- getCountMem mb

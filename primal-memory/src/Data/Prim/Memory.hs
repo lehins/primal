@@ -87,16 +87,16 @@ module Data.Prim.Memory
   , moveByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , moveByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- *** From List
-  , loadListMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , loadListMem_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , loadListMemN              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , loadListMemN_             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , loadListMem_              -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , loadListMemN              -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , loadListMemN_             -- DOC: [x], DOCTEST [ ], TEST: [ ]
   -- **** With offset
   , loadListOffMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , loadListOffMemN           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- **** With byte offset
-  , loadListByteOffMem        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , loadListByteOffMemN       -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , loadListByteOffMem        -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , loadListByteOffMemN       -- DOC: [x], DOCTEST [x], TEST: [ ]
 
   , emptyMem                  -- DOC: [ ], DOCTEST [ ], TEST: [x]
   , singletonMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
