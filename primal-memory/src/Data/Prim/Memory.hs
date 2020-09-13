@@ -34,15 +34,15 @@ module Data.Prim.Memory
   -- ** Convert
   , convertMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- *** To list
-  , toListMem                 -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , toListMem                 -- DOC: [x], DOCTEST [x], TEST: [x]
   , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , toByteListMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , toByteListMem             -- DOC: [ ], DOCTEST [ ], TEST: [x]
   , foldrCountMem             -- DOC: [x], DOCTEST [-], TEST: [-]
   , showsHexMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
 
   -- *** From list
-  , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [x]
+  , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]

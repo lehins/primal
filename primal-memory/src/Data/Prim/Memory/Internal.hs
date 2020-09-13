@@ -2,12 +2,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -1372,21 +1370,22 @@ fromByteListMem = fromListMem
 
 
 -- | Similarly to `fromListMem` load a list into a newly allocated memory region, but
--- unlike the forementioned function it also accepts a hint of how many elements is
+-- unlike the aforementioned function it also accepts a hint of how many elements is
 -- expected to be in the list. Because the number of expected an actual elements might
 -- not match we return not only the frozen memory region, but also:
 --
--- * either a list with leftover elements from the input @list@, if
---   it did not fully fit into the allocated region:
+-- * either a list with leftover elements from the input @list@, if it did not fully fit
+--   into the allocated region. An empty list would indicate that it did fit exactly.
 --
 --     @
---     unCount memCount < length list
+--     unCount memCount <= length list
 --     @
 --
--- * or a count of surplus memory allocated because the input @list@ turned out to be
---   smaller than @memCount@.
+-- * or an exact count of how many elements have been loaded when there was no
+--   enough elements in the list
 --
--- In the latter case a zero value would indicacte that the list did fit into the newly
+--
+-- In the latter case a zero value would indicate that the list did fit into the newly
 -- allocated memory region exactly, which is perfectly fine. But a positive value would
 -- mean that the tail of the memory region is still unset and might contain garbage
 -- data. Make sure to overwrite the surplus memory yourself or use the safe version
@@ -1399,12 +1398,12 @@ fromByteListMem = fromListMem
 -- ====__Examples__
 --
 -- >>> :set -XTypeApplications
--- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hello"
--- (Left "llo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00])
 -- >>> fromListMemN @Char @(MBytes 'Inc) 3 "Hello"
 -- (Left "lo",[0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00])
 -- >>> fromListMemN @Char @(MBytes 'Inc) 2 "Hi"
--- (Right (Count {unCount = 0}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
+-- (Left "",[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00])
+-- >>> fst $ fromListMemN @Char @(MBytes 'Inc) 5 "Hi"
+-- Right (Count {unCount = 2})
 --
 -- @since 0.2.0
 fromListMemN ::
@@ -1422,11 +1421,10 @@ fromListMemN ::
   -> (Either [e] (Count e), FrozenMem ma)
 fromListMemN count xs =
   createMemST count $ \mm -> do
-    (ys, off) <- loadListOffMemN count xs mm 0
-    let surplus = count - offToCount off
+    (ys, loadedCount) <- loadListOffMemN count xs mm 0
     pure $
-      if surplus >= 0 && null ys
-        then Right surplus
+      if loadedCount /= count && null ys
+        then Right loadedCount
         else Left ys
 {-# INLINE fromListMemN #-}
 
@@ -1439,7 +1437,7 @@ fromListMemN count xs =
 -- >>> import Data.Prim.Memory
 -- >>> :set -XTypeApplications
 -- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
--- (Right (Count {unCount = 1}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+-- (Right (Count {unCount = 2}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
 --
 -- @since 0.2.0
 fromListZeroMemN ::
@@ -1449,12 +1447,13 @@ fromListZeroMemN ::
   -> (Either [e] (Count e), FrozenMem ma)
 fromListZeroMemN count xs =
   createMemST (max 0 count) $ \mm -> do
-    (ys, off) <- loadListOffMemN count xs mm 0
-    let surplusCount = count - offToCount off
-    setMem mm (toByteOff off) (toByteCount surplusCount) 0
+    (ys, loadedCount) <- loadListOffMemN count xs mm 0
+    let loadedByteCount = toByteCount loadedCount
+        surplusByteCount = toByteCount count - loadedByteCount
+    when (surplusByteCount > 0) $ setMem mm (countToOff loadedByteCount) surplusByteCount 0
     pure $
-      if surplusCount >= 0
-        then Right surplusCount
+      if loadedCount /= count && null ys
+        then Right loadedCount
         else Left ys
 {-# INLINE fromListZeroMemN #-}
 
@@ -1481,29 +1480,28 @@ fromListZeroMemN_ !n = snd . fromListZeroMemN n
 
 
 loadListByteOffHelper ::
-     (MemWrite mw, MonadPrim s m, Prim a)
-  => [a]
+     (MemWrite mw, MonadPrim s m, Prim e)
+  => [e]
   -> mw s
   -> Off Word8 -- ^ Offset
   -> Off Word8 -- ^ Upper bound
   -> Off Word8 -- ^ Element size
-  -> m ([a], Off Word8)
+  -> m ([e], Count e)
 loadListByteOffHelper ys mw byteOff k step =
-  let go []       i = pure ([], i)
+  let go []       i = pure ([], toLoadedCount i)
       go a@(x:xs) i
         | i < k = writeByteOffMem mw i x >> go xs (i + step)
-        | otherwise = pure (a, i)
+        | otherwise = pure (a, toLoadedCount i)
+      toLoadedCount i = fromByteCount (offToCount (i - byteOff))
    in go ys byteOff
 {-# INLINE loadListByteOffHelper #-}
 
 
--- | Load elements from the supplied list into a mutable memory region. Loading will start
--- at the supplied offset in number of bytes and will stop when either supplied
+-- | Load elements from the supplied list into a mutable memory region. Loading will
+-- start at the supplied offset in number of bytes and will stop when either supplied
 -- @elemCount@ number is reached or there are no more elements left in the list to
--- load. Whenever the supplied count turns out to be smaller than the number of elements
--- in the @listSource@ this action returns the list with leftover elements that did not
--- get loaded, otherwise an empty list is returned. It also returns the byte offset into
--- the memory region where the next element would have been loaded.
+-- load. This action returns a list of elements that did not get loaded and the count of
+-- how many elements did get loaded.
 --
 -- [Unsafe] When any precondition for either the offset @memTargetOff@ or the element
 -- count @memCount@ is violated then a call to this function can result in heap corruption
@@ -1515,14 +1513,14 @@ loadListByteOffHelper ys mw byteOff k step =
 --
 -- >>> ma <- allocZeroMem (6 :: Count Char) :: IO (MBytes 'Inc RW)
 -- >>> loadListByteOffMemN 4 "Hello!" ma (toByteOff (1 :: Off Char))
--- ("o!",Off {unOff = 20})
+-- ("o!",Count {unCount = 4})
 -- >>> freezeMem ma
 -- [0x00,0x00,0x00,0x00,0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 --
 -- Or something more usful like loading prefixes from nested lists:
 --
 -- >>> import Control.Monad
--- >>> foldM_ (\o xs -> snd <$> loadListByteOffMemN 4 xs ma o) 2 [[x..] | x <- [1..5] :: [Word8]]
+-- >>> foldM_ (\o xs -> (+ o) . countToByteOff . snd <$> loadListByteOffMemN 4 xs ma o) 2 [[x..] | x <- [1..5] :: [Word8]]
 -- >>> freezeMem ma
 -- [0x00,0x00,0x01,0x02,0x03,0x04,0x02,0x03,0x04,0x05,0x03,0x04,0x05,0x06,0x04,0x05,0x06,0x07,0x05,0x06,0x07,0x08,0x00,0x00]
 --
@@ -1557,8 +1555,8 @@ loadListByteOffMemN ::
   --
   -- > targetByteCount <- getByteCountMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  -> m ([e], Off Word8)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k step
   where
     k = byteOff + countToOff (toByteCount count)
@@ -1579,11 +1577,11 @@ loadListByteOffMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k 
 -- >>> freezeMem ma
 -- [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 -- >>> loadListByteOffMem "Hello World" ma 0
--- (" World",Off {unOff = 20})
+-- (" World",Count {unCount = 5})
 -- >>> freezeMem ma
 -- [0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 -- >>> loadListByteOffMem ([0xff,0xff,0xff] :: [Word8]) ma 1
--- ([],Off {unOff = 4})
+-- ([],Count {unCount = 3})
 -- >>> freezeMem ma
 -- [0x48,0xff,0xff,0xff,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
@@ -1605,11 +1603,11 @@ loadListByteOffMem ::
   --
   -- > targetByteCount <- getByteCountMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  -> m ([e], Off Word8)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListByteOffMem ys ma byteOff = do
-  count <- getByteCountMem ma
-  let k = countToOff count - byteOff
+  bCount <- getByteCountMem ma
+  let k = countToOff bCount - byteOff
       step = countToOff $ byteCountProxy ys
   loadListByteOffHelper ys ma byteOff k step
 {-# INLINABLE loadListByteOffMem #-}
@@ -1652,14 +1650,15 @@ loadListOffMemN ::
   --
   -- > targetCount <- getByteCountMem memTarget
   -- > unOff memTargetOff < unCount targetCount
-  -> m ([e], Off e)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListOffMemN count ys mw off =
-  let go []       i = pure ([], i)
+  let go []       i = pure ([], toLoadedCount i)
       go a@(x:xs) i
         | i < k = writeOffMem mw i x >> go xs (i + 1)
-        | otherwise = pure (a, i)
+        | otherwise = pure (a, toLoadedCount i)
       k = off + countToOff count
+      toLoadedCount i = offToCount (i - off)
   in go ys off
 {-# INLINABLE loadListOffMemN #-}
 
@@ -1686,8 +1685,8 @@ loadListMemN ::
   -- > elemCount <= targetCount
   -> [e] -- ^ /listSource/ - List with elements that should be loaded
   -> mw s -- ^ /memTarget/ - Memory region where to load the elements into
-  -> m ([e], Off e)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListMemN count xs mw = loadListOffMemN count xs mw 0
 {-# INLINABLE loadListMemN #-}
 
@@ -1750,8 +1749,8 @@ loadListOffMem ::
   --
   -- > targetCount <- getCountMem memTarget
   -- > unOff memTargetOff < unCount targetCount
-  -> m ([e], Off e)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListOffMem ys ma off = getCountMem ma >>= \c -> loadListOffMemN (c - offToCount off) ys ma off
 {-# INLINE loadListOffMem #-}
 
@@ -1764,11 +1763,11 @@ loadListOffMem ys ma off = getCountMem ma >>= \c -> loadListOffMemN (c - offToCo
 -- >>> import Data.Prim.Memory
 -- >>> ma <- allocMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
 -- >>> loadListMem "HelloWorld" ma
--- ("World",Off {unOff = 5})
+-- ("World",Count {unCount = 5})
 -- >>> freezeMem ma
 -- [0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 -- >>> loadListMem (replicate 6 (0xff :: Word8)) ma
--- ([],Off {unOff = 6})
+-- ([],Count {unCount = 6})
 -- >>> freezeMem ma
 -- [0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
@@ -1777,8 +1776,8 @@ loadListMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
   => [e] -- ^ /listSource/ - List with elements to load
   -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
-  -> m ([e], Off e)
-  -- ^ Leftover part of the @listSource@ and offset that triggered termination condition.
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListMem ys ma = getCountMem ma >>= \c -> loadListOffMemN (c `countForProxyTypeOf` ys) ys ma 0
 {-# INLINE loadListMem #-}
 

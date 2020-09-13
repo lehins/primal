@@ -38,6 +38,7 @@ module Data.Prim
   , fromByteCount
   , fromByteCountRem
   , countToOff
+  , countToByteOff
   , countForType
   , countForProxyTypeOf
   -- * Offset
@@ -48,6 +49,7 @@ module Data.Prim
   , fromByteOff
   , fromByteOffRem
   , offToCount
+  , offToByteCount
   , offForType
   , offForProxyTypeOf
   -- * Prefetch
@@ -201,6 +203,10 @@ toByteCount = Count . unCountBytes
 countToOff :: Count e -> Off e
 countToOff = coerce
 
+countToByteOff :: Prim e => Count e -> Off Word8
+countToByteOff = countToOff . toByteCount
+{-# INLINE countToByteOff #-}
+
 -- | Helper noop function that restricts `Count` to the type of proxy
 --
 -- @since 0.2.0
@@ -289,6 +295,13 @@ offForType c _ = c
 -- @since 0.2.0
 offToCount :: Off e -> Count e
 offToCount = coerce
+
+-- | Convert an offset in elements to count in bytres.
+--
+-- @since 0.2.0
+offToByteCount :: Prim e => Off e -> Count Word8
+offToByteCount = offToCount . toByteOff
+{-# INLINE offToByteCount #-}
 
 -- | Compute byte offset from an offset of `Prim` type
 --

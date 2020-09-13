@@ -360,14 +360,17 @@ toListSlackBytes :: Prim e => Bytes p -> ([e], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
-loadListMBytes :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Off e)
+-- | Same as `loadListMem`
+loadListMBytes :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Count e)
 loadListMBytes = loadListMem
 {-# INLINE loadListMBytes #-}
 
+-- | Same as `loadListMem_`
 loadListMBytes_ :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ()
 loadListMBytes_ = loadListMem_
 {-# INLINE loadListMBytes_ #-}
 
+-- | Same as `fromListZeroMemN_`
 fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
 fromListBytesN_ = fromListZeroMemN_
 {-# INLINE fromListBytesN_ #-}

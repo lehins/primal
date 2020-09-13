@@ -511,7 +511,10 @@ instance Arbitrary APrimType where
       , (1, ACompose <$> arbitrary)
       ]
 
-withAPrimType :: APrimType -> (forall e . (Prim e, Arbitrary e, Show e, Eq e) => Proxy e -> a) -> a
+withAPrimType ::
+     APrimType
+  -> (forall e. (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => Proxy e -> a)
+  -> a
 withAPrimType ty f =
   case ty of
     AUnit px -> f px
@@ -689,16 +692,16 @@ withAPrimType ty f =
         f (Proxy :: Proxy (Compose Identity Maybe t))
 
 data APrim where
-  APrim :: (Prim e, Arbitrary e, Show e, Eq e) => e -> APrim
+  APrim :: (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => e -> APrim
 
 instance Show APrim where
   showsPrec n (APrim a)
     | n < 1 = inner
     | otherwise = ('(' :) . inner . (")" ++)
     where
-      inner = ("APrim (" ++) . shows a . (')' :)
+      inner = ("APrim (" ++) . shows a . (" :: " ++) . showsType [a] . (')':)
 
-withAPrim :: APrim -> (forall e . (Prim e, Arbitrary e, Show e, Eq e) => e -> a) -> a
+withAPrim :: APrim -> (forall e . (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => e -> a) -> a
 withAPrim (APrim e) f = f e
 
 
@@ -709,3 +712,25 @@ instance Arbitrary APrim where
   arbitrary = do
     aPrimTy <- arbitrary
     withAPrimType aPrimTy (fmap APrim . arbitraryProxy)
+
+
+data APrimList where
+  APrimList :: (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> APrimList
+
+instance Show APrimList where
+  showsPrec n (APrimList a)
+    | n < 1 = inner
+    | otherwise = ('(' :) . inner . (")" ++)
+    where
+      inner = ("APrimList (" ++) . shows a . (" :: [" ++) . showsType a . ("])" ++)
+
+withAPrimList ::
+     APrimList
+  -> (forall e. (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> a)
+  -> a
+withAPrimList (APrimList e) f = f e
+
+instance Arbitrary APrimList where
+  arbitrary = do
+    aPrimTy <- arbitrary
+    withAPrimType aPrimTy (fmap APrimList . listOf . arbitraryProxy)

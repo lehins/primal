@@ -355,30 +355,81 @@ prop_setMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
     -- ensure memory after offset+size is unaffected by the set
     drop ci' (drop o xs') `shouldBe` drop ci' (drop o xs)
 
+asProxyTypeOf1 :: f a -> proxy a -> f a
+asProxyTypeOf1 fa _ = fa
+
+prop_toListSlackMem ::
+     forall ma. MemAlloc ma
+  => Count Word8
+  -> APrimList
+  -> Property
+prop_toListSlackMem bCount aPrimList =
+  withAPrimList aPrimList $ \xs ->
+    byteCountProxy xs > 0 ==>
+    propIO $ do
+      mm :: ma RW <- allocMem (min bCount (toByteCount (Count (length xs) `asProxyTypeOf1` xs)))
+      (_leftover, loadedCount) <- loadListMem xs mm
+      (count, slackCount) <- getCountRemMem mm
+      loadedCount `shouldBe` count
+      -- Load slack with a few known bytes
+      let ss8 = [255,254 ..] :: [Word8]
+          (xs8, xs8rest) = splitAt (unCount slackCount) ss8
+          slackByteOff = countToOff (toByteCount loadedCount)
+      loadListByteOffMemN slackCount ss8 mm slackByteOff `shouldReturn`
+        (xs8rest, slackCount)
+      fm <- freezeMem mm
+      toListSlackMem fm `shouldBe` (take (unCount loadedCount) xs, xs8)
+
 
 memSpec ::
-     forall a e. (Arbitrary e, Show e, Prim e, Eq e, Typeable e, Typeable a, MemAlloc a)
+     forall ma e.
+     ( Arbitrary e
+     , Show e
+     , Prim e
+     , Eq e
+     , Typeable e
+     , Typeable ma
+     , MemAlloc ma
+     , Eq (FrozenMem ma)
+     , Show (FrozenMem ma)
+     )
   => Spec
 memSpec = do
-  let memTypeName = showsType (Proxy :: Proxy (Mem a e)) ""
+  let memTypeName = showsType (Proxy :: Proxy (Mem ma e)) ""
   describe memTypeName $ do
     describe "MemRead" $ do
-      prop "byteCountMem" $ prop_byteCountMem @a @e
-      prop "indexOffMem" $ prop_indexOffMem @a @e
-      prop "indexByteOffMem" $ prop_indexByteOffMem @a @e
+      prop "byteCountMem" $ prop_byteCountMem @ma @e
+      prop "indexOffMem" $ prop_indexOffMem @ma @e
+      prop "indexByteOffMem" $ prop_indexByteOffMem @ma @e
       prop "copyByteOffToMBytesMem/compareByteOffToBytesMem" $
-        prop_copyAndCompareByteOffToMBytesMem @a @e
+        prop_copyAndCompareByteOffToMBytesMem @ma @e
       prop "copyByteOffToPtrMem/compareByteOffToPtrMem" $
-        prop_copyAndCompareByteOffToPtrMem @a @e
+        prop_copyAndCompareByteOffToPtrMem @ma @e
     describe "MemWrite" $ do
-      prop "readWriteOffMem" $ prop_readWriteOffMem @a @e
-      prop "readWriteByteOffMem" $ prop_readWriteByteOffMem @a @e
-      prop "moveByteOffToPtrMem" $ prop_moveByteOffToPtrMem @a @e
-      prop "moveByteOffToMBytesMem" $ prop_moveByteOffToMBytesMem @a @e
-    prop "emptyMem" $ prop_emptyMem @a @e
-    prop "copyMem" $ prop_copyMem @a @e
-    prop "moveMem" $ prop_moveMem @a @e
-    prop "setMem" $ prop_setMem @a @e
+      prop "readWriteOffMem" $ prop_readWriteOffMem @ma @e
+      prop "readWriteByteOffMem" $ prop_readWriteByteOffMem @ma @e
+      prop "moveByteOffToPtrMem" $ prop_moveByteOffToPtrMem @ma @e
+      prop "moveByteOffToMBytesMem" $ prop_moveByteOffToMBytesMem @ma @e
+    prop "emptyMem" $ prop_emptyMem @ma @e
+    prop "copyMem" $ prop_copyMem @ma @e
+    prop "moveMem" $ prop_moveMem @ma @e
+    prop "setMem" $ prop_setMem @ma @e
+    describe "ListConversion" $ do
+      prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs
+      prop "fromListMem" $ \(Mem xs fm :: Mem ma e) -> fromListMem xs === fm
+
+
+memBinarySpec ::
+     forall ma. (Typeable ma, MemAlloc ma, Eq (FrozenMem ma), Show (FrozenMem ma))
+  => Spec
+memBinarySpec = do
+  let memTypeName = showsType (Proxy :: Proxy (Mem ma Word8)) "-Binary"
+  describe memTypeName $ do
+    prop "toByteListMem" $ \(Mem xs fm :: Mem ma Word8) ->
+      toByteListMem fm === xs
+    prop "fromByteListMem" $ \(Mem xs fm :: Mem ma Word8) ->
+      fromByteListMem xs === fm
+    prop "toListSlackMem" $ prop_toListSlackMem @ma
 
 
 -- primSpec ::

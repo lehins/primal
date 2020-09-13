@@ -72,30 +72,30 @@ primSpec = do
             readOffMBytes mb (Off i) `shouldReturn` e
     describe "List" $ do
       prop "toListBytes" $ \(NEMem _ xs b :: NEBytes p e) -> xs === (toListBytes b :: [e])
-      prop "toListBytes+fromBytes" $ \(NEMem _ xs b :: NEBytes p e) ->
+      prop "toListBytes+fromListBytes" $ \(NEMem _ xs b :: NEBytes p e) ->
         let xs' = toListBytes b :: [e]
         in xs' === xs .&&. fromListBytes xs' === b
       prop "loadListMBytes" $ \ (xs :: [e]) (b :: Bytes p) -> do
         mb <- thawBytes b
         Count n :: Count e <- getCountMBytes mb
         loadListMBytes xs mb >>= \case
-          ([], stoppedAt) -> do
-            stoppedAt `shouldBe` Off (length xs)
+          ([], loadedCount) -> do
+            loadedCount `shouldBe` Count (length xs)
             zipWithM_ (\i x -> readOffMBytes mb (i :: Off e) `shouldReturn` x) [0 ..] xs
-          (leftOver, stoppedAt) -> do
+          (leftOver, loadedCount) -> do
             leftOver `shouldBe` drop n xs
-            stoppedAt `shouldBe` Off n
+            loadedCount `shouldBe` Count n
             zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off e) `shouldReturn` x) [0 .. n - 1] xs
       prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p e) (Positive n') -> do
         let n = Count $ length xs
             (order, b') = fromListBytesN n xs
             (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
             (order'', b''' :: Bytes p) = fromListBytesN (n + n') xs
-        order `shouldBe` Right 0
+        order `shouldBe` Left []
         b' `shouldBe` b
         order' `shouldBe` Left (drop i xs)
         xs `shouldStartWith` toListBytes b''
-        order'' `shouldBe` Right n'
+        order'' `shouldBe` Right n
         let xs' = toListBytes b'''
         xs' `deepseq` (xs' `shouldStartWith` xs)
       prop "concatBytes (empty)" $ \ (NonNegative n) ->
@@ -216,7 +216,7 @@ primBinarySpec = do
            mconcat
              (List.intersperse "," ["0x" <> word8HexFixed w8 | w8 <- toList b]) <>
            "]")
-
+    memBinarySpec @(MBytes p)
 
 spec :: Spec
 spec = do
