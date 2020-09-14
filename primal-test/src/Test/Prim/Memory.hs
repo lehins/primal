@@ -145,7 +145,7 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
       readByteOffMem mb i `shouldReturn` x
     -- Ensure copy was successfull with compare
-    compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldReturn` EQ
+    compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldBe` EQ
     compareByteOffMem b offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
     -- validate compareByteOffToBytesMem
     when (count > 0) $ do
@@ -154,7 +154,7 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
                               (singletonBytes e :: Bytes 'Inc)
       writeByteOffMem mb (offByteDst + toByteOff offDelta) e
       b' <- freezeMem mb
-      compareByteOffToBytesMem fm (toByteOff offSrc) b' offByteDst count `shouldReturn` eOrdering
+      compareByteOffToBytesMem fm (toByteOff offSrc) b' offByteDst count `shouldBe` eOrdering
 
 prop_copyAndCompareByteOffToPtrMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)

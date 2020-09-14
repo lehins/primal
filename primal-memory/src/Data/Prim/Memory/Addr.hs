@@ -404,7 +404,8 @@ instance MemRead (Addr e) where
     withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMem #-}
   compareByteOffToBytesMem addr off1 bytes off2 c =
-    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+    unsafeInlineIO $ withPtrAccess addr $ \ptr1 ->
+      pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
   {-# INLINE compareByteOffToBytesMem #-}
   compareByteOffMem mem1 off1 addr off2 c =
     unsafeInlineIO $ withPtrAccess addr $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c

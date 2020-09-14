@@ -187,8 +187,8 @@ class MemRead mr where
     -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
     -> m ()
 
-  -- | Same as `compareByteOffMem`, but compare inside of a `MonadPrim` the read-only
-  -- memory region to a region addressed by a `Ptr`.
+  -- | Same as `compareByteOffMem`, but compare the read-only
+  -- memory region to a region addressed by a `Ptr` inside of a `MonadPrim`.
   --
   -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@, the
   -- pointer @memRead2@ or the element count @memCount@ is violated the result is either
@@ -230,8 +230,7 @@ class MemRead mr where
     -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     -> m Ordering
 
-  -- | Same as `compareByteOffMem`, but compare the read-only memory region to `Bytes`
-  -- inside of a `MonadPrim`.
+  -- | Same as `compareByteOffMem`, but compare the read-only memory region to `Bytes`.
   --
   -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
   -- element count @memCount@ is violated the result is either unpredictable output or
@@ -239,7 +238,7 @@ class MemRead mr where
   --
   -- @since 0.1.0
   compareByteOffToBytesMem ::
-       (MonadPrim s m, Prim e)
+       Prim e
     => mr -- ^ /memRead1/ - First memory region
     -> Off Word8
     -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
@@ -268,7 +267,7 @@ class MemRead mr where
     -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
     --
     -- > unCountBytes memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
-    -> m Ordering
+    -> Ordering
 
   -- | Compare two read-only regions of memory byte-by-byte. The very first mismatched
   -- byte will cause this function to produce `LT` if the byte in @memRead1@ is smaller
@@ -780,10 +779,11 @@ instance MemRead ByteString where
     withPtrAccess bs $ \srcPtr -> copyByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
   {-# INLINE copyByteOffToPtrMem #-}
   compareByteOffToPtrMem bs off1 ptr2 off2 c =
-    withPtrAccess bs $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+    withPtrAccess bs $ \ptr1 -> pure $! compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMem #-}
   compareByteOffToBytesMem bs off1 bytes off2 c =
-    withPtrAccess bs $ \ptr1 -> pure $ compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+    unsafeInlineIO $ withPtrAccess bs $ \ptr1 ->
+      pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
   {-# INLINE compareByteOffToBytesMem #-}
   compareByteOffMem mem1 off1 bs off2 c =
     unsafeInlineIO $ withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
@@ -2097,13 +2097,13 @@ instance MemRead (Bytes p) where
   copyByteOffToPtrMem = copyByteOffBytesToPtr
   {-# INLINE copyByteOffToPtrMem #-}
   compareByteOffToPtrMem bytes1 off1 ptr2 off2 c =
-    pure $ compareByteOffBytesToPtr bytes1 off1 ptr2 off2 c
+    pure $! compareByteOffBytesToPtr bytes1 off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMem #-}
   compareByteOffToBytesMem bytes1 off1 bytes2 off2 c =
-    pure $ compareByteOffBytes bytes1 off1 bytes2 off2 c
+    compareByteOffBytes bytes1 off1 bytes2 off2 c
   {-# INLINE compareByteOffToBytesMem #-}
   compareByteOffMem mem1 off1 bs off2 c =
-    unsafeInlineIO $ compareByteOffToBytesMem mem1 off1 bs off2 c
+    compareByteOffToBytesMem mem1 off1 bs off2 c
   {-# INLINE compareByteOffMem #-}
 
 instance Typeable p => MemAlloc (MBytes p) where

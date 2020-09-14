@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Data.Prim.Bytes.ForeignPtr
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -60,31 +60,19 @@ module Data.Prim.Memory.ForeignPtr
   , toForeignPtrMBytes
   ) where
 
-import           Control.Prim.Monad
-import           Data.Prim
-import           Data.Prim.Class
-import           Data.Prim.Memory.ByteString
-import           Data.Prim.Memory.Bytes.Internal
-  ( Bytes
-  , MBytes(..)
-  , Pinned(..)
-  , toForeignPtrBytes
-  , toForeignPtrMBytes
-  , withNoHaltPtrBytes
-  , withNoHaltPtrMBytes
-  , withPtrBytes
-  , withPtrMBytes
-  )
-import           Foreign.Prim
-import           GHC.ForeignPtr
-  ( FinalizerEnvPtr
-  , FinalizerPtr
-  , ForeignPtr(..)
-  , ForeignPtrContents(..)
-  , castForeignPtr
-  , unsafeForeignPtrToPtr
-  )
+import Control.Prim.Monad
+import Data.Prim
+import Data.Prim.Class
+import Data.Prim.Memory.Bytes.Internal (Bytes, MBytes(..), Pinned(..),
+                                        toForeignPtrBytes, toForeignPtrMBytes,
+                                        withNoHaltPtrBytes, withNoHaltPtrMBytes,
+                                        withPtrBytes, withPtrMBytes)
+import Data.Prim.Memory.ByteString
 import qualified Foreign.ForeignPtr as GHC
+import Foreign.Prim
+import GHC.ForeignPtr (FinalizerEnvPtr, FinalizerPtr, ForeignPtr(..),
+                       ForeignPtrContents(..), castForeignPtr,
+                       unsafeForeignPtrToPtr)
 import qualified GHC.ForeignPtr as GHC
 
 
@@ -102,8 +90,8 @@ class PtrAccess s p where
   withPtrAccess p action = toForeignPtr p >>= (`withForeignPtr` action)
   {-# INLINE withPtrAccess #-}
 
-  -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/18061 issue #18061> and
-  -- related to get more insight why this is needed.
+  -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
+  -- related to it in order to get more insight why this is needed.
   withNoHaltPtrAccess :: (MonadUnliftPrim s m) => p -> (Ptr a -> m b) -> m b
   withNoHaltPtrAccess p f = do
     ForeignPtr addr# ptrContents <- toForeignPtr p
