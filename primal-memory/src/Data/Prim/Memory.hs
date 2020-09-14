@@ -13,12 +13,20 @@ module Data.Prim.Memory
   , Bytes
   , MemRead
   -- ** Size
-  , countMem                  -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , countRemMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , byteCountMem              -- DOC: [x], DOCTEST [x], TEST: [x]
+  , countMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , countRemMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , byteCountMem              -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Index
   , indexOffMem               -- DOC: [x], DOCTEST [ ], TEST: [x]
   , indexByteOffMem           -- DOC: [x], DOCTEST [ ], TEST: [x]
+  -- ** Construct
+  , emptyMem                  -- DOC: [ ], DOCTEST [ ], TEST: [x]
+  , singletonMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , cycleMemN                 -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createMemST               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createMemST_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createZeroMemST           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , createZeroMemST_          -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- ** Copy
   , cloneMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
   , copyMem                   -- DOC: [x], DOCTEST [ ], TEST: [x]
@@ -35,15 +43,15 @@ module Data.Prim.Memory
   , convertMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- *** To list
   , toListMem                 -- DOC: [x], DOCTEST [x], TEST: [x]
-  , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , toByteListMem             -- DOC: [ ], DOCTEST [ ], TEST: [x]
+  , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [x]
+  , toByteListMem             -- DOC: [x], DOCTEST [x], TEST: [x]
   , foldrCountMem             -- DOC: [x], DOCTEST [-], TEST: [-]
-  , showsHexMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , showsHexMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
 
   -- *** From list
   , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [x]
-  , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- * Mutable
@@ -76,41 +84,23 @@ module Data.Prim.Memory
   , freezeMem                 -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCloneMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCopyMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , createMemST               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , createMemST_              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , createZeroMemST           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , createZeroMemST_          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , withScrubbedMem           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , moveMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]
   , moveByteOffMem            -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , moveByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , moveByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
-  -- *** From List
-  , loadListMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
+  -- ** Load list
+  , loadListMem               -- DOC: [x], DOCTEST [x], TEST: [x]
   , loadListMem_              -- DOC: [x], DOCTEST [x], TEST: [ ]
   , loadListMemN              -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , loadListMemN_             -- DOC: [x], DOCTEST [ ], TEST: [ ]
-  -- **** With offset
+  -- *** With offset
   , loadListOffMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , loadListOffMemN           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  -- **** With byte offset
   , loadListByteOffMem        -- DOC: [x], DOCTEST [x], TEST: [ ]
   , loadListByteOffMemN       -- DOC: [x], DOCTEST [x], TEST: [ ]
-
-  , emptyMem                  -- DOC: [ ], DOCTEST [ ], TEST: [x]
-  , singletonMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , cycleMemN                 -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  -- * Byte operations
-  -- $byteOperations
   ) where
 
 import Data.Prim
 import Data.Prim.Memory.Internal
-
-
--- $byteOperations
---
--- More often than not it is desired to operate on the offset and count of the actual type
--- of intereset we are dealing with in memory. But sometimes it is necessary to specify
--- things in 8bit steps, this is where byte size offsets and counts will come in handy.

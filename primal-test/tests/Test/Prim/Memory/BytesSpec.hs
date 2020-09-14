@@ -2,16 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Prim.Memory.BytesSpec
@@ -71,33 +66,6 @@ primSpec = do
         forM_ [o .. unCount c - 1] $ \i ->
             readOffMBytes mb (Off i) `shouldReturn` e
     describe "List" $ do
-      prop "toListBytes" $ \(NEMem _ xs b :: NEBytes p e) -> xs === (toListBytes b :: [e])
-      prop "toListBytes+fromListBytes" $ \(NEMem _ xs b :: NEBytes p e) ->
-        let xs' = toListBytes b :: [e]
-        in xs' === xs .&&. fromListBytes xs' === b
-      prop "loadListMBytes" $ \ (xs :: [e]) (b :: Bytes p) -> do
-        mb <- thawBytes b
-        Count n :: Count e <- getCountMBytes mb
-        loadListMBytes xs mb >>= \case
-          ([], loadedCount) -> do
-            loadedCount `shouldBe` Count (length xs)
-            zipWithM_ (\i x -> readOffMBytes mb (i :: Off e) `shouldReturn` x) [0 ..] xs
-          (leftOver, loadedCount) -> do
-            leftOver `shouldBe` drop n xs
-            loadedCount `shouldBe` Count n
-            zipWithM_ (\i x -> readOffMBytes mb (Off i :: Off e) `shouldReturn` x) [0 .. n - 1] xs
-      prop "fromListBytesN" $ \(NEMem (Off i) xs b :: NEBytes p e) (Positive n') -> do
-        let n = Count $ length xs
-            (order, b') = fromListBytesN n xs
-            (order', b'' :: Bytes p) = fromListBytesN (Count i) xs
-            (order'', b''' :: Bytes p) = fromListBytesN (n + n') xs
-        order `shouldBe` Left []
-        b' `shouldBe` b
-        order' `shouldBe` Left (drop i xs)
-        xs `shouldStartWith` toListBytes b''
-        order'' `shouldBe` Right n
-        let xs' = toListBytes b'''
-        xs' `deepseq` (xs' `shouldStartWith` xs)
       prop "concatBytes (empty)" $ \ (NonNegative n) ->
         concatBytes (replicate n (emptyBytes :: Bytes p)) === (emptyBytes :: Bytes p)
       prop "concatBytes" $ \ (xs :: [Bytes p]) ->

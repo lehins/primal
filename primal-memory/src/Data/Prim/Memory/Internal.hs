@@ -676,25 +676,94 @@ class MemWrite mw where
     --
     -- > targetByteCount <- getByteCountMem memTarget
     -- > unCountBytes memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-    -> e -- ^ /elt/ - Element to write into memory cells. This function is strict with
-         -- respect to element, which means that the even @memCount = 0@ it might be still
-         -- fully evaluated.
+    -> e
+    -- ^ /elt/ - Element to write into memory cells. This function is strict with
+    -- respect to element, which means that the even @memCount = 0@ it might be still
+    -- fully evaluated.
     -> m ()
 
 -- | Generalized memory allocation and pure/mutable state conversion.
 class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
+  -- | Memory region in the immutable state. Types for frozen and thawed states of
+  -- memory region are in one-to-one correspondence, therefore @ma <-> FrozeMem ma@ will
+  -- always uniquely identify each other, which is an extremely useful property when it
+  -- comes to type inference.
   type FrozenMem ma = (fm :: Type) | fm -> ma
 
+  -- | Extract from the mutable memory region information about how many bytes it can hold.
+  --
+  -- @since 0.1.0
   getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
 
-  allocByteCountMem :: MonadPrim s m => Count Word8 -> m (ma s)
+  -- | Allocate a mutable memory region with specified number of bytes. Memory is not
+  -- reset and will likely hold some garbage data.
+  --
+  -- [Unsafe] When precondition for @memByteCount@ argument is violated the outcome is
+  -- upredictable. Possible termination with `Control.Exception.HeapOverflow` async
+  -- exception. In a pure setting, such as when executed within `runST`, if memory is
+  -- not fully overwritten it can result in violation of referential transparency,
+  -- because initial content of newly allocated region is non-determinstic.
+  --
+  -- @since 0.1.0
+  allocByteCountMem :: MonadPrim s m
+    => Count Word8
+    -- ^ /memByteCount/ - Number of bytes to allocate.
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memByteCount
+    --
+    -- Should be less then available physical memory
+    -> m (ma s)
 
+  -- | Convert the state of an immutable memory region to the mutable one. This is a no
+  -- copy operation, as such it is fast, but dangerous. See `thawCopyMem` for a safe alternative.
+  --
+  -- [Unsafe] It makes it possible to break referential transparency, because any
+  -- subsequent destructive operation to the mutable region of memory will also be
+  -- reflected in the frozen immutable type as well.
+  --
+  -- @since 0.1.0
   thawMem :: MonadPrim s m => FrozenMem ma -> m (ma s)
 
+  -- | Convert the state of a mutable memory region to the immutable one. This is a no
+  -- copy operation, as such it is fast, but dangerous. See `freezeCopyMem` for a safe alternative.
+  --
+  -- [Unsafe] It makes it possible to break referential transparency, because any
+  -- subsequent destructive operation to the mutable region of memory will also be
+  -- reflected in the frozen immutable type as well.
+  --
+  -- @since 0.1.0
   freezeMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
 
-  resizeMem :: (MonadPrim s m, Prim e) => ma s -> Count e -> m (ma s)
+  -- | Either grow or shrink currently allocated mutable region of memory. For some
+  -- implementations it might be possible to change the size of the allocated region
+  -- in-place, i.e. without copy. However in all implementations there is a good chance
+  -- that the memory region has to be allocated anew, in which case all of the contents
+  -- up to the minimum of new and old sizes will get copied over. After the resize
+  -- operation is complete the supplied @memSource@ region must not be used
+  -- anymore. Moreover, no reference to the old one should be kept in order to allow
+  -- garbage collection of the original in case a new one had to be allocated.
+  --
+  -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. Also the same
+  -- unsafety notice from `allocByteCountMem` with regards to @memCount@ applies here as
+  -- well.
+  --
+  -- @since 0.1.0
+  resizeMem :: (MonadPrim s m, Prim e)
+    => ma s
+    -- ^ /memSource/ - Source memory region to resize
+    -> Count e
+    -- ^ /memCount/ - Number of bytes to allocate.
+    --
+    -- /__Preconditions:__/
+    --
+    -- > 0 <= memByteCount
+    --
+    -- Should be less then available physical memory
+    -> m (ma s)
   resizeMem = defaultResizeMem
+  {-# INLINE resizeMem #-}
 
 
 instance MemRead ByteString where
@@ -818,19 +887,19 @@ instance MemWrite (MemState (ForeignPtr a)) where
   {-# INLINE setMem #-}
 
 modifyFetchOldMem ::
-     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> e) -> m e
 modifyFetchOldMem mem o f = modifyFetchOldMemM mem o (pure . f)
 {-# INLINE modifyFetchOldMem #-}
 
 
 modifyFetchNewMem ::
-     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> e) -> m e
 modifyFetchNewMem mem o f = modifyFetchNewMemM mem o (pure . f)
 {-# INLINE modifyFetchNewMem #-}
 
 
 modifyFetchOldMemM ::
-     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> m b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> m e) -> m e
 modifyFetchOldMemM mem o f = do
   a <- readOffMem mem o
   a <$ (writeOffMem mem o =<< f a)
@@ -838,7 +907,7 @@ modifyFetchOldMemM mem o f = do
 
 
 modifyFetchNewMemM ::
-     (MemWrite mw, MonadPrim s m, Prim b) => mw s -> Off b -> (b -> m b) -> m b
+     (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> m e) -> m e
 modifyFetchNewMemM mem o f = do
   a <- readOffMem mem o
   a' <- f a
@@ -855,7 +924,9 @@ defaultResizeMem mem c = do
     then pure mem
     else do
       newMem <- allocByteCountMem newByteCount
-      newMem <$ moveMem mem 0 newMem 0 oldByteCount
+      oldMem <- freezeMem mem
+      newMem <$ copyMem oldMem 0 newMem 0 oldByteCount
+{-# INLINE defaultResizeMem #-}
 
 
 -- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
@@ -1152,8 +1223,9 @@ convertMem :: (MemRead mr, MemAlloc ma) => mr -> FrozenMem ma
 convertMem a = runST $ thawCloneMem a >>= freezeMem
 {-# INLINE convertMem #-}
 
--- | Figure out how many elements can fit into the region of memory. It is possible that
--- there is a remainder of bytes left, see `countRemMem` for getting that too.
+-- | Figure out how many elements fits into the immutable region of memory. It is
+-- possible that there is a remainder of bytes left, see `countRemMem` for getting that
+-- too.
 --
 -- ====__Examples__
 --
@@ -1168,7 +1240,7 @@ convertMem a = runST $ thawCloneMem a >>= freezeMem
 -- @since 0.1.0
 countMem ::
      forall e mr. (MemRead mr, Prim e)
-  => mr -- ^ Read-only memory type
+  => mr
   -> Count e
 countMem = fromByteCount . byteCountMem
 {-# INLINE countMem #-}
@@ -1758,7 +1830,7 @@ loadListOffMem ys ma off = getCountMem ma >>= \c -> loadListOffMemN (c - offToCo
 -- | Same as `loadListMemN`, but tries to fit as many elements as possible into the mutable
 -- memory region starting at the beginning. This operation is always safe.
 --
--- ====__Examples:__
+-- ====__Examples__
 --
 -- >>> import Data.Prim.Memory
 -- >>> ma <- allocMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
@@ -2102,6 +2174,8 @@ instance Typeable p => Monoid.Monoid (Bytes p) where
 -- | A list of `ShowS` which covert bytes to base16 encoded strings. Each element of the list
 -- is a function that will convert one byte.
 --
+-- ====__Example__
+--
 -- >>> :set -XDataKinds
 -- >>> import Data.Prim.Memory
 -- >>> concatMap ($ " ") $ showsHexMem (fromListMem [1 :: Int16 .. 15] :: Bytes 'Inc)
@@ -2117,14 +2191,20 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
          else id) .
       showHex b8
 
--- | Ensure that memory is filled with zeros before and after it is used.
+-- | Ensure that memory is filled with zeros before and after it gets used. `PtrAccess` is
+-- not used directly, but istead is used to guarantee that the memory is pinned and its
+-- contents do get moved around by the garbage collector.
+--
+-- @since 0.2.0
 withScrubbedMem ::
-     (MonadUnliftPrim RW m, Prim e, MemAlloc ma)
+     forall e ma m a.
+     (MonadUnliftPrim RW m, Prim e, MemAlloc ma, PtrAccess RW (ma RW))
   => Count e
   -> (ma RW -> m a)
   -> m a
 withScrubbedMem c f = do
   mem <- allocZeroMem c
+  let _fptr = toForeignPtr mem :: IO (ForeignPtr e) -- Force the `PtrAccess` constraint.
   f mem `finallyPrim` setMem mem 0 (toByteCount c) 0
   where
     finallyPrim m1 m2 = withRunInPrimBase $ \run -> finally (run m1) (run m2)

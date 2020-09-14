@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -13,6 +14,7 @@ module Test.Prim.Memory
   ) where
 
 import Control.Monad
+import Control.DeepSeq
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
@@ -358,27 +360,49 @@ prop_setMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
 asProxyTypeOf1 :: f a -> proxy a -> f a
 asProxyTypeOf1 fa _ = fa
 
-prop_toListSlackMem ::
-     forall ma. MemAlloc ma
-  => Count Word8
-  -> APrimList
+prop_fromListMemN ::
+     forall ma e.
+     ( MemAlloc ma
+     , Show (FrozenMem ma)
+     , Eq (FrozenMem ma)
+     , Show e
+     , Prim e
+     , Eq e
+     , NFData e
+     )
+  => NEMem ma e
+  -> Positive (Count e)
   -> Property
-prop_toListSlackMem bCount aPrimList =
-  withAPrimList aPrimList $ \xs ->
-    byteCountProxy xs > 0 ==>
-    propIO $ do
-      mm :: ma RW <- allocMem (min bCount (toByteCount (Count (length xs) `asProxyTypeOf1` xs)))
-      (_leftover, loadedCount) <- loadListMem xs mm
-      (count, slackCount) <- getCountRemMem mm
-      loadedCount `shouldBe` count
-      -- Load slack with a few known bytes
-      let ss8 = [255,254 ..] :: [Word8]
-          (xs8, xs8rest) = splitAt (unCount slackCount) ss8
-          slackByteOff = countToOff (toByteCount loadedCount)
-      loadListByteOffMemN slackCount ss8 mm slackByteOff `shouldReturn`
-        (xs8rest, slackCount)
-      fm <- freezeMem mm
-      toListSlackMem fm `shouldBe` (take (unCount loadedCount) xs, xs8)
+prop_fromListMemN (NEMem (Off i) xs fm) (Positive n') =
+  propIO $ do
+    let n = Count $ length xs
+        (order', fm' :: FrozenMem ma) = fromListMemN (Count i) xs
+        (order'', fm'' :: FrozenMem ma) = fromListMemN (n + n') xs
+    fromListMemN n xs `shouldBe` (Left [], fm)
+    order' `shouldBe` Left (drop i xs)
+    xs `shouldStartWith` toListMem fm'
+    order'' `shouldBe` Right n
+    let xs' = toListMem fm''
+    xs' `deepseq` (xs' `shouldStartWith` xs)
+
+prop_loadListMem ::
+     forall ma e. (MemAlloc ma, Show e, Prim e, Eq e)
+  => [e]
+  -> NonNegative (Count Word8)
+  -> Property
+prop_loadListMem xs (NonNegative c) =
+  propIO $ do
+    mm :: ma RW <- allocMem c
+    Count n :: Count e <- getCountMem mm
+    let offs = [0 ..] :: [Off e]
+    loadListMem xs mm >>= \case
+      ([], loadedCount) -> do
+        loadedCount `shouldBe` Count (length xs)
+        zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) offs xs
+      (leftOver, loadedCount) -> do
+        leftOver `shouldBe` drop n xs
+        loadedCount `shouldBe` Count n
+        zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) (take n offs) xs
 
 
 memSpec ::
@@ -387,6 +411,7 @@ memSpec ::
      , Show e
      , Prim e
      , Eq e
+     , NFData e
      , Typeable e
      , Typeable ma
      , MemAlloc ma
@@ -414,9 +439,35 @@ memSpec = do
     prop "copyMem" $ prop_copyMem @ma @e
     prop "moveMem" $ prop_moveMem @ma @e
     prop "setMem" $ prop_setMem @ma @e
-    describe "ListConversion" $ do
-      prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs
-      prop "fromListMem" $ \(Mem xs fm :: Mem ma e) -> fromListMem xs === fm
+    describe "List" $ do
+      describe "Conversion" $ do
+        prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs
+        prop "fromListMem" $ \(Mem xs fm :: Mem ma e) -> fromListMem xs === fm
+        prop "fromListMemN" $ prop_fromListMemN @ma @e
+      describe "Loading" $ do
+        prop "loadListMem" $ prop_loadListMem @ma @e
+
+prop_toListSlackMem ::
+     forall ma. MemAlloc ma
+  => Count Word8
+  -> APrimList
+  -> Property
+prop_toListSlackMem bCount aPrimList =
+  withAPrimList aPrimList $ \xs ->
+    byteCountProxy xs > 0 ==>
+    propIO $ do
+      mm :: ma RW <- allocMem (min bCount (toByteCount (Count (length xs) `asProxyTypeOf1` xs)))
+      (_leftover, loadedCount) <- loadListMem xs mm
+      (count, slackCount) <- getCountRemMem mm
+      loadedCount `shouldBe` count
+      -- Load slack with a few known bytes
+      let ss8 = [255,254 ..] :: [Word8]
+          (xs8, xs8rest) = splitAt (unCount slackCount) ss8
+          slackByteOff = countToOff (toByteCount loadedCount)
+      loadListByteOffMemN slackCount ss8 mm slackByteOff `shouldReturn`
+        (xs8rest, slackCount)
+      fm <- freezeMem mm
+      toListSlackMem fm `shouldBe` (take (unCount loadedCount) xs, xs8)
 
 
 memBinarySpec ::
