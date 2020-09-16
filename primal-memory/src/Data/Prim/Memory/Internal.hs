@@ -694,25 +694,27 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- @since 0.1.0
   getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
 
-  -- | Allocate a mutable memory region with specified number of bytes. Memory is not
-  -- reset and will likely hold some garbage data.
+  -- | Allocate a mutable memory region for specified number of elements. Memory is not
+  -- reset and will likely hold some garbage data, therefore prefer to use `allocZeroMem`,
+  -- unless it is guaranteed that all of allocated memory will be overwritten.
   --
-  -- [Unsafe] When precondition for @memByteCount@ argument is violated the outcome is
-  -- upredictable. Possible termination with `Control.Exception.HeapOverflow` async
-  -- exception. In a pure setting, such as when executed within `runST`, if memory is
-  -- not fully overwritten it can result in violation of referential transparency,
-  -- because initial content of newly allocated region is non-determinstic.
+  -- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
+  -- upredictable. One possible outcome is termination with
+  -- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
+  -- executed within `runST`, if memory is not fully overwritten it can result in
+  -- violation of referential transparency, because content of newly allocated
+  -- region is non-determinstic.
   --
   -- @since 0.1.0
-  allocByteCountMem :: MonadPrim s m
-    => Count Word8
-    -- ^ /memByteCount/ - Number of bytes to allocate.
+  allocMem :: (Prim e, MonadPrim s m)
+    => Count e
+    -- ^ /memCount/ - Number of elements to allocate.
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= memByteCount
+    -- > 0 <= memCount
     --
-    -- Should be less then available physical memory
+    -- Converted to bytes should be less then available physical memory
     -> m (ma s)
 
   -- | Convert the state of an immutable memory region to the mutable one. This is a no
@@ -744,20 +746,19 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- anymore. Moreover, no reference to the old one should be kept in order to allow
   -- garbage collection of the original in case a new one had to be allocated.
   --
-  -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. Also the same
-  -- unsafety notice from `allocByteCountMem` with regards to @memCount@ applies here as
-  -- well.
+  -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. The same unsafety
+  -- notice from `allocMem` with regards to @memCount@ is applcable here as well.
   --
   -- @since 0.1.0
   resizeMem :: (MonadPrim s m, Prim e)
     => ma s
     -- ^ /memSource/ - Source memory region to resize
     -> Count e
-    -- ^ /memCount/ - Number of bytes to allocate.
+    -- ^ /memCount/ - Number of elements for the reallocated memory region
     --
     -- /__Preconditions:__/
     --
-    -- > 0 <= memByteCount
+    -- > 0 <= memCount
     --
     -- Should be less then available physical memory
     -> m (ma s)
@@ -794,10 +795,11 @@ instance MemAlloc MByteString where
   type FrozenMem MByteString = ByteString
   getByteCountMem (MByteString (PS _ _ c)) = pure $ Count c
   {-# INLINE getByteCountMem #-}
-  allocByteCountMem c = do
-    fp <- mallocByteCountPlainForeignPtr c
-    pure $ MByteString (PS fp 0 (coerce c))
-  {-# INLINE allocByteCountMem #-}
+  allocMem c = do
+    let cb = toByteCount c
+    fp <- mallocByteCountPlainForeignPtr cb
+    pure $ MByteString (PS fp 0 (coerce cb))
+  {-# INLINE allocMem #-}
   thawMem bs = pure $ MByteString bs
   {-# INLINE thawMem #-}
   freezeMem (MByteString bs) = pure bs
@@ -923,7 +925,7 @@ defaultResizeMem mem c = do
   if oldByteCount == newByteCount
     then pure mem
     else do
-      newMem <- allocByteCountMem newByteCount
+      newMem <- allocMem newByteCount
       oldMem <- freezeMem mem
       newMem <$ copyMem oldMem 0 newMem 0 oldByteCount
 {-# INLINE defaultResizeMem #-}
@@ -937,7 +939,7 @@ cycleMemN n r
     runST $ do
       let bc@(Count chunk) = byteCountMem r
           c@(Count c8) = Count n * bc
-      mem <- allocByteCountMem c
+      mem <- allocMem c
       let go i = when (i < c8) $ copyByteOffMem r 0 mem (Off i) bc >> go (i + chunk)
       go 0
       freezeMem mem
@@ -956,17 +958,6 @@ singletonMem ::
   -> FrozenMem ma
 singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 {-# INLINE singletonMem #-}
-
--- | Allocate enough memory for number of elements. Memory is not initialized and may
--- contain garbage. Use `allocZeroMem` if clean memory is needed.
---
--- [Unsafe Count] Negative element count will result in unpredictable behavior
---
--- @since 0.1.0
-allocMem :: (MemAlloc ma, MonadPrim s m, Prim e) => Count e -> m (ma s)
-allocMem n = allocByteCountMem (toByteCount n)
-{-# INLINE allocMem #-}
-
 
 -- | Same as `allocMem`, but also use @memset@ to initialize all the new memory to zeros.
 --
@@ -2110,8 +2101,8 @@ instance Typeable p => MemAlloc (MBytes p) where
   type FrozenMem (MBytes p) = Bytes p
   getByteCountMem = getByteCountMBytes
   {-# INLINE getByteCountMem #-}
-  allocByteCountMem = allocMBytes
-  {-# INLINE allocByteCountMem #-}
+  allocMem = allocMBytes
+  {-# INLINE allocMem #-}
   thawMem = thawBytes
   {-# INLINE thawMem #-}
   freezeMem = freezeMBytes

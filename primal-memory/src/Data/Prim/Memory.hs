@@ -75,8 +75,7 @@ module Data.Prim.Memory
   , modifyFetchNewMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , modifyFetchNewMemM        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Allocate
-  , allocByteCountMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , allocMem                  -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , allocMem                  -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , allocZeroMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , thawMem                   -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , thawCloneMem              -- DOC: [ ], DOCTEST [ ], TEST: [ ]

@@ -138,7 +138,7 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
   propIO $ do
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
-    mb :: MBytes 'Inc RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
+    mb :: MBytes 'Inc RW <- allocMem (toByteCount count + offToCount offByteDst)
     copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
     b <- freezeMem mb
     -- Ensure copy was successfull
@@ -246,7 +246,7 @@ prop_moveByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mm <- thawMem fm
-    mb :: MBytes 'Inc RW <- allocByteCountMem (toByteCount count + offToCount offByteDst)
+    mb :: MBytes 'Inc RW <- allocMem (toByteCount count + offToCount offByteDst)
     moveByteOffToMBytesMem mm (toByteOff offSrc) mb offByteDst count
     -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->

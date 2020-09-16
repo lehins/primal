@@ -45,7 +45,7 @@ class MRef mut where
 instance Typeable p => MRef (MBytes p) where
   type Elt (MBytes p) = Word8
 
-  newRawMRef = allocByteCountMem 1
+  newRawMRef = allocMem (1 :: Count Word8)
   {-# INLINE newRawMRef #-}
 
   writeMRef mb = writeOffMBytes mb 0

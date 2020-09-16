@@ -374,11 +374,10 @@ instance PtrAccess s (MAddr e s) where
 
 instance MemAlloc (MAddr e) where
   type FrozenMem (MAddr e) = Addr e
-
   getByteCountMem = getByteCountMAddr
   {-# INLINE getByteCountMem #-}
-  allocByteCountMem = fmap castMAddr . allocMAddr
-  {-# INLINE allocByteCountMem #-}
+  allocMem = fmap castMAddr . allocMAddr
+  {-# INLINE allocMem #-}
   thawMem = thawAddr
   {-# INLINE thawMem #-}
   freezeMem = freezeMAddr

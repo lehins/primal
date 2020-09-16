@@ -87,8 +87,8 @@ instance Typeable p => MemAlloc (MPrimArray p e) where
   type FrozenMem (MPrimArray p e) = PrimArray p e
   getByteCountMem = getByteCountMem . toMBytesMPrimArray
   {-# INLINE getByteCountMem #-}
-  allocByteCountMem = fmap fromMBytesMPrimArray . allocMBytes
-  {-# INLINE allocByteCountMem #-}
+  allocMem = fmap fromMBytesMPrimArray . allocMBytes
+  {-# INLINE allocMem #-}
   thawMem = thawPrimArray
   {-# INLINE thawMem #-}
   freezeMem = freezeMPrimArray
