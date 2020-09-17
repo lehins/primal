@@ -931,8 +931,25 @@ defaultResizeMem mem c = do
 {-# INLINE defaultResizeMem #-}
 
 
--- | Make @n@ copies of supplied region of memory into a contiguous chunk of memory.
-cycleMemN :: (MemAlloc ma, MemRead mr) => Int -> mr -> FrozenMem ma
+-- | Place @n@ copies of supplied region of memory one after another in a newly allocated
+-- contiguous chunk of memory. Similar to `stimes`, but the source memory @memRead@ does
+-- not have to match the type of `FrozenMem` ma.
+--
+-- ====__Example__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> let b = fromListMem @Word8 @(MBytes 'Inc) [0xde, 0xad, 0xbe, 0xef]
+-- >>> cycleMemN @(MBytes 'Inc) 2 b
+-- [0xde,0xad,0xbe,0xef,0xde,0xad,0xbe,0xef]
+--
+-- @since 0.1.0
+cycleMemN ::
+     forall ma mr. (MemAlloc ma, MemRead mr)
+  => Int
+  -> mr
+  -> FrozenMem ma
 cycleMemN n r
   | n <= 0 = emptyMem
   | otherwise =
@@ -946,26 +963,69 @@ cycleMemN n r
 {-# INLINE cycleMemN #-}
 
 
--- | Chunk of empty memory.
-emptyMem :: MemAlloc ma => FrozenMem ma
+-- | Construct an immutable memory region that can't hold any data. Same as @`mempty` ::
+-- `FrozenMem` ma@
+--
+-- ====__Example__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> toListMem (emptyMem @(MBytes 'Inc)) :: [Int]
+-- []
+--
+-- @since 0.1.0
+emptyMem ::
+     forall ma. MemAlloc ma
+  => FrozenMem ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
 
--- | Allocate a region of memory that holds a single element.
+-- | Allocate a region of immutable memory that holds a single element.
+--
+-- ====__Example__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> toListMem (singletonMem @Word16 @(MBytes 'Inc) 0xffff) :: [Word8]
+-- [255,255]
+--
+-- @since 0.1.0
 singletonMem ::
      forall e ma. (MemAlloc ma, Prim e)
-  => e
+  => e -- ^ The single element that will be stored in the newly allocated region of memory
   -> FrozenMem ma
 singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 {-# INLINE singletonMem #-}
 
--- | Same as `allocMem`, but also use @memset@ to initialize all the new memory to zeros.
+-- | Same as `allocMem`, but also use `setMem` to reset all of newly allocated memory to
+-- zeros.
 --
--- [Unsafe Count] Negative element count will result in unpredictable behavior
+-- ====__Example__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> mb <- allocZeroMem @Int @(MBytes 'Inc) 10
+-- >>> b <- freezeMem mb
+-- >>> toListMem b :: [Int]
+-- [0,0,0,0,0,0,0,0,0,0]
+--
+-- [Unsafe] Same reasons as in `allocMem`.
 --
 -- @since 0.1.0
 allocZeroMem ::
-     (MemAlloc ma, MonadPrim s m, Prim e) => Count e -> m (ma s)
+     forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
+  => Count e
+  -- ^ /memCount/ - Number of elements to allocate.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Converted to bytes should be less then available physical memory
+  -> m (ma s)
 allocZeroMem n = do
   m <- allocMem n
   m <$ setMem m 0 (toByteCount n) (0 :: Word8)
@@ -2139,27 +2199,38 @@ instance Show (Bytes p) where
 instance Typeable p => IsList (Bytes p) where
   type Item (Bytes p) = Word8
   fromList = fromListMem
+  {-# INLINE fromList #-}
   fromListN n = fromListZeroMemN_ (Count n)
+  {-# INLINE fromListN #-}
   toList = toListMem
+  {-# INLINE toList #-}
 
 instance Eq (Bytes p) where
   b1 == b2 = isSameBytes b1 b2 || eqMem b1 b2
+  {-# INLINE (==) #-}
 
 instance Ord (Bytes p) where
   compare b1 b2 =
     compare n (byteCountBytes b2) <> compareByteOffBytes b1 0 b2 0 n
     where
       n = byteCountBytes b1
+  {-# INLINE compare #-}
 
 instance Typeable p => Semigroup.Semigroup (Bytes p) where
   (<>) = appendMem
+  {-# INLINE (<>) #-}
   sconcat (x :| xs) = concatMem (x:xs)
+  {-# INLINE sconcat #-}
   stimes i = cycleMemN (fromIntegral i)
+  {-# INLINE stimes #-}
 
 instance Typeable p => Monoid.Monoid (Bytes p) where
   mappend = appendMem
+  {-# INLINE mappend #-}
   mconcat = concatMem
+  {-# INLINE mconcat #-}
   mempty = emptyMem
+  {-# INLINE mempty #-}
 
 
 -- | A list of `ShowS` which covert bytes to base16 encoded strings. Each element of the list
