@@ -714,7 +714,11 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
     --
     -- > 0 <= memCount
     --
-    -- Converted to bytes should be less then available physical memory
+    -- Possibility of overflow:
+    --
+    -- > unCount memCount <= fromByteCount @e (Count maxBound)
+    --
+    -- When converted to bytes the value should be less then available physical memory
     -> m (ma s)
 
   -- | Convert the state of an immutable memory region to the mutable one. This is a no
@@ -1002,6 +1006,10 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 -- | Same as `allocMem`, but also use `setMem` to reset all of newly allocated memory to
 -- zeros.
 --
+-- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
+-- upredictable. One possible outcome is termination with `Control.Exception.HeapOverflow`
+-- async exception.
+--
 -- ====__Example__
 --
 -- >>> :set -XTypeApplications
@@ -1011,8 +1019,6 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMem mem 0 a
 -- >>> b <- freezeMem mb
 -- >>> toListMem b :: [Int]
 -- [0,0,0,0,0,0,0,0,0,0]
---
--- [Unsafe] Same reasons as in `allocMem`.
 --
 -- @since 0.1.0
 allocZeroMem ::
@@ -1064,7 +1070,8 @@ createZeroMemST n f = runST $ allocZeroMem n >>= \m -> (,) <$> f m <*> freezeMem
 -- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros prior
 -- to applying the @ST@ filling action @fillAction@.
 --
--- [Unsafe] Violation of precondition for @memCount@ may result in undefined behavior.
+-- [Unsafe] Same reasons as `allocZeroMem`: violation of precondition for @memCount@ may
+-- result in undefined behavior or `Control.Exception.HeapOverflow` async exception.
 --
 -- ====__Example__
 --
@@ -1092,7 +1099,10 @@ createZeroMemST_ ::
   -- second condition simply describes overflow.
   --
   -- > 0 <= memCount
-  -- > unCount memCount <= maxBound `div` unCountBytes @e 1
+  --
+  -- Possibility of overflow:
+  --
+  -- > unCount memCount <= fromByteCount @e (Count maxBound)
   -> (forall s. ma s -> ST s b)
   -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
   -- memory. It is not required to overwrite the full region, since it was reset to zeros
