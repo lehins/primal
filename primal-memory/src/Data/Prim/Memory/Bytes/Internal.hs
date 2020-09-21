@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
@@ -24,8 +25,13 @@ module Data.Prim.Memory.Bytes.Internal
   , isSamePinnedBytes
   , isPinnedBytes
   , isPinnedMBytes
+  , castStateMBytes
   , castPinnedBytes
   , castPinnedMBytes
+  , relaxPinnedBytes
+  , relaxPinnedMBytes
+  , toInconclusiveBytes
+  , toInconclusiveMBytes
   , allocMBytes
   , allocPinnedMBytes
   , allocAlignedMBytes
@@ -58,7 +64,8 @@ module Data.Prim.Memory.Bytes.Internal
   , withNoHaltPtrMBytes
   , toForeignPtrBytes
   , toForeignPtrMBytes
-  , fromForeignPtrBytes
+  , castForeignPtrToBytes
+  , onForeignPtrContents
   , byteStringConvertError
   ) where
 
@@ -67,10 +74,13 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
 import Data.Prim.Class
-import GHC.ForeignPtr
 import Data.Typeable
 import Foreign.Prim
-
+import GHC.ForeignPtr
+import Unsafe.Coerce
+#if MIN_VERSION_base(4,14,0)
+import Data.IORef
+#endif
 
 -- | In GHC there is a distinction between pinned and unpinned memory.
 --
@@ -275,11 +285,28 @@ reallocMBytes mb c = do
            Nothing -> castPinnedMBytes <$> resizeMBytes mb newByteCount
 {-# INLINABLE reallocMBytes #-}
 
+castStateMBytes :: MBytes p s' -> MBytes p s
+castStateMBytes = unsafeCoerce
+
 castPinnedBytes :: Bytes p' -> Bytes p
 castPinnedBytes (Bytes b#) = Bytes b#
 
 castPinnedMBytes :: MBytes p' s -> MBytes p s
 castPinnedMBytes (MBytes b#) = MBytes b#
+
+
+relaxPinnedBytes :: Bytes 'Pin -> Bytes p
+relaxPinnedBytes = castPinnedBytes
+
+relaxPinnedMBytes :: MBytes 'Pin e -> MBytes p e
+relaxPinnedMBytes = castPinnedMBytes
+
+toInconclusiveBytes :: Bytes p -> Bytes 'Inc
+toInconclusiveBytes = castPinnedBytes
+
+toInconclusiveMBytes :: MBytes p e -> MBytes 'Inc e
+toInconclusiveMBytes = castPinnedMBytes
+
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`
@@ -374,26 +401,54 @@ toForeignPtrBytes (Bytes ba#) =
 
 toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr e
 toForeignPtrMBytes (MBytes mba#) =
-  ForeignPtr (byteArrayContents# (unsafeCoerce# mba#)) (PlainPtr (unsafeCoerce# mba#))
+  ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#))
 {-# INLINE toForeignPtrMBytes #-}
 
 
--- | Discarding the `ForeignPtr` will trigger all if there are any associated
--- Haskell finalizers.
-fromForeignPtrBytes :: ForeignPtr e -> Either String (Bytes 'Pin)
-fromForeignPtrBytes (ForeignPtr addr# content) =
-  case content of
-    PlainPtr mbaRW# -> checkConvert mbaRW#
-    MallocPtr mbaRW# _ -> checkConvert mbaRW#
-    _ -> Left "Cannot convert a C allocated pointer"
+-- | This function will only cast a pointer that was allocated on Haskell heap and it is
+-- cerain that the ForeignPtr has no finalizers associated with it.
+castForeignPtrToBytes :: ForeignPtr e -> Either String (Bytes 'Pin)
+castForeignPtrToBytes fp =
+  unsafePerformIO $
+  onForeignPtrContents fp checkConvert $ \_ ->
+    pure (Left "Cannot convert a C allocated pointer")
   where
-    checkConvert mba# =
-      let !b@(Bytes ba#) = unsafePerformIO (freezeMBytes (MBytes mba#))
-       in if isTrue# (byteArrayContents# ba# `eqAddr#` addr#)
-            then Right b
-            else Left
-                   "ForeignPtr does not point to the beginning of the associated MutableByteArray#"
-{-# INLINE fromForeignPtrBytes #-}
+    checkConvert addr# mba# checkFinalizers = do
+      ba@(Bytes ba#) <- freezeMBytes (MBytes mba#)
+      if isTrue# (byteArrayContents# ba# `eqAddr#` addr#)
+        then do
+          hasFinilizers <- checkFinalizers
+          pure $
+            if hasFinilizers
+              then Left "MallocPtr has associated finalizers"
+              else Right ba
+        else pure $
+             Left
+               "ForeignPtr does not point to the beginning of the associated MutableByteArray#"
+{-# INLINE castForeignPtrToBytes #-}
+
+
+onForeignPtrContents ::
+     MonadPrim RW m
+  => ForeignPtr e
+  -> (Addr# -> MutableByteArray# RW -> m Bool -> m a)
+  -> (Addr# -> m a)
+  -> m a
+onForeignPtrContents (ForeignPtr addr# contents) onHaskellPtr onCPtr =
+  case contents of
+    PlainPtr mbaRW# -> onHaskellPtr addr# mbaRW# (pure False)
+#if MIN_VERSION_base(4,14,0)
+    MallocPtr mbaRW# fref -> onHaskellPtr addr# mbaRW# $ do
+      finilizers <- liftPrimBase $ readIORef fref
+      pure $! case finilizers of
+        NoFinalizers         -> False
+        HaskellFinalizers fs -> not $! null fs
+        CFinalizers _        -> True -- impossible case, but nevertheless
+#else
+    MallocPtr mbaRW# _ -> onHaskellPtr addr# mbaRW# (pure True)
+#endif
+    PlainForeignPtr _ -> onCPtr addr#
+{-# INLINE onForeignPtrContents #-}
 
 
 -- | Check if two byte arrays refer to pinned memory and compare their pointers.

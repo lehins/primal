@@ -134,13 +134,14 @@ import Data.Prim
 import Data.Prim.Atomic
 import Data.Prim.Class
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Bytes.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.Ptr
 import qualified Data.Semigroup as Semigroup
 import Foreign.Prim
-
+import Unsafe.Coerce
 
 data Addr e = Addr
   { addrAddr# :: Addr#
@@ -188,6 +189,9 @@ castAddr (Addr a b) = Addr a b
 
 castMAddr :: MAddr e s -> MAddr b s
 castMAddr (MAddr a mb) = MAddr a mb
+
+castStateMAddr :: MAddr e s' -> MAddr b s
+castStateMAddr = unsafeCoerce
 
 isSameAddr :: Addr e -> Addr e -> Bool
 isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
@@ -314,18 +318,15 @@ toForeignPtrAddr (Addr addr# (Bytes ba#)) = ForeignPtr addr# (PlainPtr (unsafeCo
 toForeignPtrMAddr :: MAddr e s -> ForeignPtr e
 toForeignPtrMAddr (MAddr addr# (MBytes mba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#))
 
--- | Discarding the original `ForeignPtr` will trigger finalizers that were attached to
--- it, because `Addr` does not retain any finalizers. This is a unsafe cast therefore
--- modification of `ForeignPtr` will be reflected in resulting immutable `Addr`. Pointer
--- created with @malloc@ cannot be converted to `Addr` and will result in `Nothing`
+-- | This is a unsafe cast therefore modification of `ForeignPtr` will be reflected in
+-- resulting immutable `Addr`. Pointer created with @malloc@ cannot be converted to `Addr`
+-- and will result in `Nothing`
 --
 -- @since 0.1.0
 fromForeignPtrAddr :: ForeignPtr e -> Maybe (Addr e)
-fromForeignPtrAddr (ForeignPtr addr# c) =
-  case c of
-    PlainPtr mba#    -> Just (Addr addr# (unsafePerformIO (freezeMBytes (MBytes mba#))))
-    MallocPtr mba# _ -> Just (Addr addr# (unsafePerformIO (freezeMBytes (MBytes mba#))))
-    _                -> Nothing
+fromForeignPtrAddr fptr =
+  unsafePerformIO $ fromForeignPtrIO fptr >>= traverse freezeMAddr
+
 
 -- | Discarding the original ForeignPtr will trigger finalizers that were attached to it,
 -- because `MAddr` does not retain any finalizers. Pointer created with @malloc@ cannot be
@@ -333,13 +334,24 @@ fromForeignPtrAddr (ForeignPtr addr# c) =
 --
 -- @since 0.1.0
 fromForeignPtrMAddr :: ForeignPtr e -> Maybe (MAddr e s)
-fromForeignPtrMAddr (ForeignPtr addr# c) =
-  case c of
-    PlainPtr mba#    -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
-    MallocPtr mba# _ -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
-    _                -> Nothing
+fromForeignPtrMAddr fptr =
+  unsafePerformIO (fmap castStateMAddr <$> fromForeignPtrIO fptr)
+  -- case c of
+  --   PlainPtr mba#    -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+  --   MallocPtr mba# _ -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+  --   _                -> Nothing
 
 
+fromForeignPtrIO :: ForeignPtr e -> IO (Maybe (MAddr e RW))
+fromForeignPtrIO fptr =
+  onForeignPtrContents fptr checkConvert $ \_ -> pure Nothing
+  where
+    checkConvert addr# mba# checkFinalizers = do
+      hasFinalizers <- checkFinalizers
+      pure $
+        if hasFinalizers
+          then Nothing
+          else Just (MAddr addr# (MBytes mba#))
 
 withAddrMAddr# :: MonadPrim s m => MAddr e s -> (Addr# -> m b) -> m b
 withAddrMAddr# (MAddr addr# mb) f = do
@@ -533,7 +545,7 @@ toByteStringAddr addr = PS (toForeignPtrAddr addr) 0 (unCount (countAddr addr))
 toShortByteStringAddr :: Addr Word8 -> (ShortByteString, Off Word8)
 toShortByteStringAddr = first toShortByteStringBytes . toBytesAddr
 
--- | /O(1)/ - Cast an immutable `ShortByteString` to an immutable `Addr`. In a most common
+-- | /O(n)/ - Convert an immutable `ShortByteString` to an immutable `Addr`. In a most common
 -- case when `ShortByteString` is not backed by pinned memory, this function will return
 -- `Nothing`.
 --
@@ -549,7 +561,7 @@ fromByteStringAddr :: ByteString -> (Addr Word8, Count Word8)
 fromByteStringAddr (PS fptr i n) =
   case fromForeignPtrAddr fptr of
     Just addr -> (addr `plusOffAddr` Off i, Count n)
-    Nothing -> byteStringConvertError "It was allocated outside of 'bytestring' package"
+    Nothing -> byteStringConvertError "ByteString was allocated outside of 'bytestring' package"
 
 -- | /O(1)/ - Cast an immutable `ByteString` to a mutable `MAddr`. Also returns the
 -- original length of ByteString, which will be less or equal to `getCountOfMAddr` in the

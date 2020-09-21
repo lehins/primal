@@ -35,6 +35,8 @@ module Data.Prim.Memory.Bytes
   , isPinnedMBytes
   , toPinnedBytes
   , toPinnedMBytes
+  , toInconclusiveBytes
+  , toInconclusiveMBytes
   , relaxPinnedBytes
   , relaxPinnedMBytes
   , ensurePinnedBytes
@@ -171,7 +173,6 @@ toMutableByteArray# (MBytes mb#) = mb#
 -- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
 fromMutableByteArray# :: MutableByteArray# s -> MBytes 'Inc s
 fromMutableByteArray# = MBytes
-
 
 
 
@@ -404,13 +405,6 @@ appendBytes = appendMem
 concatBytes :: Typeable p => [Bytes p'] -> Bytes p
 concatBytes = concatMem
 {-# INLINE concatBytes #-}
-
-relaxPinnedBytes :: Bytes p -> Bytes 'Inc
-relaxPinnedBytes = castPinnedBytes
-
-relaxPinnedMBytes :: MBytes p e -> MBytes 'Inc e
-relaxPinnedMBytes = castPinnedMBytes
-
 
 
 ensurePinnedBytes :: Bytes p -> Bytes 'Pin

@@ -27,6 +27,7 @@ import Control.Exception
 import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
+import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
 import Data.Kind
 import Data.List as List
@@ -771,7 +772,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
 
 
 instance MemRead ByteString where
-  byteCountMem (PS _ _ c) = Count c
+  byteCountMem = Count . BS.length
   {-# INLINE byteCountMem #-}
   indexOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readOffPtr` i)
   {-# INLINE indexOffMem #-}
@@ -797,7 +798,7 @@ instance MemRead ByteString where
 
 instance MemAlloc MByteString where
   type FrozenMem MByteString = ByteString
-  getByteCountMem (MByteString (PS _ _ c)) = pure $ Count c
+  getByteCountMem (MByteString bs) = pure $! Count (BS.length bs)
   {-# INLINE getByteCountMem #-}
   allocMem c = do
     let cb = toByteCount c

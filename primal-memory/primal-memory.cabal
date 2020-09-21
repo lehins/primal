@@ -33,7 +33,7 @@ library
                      , Data.Prim.Memory.Ptr
                      , Data.Prim.Memory.Internal
   other-modules:       Data.Prim.Memory.Bytes.Internal
-  build-depends:       base >= 4.8 && < 5
+  build-depends:       base >= 4.9 && < 5
                      , bytestring
                      , deepseq
                      , primal >= 0.2

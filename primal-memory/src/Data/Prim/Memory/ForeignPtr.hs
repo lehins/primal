@@ -92,17 +92,15 @@ class PtrAccess s p where
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
   -- related to it in order to get more insight why this is needed.
-  withNoHaltPtrAccess :: (MonadUnliftPrim s m) => p -> (Ptr a -> m b) -> m b
-  withNoHaltPtrAccess p f = do
-    ForeignPtr addr# ptrContents <- toForeignPtr p
-    withAliveUnliftPrim ptrContents $ f (Ptr addr#)
+  withNoHaltPtrAccess :: MonadUnliftPrim s m => p -> (Ptr a -> m b) -> m b
+  withNoHaltPtrAccess p action = toForeignPtr p >>= (`withNoHaltForeignPtr` action)
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance PtrAccess s (ForeignPtr a) where
   toForeignPtr = pure . coerce
   {-# INLINE toForeignPtr #-}
 
--- | Read-only access, but it is not enforced.
+-- | Read-only access, but immutability is not enforced.
 instance PtrAccess s ByteString where
   toForeignPtr (PS ps s _) = pure (coerce ps `plusByteOffForeignPtr` Off s)
   {-# INLINE toForeignPtr #-}
@@ -119,7 +117,7 @@ instance PtrAccess s (MByteString s) where
   withNoHaltPtrAccess mbs = withNoHaltPtrByteString (coerce mbs)
   {-# INLINE withNoHaltPtrAccess #-}
 
--- | Read-only access, but it is not enforced.
+-- | Read-only access, but immutability is not enforced.
 instance PtrAccess s (Bytes 'Pin) where
   toForeignPtr = pure . toForeignPtrBytes
   {-# INLINE toForeignPtr #-}

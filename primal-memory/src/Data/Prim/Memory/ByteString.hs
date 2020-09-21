@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
 -- |
@@ -34,6 +35,7 @@ import Control.Monad.ST
 import Data.ByteString.Builder
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Prim
 import Foreign.Prim
@@ -46,8 +48,9 @@ import Data.Prim.Memory.Bytes.Internal
   , allocMBytes
   , freezeMBytes
   , byteCountBytes
+  , relaxPinnedBytes
   , toForeignPtrBytes
-  , fromForeignPtrBytes
+  , castForeignPtrToBytes
   , byteStringConvertError
   )
 
@@ -55,12 +58,38 @@ import Data.Prim.Memory.Bytes.Internal
 newtype MByteString s = MByteString ByteString
 
 
--- | /O(1)/ - Cast an immutable `Bytes` to an immutable `ByteString`
+-- | /O(1)/ - Cast immutable `Bytes` to an immutable `ByteString`
 --
 -- @since 0.1.0
 toByteStringBytes :: Bytes 'Pin -> ByteString
-toByteStringBytes b = PS (toForeignPtrBytes b) 0 (coerce (byteCountBytes b))
 {-# INLINE toByteStringBytes #-}
+toByteStringBytes b =
+#if MIN_VERSION_bytestring(0,11,0)
+  BS (toForeignPtrBytes b) (coerce (byteCountBytes b))
+#else
+  PS (toForeignPtrBytes b) 0 (coerce (byteCountBytes b))
+#endif
+
+
+-- | /O(1)/ - Cast an immutable `ByteString` to immutable `Bytes`. Only unsliced
+-- `ByteString`s that are backed by a `ForeignPtr` allocated on Haskell heap without
+-- finilizers can be converted without copy.
+--
+-- @since 0.2.0
+castByteStringBytes :: ByteString -> Either String (Bytes 'Pin)
+#if MIN_VERSION_bytestring(0,11,0)
+castByteStringBytes (BS fptr n) = do
+#else
+castByteStringBytes (PS fptr o n) = do
+  unless (o == 0) sliceError
+#endif
+  b <- castForeignPtrToBytes fptr
+  unless (unCount (byteCountBytes b) == n) sliceError
+  Right b
+  where
+    sliceError = Left "ByteString was sliced"
+{-# INLINE castByteStringBytes #-}
+
 
 -- | /O(1)/ - Cast an immutable `Bytes` to an immutable `ShortByteString`
 --
@@ -92,32 +121,43 @@ fromBuilderBytes b = fromLazyByteStringBytes (toLazyByteString b)
 
 -- | /O(n)/ - Allocate `Bytes` and fill them with the contents of a lazy `BSL.ByteString`
 fromLazyByteStringBytes :: BSL.ByteString -> Bytes 'Pin
-fromLazyByteStringBytes bsl =
-  case BSL.toStrict bsl of
-    PS fptr _ _ -> either byteStringConvertError id $ fromForeignPtrBytes fptr
+fromLazyByteStringBytes = fromByteStringBytes . BSL.toStrict
 {-# INLINE fromLazyByteStringBytes #-}
 
 
--- | /O(n)/ - Allocate `Bytes` and fill them with the contents of a strict `ByteString`
+-- | /O(n)/ - Convert a strict `ByteString` to `Bytes`.
 fromByteStringBytes :: Typeable p => ByteString -> Bytes p
-fromByteStringBytes bs@(PS _ _ n) =
-  runST $
-  withPtrByteString bs $ \ptr -> do
-    let c = Count n :: Count Word8
-    mb <- allocMBytes c
-    movePtrToMBytes ptr 0 mb 0 c
-    freezeMBytes mb
+fromByteStringBytes bs =
+  case castByteStringBytes bs of
+    Right b -> relaxPinnedBytes b
+    Left _ ->
+      runST $
+      withPtrByteString bs $ \ptr -> do
+        let c = Count (BS.length bs) :: Count Word8
+        mb <- allocMBytes c
+        copyPtrToMBytes ptr 0 mb 0 c
+        freezeMBytes mb
 {-# INLINE fromByteStringBytes #-}
 
 
 withPtrByteString :: MonadPrim s m => ByteString -> (Ptr a -> m b) -> m b
-withPtrByteString (PS (ForeignPtr addr# ptrContents) (I# o#) _) f = do
-  r <- f (Ptr (addr# `plusAddr#` o#))
+#if MIN_VERSION_bytestring(0,11,0)
+withPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
+#else
+withPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
+  let addr# = addr'# `plusAddr#` o#
+#endif
+  r <- f (Ptr addr#)
   r <$ touch ptrContents
 {-# INLINE withPtrByteString #-}
 
 
 withNoHaltPtrByteString :: MonadUnliftPrim s m => ByteString -> (Ptr a -> m b) -> m b
-withNoHaltPtrByteString (PS (ForeignPtr addr# ptrContents) (I# o#) _) f =
-  withAliveUnliftPrim ptrContents $ f (Ptr (addr# `plusAddr#` o#))
+#if MIN_VERSION_bytestring(0,11,0)
+withNoHaltPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
+#else
+withNoHaltPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
+  let addr# = addr'# `plusAddr#` o#
+#endif
+  withAliveUnliftPrim ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrByteString #-}
