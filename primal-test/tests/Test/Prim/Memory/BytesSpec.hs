@@ -25,7 +25,9 @@ import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
 import Data.Monoid
 import Data.Functor.Identity
+import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.Text
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
@@ -112,6 +114,8 @@ primTypeSpec ::
 primTypeSpec = do
   primSpec @'Pin @e
   primSpec @'Inc @e
+  -- memSpec @(MAddr e) @e
+  -- memSpec @MArray @e
 
 primBinarySpec ::
      forall (p :: Pinned). (Typeable p)

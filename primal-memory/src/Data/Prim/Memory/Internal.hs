@@ -39,6 +39,7 @@ import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Ptr
 import qualified Data.Semigroup as Semigroup
+import qualified Data.Prim.Memory.Text as T
 import Foreign.Prim
 import Numeric (showHex)
 
@@ -839,6 +840,78 @@ instance MemWrite MByteString where
   {-# INLINE moveByteOffMem #-}
   setMem (MByteString mbs) off c a = withPtrAccess mbs $ \ptr -> setOffPtr ptr off c a
   {-# INLINE setMem #-}
+
+instance MemRead T.Array where
+  byteCountMem = byteCountMem . T.toBytesArray
+  {-# INLINE byteCountMem #-}
+  indexOffMem a = indexOffMem (T.toBytesArray a)
+  {-# INLINE indexOffMem #-}
+  indexByteOffMem a = indexByteOffMem (T.toBytesArray a)
+  {-# INLINE indexByteOffMem #-}
+  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (T.toBytesArray a)
+  {-# INLINE copyByteOffToMBytesMem #-}
+  copyByteOffToPtrMem a = copyByteOffToPtrMem (T.toBytesArray a)
+  {-# INLINE copyByteOffToPtrMem #-}
+  compareByteOffToPtrMem a = compareByteOffToPtrMem (T.toBytesArray a)
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem a = compareByteOffToBytesMem (T.toBytesArray a)
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem off1 a = compareByteOffMem mem off1 (T.toBytesArray a)
+  {-# INLINE compareByteOffMem #-}
+
+instance MemAlloc T.MArray where
+  type FrozenMem T.MArray = T.Array
+  getByteCountMem = getByteCountMBytes . T.toMBytesMArray
+  {-# INLINE getByteCountMem #-}
+  allocMem = fmap T.fromMBytesMArray . allocUnpinnedMBytes
+  {-# INLINE allocMem #-}
+  thawMem = fmap T.fromMBytesMArray . thawBytes . T.toBytesArray
+  {-# INLINE thawMem #-}
+  freezeMem = fmap T.fromBytesArray . freezeMBytes . T.toMBytesMArray
+  {-# INLINE freezeMem #-}
+  resizeMem m = fmap T.fromMBytesMArray . reallocMBytes (T.toMBytesMArray m)
+  {-# INLINE resizeMem #-}
+
+instance MemWrite T.MArray where
+  readOffMem m = readOffMBytes (T.toMBytesMArray m)
+  {-# INLINE readOffMem #-}
+  readByteOffMem m = readByteOffMBytes (T.toMBytesMArray m)
+  {-# INLINE readByteOffMem #-}
+  writeOffMem m = writeOffMBytes (T.toMBytesMArray m)
+  {-# INLINE writeOffMem #-}
+  writeByteOffMem m = writeByteOffMBytes (T.toMBytesMArray m)
+  {-# INLINE writeByteOffMem #-}
+  moveByteOffToPtrMem m = moveByteOffMBytesToPtr (T.toMBytesMArray m)
+  {-# INLINE moveByteOffToPtrMem #-}
+  moveByteOffToMBytesMem m = moveByteOffMBytesToMBytes (T.toMBytesMArray m)
+  {-# INLINE moveByteOffToMBytesMem #-}
+  moveByteOffMem src srcOff m = moveByteOffToMBytesMem src srcOff (T.toMBytesMArray m)
+  {-# INLINE moveByteOffMem #-}
+  copyByteOffMem src srcOff m = copyByteOffToMBytesMem src srcOff (T.toMBytesMArray m)
+  {-# INLINE copyByteOffMem #-}
+  setMem m = setMBytes (T.toMBytesMArray m)
+  {-# INLINE setMem #-}
+
+instance MemRead T.Text where
+  byteCountMem (T.Text _ _ n) = toByteCount (Count n :: Count Word16)
+  {-# INLINE byteCountMem #-}
+  indexByteOffMem (T.Text a o _) i = indexByteOffMem a (toByteOff (Off o :: Off Word16) + i)
+  {-# INLINE indexByteOffMem #-}
+  copyByteOffToMBytesMem (T.Text a o _) i =
+    copyByteOffToMBytesMem a (toByteOff (Off o :: Off Word16) + i)
+  {-# INLINE copyByteOffToMBytesMem #-}
+  copyByteOffToPtrMem (T.Text a o _) i =
+    copyByteOffToPtrMem a (toByteOff (Off o :: Off Word16) + i)
+  {-# INLINE copyByteOffToPtrMem #-}
+  compareByteOffToPtrMem (T.Text a o _) off =
+    compareByteOffToPtrMem a (toByteOff (Off o :: Off Word16) + off)
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem (T.Text a o _) off =
+    compareByteOffToBytesMem a (toByteOff (Off o :: Off Word16) + off)
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem off1 (T.Text a o _) off2 =
+    compareByteOffMem mem off1 a (toByteOff (Off o :: Off Word16) + off2)
+  {-# INLINE compareByteOffMem #-}
 
 
 instance MemRead ShortByteString where

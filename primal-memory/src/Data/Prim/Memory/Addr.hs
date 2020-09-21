@@ -143,18 +143,20 @@ import qualified Data.Semigroup as Semigroup
 import Foreign.Prim
 import Unsafe.Coerce
 
+
+-- | Immutable read-only address
 data Addr e = Addr
   { addrAddr# :: Addr#
   , addrBytes :: {-# UNPACK #-}!(Bytes 'Pin)
   }
-type role Addr representational
+type role Addr nominal
 
-
+-- | Mutable address
 data MAddr e s = MAddr
   { mAddrAddr#  :: Addr#
   , mAddrMBytes :: {-# UNPACK #-}!(MBytes 'Pin s)
   }
-type role MAddr representational nominal
+type role MAddr nominal nominal
 
 
 

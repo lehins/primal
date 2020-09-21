@@ -96,6 +96,7 @@ instance Prim e => IsList (UArray e) where
   toList = I.toListArray
 
 data MUArray e s = MUArray (MutableByteArray# s)
+type role MUArray nominal nominal
 
 
 -- | Check if both of the arrays refer to the exact same one through poiner equality. None
@@ -107,7 +108,7 @@ instance Eq (MUArray e s) where
 
 data UArray e = UArray ByteArray#
 
-type role UArray representational
+type role UArray nominal
 
 instance Prim e => MRef (MUArray e) where
   type Elt (MUArray e) = e
