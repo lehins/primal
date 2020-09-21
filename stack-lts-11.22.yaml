@@ -1,0 +1,34 @@
+resolver: lts-11.22
+packages:
+- primal
+- primal-adaptive
+- primal-mutable
+- primal-memory
+- primal-test
+
+extra-deps:
+- validity-0.11.0.0
+- genvalidity-0.9.1.0
+- cabal-doctest-1.0.8@sha256:34dff6369d417df2699af4e15f06bc181d495eca9c51efde173deae2053c197c,1491
+- QuickCheck-2.13.2@sha256:ad4e5adbd1c9dc0221a44307b992cb040c515f31095182e47aa7e974bc461df1,6952
+- splitmix-0.0.4@sha256:fb9bb8b54a2e76c8a021fe5c4c3798047e1f60e168379a1f80693047fe00ad0e,4813
+- hspec-2.7.1@sha256:0aa48928ce80a34f8ff8c5ef114bb6807edfb8d884bcd7211eceed710e7fb7a8,1769
+- hspec-core-2.7.1@sha256:2696420050bafb1b690366b2c0ca8595a27c4597811df036f0c35cf19f46862b,4583
+- hspec-discover-2.7.1@sha256:e8ce36741c06b41de58069814a7d3b7314bdeaab35ae573e3c924739011e0c29,2243
+- hspec-expectations-0.8.2@sha256:e2db24881baadc2d9d23b03cb629e80dcbda89a6b04ace9adb5f4d02ef8b31aa,1594
+- HUnit-1.6.0.0@sha256:8014b27c884becd8041214a1ab263fa92244ca62700a911aff604a1047869298,1570
+- quickcheck-io-0.2.0@sha256:7bf0b68fb90873825eb2e5e958c1b76126dcf984debb998e81673e6d837e0b2d,1133
+
+# - github: haskell/bytestring
+#   commit: 96c95391025c1ce2240f6dc7bcad06d4191e7793
+# - github: haskell/cabal
+#   commit: 5139d6e72d391bffa3cf06f08884277799eb0b45
+#   subdirs:
+#     - Cabal
+# - binary-0.8.8.0
+# - directory-1.3.6.0
+# - text-1.2.3.2
+# - unix-2.7.2.2
+# - parsec-3.1.14.0
+# - process-1.6.9.0
+# allow-newer: true

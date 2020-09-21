@@ -73,7 +73,7 @@ import Control.DeepSeq
 import Control.Prim.Monad
 import Data.Coerce
 import Data.Int
-import Data.Monoid hiding (First(..), Last(..))
+import Data.Monoid hiding (First(..), Last(..), (<>))
 import Data.Prim.Atom
 import Data.Prim.Atomic
 import Data.Prim.Class

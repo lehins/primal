@@ -14,12 +14,13 @@
 --
 module Foreign.Prim.C.LtGHC802
   (
+  -- ** GHC-8.4
+    compareByteArrays#
   -- ** GHC-8.2
-    CBool(..)
+  , CBool(..)
   , isByteArrayPinned#
   , isMutableByteArrayPinned#
   -- ** GHC-8.0
-  , compareByteArrays#
   , getSizeofMutableByteArray#
   ) where
 
@@ -49,10 +50,6 @@ foreign import ccall unsafe "primal_compat.c primal_is_byte_array_pinned"
 foreign import ccall unsafe "primal_compat.c primal_is_byte_array_pinned"
   isMutableByteArrayPinned# :: MutableByteArray# s -> Int#
 
--- | This is equivalent to @memcmp@ in C
-foreign import ccall unsafe "primal.c primal_memcmp"
-  compareByteArrays# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
-
 #if __GLASGOW_HASKELL__ < 800
 -- | Compatibility function for ghc-7.10 version
 getSizeofMutableByteArray# :: MutableByteArray# s -> State# s -> (# State# s, Int# #)
@@ -66,3 +63,12 @@ getSizeofMutableByteArray# mba# s = (# s, sizeofMutableByteArray# mba# #)
 import Foreign.C.Types (CBool(..))
 
 #endif /* __GLASGOW_HASKELL__ < 802 */
+
+
+#if __GLASGOW_HASKELL__ < 804
+
+-- | This is equivalent to @memcmp@ in C
+foreign import ccall unsafe "primal.c primal_memcmp"
+  compareByteArrays# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
+
+#endif /* __GLASGOW_HASKELL__ < 804 */

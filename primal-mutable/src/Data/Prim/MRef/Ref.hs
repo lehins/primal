@@ -376,8 +376,8 @@ atomicWriteRef :: MonadPrim s m => Ref e s -> e -> m ()
 atomicWriteRef (Ref ref#) x =
   x `seq`
   prim $ \s ->
-    case atomicModifyMutVar2# ref# (\_ -> Unit x) s of
-      (# s', _prev, Unit _cur #) -> (# s', () #)
+    case atomicModifyMutVar2# ref# (\_ -> (x, ())) s of
+      (# s', _prev, (_cur, ()) #) -> (# s', () #)
   -- prim $ \s ->
   --   case atomicModifyMutVar_# ref# (\_ -> x) s of
   --     (# s', _prev, _cur #) -> (# s', () #)
