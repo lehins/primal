@@ -1264,7 +1264,7 @@ instance (Prim a, Prim b) => Prim (a, b) where
   indexOffAddr# addr# i# =
     let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
         addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-     in ( indexOffAddr# addr0# 0#, indexOffAddr# addr1# 0#)
+     in (indexOffAddr# addr0# 0#, indexOffAddr# addr1# 0#)
   {-# INLINE indexOffAddr# #-}
   readMutableByteArray# mba# i# =
     let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
@@ -1279,7 +1279,7 @@ instance (Prim a, Prim b) => Prim (a, b) where
   {-# INLINE readByteOffMutableByteArray# #-}
   readOffAddr# addr# i# s =
     let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
-        addr1# = addr# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
+        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
     in case readOffAddr# addr0# 0# s of
          (# s', a0 #) ->
            case readOffAddr# addr1# 0# s' of
@@ -1509,12 +1509,12 @@ instance Prim a => Prim (Maybe a) where
       _       ->  setOffAddrLoop# addr# o# n# mVal s
   {-# INLINE setOffAddr# #-}
 
-max# :: Int# -> Int# -> Int#
-max# x# y# =
+maxInt# :: Int# -> Int# -> Int#
+maxInt# x# y# =
   case x# <# y# of
     0# -> x#
     _  -> y#
-{-# INLINE max# #-}
+{-# INLINE maxInt# #-}
 
 type family MaxOrdering (o :: Ordering) (x :: Nat) (y :: Nat) where
   MaxOrdering 'LT x y = y
@@ -1526,9 +1526,9 @@ instance (Prim a, Prim b) => Prim (Either a b) where
   type PrimBase (Either a b) = Either a b
   type SizeOf (Either a b) = 1 + MaxOf (SizeOf a) (SizeOf b)
   type Alignment (Either a b) = 1 + MaxOf (Alignment a) (Alignment b)
-  sizeOf# _ = 1# +# max# (sizeOf# (proxy# :: Proxy# a)) (sizeOf# (proxy# :: Proxy# b))
+  sizeOf# _ = 1# +# maxInt# (sizeOf# (proxy# :: Proxy# a)) (sizeOf# (proxy# :: Proxy# b))
   {-# INLINE sizeOf# #-}
-  alignment# _ = 1# +# max# (alignment# (proxy# :: Proxy# a)) (alignment# (proxy# :: Proxy# b))
+  alignment# _ = 1# +# maxInt# (alignment# (proxy# :: Proxy# a)) (alignment# (proxy# :: Proxy# b))
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# =
     case indexInt8Array# ba# i# of
@@ -1569,10 +1569,10 @@ instance (Prim a, Prim b) => Prim (Either a b) where
         i1# = i# +# 1#
     in case eVal of
          Left a -> -- TODO: Optimize duplication away
-           setByteArray# mba# (i1# +# a#) (max# 0# (b# -# a#)) 0#
+           setByteArray# mba# (i1# +# a#) (maxInt# 0# (b# -# a#)) 0#
            (writeByteOffMutableByteArray# mba# i1# a (writeInt8Array# mba# i# 0# s))
          Right b ->
-           setByteArray# mba# (i1# +# b#) (max# 0# (a# -# b#)) 0#
+           setByteArray# mba# (i1# +# b#) (maxInt# 0# (a# -# b#)) 0#
            (writeByteOffMutableByteArray# mba# i1# b (writeInt8Array# mba# i# 1# s))
   {-# INLINE writeByteOffMutableByteArray# #-}
   writeMutableByteArray# mba# i# eVal s =
@@ -1583,14 +1583,15 @@ instance (Prim a, Prim b) => Prim (Either a b) where
   writeOffAddr# addr# i# eVal s =
     let a# = sizeOf# (proxy# :: Proxy# a)
         b# = sizeOf# (proxy# :: Proxy# b)
-        addr0# = addr# `plusAddr#` (i# *# (1# +# a# +# b#))
+        k# = sizeOf# (proxy# :: Proxy# (Either a b))
+        addr0# = addr# `plusAddr#` (i# *# k#)
         addr1# = addr0# `plusAddr#` 1#
     in case eVal of
          Left a  ->
-           setOffAddr# addr1# a# (max# 0# (b# -# a#)) (I8# 0#)
+           setOffAddr# addr1# a# (maxInt# 0# (b# -# a#)) (I8# 0#)
            (writeOffAddr# addr1# 0# a (writeInt8OffAddr# addr0# 0# 0# s))
          Right b ->
-           setOffAddr# addr1# b# (max# 0# (a# -# b#)) (I8# 0#)
+           setOffAddr# addr1# b# (maxInt# 0# (a# -# b#)) (I8# 0#)
            (writeOffAddr# addr1# 0# b (writeInt8OffAddr# addr0# 0# 1# s))
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#

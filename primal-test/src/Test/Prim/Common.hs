@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Prim.Common
   ( module X
   , propIO
@@ -12,15 +13,19 @@ module Test.Prim.Common
   ) where
 
 import Control.DeepSeq
+import Control.Prim.Monad as X
+import Data.Foldable as Foldable
+import Data.List as List
+import Data.Prim as X
+import Data.Prim.Memory.Internal
+import qualified Data.Prim.Memory.Text as T
+import Data.Proxy as X
+import Data.Typeable as X
 import Test.Hspec as X hiding (Arg(..))
 import Test.Hspec.QuickCheck as X
 import Test.QuickCheck as X hiding ((.&.))
 import Test.QuickCheck.Function as X
 import Test.QuickCheck.Monadic as X
-import Control.Prim.Monad as X
-import Data.Prim as X
-import Data.Typeable as X
-import Data.Proxy as X
 import UnliftIO.Exception (Exception(..), SomeException, catch, catchAny)
 
 
@@ -81,3 +86,13 @@ assertExpectedException = assertException (==ExpectedException)
 data ExpectedException = ExpectedException deriving (Show, Eq)
 
 instance Exception ExpectedException
+
+
+instance Eq T.Array where
+  b1 == b2 = eqMem b1 b2
+  {-# INLINE (==) #-}
+
+instance Show T.Array where
+  show b =
+    Foldable.foldr' ($) "]" $
+    ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsHexMem b))

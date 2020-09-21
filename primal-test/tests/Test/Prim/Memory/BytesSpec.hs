@@ -28,6 +28,7 @@ import Data.Functor.Identity
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Text
+import Data.Prim.Memory.ByteString
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr
 import Foreign.Prim.StablePtr
@@ -114,8 +115,9 @@ primTypeSpec ::
 primTypeSpec = do
   primSpec @'Pin @e
   primSpec @'Inc @e
-  -- memSpec @(MAddr e) @e
-  -- memSpec @MArray @e
+  memSpec @(MAddr e) @e
+  memSpec @MArray @e
+  memSpec @MByteString @e
 
 primBinarySpec ::
      forall (p :: Pinned). (Typeable p)
@@ -181,7 +183,7 @@ primBinarySpec = do
       prop "fromListN . toList" $ \(b :: Bytes p) ->
         b === fromListN (coerce (byteCountBytes b)) (toList b)
     describe "Show" $
-      prop "fromList . toList" $ \(b :: Bytes p) ->
+      prop "fromBuilder . toList" $ \(b :: Bytes p) ->
         show b ===
         BSL8.unpack (toLazyByteString $
            "[" <>
@@ -194,6 +196,9 @@ spec :: Spec
 spec = do
   primBinarySpec @'Pin
   primBinarySpec @'Inc
+  memBinarySpec @(MAddr Word8)
+  memBinarySpec @MArray
+  memBinarySpec @MByteString
   primTypeSpec @(Identity Word)
   primTypeSpec @(Down Word8)
   primTypeSpec @(Dual Word16)
