@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -226,10 +227,10 @@ instance Arbitrary ThreadStatus where
 
 
 -- Data.Monoid
-
+#if __GLASGOW_HASKELL__ >= 806
 instance Arbitrary (f a) => Arbitrary (Ap f a) where
   arbitrary = Ap <$> arbitrary
-
+#endif
 -- Data.Semigroup
 
 instance Arbitrary a => Arbitrary (Semigroup.First a) where
