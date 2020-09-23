@@ -21,6 +21,9 @@ matrix:
   - env: GHC="8.6.5" RESOLVER="lts-14.27"
     os: osx
 
+  - env: GHC="8.6.5" RESOLVER="lts-15.16"
+    os: osx
+
   - env: GHC="8.8.3" RESOLVER="lts-16"
     os: osx
 
@@ -38,6 +41,9 @@ matrix:
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: GHC="8.6.5" RESOLVER="lts-14.27" # COVERALLS_STACK_YAML="stack-extra-deps.yaml"
+    addons: {apt: {packages: [libgmp-dev]}}
+
+  - env: GHC="8.8.3" RESOLVER="lts-15.16"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: GHC="8.8.3" RESOLVER="lts-16"
