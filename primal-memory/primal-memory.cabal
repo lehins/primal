@@ -48,6 +48,7 @@ test-suite doctests
   hs-source-dirs:   tests
   main-is:          doctests.hs
   build-depends: base
+               , bytestring
                , doctest >=0.15
                , primal
                , primal-memory
