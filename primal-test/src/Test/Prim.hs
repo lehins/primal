@@ -373,7 +373,9 @@ data APrimType
   | ATuple9 APrimType APrimType APrimType APrimType APrimType APrimType APrimType APrimType APrimType
   | AArg APrimType APrimType
   | AConst APrimType
+#if __GLASGOW_HASKELL__ >= 806
   | AAp APrimType
+#endif
   | AAlt APrimType
   | ACompose APrimType
   deriving Show
@@ -507,7 +509,9 @@ instance Arbitrary APrimType where
           arbitrary)
       , (1, AArg <$> arbitrary <*> arbitrary)
       , (1, AConst <$> arbitrary)
+#if __GLASGOW_HASKELL__ >= 806
       , (1, AAp <$> arbitrary)
+#endif
       , (1, AAlt <$> arbitrary)
       , (1, ACompose <$> arbitrary)
       ]
@@ -684,8 +688,10 @@ withAPrimType ty f =
         withAPrimType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Arg t1 t2))
     AConst t ->
       withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Const t ()))
+#if __GLASGOW_HASKELL__ >= 806
     AAp t ->
       withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Ap Maybe t))
+#endif
     AAlt t ->
       withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Alt Maybe t))
     ACompose t ->
