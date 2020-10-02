@@ -691,7 +691,15 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- comes to type inference.
   type FrozenMem ma = (fm :: Type) | fm -> ma
 
-  -- | Extract from the mutable memory region information about how many bytes it can hold.
+  -- | Extract the number of bytes a mutable memory region can hold, i.e. what is the
+  -- total allocated size for this region. The size of a region can be changes and in some
+  -- circuimstances even in place without copy, see `resizeMem` for more info.
+  --
+  -- ====__Examples__
+  --
+  -- >>> m <- allocMem (10 :: Count Int64) :: IO (MBytes 'Pin RW)
+  -- >>> getByteCountMem m
+  -- Count {unCount = 80}
   --
   -- @since 0.1.0
   getByteCountMem :: MonadPrim s m => ma s -> m (Count Word8)
@@ -1371,6 +1379,8 @@ convertMem a = runST $ thawCloneMem a >>= freezeMem
 -- Count {unCount = 3}
 -- >>> countMem b :: Count Word32
 -- Count {unCount = 1}
+-- >>> countMem b :: Count Word64
+-- Count {unCount = 0}
 --
 -- @since 0.1.0
 countMem ::
@@ -1380,7 +1390,8 @@ countMem ::
 countMem = fromByteCount . byteCountMem
 {-# INLINE countMem #-}
 
--- | Compute how many elements and a byte size remainder that can fit into the region of memory.
+-- | Figure out how many elements and a byte size remainder can fit into the immutable
+-- region of memory.
 --
 -- ====__Examples__
 --
@@ -1391,17 +1402,54 @@ countMem = fromByteCount . byteCountMem
 -- (Count {unCount = 3},Count {unCount = 0})
 -- >>> countRemMem @Word32 b
 -- (Count {unCount = 1},Count {unCount = 2})
+-- >>> countRemMem @Word64 b
+-- (Count {unCount = 0},Count {unCount = 6})
 --
 -- @since 0.1.0
 countRemMem :: forall e mr. (MemRead mr, Prim e) => mr -> (Count e, Count Word8)
 countRemMem = fromByteCountRem . byteCountMem
 {-# INLINE countRemMem #-}
 
+-- | Figure out how many elements fits into the mutable region of memory. Similar to
+-- `countMem`, except that it is not a pure funciton, since the size of mutable memory can
+-- change throuhout its lifetime. It is possible that there is a remainder of bytes left,
+-- see `getCountRemMem` for getting that too.
+--
+-- ====__Examples__
+--
+-- >>> mb <- thawMem (fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin)
+-- >>> getCountMem mb :: IO (Count Word16)
+-- Count {unCount = 3}
+-- >>> getCountMem mb :: IO (Count Word32)
+-- Count {unCount = 1}
+-- >>> getCountMem mb :: IO (Count Word64)
+-- Count {unCount = 0}
+-- >>> mb' <- resizeMem mb (6 :: Count Word64)
+-- >>> getCountMem mb' :: IO (Count Word32)
+-- Count {unCount = 12}
+--
+-- @since 0.1.0
 getCountMem :: forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e) => ma s -> m (Count e)
 getCountMem = fmap (fromByteCount . coerce) . getByteCountMem
 {-# INLINE getCountMem #-}
 
 
+-- | Figure out how many elements and a byte size remainder can fit into the mutable
+-- region of memory. Similar to `countRemMem`, except it is a monadic action for mutable
+-- regions instead of a pure function for immutable memory. See `getCountMem` for getting
+-- the element count only.
+--
+-- ====__Examples__
+--
+-- >>> b <- thawMem (fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin)
+-- >>> getCountRemMem @Word16 b
+-- (Count {unCount = 3},Count {unCount = 0})
+-- >>> getCountRemMem @Word32 b
+-- (Count {unCount = 1},Count {unCount = 2})
+-- >>> getCountRemMem @Word64 b
+-- (Count {unCount = 0},Count {unCount = 6})
+--
+-- @since 0.1.0
 getCountRemMem ::
      forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
   => ma s

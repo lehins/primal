@@ -96,7 +96,7 @@ class PtrAccess s p where
   withNoHaltPtrAccess p action = toForeignPtr p >>= (`withNoHaltForeignPtr` action)
   {-# INLINE withNoHaltPtrAccess #-}
 
-instance PtrAccess s (ForeignPtr a) where
+instance PtrAccess RealWorld (ForeignPtr a) where
   toForeignPtr = pure . coerce
   {-# INLINE toForeignPtr #-}
 
@@ -133,6 +133,7 @@ instance PtrAccess s (MBytes 'Pin s) where
   {-# INLINE withPtrAccess #-}
   withNoHaltPtrAccess = withNoHaltPtrMBytes
   {-# INLINE withNoHaltPtrAccess #-}
+
 
 
 -- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from

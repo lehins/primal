@@ -60,9 +60,9 @@ module Data.Prim.Memory
   , MemAlloc(FrozenMem)
   , MemState(..)
   -- ** Size
-  , getCountMem               -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , getCountRemMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , getByteCountMem           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , getCountMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , getCountRemMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , getByteCountMem           -- DOC: [x], DOCTEST [x], TEST: [ ]
   -- ** Read
   , readOffMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , readByteOffMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
