@@ -259,7 +259,6 @@ specAtomicMRef ::
      , Show (Elt mut)
      , Arbitrary (Elt mut)
      , AtomicMRef mut
-     , Typeable mut
      )
   => Spec
 specAtomicMRef =

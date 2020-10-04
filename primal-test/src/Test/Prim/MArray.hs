@@ -83,7 +83,7 @@ instance MArray mut => MArray (MEMArray mut) where
 instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (MEArray mut) where
   arbitrary = do
     NonNegative n <- arbitrary
-    xs :: [e] <- vectorOf n arbitrary
+    xs :: [Elt mut] <- vectorOf n arbitrary
     pure $
       MEArray xs $
       createArrayST_ (Size n) $ \ma ->
@@ -179,7 +179,7 @@ instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (NEArrayIx mut) where
     Positive n <- arbitrary
     NonNegative k <- arbitrary
     let i = k `mod` n
-    xs :: [e] <- vectorOf n arbitrary
+    xs :: [Elt mut] <- vectorOf n arbitrary
     pure $
       NEArrayIx i xs $
       createArrayST_ (Size n) $ \ma -> zipWithM_ (writeMArray ma) [0 ..] xs

@@ -1457,15 +1457,21 @@ getCountRemMem ::
 getCountRemMem = fmap (fromByteCountRem . coerce) . getByteCountMem
 {-# INLINE getCountRemMem #-}
 
-
+-- | Allocate the same amount of memory as the source memory region and copy all of its
+-- data over.
+--
+-- ====__Examples__
+--
+-- @since 0.1.0
 clone ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
   -> m (ma s)
-clone mb = do
-  n <- getByteCountMem mb
-  mb' <- allocMem n
-  mb' <$ moveMem mb 0 mb' 0 n
+clone mm = do
+  fm <- freezeMem mm
+  let n = byteCountMem fm
+  mm' <- allocMem n
+  mm' <$ copyMem fm 0 mm' 0 n
 {-# INLINE clone #-}
 
 -- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
