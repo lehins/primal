@@ -74,7 +74,8 @@ script:
   # ^ ensure file modification timestamp matches the time it was committed.
   stack $ARGS test --no-run-tests $BUILD_ARGS
   # ^ ensure everything else beside test suite gets built as well.
-  stack $ARGS test primal-test:tests-O0 primal-test:tests-O1 $BUILD_ARGS
+  stack $ARGS test primal-test:memory-tests-O0 primal-test:memory-tests-O1 $BUILD_ARGS
+  # stack $ARGS test primal-test:mutable-tests-O0 primal-test:mutable-tests-O1 $BUILD_ARGS
   if [ -n "${COVERALLS_STACK_YAML}" ]; then
      stack $ARGS hpc report --all
      STACK_YAML="${COVERALLS_STACK_YAML}" ./shc --partial-coverage --fetch-coverage combined custom
