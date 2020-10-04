@@ -16,8 +16,9 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory.Bytes
-  ( -- * Mutable
-    Bytes
+  ( module Data.Prim
+    -- * Mutable
+  , Bytes
   , toByteArray#
   , fromByteArray#
   , cloneBytes
@@ -146,7 +147,6 @@ module Data.Prim.Memory.Bytes
   , prefetchMBytes2
   , prefetchBytes3
   , prefetchMBytes3
-  , module Data.Prim
   -- * Helpers
   ) where
 
@@ -158,25 +158,35 @@ import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
 import Foreign.Prim
 
--- | Wrap `ByteArray#` into `Bytes`
+-- | Unwrap `Bytes` to get the underlying `ByteArray#`.
+--
+-- @since 0.1.0
 toByteArray# :: Bytes p -> ByteArray#
 toByteArray# (Bytes b#) = b#
 
--- | Unwrap `Bytes` to get the underlying `ByteArray#`.
+-- | Wrap `ByteArray#` into `Bytes`
+--
+-- @since 0.1.0
 fromByteArray# :: ByteArray# -> Bytes 'Inc
 fromByteArray# = Bytes
 
--- | Wrap `MutableByteArray#` into `MBytes`
+-- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
+--
+-- @since 0.1.0
 toMutableByteArray# :: MBytes p s -> MutableByteArray# s
 toMutableByteArray# (MBytes mb#) = mb#
 
--- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
+-- | Wrap `MutableByteArray#` into `MBytes`
+--
+-- @since 0.1.0
 fromMutableByteArray# :: MutableByteArray# s -> MBytes 'Inc s
 fromMutableByteArray# = MBytes
 
 
 
 -- | Check if two mutable bytes pointers refer to the same memory
+--
+-- @since 0.1.0
 isSameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool
 isSameMBytes (MBytes mb1#) (MBytes mb2#) = isTrue# (sameMutableByteArray# mb1# mb2#)
 {-# INLINE isSameMBytes #-}

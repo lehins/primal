@@ -131,7 +131,7 @@ class MemRead mr where
     --
     -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -180,7 +180,7 @@ class MemRead mr where
     -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
     -- memory region @memTargetWrite@
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -222,8 +222,8 @@ class MemRead mr where
     --
     -- Once the pointer is advanced by @memOff2@ it must still refer to the same memory
     -- region @memRead2@
-    -> Count e -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
-    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    -> Count e -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
+    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
     --
     -- /__Preconditions:__/
     --
@@ -260,7 +260,7 @@ class MemRead mr where
     --
     -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
     --
     -- /__Preconditions:__/
     --
@@ -309,7 +309,7 @@ class MemRead mr where
     --
     -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to compare as binary
+    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
     --
     -- /__Preconditions:__/
     --
@@ -460,7 +460,7 @@ class MemWrite mw where
     -- > targetByteCount <- getByteCountMem memTarget
     -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -518,7 +518,7 @@ class MemWrite mw where
     -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
     -- memory region @memTarget@
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -567,7 +567,7 @@ class MemWrite mw where
     -- > targetByteCount <- getByteCountMem memTargetWrite
     -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -621,7 +621,7 @@ class MemWrite mw where
     -- > targetByteCount <- getByteCountMem memTarget
     -- > unOffBytes (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
     -> Count e
-    -- ^ /memCount/ - Number of elements of type @e@ to copy
+    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
     --
     -- /__Preconditions:__/
     --
@@ -1173,7 +1173,7 @@ createZeroMemST_ ::
      forall e ma b. (MemAlloc ma, Prim e)
   => Count e
   -- ^ /memCount/ - Size of the newly allocated memory region in number of elements of
-  -- type @e@
+  -- type __@e@__
   --
   -- /__Precoditions:__/
   --
@@ -1233,9 +1233,10 @@ cloneMem fm =
 -- @since 0.1.0
 copyMem ::
      (MonadPrim s m, MemRead mr, MemWrite mw, Prim e)
-  => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
+  => mr -- ^ /memSourceRead/ - Read-only source memory region from which the data will
+        -- copied
   -> Off e
-  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type @e@
+  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
   --
   -- /__Preconditions:__/
   --
@@ -1256,7 +1257,7 @@ copyMem ::
   -- > targetCount <- getCountMem memTargetWrite
   -- > unOff memTargetOff < unCount targetCount
   -> Count e
-  -- ^ /memCount/ - Number of elements of type @e@ to copy
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -1490,6 +1491,8 @@ eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
 -- than or greater than respectfully in the first region when compared to the second
 -- one. It is safe for both regions to refer to the same part of memory, since this is a
 -- pure function and both regions of memory are read-only.
+--
+-- @since 0.1.0
 compareMem ::
      forall e mr1 mr2. (MemRead mr1, MemRead mr2, Prim e)
   => mr1 -- ^ First region of memory
@@ -1778,7 +1781,7 @@ loadListByteOffHelper ys mw byteOff k step =
 -- >>> freezeMem ma
 -- [0x00,0x00,0x00,0x00,0x48,0x00,0x00,0x00,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 --
--- Or something more usful like loading prefixes from nested lists:
+-- Or something more useful like loading prefixes from nested lists:
 --
 -- >>> import Control.Monad
 -- >>> foldM_ (\o xs -> (+ o) . countToByteOff . snd <$> loadListByteOffMemN 4 xs ma o) 2 [[x..] | x <- [1..5] :: [Word8]]

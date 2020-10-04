@@ -23,7 +23,6 @@ import Control.Prim.Monad
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
-import Data.Monoid
 import Data.Functor.Identity
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
