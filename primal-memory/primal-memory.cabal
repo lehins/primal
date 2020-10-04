@@ -95,4 +95,4 @@ benchmark convert
 
 source-repository head
   type:     git
-  location: https://github.com/lehins/prim-bytes
+  location: https://github.com/lehins/primal

@@ -365,7 +365,7 @@ modifyRefLazyM ref f = do
 ------------
 -- Atomic --
 ------------
-data Unit a = Unit a
+--data Unit a = Unit a
 
 -- | Evaluate a value and write it atomically into a `Ref`. This is different from
 -- `writeRef` because [a memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)
