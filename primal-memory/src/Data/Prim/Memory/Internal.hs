@@ -1013,7 +1013,7 @@ defaultResizeMem mem c = do
     else do
       newMem <- allocMem newByteCount
       oldMem <- freezeMem mem
-      newMem <$ copyMem oldMem 0 newMem 0 oldByteCount
+      newMem <$ copyMem oldMem 0 newMem 0 (min oldByteCount newByteCount)
 {-# INLINE defaultResizeMem #-}
 
 
@@ -1321,8 +1321,8 @@ concatMem xs = do
 
 
 thawCopyMem ::
-     forall e mr ma m s. (Prim e, MemRead mr, MemAlloc ma, MonadPrim s m)
-  => mr
+     forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
+  => FrozenMem ma
   -> Off e
   -> Count e
   -> m (ma s)
@@ -1342,8 +1342,8 @@ freezeCopyMem mem off c = freezeMem mem >>= \r -> thawCopyMem r off c >>= freeze
 
 
 thawCloneMem ::
-     forall mr ma m s. (MemRead mr, MemAlloc ma, MonadPrim s m)
-  => mr
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => FrozenMem ma
   -> m (ma s)
 thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 {-# INLINE thawCloneMem #-}
@@ -1359,7 +1359,7 @@ freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
 -- memory region
 --
 -- >>> import Data.ByteString (pack)
--- >>> bs = pack [0x10 .. 0x20]
+-- >>> let bs = pack [0x10 .. 0x20]
 -- >>> bs
 -- "\DLE\DC1\DC2\DC3\DC4\NAK\SYN\ETB\CAN\EM\SUB\ESC\FS\GS\RS\US "
 -- >>> convertMem bs :: Bytes 'Inc
@@ -1367,7 +1367,9 @@ freezeCloneMem = freezeMem >=> thawCloneMem >=> freezeMem
 --
 -- @since 0.1.0
 convertMem :: (MemRead mr, MemAlloc ma) => mr -> FrozenMem ma
-convertMem a = runST $ thawCloneMem a >>= freezeMem
+convertMem m =
+  let c = byteCountMem m
+   in createMemST_ c (\mm -> copyMem m 0 mm 0 c)
 {-# INLINE convertMem #-}
 
 -- | Figure out how many elements fits into the immutable region of memory. It is
@@ -1376,7 +1378,7 @@ convertMem a = runST $ thawCloneMem a >>= freezeMem
 --
 -- ====__Examples__
 --
--- >>> b = fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin
+-- >>> let b = fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin
 -- >>> b
 -- [0x00,0x01,0x02,0x03,0x04,0x05]
 -- >>> countMem b :: Count Word16
@@ -1399,7 +1401,7 @@ countMem = fromByteCount . byteCountMem
 --
 -- ====__Examples__
 --
--- >>> b = fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin
+-- >>> let b = fromListMem [0 .. 5 :: Word8] :: Bytes 'Pin
 -- >>> b
 -- [0x00,0x01,0x02,0x03,0x04,0x05]
 -- >>> countRemMem @Word16 b
@@ -1545,7 +1547,7 @@ toListMem ba = build (\ c n -> foldrCountMem (countMem ba) c n ba)
 --
 -- >>> import Data.Word
 -- >>> :set -XDataKinds
--- >>> a = fromListMem [0 .. 10 :: Word8] :: Bytes 'Pin
+-- >>> let a = fromListMem [0 .. 10 :: Word8] :: Bytes 'Pin
 -- >>> a
 -- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
 -- >>> toListSlackMem a :: ([Word8], [Word8])

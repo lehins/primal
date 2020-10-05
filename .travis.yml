@@ -15,10 +15,10 @@ cache:
 matrix:
   include:
 
-  - env: GHC="8.4.4" RESOLVER="lts-12.26" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.4.4" RESOLVER="lts-12.26" STACK_YAML="stack-extra.yaml"
     os: osx
 
-  - env: GHC="8.6.5" RESOLVER="lts-14.27" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.6.5" RESOLVER="lts-14.27" STACK_YAML="stack-extra.yaml"
     os: osx
 
   # Some issue with installing ghc
@@ -29,25 +29,25 @@ matrix:
   #   os: osx
 
 
-  - env: GHC="8.0.2" RESOLVER="lts-9.21" STACK_YAML="stack-lts-11.22.yaml" DISABLE_BENCHMARKS="true" DISABLE_DOCTESTS="true"
+  - env: GHC="8.0.2" RESOLVER="lts-9.21" STACK_YAML="stack-extra.yaml" DISABLE_BENCHMARKS="true" DISABLE_DOCTESTS="true"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.2.2" RESOLVER="lts-11.22" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.2.2" RESOLVER="lts-11.22" STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.4.3" RESOLVER="lts-12.14" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.4.3" RESOLVER="lts-12.14" STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.4.4" RESOLVER="lts-12.26" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.4.4" RESOLVER="lts-12.26" STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.6.3" RESOLVER="lts-13.9" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.6.3" RESOLVER="lts-13.9" STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.6.4" RESOLVER="lts-13.19" STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.6.4" RESOLVER="lts-13.19" STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: GHC="8.6.5" RESOLVER="lts-14.27" STACK_YAML="stack-lts-11.22.yaml" COVERALLS_STACK_YAML="stack-lts-11.22.yaml"
+  - env: GHC="8.6.5" RESOLVER="lts-14.27" COVERALLS_STACK_YAML="stack-extra.yaml"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: GHC="8.8.3" RESOLVER="lts-15.16" DISABLE_DOCTESTS="true"
