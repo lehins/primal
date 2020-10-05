@@ -1,8 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Main (main) where
 
 import GHC.Exts
@@ -14,8 +15,13 @@ import Data.Prim.Memory.Ptr
 import Control.Prim.Monad
 import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
-import qualified Control.Monad.Primitive as BA
 import Foreign.Storable as S
+import Foreign.ForeignPtr
+import GHC.ForeignPtr
+import Control.DeepSeq
+
+instance NFData (ForeignPtr a) where
+  rnf !_ = ()
 
 main :: IO ()
 main = do
@@ -102,16 +108,12 @@ main = do
             ]
         , bgroup
             "peek"
-            [ benchPeek (Proxy :: Proxy Word8) mb1 mba
-            , benchPeek (Proxy :: Proxy Word16) mb1 mba
-            , benchPeek (Proxy :: Proxy Word32) mb1 mba
-            , benchPeek (Proxy :: Proxy Word64) mb1 mba
-            , benchPeek (Proxy :: Proxy Char) mb1 mba
-            , bgroup
-                "Bool"
-                [ bench "Bytes" $
-                  whnfIO (withPtrMBytes mb1 (readPtr :: Ptr Bool -> IO Bool))
-                ]
+            [ env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Word8) mb1)
+            , env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Word16) mb1)
+            , env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Word32) mb1)
+            , env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Word64) mb1)
+            , env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Char) mb1)
+            , env mallocPlainForeignPtr (benchPeek (Proxy :: Proxy Bool) mb1)
             ]
         ]
     ]
@@ -145,20 +147,16 @@ benchRead px mb mba =
   where i = 100
 
 benchPeek ::
-     forall a. (Typeable a, Prim a, BA.Prim a)
+     forall a. (Typeable a, Prim a, S.Storable a)
   => Proxy a
   -> MBytes 'Pin RealWorld
-  -> BA.MutableByteArray RealWorld
+  -> ForeignPtr a
   -> Benchmark
-benchPeek px mb mba =
+benchPeek px mb fptr =
   bgroup
     (showsType px "")
     [ bench "Bytes" $ whnfIO $ withPtrMBytes mb (readPtr :: Ptr a -> IO a)
-    , bench "ByteArray" $
-      whnfIO $ do
-        let ptr = BA.mutableByteArrayContents mba
-        res <- S.peek ptr
-        res <$ BA.touch mba
+    , bench "ForeignPtr" $ whnfIO $ withForeignPtr fptr S.peek
     ]
 
 setBytesBench ::
