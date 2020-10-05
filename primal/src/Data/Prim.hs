@@ -287,8 +287,8 @@ offForType c _ = c
 -- | Cast an offset to count. Useful for dealing with regions.
 --
 -- >>> import Data.Prim
--- >>> totalCount = Count 10 :: Count Word
--- >>> startOffset = Off 4 :: Off Word
+-- >>> let totalCount = Count 10 :: Count Word
+-- >>> let startOffset = Off 4 :: Off Word
 -- >>> totalCount - offToCount startOffset
 -- Count {unCount = 6}
 --
