@@ -396,8 +396,8 @@ instance MemAlloc (MAddr e) where
   {-# INLINE thawMem #-}
   freezeMem = freezeMAddr
   {-# INLINE freezeMem #-}
-  resizeMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
-  {-# INLINE resizeMem #-}
+  reallocMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
+  {-# INLINE reallocMem #-}
 
 
 instance MemRead (Addr e) where

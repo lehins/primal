@@ -1,5 +1,11 @@
 # Changelog for primal-memory
 
+## 0.3.0
+
+* Rename `resizeMem` -> `reallocMem`
+* Export `defaultReallocMem`
+
+
 ## 0.2.0
 
 * Rename `ByteArray` -> `PrimArray`

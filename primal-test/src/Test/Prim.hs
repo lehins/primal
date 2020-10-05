@@ -570,7 +570,9 @@ withAPrimType ty f =
     ACFsFilCnt px -> f px
     ACId px -> f px
     ACKey px -> f px
+#if defined(HTYPE_TIMER_T)
     ACTimer px -> f px
+#endif
     AFd px -> f px
     AErrno px -> f px
     ABufferMode px -> f px

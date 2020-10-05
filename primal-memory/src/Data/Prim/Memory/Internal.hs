@@ -693,7 +693,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
 
   -- | Extract the number of bytes a mutable memory region can hold, i.e. what is the
   -- total allocated size for this region. The size of a region can be changes and in some
-  -- circuimstances even in place without copy, see `resizeMem` for more info.
+  -- circuimstances even in place without copy, see `reallocMem` for more info.
   --
   -- ====__Examples__
   --
@@ -760,11 +760,13 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- anymore. Moreover, no reference to the old one should be kept in order to allow
   -- garbage collection of the original in case a new one had to be allocated.
   --
+  -- Default implementation is `defaultReallocMem`
+  --
   -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. The same unsafety
-  -- notice from `allocMem` with regards to @memCount@ is applcable here as well.
+  -- notice from `allocMem` with regards to @memCount@ is applicable here as well.
   --
   -- @since 0.1.0
-  resizeMem :: (MonadPrim s m, Prim e)
+  reallocMem :: (MonadPrim s m, Prim e)
     => ma s
     -- ^ /memSource/ - Source memory region to resize
     -> Count e
@@ -776,8 +778,8 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
     --
     -- Should be less then available physical memory
     -> m (ma s)
-  resizeMem = defaultResizeMem
-  {-# INLINE resizeMem #-}
+  reallocMem = defaultReallocMem
+  {-# INLINE reallocMem #-}
 
 
 instance MemRead ByteString where
@@ -818,12 +820,12 @@ instance MemAlloc MByteString where
   {-# INLINE thawMem #-}
   freezeMem (MByteString bs) = pure bs
   {-# INLINE freezeMem #-}
-  resizeMem bsm@(MByteString (PS fp o n)) newc
-    | newn > n = defaultResizeMem bsm newc
+  reallocMem bsm@(MByteString (PS fp o n)) newc
+    | newn > n = defaultReallocMem bsm newc
     | otherwise = pure $ MByteString (PS fp o newn)
     where -- constant time slice if we need to reduce the size
       Count newn = toByteCount newc
-  {-# INLINE resizeMem #-}
+  {-# INLINE reallocMem #-}
 
 instance MemWrite MByteString where
   readOffMem (MByteString mbs) i = withPtrAccess mbs (`readOffPtr` i)
@@ -877,8 +879,8 @@ instance MemAlloc T.MArray where
   {-# INLINE thawMem #-}
   freezeMem = fmap T.fromBytesArray . freezeMBytes . T.toMBytesMArray
   {-# INLINE freezeMem #-}
-  resizeMem m = fmap T.fromMBytesMArray . reallocMBytes (T.toMBytesMArray m)
-  {-# INLINE resizeMem #-}
+  reallocMem m = fmap T.fromMBytesMArray . reallocMBytes (T.toMBytesMArray m)
+  {-# INLINE reallocMem #-}
 
 instance MemWrite T.MArray where
   readOffMem m = readOffMBytes (T.toMBytesMArray m)
@@ -1002,16 +1004,18 @@ modifyFetchNewMemM mem o f = do
   a' <$ writeOffMem mem o a'
 {-# INLINE modifyFetchNewMemM #-}
 
--- | An action that can be used as a default implementation for `resizeMem`. Whenever
+-- | An action that can be used as a default implementation for `reallocMem`. Whenever
 -- current memory region byte count matches the supplied new size exactly then such memory
 -- region is simply returned back and this function is a noop. Otherwise a new memory
 -- region is allocated and all the data that can fit into the new region will be copied
 -- over.
 --
+-- [Unsafe] Same unsafety notice as in `reallocMem`
+--
 -- @since 0.3.0
-defaultResizeMem ::
+defaultReallocMem ::
      (Prim e, MemAlloc ma, MonadPrim s m) => ma s -> Count e -> m (ma s)
-defaultResizeMem mem c = do
+defaultReallocMem mem c = do
   let newByteCount = toByteCount c
   oldByteCount <- getByteCountMem mem
   if oldByteCount == newByteCount
@@ -1020,7 +1024,7 @@ defaultResizeMem mem c = do
       newMem <- allocMem newByteCount
       oldMem <- freezeMem mem
       newMem <$ copyMem oldMem 0 newMem 0 (min oldByteCount newByteCount)
-{-# INLINE defaultResizeMem #-}
+{-# INLINE defaultReallocMem #-}
 
 
 -- | Place @n@ copies of supplied region of memory one after another in a newly allocated
@@ -1436,7 +1440,7 @@ countRemMem = fromByteCountRem . byteCountMem
 -- Count {unCount = 1}
 -- >>> getCountMem mb :: IO (Count Word64)
 -- Count {unCount = 0}
--- >>> mb' <- resizeMem mb (6 :: Count Word64)
+-- >>> mb' <- reallocMem mb (6 :: Count Word64)
 -- >>> getCountMem mb' :: IO (Count Word32)
 -- Count {unCount = 12}
 --
@@ -2319,8 +2323,8 @@ instance Typeable p => MemAlloc (MBytes p) where
   {-# INLINE thawMem #-}
   freezeMem = freezeMBytes
   {-# INLINE freezeMem #-}
-  resizeMem = reallocMBytes
-  {-# INLINE resizeMem #-}
+  reallocMem = reallocMBytes
+  {-# INLINE reallocMem #-}
 
 instance MemWrite (MBytes p) where
   readOffMem = readOffMBytes

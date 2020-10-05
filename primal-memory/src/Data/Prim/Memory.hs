@@ -83,7 +83,8 @@ module Data.Prim.Memory
   , freezeMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , freezeCloneMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCopyMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , resizeMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , reallocMem                -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , defaultReallocMem         -- DOC: [x], DOCTEST [ ], TEST: [x]
   , withScrubbedMem           -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , moveMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]

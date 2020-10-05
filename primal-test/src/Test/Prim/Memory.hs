@@ -405,20 +405,20 @@ prop_loadListMem xs (NonNegative c) =
         zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) (take n offs) xs
 
 
-prop_resizeMem ::
+prop_reallocMem ::
      forall ma e. (MemAlloc ma, Show e, Prim e, Eq e)
   => Mem ma e
   -> NonNegative Int
   -> APrimType
   -> Property
-prop_resizeMem (Mem xs fm) (NonNegative n) pt =
+prop_reallocMem (Mem xs fm) (NonNegative n) pt =
   propIO $ do
     mm <- thawCloneMem fm
     withAPrimType pt $ \ aPrimProxy -> do
       let c' = Count n `countForProxyTypeOf` aPrimProxy
           c8' = toByteCount c'
       c8 <- getByteCountMem mm
-      mm' <- resizeMem mm c'
+      mm' <- reallocMem mm c'
       getByteCountMem mm' `shouldReturn` c8'
       fm' <- freezeMem mm'
       compareMem fm 0 fm' 0 (min c8 c8') `shouldBe` EQ
@@ -460,7 +460,7 @@ memSpec = do
     prop "copyMem" $ prop_copyMem @ma @e
     prop "moveMem" $ prop_moveMem @ma @e
     prop "setMem" $ prop_setMem @ma @e
-    prop "resizeMem" $ prop_resizeMem @ma @e
+    prop "reallocMem" $ prop_reallocMem @ma @e
     describe "List" $ do
       describe "Conversion" $ do
         prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs

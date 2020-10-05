@@ -93,8 +93,8 @@ instance Typeable p => MemAlloc (MPrimArray p e) where
   {-# INLINE thawMem #-}
   freezeMem = freezeMPrimArray
   {-# INLINE freezeMem #-}
-  resizeMem mba = fmap fromMBytesMPrimArray . reallocMBytes (toMBytesMPrimArray mba)
-  {-# INLINE resizeMem #-}
+  reallocMem mba = fmap fromMBytesMPrimArray . reallocMBytes (toMBytesMPrimArray mba)
+  {-# INLINE reallocMem #-}
 
 instance (Typeable p, Prim e) => IsList (PrimArray p e) where
   type Item (PrimArray p e) = e
