@@ -1200,11 +1200,13 @@ createZeroMemST_ n f = runST (allocZeroMem n >>= \m -> f m >> freezeMem m)
 --
 -- >>> :set -XDataKinds
 -- >>> import Data.Prim.Memory
--- >>> import Data.Prim.Bytes
+-- >>> import Data.Prim.Memory.Bytes
 -- >>> let xs = fromByteListMem @(MBytes 'Pin) [0..15] :: Bytes 'Pin
 -- >>> let ys = cloneMem xs
 -- >>> let report bEq pEq = print $ "Bytes equal: " ++ show bEq ++ ", their pointers equal: " ++ show pEq
 -- >>> withPtrBytes xs $ \ xsPtr -> withPtrBytes ys $ \ ysPtr -> report (xs == ys) (xsPtr == ysPtr)
+-- "Bytes equal: True, their pointers equal: False"
+-- >>> report (eqMem xs ys) (isSameBytes xs ys)
 -- "Bytes equal: True, their pointers equal: False"
 --
 -- @since 0.2.0
