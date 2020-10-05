@@ -100,7 +100,7 @@ prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
         let tOff = Off k `offForType` e
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
-              mm <- thawCloneMem @_ @ma fm
+              mm <- thawCloneMem fm
               writeOffMem mm tOff e
               fm' <- freezeMem mm
               indexOffMem fm' tOff `shouldBe` e
@@ -119,7 +119,7 @@ prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
         let tOff = Off k
           -- test precondition from documentation
          in (unOff tOff <= unCount (byteCountMem fm - byteCount a)) ==> do
-              mm <- thawCloneMem @_ @ma fm
+              mm <- thawCloneMem fm
               writeByteOffMem mm tOff a
               fm' <- freezeMem mm
               indexByteOffMem fm' tOff `shouldBe` a
@@ -405,6 +405,27 @@ prop_loadListMem xs (NonNegative c) =
         zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) (take n offs) xs
 
 
+prop_resizeMem ::
+     forall ma e. (MemAlloc ma, Show e, Prim e, Eq e)
+  => Mem ma e
+  -> NonNegative Int
+  -> APrimType
+  -> Property
+prop_resizeMem (Mem xs fm) (NonNegative n) pt =
+  propIO $ do
+    mm <- thawCloneMem fm
+    withAPrimType pt $ \ aPrimProxy -> do
+      let c' = Count n `countForProxyTypeOf` aPrimProxy
+          c8' = toByteCount c'
+      c8 <- getByteCountMem mm
+      mm' <- resizeMem mm c'
+      getByteCountMem mm' `shouldReturn` c8'
+      fm' <- freezeMem mm'
+      compareMem fm 0 fm' 0 (min c8 c8') `shouldBe` EQ
+      let ce' = countMem fm' `countForProxyTypeOf` xs
+      zipWithM_ (\off x -> indexOffMem fm' off `shouldBe` x) [0 .. countToOff ce' - 1] xs
+
+
 memSpec ::
      forall ma e.
      ( Arbitrary e
@@ -439,6 +460,7 @@ memSpec = do
     prop "copyMem" $ prop_copyMem @ma @e
     prop "moveMem" $ prop_moveMem @ma @e
     prop "setMem" $ prop_setMem @ma @e
+    prop "resizeMem" $ prop_resizeMem @ma @e
     describe "List" $ do
       describe "Conversion" $ do
         prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs

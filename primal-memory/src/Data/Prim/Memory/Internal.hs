@@ -1002,7 +1002,13 @@ modifyFetchNewMemM mem o f = do
   a' <$ writeOffMem mem o a'
 {-# INLINE modifyFetchNewMemM #-}
 
-
+-- | An action that can be used as a default implementation for `resizeMem`. Whenever
+-- current memory region byte count matches the supplied new size exactly then such memory
+-- region is simply returned back and this function is a noop. Otherwise a new memory
+-- region is allocated and all the data that can fit into the new region will be copied
+-- over.
+--
+-- @since 0.3.0
 defaultResizeMem ::
      (Prim e, MemAlloc ma, MonadPrim s m) => ma s -> Count e -> m (ma s)
 defaultResizeMem mem c = do
