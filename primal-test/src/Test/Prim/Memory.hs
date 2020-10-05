@@ -100,29 +100,29 @@ prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
         let tOff = Off k `offForType` e
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
-              mm <- thawMem fm
+              mm <- thawCloneMem @_ @ma fm
               writeOffMem mm tOff e
               fm' <- freezeMem mm
               indexOffMem fm' tOff `shouldBe` e
     ]
 
 prop_indexByteOffMem ::
-     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
-  => NEMem a e
+     forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
+  => NEMem ma e
   -> NonNegative Int
   -> APrim
   -> Property
 prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
   conjoin
     [ propIO (indexByteOffMem fm (toByteOff off) `shouldBe` xs !! o)
-    , withAPrim aPrim $ \e ->
+    , withAPrim aPrim $ \a ->
         let tOff = Off k
           -- test precondition from documentation
-         in (unOff tOff <= unCount (byteCountMem fm - byteCount e)) ==> do
-              mm <- thawMem fm
-              writeByteOffMem mm tOff e
+         in (unOff tOff <= unCount (byteCountMem fm - byteCount a)) ==> do
+              mm <- thawCloneMem @_ @ma fm
+              writeByteOffMem mm tOff a
               fm' <- freezeMem mm
-              indexByteOffMem fm' tOff `shouldBe` e
+              indexByteOffMem fm' tOff `shouldBe` a
     ]
 
 

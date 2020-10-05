@@ -19,7 +19,6 @@ import Data.Prim.MRef
 import Data.Prim.MRef.Ref
 import Prelude as P
 import UnliftIO.Async
-import GHC.IORef
 
 main :: IO ()
 main = do
@@ -83,7 +82,7 @@ main = do
                   "IORef"
                   [ bench "readIORef" $ nfIO (readIORef ioRef)
                   , bench "atomicReadIORef" $
-                    nfIO (fst <$> atomicModifyIORef'_ ioRef id)
+                    nfIO (atomicModifyIORef' ioRef (\x -> (x,x)))
                   ]
             ]
         , bgroup

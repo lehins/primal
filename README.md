@@ -11,7 +11,7 @@ packages in this repo are still under active development.
 
 | Language | Travis | Azure | Coveralls |
 |:--------:|:------:|:--------:|:---------:|
-| ![GitHub top language](https://img.shields.io/github/languages/top/lehins/primal.svg) | [![Travis](https://img.shields.io/travis/lehins/primal/master.svg?label=Linux%20%26%20OS%20X)](https://travis-ci.org/lehins/primal) | [![Build Status](https://dev.azure.com/kuleshevich/primal/_apis/build/status/lehins.primal?branchName=master)](https://dev.azure.com/kuleshevich/primal/_build?branchName=master) | [![Coverage Status](https://coveralls.io/repos/github/lehins/primal/badge.svg?branch=master)](https://coveralls.io/github/lehins/primal?branch=master)
+| ![GitHub top language](https://img.shields.io/github/languages/top/lehins/primal.svg) | [![Travis](https://img.shields.io/travis/lehins/primal/master.svg?label=Linux%20%26%20OS%20X)](https://travis-ci.com/lehins/primal) | [![Build Status](https://dev.azure.com/kuleshevich/primal/_apis/build/status/lehins.primal?branchName=master)](https://dev.azure.com/kuleshevich/primal/_build?branchName=master) | [![Coverage Status](https://coveralls.io/repos/github/lehins/primal/badge.svg?branch=master)](https://coveralls.io/github/lehins/primal?branch=master)
 
 |      Package       | Hackage | Nightly | LTS |
 |:-------------------|:-------:|:-------:|:---:|

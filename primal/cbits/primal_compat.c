@@ -25,6 +25,23 @@ void primal_memwrite64(HsWord8 *ptr, HsInt offset, HsWord64 x){
   *((HsWord64 *)(ptr + offset)) = x;
 }
 
+
+HsFloat primal_memread_float(const HsWord8 *ptr, HsInt offset){
+  return *((HsFloat *)(ptr + offset));
+}
+void primal_memwrite_float(HsWord8 *ptr, HsInt offset, HsFloat x){
+  *((HsFloat *)(ptr + offset)) = x;
+}
+
+HsDouble primal_memread_double(const HsWord8 *ptr, HsInt offset){
+  return *((HsDouble *)(ptr + offset));
+}
+void primal_memwrite_double(HsWord8 *ptr, HsInt offset, HsDouble x){
+  *((HsDouble *)(ptr + offset)) = x;
+}
+
+
+
 #if __GLASGOW_HASKELL__ < 802
 /**
  * Rewrite of some Cmm in C. It is not in Cmm because `bdescr_flags` is not available
