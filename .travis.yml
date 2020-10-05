@@ -91,6 +91,7 @@ script:
      STACK_YAML="${COVERALLS_STACK_YAML}" ./shc --partial-coverage --fetch-coverage combined custom
   fi
   if [ -z "${DISABLE_DOCTESTS}" ]; then
-    stack $ARGS test primal:doctests primal-memory:doctests $BUILD_ARGS
+    stack $ARGS test primal:doctests $BUILD_ARGS
+    stack $ARGS test primal-memory:doctests $BUILD_ARGS
   fi
   set -ex

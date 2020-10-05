@@ -33,6 +33,8 @@ import GHC.IO.Device
 import System.IO
 import Test.Prim.Common
 
+#include "MachDeps.h"
+#include "HsBaseConfig.h"
 
 ---- Orphans
 
@@ -150,8 +152,10 @@ deriving instance Arbitrary CIno
 deriving instance NFData CKey
 deriving instance Arbitrary CKey
 
+#if defined(HTYPE_TIMER_T)
 deriving instance NFData CTimer
 deriving instance Arbitrary CTimer
+#endif
 
 deriving instance NFData Fd
 deriving instance Arbitrary Fd
@@ -304,7 +308,9 @@ data APrimType
   | ACFsFilCnt (Proxy CFsFilCnt)
   | ACId (Proxy CId)
   | ACKey (Proxy CKey)
+#if defined(HTYPE_TIMER_T)
   | ACTimer (Proxy CTimer)
+#endif
   | AFd (Proxy Fd)
   | AErrno (Proxy Errno)
   | ABufferMode (Proxy BufferMode)
@@ -423,7 +429,9 @@ instance Arbitrary APrimType where
       , (10, pure $ ACFsFilCnt Proxy)
       , (10, pure $ ACId Proxy)
       , (10, pure $ ACKey Proxy)
+#if defined(HTYPE_TIMER_T)
       , (10, pure $ ACTimer Proxy)
+#endif
       , (10, pure $ AFd Proxy)
       , (10, pure $ AErrno Proxy)
       , (10, pure $ ABufferMode Proxy)

@@ -68,7 +68,6 @@ import qualified Foreign.Ptr as P
 import Unsafe.Coerce
 #include "primal_compat.h"
 
-import Data.Bits (Bits, FiniteBits)
 import Foreign.Storable (Storable)
 
 -- | Replacement for `Foreign.Ptr.IntPtr` with exported constructor.
