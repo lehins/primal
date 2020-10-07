@@ -113,8 +113,8 @@ main = do
             [ env (singletonMBytes e0 :: IO (MBytes 'Inc RW)) $ \mb ->
                 bgroup
                   "MBytes"
-                  [ bench "modifyFetchOldMem" $
-                    nfIO $ modifyFetchOldMem mb off0 (+ k)
+                  [ bench "modifyFetchOldMutMem" $
+                    nfIO $ modifyFetchOldMutMem mb off0 (+ k)
                   , bench "atomicModifyFetchOldMBytes" $
                     nfIO $ atomicModifyFetchOldMBytes mb off0 (+ k)
                   , bench "atomicBoolModifyFetchOldMBytes" $
@@ -125,8 +125,8 @@ main = do
             , env (singletonMBytes (Atom e0) :: IO (MBytes 'Inc RW)) $ \mb ->
                 bgroup
                   "MBytes (Atom)"
-                  [ bench "modifyFetchOldMem" $
-                    nfIO $ modifyFetchOldMem mb (coerce off0) (+ Atom k)
+                  [ bench "modifyFetchOldMutMem" $
+                    nfIO $ modifyFetchOldMutMem mb (coerce off0) (+ Atom k)
                   , bench "atomicModifyFetchOldMBytes" $
                     nfIO $
                     atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k)
@@ -174,8 +174,8 @@ main = do
                 let off0' = Off 0 :: Off (Maybe Int)
                  in bgroup
                       "MBytes"
-                      [ bench "modifyFetchOldMem" $
-                        nfIO $ modifyFetchOldMem mb off0' (fmap (+ k))
+                      [ bench "modifyFetchOldMutMem" $
+                        nfIO $ modifyFetchOldMutMem mb off0' (fmap (+ k))
                       ]
             , env (newRef (Just 0)) $ \ref ->
                 bgroup
@@ -206,19 +206,19 @@ main = do
             "AddFetchOld"
             [ bgroup
                 "MBytes"
-                [ benchSeq (mkMBytes id) "modifyFetchOldMem (Int)" $ \mb k' ->
-                    modifyFetchOldMem mb off0 (+ k')
-                , benchSeq (mkMBytes tup) "modifyFetchOldMem (Int, Int)" $ \mb k' ->
-                    modifyFetchOldMem
+                [ benchSeq (mkMBytes id) "modifyFetchOldMutMem (Int)" $ \mb k' ->
+                    modifyFetchOldMutMem mb off0 (+ k')
+                , benchSeq (mkMBytes tup) "modifyFetchOldMutMem (Int, Int)" $ \mb k' ->
+                    modifyFetchOldMutMem
                       mb
                       (coerce toff0 :: Off (Int, Int))
                       (addTup k')
-                , benchSeq (mkMBytes Atom) "modifyFetchOldMem (Atom Int)" $ \mb k' ->
-                    modifyFetchOldMem mb (coerce off0) (+ Atom k')
+                , benchSeq (mkMBytes Atom) "modifyFetchOldMutMem (Atom Int)" $ \mb k' ->
+                    modifyFetchOldMutMem mb (coerce off0) (+ Atom k')
                 , benchSeq
                     (mkMBytes (Atom . tup))
-                    "modifyFetchOldMem (Atom (Int, Int))" $ \mb k' ->
-                    modifyFetchOldMem
+                    "modifyFetchOldMutMem (Atom (Int, Int))" $ \mb k' ->
+                    modifyFetchOldMutMem
                       mb
                       (coerce toff0 :: Off (Atom (Int, Int)))
                       (\(Atom a) -> Atom (addTup k' a))

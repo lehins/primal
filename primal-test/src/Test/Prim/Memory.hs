@@ -37,7 +37,7 @@ instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (Mem a e) where
     pure $
       Mem xs $
       createMemST_ (Count n :: Count e) $ \mem ->
-        zipWithM_ (writeOffMem mem) [0 ..] xs
+        zipWithM_ (writeOffMutMem mem) [0 ..] xs
 
 data NEMem a e = NEMem (Off e) [e] (FrozenMem a)
 
@@ -57,7 +57,7 @@ instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (NEMem a e) where
     pure $
       NEMem (Off i) xs $
       createMemST_ (Count n :: Count e) $ \mem ->
-        zipWithM_ (writeOffMem mem) [0 ..] xs
+        zipWithM_ (writeOffMutMem mem) [0 ..] xs
 
 neMemCountBefore :: NEMem a e -> Count e
 neMemCountBefore (NEMem (Off i) _ _) = Count i
@@ -78,7 +78,7 @@ instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
 getZeroElement :: forall e m s. (MonadPrim s m, Prim e) => m e
 getZeroElement = do
   z :: MBytes 'Inc s <- callocMBytes (1 :: Count e)
-  readOffMem z (0 :: Off e)
+  readOffMutMem z (0 :: Off e)
 
 prop_byteCountMem ::
      forall ma e. (Prim e, MemAlloc ma)
@@ -101,8 +101,8 @@ prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
               mm <- thawCloneMem fm
-              writeOffMem mm tOff e
-              fm' <- freezeMem mm
+              writeOffMutMem mm tOff e
+              fm' <- freezeMutMem mm
               indexOffMem fm' tOff `shouldBe` e
     ]
 
@@ -120,8 +120,8 @@ prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
           -- test precondition from documentation
          in (unOff tOff <= unCount (byteCountMem fm - byteCount a)) ==> do
               mm <- thawCloneMem fm
-              writeByteOffMem mm tOff a
-              fm' <- freezeMem mm
+              writeByteOffMutMem mm tOff a
+              fm' <- freezeMutMem mm
               indexByteOffMem fm' tOff `shouldBe` a
     ]
 
@@ -138,12 +138,12 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
   propIO $ do
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
-    mb :: MBytes 'Inc RW <- allocMem (toByteCount count + offToCount offByteDst)
+    mb :: MBytes 'Inc RW <- allocMutMem (toByteCount count + offToCount offByteDst)
     copyByteOffToMBytesMem fm (toByteOff offSrc) mb offByteDst count
-    b <- freezeMem mb
+    b <- freezeMutMem mb
     -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
-      readByteOffMem mb i `shouldReturn` x
+      readByteOffMutMem mb i `shouldReturn` x
     -- Ensure copy was successfull with compare
     compareByteOffToBytesMem fm (toByteOff offSrc) b offByteDst count `shouldBe` EQ
     compareByteOffMem b offByteDst fm (toByteOff offSrc) count `shouldBe` EQ
@@ -152,8 +152,8 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
       let offDelta = countToOff (offToCount (getNonNegative off) `mod` count)
       let eOrdering = compare (singletonBytes (xs !! unOff (offSrc + offDelta)))
                               (singletonBytes e :: Bytes 'Inc)
-      writeByteOffMem mb (offByteDst + toByteOff offDelta) e
-      b' <- freezeMem mb
+      writeByteOffMutMem mb (offByteDst + toByteOff offDelta) e
+      b' <- freezeMutMem mb
       compareByteOffToBytesMem fm (toByteOff offSrc) b' offByteDst count `shouldBe` eOrdering
 
 prop_copyAndCompareByteOffToPtrMem ::
@@ -172,7 +172,7 @@ prop_copyAndCompareByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst)
     withPtrMAddr maddr $ \ ptr -> copyByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count
     -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
-      readByteOffMem maddr i `shouldReturn` x
+      readByteOffMutMem maddr i `shouldReturn` x
     -- Ensure copy was successfull with compare
     withPtrMAddr maddr $ \ ptr -> do
       compareByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count `shouldReturn` EQ
@@ -183,92 +183,92 @@ prop_copyAndCompareByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst)
       let offDelta = countToOff (offToCount (getNonNegative off) `mod` count)
       let eOrdering = compare (singletonBytes (xs !! unOff (offSrc + offDelta)))
                               (singletonBytes e :: Bytes 'Inc)
-      writeByteOffMem maddr (offByteDst + toByteOff offDelta) e
+      writeByteOffMutMem maddr (offByteDst + toByteOff offDelta) e
       withPtrMAddr maddr $ \ ptr ->
         compareByteOffToPtrMem fm (toByteOff offSrc) ptr offByteDst count `shouldReturn` eOrdering
 
 
-prop_readWriteOffMem ::
+prop_readWriteOffMutMem ::
      forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
   => NEMem ma e
   -> e
   -> NonNegative Int
   -> APrim
   -> Property
-prop_readWriteOffMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
+prop_readWriteOffMutMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
   conjoin
     [ propIO $ do
         mm <- thawMem fm
-        readOffMem mm off `shouldReturn` xs !! o
-        writeOffMem mm off e'
-        readOffMem mm off `shouldReturn` e'
+        readOffMutMem mm off `shouldReturn` xs !! o
+        writeOffMutMem mm off e'
+        readOffMutMem mm off `shouldReturn` e'
     , withAPrim aPrim $ \e ->
         let tOff = Off k `offForType` e
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
               mm <- thawMem fm
-              writeOffMem mm tOff e
-              readOffMem mm tOff `shouldReturn` e
+              writeOffMutMem mm tOff e
+              readOffMutMem mm tOff `shouldReturn` e
     ]
 
 
-prop_readWriteByteOffMem ::
+prop_readWriteByteOffMutMem ::
      forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
   => NEMem ma e
   -> e
   -> NonNegative Int
   -> APrim
   -> Property
-prop_readWriteByteOffMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
+prop_readWriteByteOffMutMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
   conjoin
     [ propIO $ do
         mm <- thawMem fm
-        readByteOffMem mm (toByteOff off) `shouldReturn` xs !! o
-        writeByteOffMem mm (toByteOff off) e'
-        readByteOffMem mm (toByteOff off) `shouldReturn` e'
+        readByteOffMutMem mm (toByteOff off) `shouldReturn` xs !! o
+        writeByteOffMutMem mm (toByteOff off) e'
+        readByteOffMutMem mm (toByteOff off) `shouldReturn` e'
     , withAPrim aPrim $ \e ->
         let tOff = Off k `offForType` e
           -- test precondition from documentation
          in (unOff (toByteOff tOff) <= unCount (byteCountMem fm - byteCount e)) ==> do
               mm <- thawMem fm
-              writeByteOffMem mm (toByteOff tOff) e
-              readByteOffMem mm (toByteOff tOff) `shouldReturn` e
+              writeByteOffMutMem mm (toByteOff tOff) e
+              readByteOffMutMem mm (toByteOff tOff) `shouldReturn` e
     ]
 
-prop_moveByteOffToMBytesMem ::
+prop_moveByteOffToMBytesMutMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
   -> Property
-prop_moveByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
+prop_moveByteOffToMBytesMutMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
   propIO $ do
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mm <- thawMem fm
-    mb :: MBytes 'Inc RW <- allocMem (toByteCount count + offToCount offByteDst)
-    moveByteOffToMBytesMem mm (toByteOff offSrc) mb offByteDst count
+    mb :: MBytes 'Inc RW <- allocMutMem (toByteCount count + offToCount offByteDst)
+    moveByteOffToMBytesMutMem mm (toByteOff offSrc) mb offByteDst count
     -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
-      readByteOffMem mb i `shouldReturn` x
+      readByteOffMutMem mb i `shouldReturn` x
 
 
-prop_moveByteOffToPtrMem ::
+prop_moveByteOffToPtrMutMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
   -> Property
-prop_moveByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
+prop_moveByteOffToPtrMutMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
   propIO $ do
     let count = min (countMem fm - offToCount offSrc) (getNonNegative nn)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mm <- thawMem fm
     maddr :: MAddr e RW <- castMAddr <$> allocMAddr (toByteCount count + offToCount offByteDst)
-    withPtrMAddr maddr $ \ ptr -> moveByteOffToPtrMem mm (toByteOff offSrc) ptr offByteDst count
+    withPtrMAddr maddr $ \ ptr -> moveByteOffToPtrMutMem mm (toByteOff offSrc) ptr offByteDst count
     -- Ensure copy was successfull
     forM_ (zip [offByteDst, offByteDst + countToOff (byteCountType @e) ..] xs') $ \ (i, x) ->
-      readByteOffMem maddr i `shouldReturn` x
+      readByteOffMutMem maddr i `shouldReturn` x
 
 prop_copyMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
@@ -283,28 +283,28 @@ prop_copyMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
     copyMem fmSrc offSrc mmDst offDst count
     -- Ensure copy was successfull
     forM_ (zip [offDst, offDst + 1 ..] xs') $ \ (i, x) ->
-      readOffMem mmDst i `shouldReturn` x
+      readOffMutMem mmDst i `shouldReturn` x
 
 
-prop_moveMem ::
+prop_moveMutMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> NEMem a e
   -> Property
-prop_moveMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
+prop_moveMutMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
   propIO $ do
     let count = min (countMem fmSrc - offToCount offSrc) (countMem fmDst - offToCount offDst)
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mmSrc <- thawMem fmSrc
     mmDst <- thawMem fmDst
-    moveMem mmSrc offSrc mmDst offDst count
+    moveMutMem mmSrc offSrc mmDst offDst count
     -- Ensure copy was successfull
     forM_ (zip [offDst, offDst + 1 ..] xs') $ \ (i, x) ->
-      readOffMem mmDst i `shouldReturn` x
-    moveMem mmSrc offSrc mmSrc 0 count
+      readOffMutMem mmDst i `shouldReturn` x
+    moveMutMem mmSrc offSrc mmSrc 0 count
     -- Ensure copy within the same region was successfull
     forM_ (zip [0 ..] xs') $ \ (i, x) ->
-      readOffMem mmSrc i `shouldReturn` x
+      readOffMutMem mmSrc i `shouldReturn` x
 
 
 prop_emptyMem ::
@@ -314,17 +314,17 @@ prop_emptyMem ::
 prop_emptyMem (Mem xs fm') = propIO $ do
   let zc = 0 :: Count e
   m' <- thawMem fm'
-  m :: a RW <- allocMem zc
+  m :: a RW <- allocMutMem zc
   -- Check zero set and no element evaluation
   z :: e <- getZeroElement
-  setMem m 0 0 z
-  getCountMem m `shouldReturn` (0 :: Count e)
-  getCountRemMem m `shouldReturn` (0 :: Count e, 0)
-  getByteCountMem m `shouldReturn` 0
+  setMutMem m 0 0 z
+  getCountMutMem m `shouldReturn` (0 :: Count e)
+  getCountRemMutMem m `shouldReturn` (0 :: Count e, 0)
+  getByteCountMutMem m `shouldReturn` 0
   -- Check zero move
-  moveMem m 0 m' 0 zc
+  moveMutMem m 0 m' 0 zc
   toListMem fm' `shouldBe` xs
-  fm <- freezeMem m
+  fm <- freezeMutMem m
   -- Check zero copy
   copyMem fm 0 m' 0 zc
   toListMem fm' `shouldBe` xs
@@ -335,20 +335,20 @@ prop_emptyMem (Mem xs fm') = propIO $ do
   toListMem fm `shouldBe` ([] :: [e])
 
 
-prop_setMem ::
+prop_setMutMem ::
      forall a e. (Show e, Prim e, Eq e, MemAlloc a)
   => NEMem a e
   -> e
   -> NonNegative (Count e)
   -> Property
-prop_setMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
+prop_setMutMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
   propIO $ do
     m <- thawMem fm
-    Count n :: Count e <- getCountMem m
+    Count n :: Count e <- getCountMutMem m
     let c = Count (n - o)
         c'@(Count ci') = max 0 (c - k)
-    setMem m off c' e
-    fm' <- freezeMem m
+    setMutMem m off c' e
+    fm' <- freezeMutMem m
     let xs' = toListMem fm' :: [e]
     -- ensure memory before offset is unaffected by the set
     take o xs' `shouldBe` take o xs
@@ -385,45 +385,68 @@ prop_fromListMemN (NEMem (Off i) xs fm) (Positive n') =
     let xs' = toListMem fm''
     xs' `deepseq` (xs' `shouldStartWith` xs)
 
-prop_loadListMem ::
+prop_loadListMutMem ::
      forall ma e. (MemAlloc ma, Show e, Prim e, Eq e)
   => [e]
   -> NonNegative (Count Word8)
   -> Property
-prop_loadListMem xs (NonNegative c) =
+prop_loadListMutMem xs (NonNegative c) =
   propIO $ do
-    mm :: ma RW <- allocMem c
-    Count n :: Count e <- getCountMem mm
+    mm :: ma RW <- allocMutMem c
+    Count n :: Count e <- getCountMutMem mm
     let offs = [0 ..] :: [Off e]
-    loadListMem xs mm >>= \case
+    loadListMutMem xs mm >>= \case
       ([], loadedCount) -> do
         loadedCount `shouldBe` Count (length xs)
-        zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) offs xs
+        zipWithM_ (\i x -> readOffMutMem mm i `shouldReturn` x) offs xs
       (leftOver, loadedCount) -> do
         leftOver `shouldBe` drop n xs
         loadedCount `shouldBe` Count n
-        zipWithM_ (\i x -> readOffMem mm i `shouldReturn` x) (take n offs) xs
+        zipWithM_ (\i x -> readOffMutMem mm i `shouldReturn` x) (take n offs) xs
 
 
-prop_reallocMem ::
+prop_reallocMutMem ::
      forall ma e. (MemAlloc ma, Show e, Prim e, Eq e)
   => Mem ma e
   -> NonNegative Int
   -> APrimType
   -> Property
-prop_reallocMem (Mem xs fm) (NonNegative n) pt =
+prop_reallocMutMem (Mem xs fm) (NonNegative n) pt =
   propIO $ do
     mm <- thawCloneMem fm
     withAPrimType pt $ \ aPrimProxy -> do
       let c' = Count n `countForProxyTypeOf` aPrimProxy
           c8' = toByteCount c'
-      c8 <- getByteCountMem mm
-      mm' <- reallocMem mm c'
-      getByteCountMem mm' `shouldReturn` c8'
-      fm' <- freezeMem mm'
+      c8 <- getByteCountMutMem mm
+      mm' <- reallocMutMem mm c'
+      getByteCountMutMem mm' `shouldReturn` c8'
+      fm' <- freezeMutMem mm'
       compareMem fm 0 fm' 0 (min c8 c8') `shouldBe` EQ
       let ce' = countMem fm' `countForProxyTypeOf` xs
       zipWithM_ (\off x -> indexOffMem fm' off `shouldBe` x) [0 .. countToOff ce' - 1] xs
+
+
+prop_toListSlackMem ::
+     forall ma. MemAlloc ma
+  => Count Word8
+  -> APrimList
+  -> Property
+prop_toListSlackMem bCount aPrimList =
+  withAPrimList aPrimList $ \xs ->
+    byteCountProxy xs > 0 ==>
+    propIO $ do
+      mm :: ma RW <- allocMutMem (min bCount (toByteCount (Count (length xs) `asProxyTypeOf1` xs)))
+      (_leftover, loadedCount) <- loadListMutMem xs mm
+      (count, slackCount) <- getCountRemMutMem mm
+      loadedCount `shouldBe` count
+      -- Load slack with a few known bytes
+      let ss8 = [255,254 ..] :: [Word8]
+          (xs8, xs8rest) = splitAt (unCount slackCount) ss8
+          slackByteOff = countToOff (toByteCount loadedCount)
+      loadListByteOffMutMemN slackCount ss8 mm slackByteOff `shouldReturn`
+        (xs8rest, slackCount)
+      fm <- freezeMutMem mm
+      toListSlackMem fm `shouldBe` (take (unCount loadedCount) xs, xs8)
 
 
 memSpec ::
@@ -452,44 +475,22 @@ memSpec = do
       prop "copyByteOffToPtrMem/compareByteOffToPtrMem" $
         prop_copyAndCompareByteOffToPtrMem @ma @e
     describe "MemWrite" $ do
-      prop "readWriteOffMem" $ prop_readWriteOffMem @ma @e
-      prop "readWriteByteOffMem" $ prop_readWriteByteOffMem @ma @e
-      prop "moveByteOffToPtrMem" $ prop_moveByteOffToPtrMem @ma @e
-      prop "moveByteOffToMBytesMem" $ prop_moveByteOffToMBytesMem @ma @e
+      prop "readWriteOffMutMem" $ prop_readWriteOffMutMem @ma @e
+      prop "readWriteByteOffMutMem" $ prop_readWriteByteOffMutMem @ma @e
+      prop "moveByteOffToPtrMutMem" $ prop_moveByteOffToPtrMutMem @ma @e
+      prop "moveByteOffToMBytesMutMem" $ prop_moveByteOffToMBytesMutMem @ma @e
     prop "emptyMem" $ prop_emptyMem @ma @e
     prop "copyMem" $ prop_copyMem @ma @e
-    prop "moveMem" $ prop_moveMem @ma @e
-    prop "setMem" $ prop_setMem @ma @e
-    prop "reallocMem" $ prop_reallocMem @ma @e
+    prop "moveMutMem" $ prop_moveMutMem @ma @e
+    prop "setMutMem" $ prop_setMutMem @ma @e
+    prop "reallocMutMem" $ prop_reallocMutMem @ma @e
     describe "List" $ do
       describe "Conversion" $ do
         prop "toListMem" $ \(Mem xs fm :: Mem ma e) -> toListMem fm === xs
         prop "fromListMem" $ \(Mem xs fm :: Mem ma e) -> fromListMem xs === fm
         prop "fromListMemN" $ prop_fromListMemN @ma @e
       describe "Loading" $ do
-        prop "loadListMem" $ prop_loadListMem @ma @e
-
-prop_toListSlackMem ::
-     forall ma. MemAlloc ma
-  => Count Word8
-  -> APrimList
-  -> Property
-prop_toListSlackMem bCount aPrimList =
-  withAPrimList aPrimList $ \xs ->
-    byteCountProxy xs > 0 ==>
-    propIO $ do
-      mm :: ma RW <- allocMem (min bCount (toByteCount (Count (length xs) `asProxyTypeOf1` xs)))
-      (_leftover, loadedCount) <- loadListMem xs mm
-      (count, slackCount) <- getCountRemMem mm
-      loadedCount `shouldBe` count
-      -- Load slack with a few known bytes
-      let ss8 = [255,254 ..] :: [Word8]
-          (xs8, xs8rest) = splitAt (unCount slackCount) ss8
-          slackByteOff = countToOff (toByteCount loadedCount)
-      loadListByteOffMemN slackCount ss8 mm slackByteOff `shouldReturn`
-        (xs8rest, slackCount)
-      fm <- freezeMem mm
-      toListSlackMem fm `shouldBe` (take (unCount loadedCount) xs, xs8)
+        prop "loadListMutMem" $ prop_loadListMutMem @ma @e
 
 
 memBinarySpec ::

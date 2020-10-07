@@ -388,16 +388,16 @@ instance PtrAccess s (MAddr e s) where
 
 instance MemAlloc (MAddr e) where
   type FrozenMem (MAddr e) = Addr e
-  getByteCountMem = getByteCountMAddr
-  {-# INLINE getByteCountMem #-}
-  allocMem = fmap castMAddr . allocMAddr
-  {-# INLINE allocMem #-}
+  getByteCountMutMem = getByteCountMAddr
+  {-# INLINE getByteCountMutMem #-}
+  allocMutMem = fmap castMAddr . allocMAddr
+  {-# INLINE allocMutMem #-}
   thawMem = thawAddr
   {-# INLINE thawMem #-}
-  freezeMem = freezeMAddr
-  {-# INLINE freezeMem #-}
-  reallocMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
-  {-# INLINE reallocMem #-}
+  freezeMutMem = freezeMAddr
+  {-# INLINE freezeMutMem #-}
+  reallocMutMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
+  {-# INLINE reallocMutMem #-}
 
 
 instance MemRead (Addr e) where
@@ -425,32 +425,32 @@ instance MemRead (Addr e) where
   {-# INLINE compareByteOffMem #-}
 
 instance MemWrite (MAddr e) where
-  readOffMem a = readOffMAddr (castMAddr a)
-  {-# INLINE readOffMem #-}
-  readByteOffMem a = readByteOffMAddr (castMAddr a)
-  {-# INLINE readByteOffMem #-}
-  writeOffMem a = writeOffMAddr (castMAddr a)
-  {-# INLINE writeOffMem #-}
-  writeByteOffMem a = writeByteOffMAddr (castMAddr a)
-  {-# INLINE writeByteOffMem #-}
-  moveByteOffToPtrMem src srcOff dstPtr dstOff c =
+  readOffMutMem a = readOffMAddr (castMAddr a)
+  {-# INLINE readOffMutMem #-}
+  readByteOffMutMem a = readByteOffMAddr (castMAddr a)
+  {-# INLINE readByteOffMutMem #-}
+  writeOffMutMem a = writeOffMAddr (castMAddr a)
+  {-# INLINE writeOffMutMem #-}
+  writeByteOffMutMem a = writeByteOffMAddr (castMAddr a)
+  {-# INLINE writeByteOffMutMem #-}
+  moveByteOffToPtrMutMem src srcOff dstPtr dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
       moveByteOffPtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
-  {-# INLINE moveByteOffToPtrMem #-}
-  moveByteOffToMBytesMem src srcOff dst dstOff c =
+  {-# INLINE moveByteOffToPtrMutMem #-}
+  moveByteOffToMBytesMutMem src srcOff dst dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
       moveByteOffPtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
-  {-# INLINE moveByteOffToMBytesMem #-}
+  {-# INLINE moveByteOffToMBytesMutMem #-}
   copyByteOffMem src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
       copyByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
   {-# INLINE copyByteOffMem #-}
-  moveByteOffMem src srcOff dst dstOff c =
+  moveByteOffMutMem src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
-      moveByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE moveByteOffMem #-}
-  setMem maddr = setMAddr (castMAddr maddr)
-  {-# INLINE setMem #-}
+      moveByteOffToPtrMutMem src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE moveByteOffMutMem #-}
+  setMutMem maddr = setMAddr (castMAddr maddr)
+  {-# INLINE setMutMem #-}
 
 
 

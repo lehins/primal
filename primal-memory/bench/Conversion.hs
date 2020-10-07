@@ -81,7 +81,7 @@ main = do
             ]
         , bgroup
             "fromListN"
-            [ bench "Bytes" $ whnf (fromListBytesN_ n :: [Int] -> Bytes 'Inc) xs
+            [ bench "Bytes" $ whnf (fromListZeroBytesN_ n :: [Int] -> Bytes 'Inc) xs
             , bench "ByteArray" $ whnf (BA.byteArrayFromListN (unCount n)) xs
             ]
         ]

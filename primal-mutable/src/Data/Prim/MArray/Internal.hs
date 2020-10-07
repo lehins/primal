@@ -237,7 +237,7 @@ instance Typeable p => MArray (MBytes p) where
   freezeMArray = freezeMBytes
   {-# INLINE freezeMArray #-}
 
-  newRawMArray n = allocMem (coerce n :: Count Word8)
+  newRawMArray n = allocMutMem (coerce n :: Count Word8)
   {-# INLINE newRawMArray #-}
 
   writeMArray mb i = writeOffMBytes mb (coerce i)

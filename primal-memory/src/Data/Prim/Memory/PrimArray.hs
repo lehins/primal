@@ -85,16 +85,16 @@ instance PtrAccess s (MPrimArray 'Pin e s) where
 
 instance Typeable p => MemAlloc (MPrimArray p e) where
   type FrozenMem (MPrimArray p e) = PrimArray p e
-  getByteCountMem = getByteCountMem . toMBytesMPrimArray
-  {-# INLINE getByteCountMem #-}
-  allocMem = fmap fromMBytesMPrimArray . allocMBytes
-  {-# INLINE allocMem #-}
+  getByteCountMutMem = getByteCountMutMem . toMBytesMPrimArray
+  {-# INLINE getByteCountMutMem #-}
+  allocMutMem = fmap fromMBytesMPrimArray . allocMBytes
+  {-# INLINE allocMutMem #-}
   thawMem = thawPrimArray
   {-# INLINE thawMem #-}
-  freezeMem = freezeMPrimArray
-  {-# INLINE freezeMem #-}
-  reallocMem mba = fmap fromMBytesMPrimArray . reallocMBytes (toMBytesMPrimArray mba)
-  {-# INLINE reallocMem #-}
+  freezeMutMem = freezeMPrimArray
+  {-# INLINE freezeMutMem #-}
+  reallocMutMem mba = fmap fromMBytesMPrimArray . reallocMBytes (toMBytesMPrimArray mba)
+  {-# INLINE reallocMutMem #-}
 
 instance (Typeable p, Prim e) => IsList (PrimArray p e) where
   type Item (PrimArray p e) = e
@@ -252,7 +252,7 @@ moveMPrimArrayToMPrimArray ::
   -> Size
   -> m ()
 moveMPrimArrayToMPrimArray ba srcOff mba dstOff sz =
-  moveMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
+  moveMutMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
 {-# INLINE moveMPrimArrayToMPrimArray #-}
 
 

@@ -106,7 +106,7 @@ module Data.Prim.Memory.Bytes
   -- * Conversion
   , fromListBytes
   , fromListBytesN
-  , fromListBytesN_
+  , fromListZeroBytesN_
   , appendBytes
   , concatBytes
   , toListBytes
@@ -371,20 +371,22 @@ toListSlackBytes :: Prim e => Bytes p -> ([e], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
--- | Same as `loadListMem`
+-- | Same as `loadListMutMem`
 loadListMBytes :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Count e)
-loadListMBytes = loadListMem
+loadListMBytes = loadListMutMem
 {-# INLINE loadListMBytes #-}
 
--- | Same as `loadListMem_`
+-- | Same as `loadListMutMem_`
 loadListMBytes_ :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ()
-loadListMBytes_ = loadListMem_
+loadListMBytes_ = loadListMutMem_
 {-# INLINE loadListMBytes_ #-}
 
 -- | Same as `fromListZeroMemN_`
-fromListBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
-fromListBytesN_ = fromListZeroMemN_
-{-# INLINE fromListBytesN_ #-}
+--
+-- @since 0.3.0
+fromListZeroBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
+fromListZeroBytesN_ = fromListZeroMemN_
+{-# INLINE fromListZeroBytesN_ #-}
 
 -- | Exactly like `fromListMemN`, but restricted to `Bytes`.
 fromListBytesN ::
