@@ -23,6 +23,7 @@ module Data.Prim.Memory.Bytes.Internal
   , Pinned(..)
   , isSameBytes
   , isSamePinnedBytes
+  , isSameMBytes
   , isPinnedBytes
   , isPinnedMBytes
   , castStateMBytes
@@ -464,6 +465,13 @@ isSamePinnedBytes :: Bytes 'Pin -> Bytes 'Pin -> Bool
 isSamePinnedBytes pb1 pb2 = toPtrBytes pb1 == toPtrBytes pb2
 {-# INLINE isSamePinnedBytes #-}
 
+
+-- | Check if two mutable bytes pointers refer to the same memory
+--
+-- @since 0.1.0
+isSameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool
+isSameMBytes (MBytes mb1#) (MBytes mb2#) = isTrue# (sameMutableByteArray# mb1# mb2#)
+{-# INLINE isSameMBytes #-}
 
 
 byteStringConvertError :: String -> a

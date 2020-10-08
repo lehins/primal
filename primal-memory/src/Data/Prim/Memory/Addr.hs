@@ -198,6 +198,9 @@ castStateMAddr = unsafeCoerce
 isSameAddr :: Addr e -> Addr e -> Bool
 isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
 
+isSameMAddr :: MAddr e s -> MAddr e s -> Bool
+isSameMAddr (MAddr a1# _) (MAddr a2# _) = isTrue# (a1# `eqAddr#` a2#)
+
 instance NFData (Addr e) where
   rnf (Addr _ _) = ()
 
@@ -401,6 +404,8 @@ instance MemAlloc (MAddr e) where
 
 
 instance MemRead (Addr e) where
+  isSameMem = isSameAddr
+  {-# INLINE isSameMem #-}
   byteCountMem = byteCountAddr
   {-# INLINE byteCountMem #-}
   indexOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
@@ -425,6 +430,8 @@ instance MemRead (Addr e) where
   {-# INLINE compareByteOffMem #-}
 
 instance MemWrite (MAddr e) where
+  isSameMutMem = isSameMAddr
+  {-# INLINE isSameMutMem #-}
   readOffMutMem a = readOffMAddr (castMAddr a)
   {-# INLINE readOffMutMem #-}
   readByteOffMutMem a = readByteOffMAddr (castMAddr a)

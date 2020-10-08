@@ -1,6 +1,6 @@
 # Changelog for `primal`
 
-## 0.3.0
+## 0.2.1
 
 * Fix byte offset reading/writing compat functions for `Float`, `Double`, `Int16` and
   `Int32` for pre ghc-8.6

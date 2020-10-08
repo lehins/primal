@@ -297,12 +297,12 @@ prop_moveMutMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
         xs' = take (unCount count) $ drop (unOff offSrc) xs
     mmSrc <- thawMem fmSrc
     mmDst <- thawMem fmDst
-    moveMutMem mmSrc offSrc mmDst offDst count
     -- Ensure copy was successfull
+    moveMutMem mmSrc offSrc mmDst offDst count
     forM_ (zip [offDst, offDst + 1 ..] xs') $ \ (i, x) ->
       readOffMutMem mmDst i `shouldReturn` x
-    moveMutMem mmSrc offSrc mmSrc 0 count
     -- Ensure copy within the same region was successfull
+    moveMutMem mmSrc offSrc mmSrc 0 count
     forM_ (zip [0 ..] xs') $ \ (i, x) ->
       readOffMutMem mmSrc i `shouldReturn` x
 
@@ -336,8 +336,8 @@ prop_emptyMem (Mem xs fm') = propIO $ do
 
 
 prop_setMutMem ::
-     forall a e. (Show e, Prim e, Eq e, MemAlloc a)
-  => NEMem a e
+     forall ma e. (Show e, Prim e, Eq e, MemAlloc ma)
+  => NEMem ma e
   -> e
   -> NonNegative (Count e)
   -> Property
@@ -356,6 +356,11 @@ prop_setMutMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
     take ci' (drop o xs') `shouldBe` replicate ci' e
     -- ensure memory after offset+size is unaffected by the set
     drop ci' (drop o xs') `shouldBe` drop ci' (drop o xs)
+    -- ensure empty memory can be set too
+    emm <- thawMem (emptyMem :: FrozenMem ma)
+    setMutMem emm 0 0 e
+    efm <- freezeMutMem emm
+    toListMem efm `shouldBe` ([] :: [e])
 
 asProxyTypeOf1 :: f a -> proxy a -> f a
 asProxyTypeOf1 fa _ = fa
@@ -516,20 +521,6 @@ memBinarySpec = do
 --         (' ' :) . showsType (Proxy :: Proxy a) $
 --         ""
 --   describe bytesTypeName $ do
---     describe "memset" $ do
---       prop "empty" $ \(a :: a) -> do
---         mb :: MBytes p RealWorld <- allocMBytes (0 :: Count a)
---         setMBytes mb 0 0 a
---         b <- freezeMBytes mb
---         toListBytes b `shouldBe` ([] :: [a])
---       prop "non-empty" $ \(NEBytes off@(Off o) xs b :: NEBytes p a) (a :: a) -> do
---         mb <- thawBytes b
---         Count n :: Count a <- getCountOfMBytes mb
---         let c = Count (n - o)
---         setMBytes mb off c a
---         zipWithM_ (\i x -> readOffMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
---         forM_ [o .. unCount c - 1] $ \i ->
---             readOffMBytes mb (Off i) `shouldReturn` a
 --     describe "List" $ do
 --       prop "toListBytes" $ \(NEBytes _ xs b :: NEBytes p a) -> xs === (toListBytes b :: [a])
 --       prop "toListBytes+fromBytes" $ \(NEBytes _ xs b :: NEBytes p a) ->
@@ -561,7 +552,6 @@ memBinarySpec = do
 --       prop "concatBytes" $ \ (xs :: [Bytes p]) ->
 --         (concatBytes xs :: Bytes p) === fromListBytes (foldMap toList xs)
 --     describe "Allocation" $ do
---       prop "resizeMBytes" $ prop_resizeMBytes @p @a
 --       prop "singletonBytes" $ \(a :: a) ->
 --         indexBytes (singletonBytes a :: Bytes p) 0 === a
 --     describe "moveMBytesToMBytes" $ do
@@ -575,33 +565,6 @@ memBinarySpec = do
 --             moveMBytesToMBytes mb1 i1 mb2y i2 c
 --           bx <- freezeMBytes mb2x
 --           bx `shouldBe` by
---       prop "moveInside" $ \(NEBytes i xs b :: NEBytes p a) -> do
---         let c = countBytes b - Count (unOff i)
---         mb <- thawBytes b
---         moveMBytesToMBytes mb i mb 0 c
---         b' <- freezeMBytes mb
---         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
-
--- prop_resizeMBytes ::
---      forall p a. (Prim a, Eq a, Show a, Typeable p)
---   => NEBytes p a
---   -> NonNegative Int
---   -> Property
--- prop_resizeMBytes (NEBytes _ xs b) (NonNegative n') =
---   monadicIO $
---   run $ do
---     mb <- thawBytes $ cloneBytes b
---     mbr <- resizeMBytes mb (Count n' :: Count Int)
---     br <- freezeMBytes mbr
---     pure $ conjoin $ zipWith (===) xs (toListBytes br :: [a])
-
-
--- primTypeSpec ::
---      forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
---   => Spec
--- primTypeSpec = do
---   primSpec @'Pin @a
---   primSpec @'Inc @a
 
 -- primBinarySpec ::
 --      forall (p :: Pinned). (Typeable p)
@@ -754,11 +717,3 @@ memBinarySpec = do
 --         unless (x == 0xDEADBEEF) $
 --           error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
 -- {-# INLINE prop_WorkArounBugGHC18061 #-}
-
--- Nasty bug:
--- primal-memory> /home/lehins/github/primal/primal-memory/tests/Test/Prim/Memory/BytesSpec.hs:264:7: error:
--- primal-memory>     • No instance for (Arbitrary (Bytes 'Pin))
--- primal-memory>         arising from a use of ‘prop’
--- primal-memory>       There are instances for similar types:
--- primal-memory>         instance Typeable p =>
--- primal-memory>                  Arbitrary (primal-memory-0.1.0.0:Data.Prim.Memory.Bytes.Bytes p)

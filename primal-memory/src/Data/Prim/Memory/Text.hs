@@ -14,10 +14,10 @@ module Data.Prim.Memory.Text
   , MText(..)
   , Array(..)
   , MArray(..)
-  , toBytesArray
-  , fromBytesArray
-  , toMBytesMArray
-  , fromMBytesMArray
+  , fromArrayBytes
+  , toArrayBytes
+  , fromMArrayMBytes
+  , toMArrayMBytes
   ) where
 
 import Data.Text.Array
@@ -35,20 +35,32 @@ data MText s =
     {-# UNPACK #-}!Int        -- offset (units of Word16, not Char)
     {-# UNPACK #-}!Int        -- length (units of Word16, not Char)
 
-toBytesArray :: Array -> Bytes 'Inc
-toBytesArray (Array ba#) = Bytes ba#
-{-# INLINE toBytesArray #-}
+-- | /O(1)/ - Cast an immutable `Data.Text.Array.Array` from @text@ package to immutable `Bytes`
+--
+-- @since 0.3.0
+fromArrayBytes :: Array -> Bytes 'Inc
+fromArrayBytes (Array ba#) = Bytes ba#
+{-# INLINE fromArrayBytes #-}
 
-fromBytesArray :: Bytes p -> Array
-fromBytesArray (Bytes ba#) = Array ba#
-{-# INLINE fromBytesArray #-}
+-- | /O(1)/ - Cast immutable `Bytes` to an immutable `Data.Text.Array.Array` from @text@ package
+--
+-- @since 0.3.0
+toArrayBytes :: Bytes p -> Array
+toArrayBytes (Bytes ba#) = Array ba#
+{-# INLINE toArrayBytes #-}
 
-toMBytesMArray :: MArray s -> MBytes 'Inc s
-toMBytesMArray (MArray mba#) = MBytes mba#
-{-# INLINE toMBytesMArray #-}
+-- | /O(1)/ - Cast a mutable `Data.Text.Array.MArray` from @text@ package to mutable `MBytes`
+--
+-- @since 0.3.0
+fromMArrayMBytes :: MArray s -> MBytes 'Inc s
+fromMArrayMBytes (MArray mba#) = MBytes mba#
+{-# INLINE fromMArrayMBytes #-}
 
-fromMBytesMArray :: MBytes p s -> MArray s
-fromMBytesMArray (MBytes ba#) = MArray ba#
-{-# INLINE fromMBytesMArray #-}
+-- | /O(1)/ - Cast mutable `MBytes` to a mutable `Data.Text.Array.MArray` from @text@ package
+--
+-- @since 0.3.0
+toMArrayMBytes :: MBytes p s -> MArray s
+toMArrayMBytes (MBytes ba#) = MArray ba#
+{-# INLINE toMArrayMBytes #-}
 
 

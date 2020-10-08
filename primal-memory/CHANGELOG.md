@@ -2,9 +2,10 @@
 
 ## 0.3.0
 
-* Rename `resizeMem` -> `reallocMem`
-* Export `defaultReallocMem`
-
+* Rename many functions that perform mutation. Add `Mut` infix to operations that deal
+  with mutable source memory regions.
+* Rename `resizeMem` -> `reallocMutMem`
+* Export `defaultReallocMutMem`
 
 ## 0.2.0
 

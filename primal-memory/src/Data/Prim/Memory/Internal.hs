@@ -47,6 +47,11 @@ import Numeric (showHex)
 -- read-only direct access to memory
 class MemRead mr where
 
+  -- | Check if two read only regions refer to the exact same region of memory
+  --
+  -- @since 0.3.0
+  isSameMem :: mr -> mr -> Bool
+
   -- | Number of bytes allocated by the data type available for reading.
   --
   -- ====__Example__
@@ -323,13 +328,19 @@ class MemRead mr where
 -- | Type class that can be implemented for a mutable data type that provides direct read
 -- and write access to memory
 class MemWrite mw where
+
+  -- | Check if two mutable regions refer to the exact same region of memory
+  --
+  -- @since 0.3.0
+  isSameMutMem :: mw s -> mw s -> Bool
+
   -- | Read an element with an offset in number of elements, rather than bytes as it is
   -- the case with `readByteOffMutMem`.
   --
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
   -- result is either unpredictable output or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   readOffMutMem :: (MonadPrim s m, Prim e)
     => mw s -- ^ /memRead/ - Memory region to read an element from
     -> Off e
@@ -354,7 +365,7 @@ class MemWrite mw where
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
   -- result is either unpredictable output or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   readByteOffMutMem :: (MonadPrim s m, Prim e)
     => mw s -- ^ /memRead/ - Memory region to read an element from
     -> Off Word8
@@ -378,7 +389,7 @@ class MemWrite mw where
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
   -- outcome is either heap corruption or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   writeOffMutMem :: (MonadPrim s m, Prim e)
     => mw s -- ^ /memWrite/ - Memory region to write an element into
     -> Off e
@@ -404,7 +415,7 @@ class MemWrite mw where
   -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
   -- outcome is either heap corruption or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   writeByteOffMutMem :: (MonadPrim s m, Prim e)
     => mw s -- ^ /memWrite/ - Memory region to write an element into
     -> Off Word8
@@ -430,7 +441,7 @@ class MemWrite mw where
   -- copy of data that doesn't belong to @memSource@, heap corruption or failure with
   -- a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   moveByteOffToMBytesMutMem ::
     (MonadPrim s m, Prim e)
     => mw s -- ^ /memSource/ - Source memory from where to copy
@@ -485,7 +496,7 @@ class MemWrite mw where
   -- violated a call to this function can result in: copy of data that doesn't belong to
   -- @memSource@, heap corruption or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   moveByteOffToPtrMutMem ::
     (MonadPrim s m, Prim e)
     => mw s -- ^ /memSource/ - Source memory from where to copy
@@ -592,7 +603,7 @@ class MemWrite mw where
   -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
   -- a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   moveByteOffMutMem :: (MonadPrim s m, MemWrite mw', Prim e)
     => mw' s -- ^ /memSource/ - Source memory from where to copy
     -> Off Word8
@@ -647,7 +658,7 @@ class MemWrite mw where
   -- [Unsafe] Bounds are not checked. When precondition for @memTargetOff@ argument is
   -- violated the outcome is either heap corruption or failure with a segfault.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   setMutMem
     :: (MonadPrim s m, Prim e)
     => mw s -- ^ /memTarget/ - Target memory into where to write the element
@@ -701,7 +712,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- >>> getByteCountMutMem m
   -- Count {unCount = 80}
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   getByteCountMutMem :: MonadPrim s m => ma s -> m (Count Word8)
 
   -- | Allocate a mutable memory region for specified number of elements. Memory is not
@@ -711,11 +722,11 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
   -- upredictable. One possible outcome is termination with
   -- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
-  -- executed within `runST`, if memory is not fully overwritten it can result in
-  -- violation of referential transparency, because content of newly allocated
-  -- region is non-determinstic.
+  -- executed within `runST`, if allocated memory is not fully overwritten it can lead to
+  -- violation of referential transparency, because content of newly allocated region is
+  -- non-determinstic.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   allocMutMem :: (Prim e, MonadPrim s m)
     => Count e
     -- ^ /memCount/ - Number of elements to allocate.
@@ -732,7 +743,8 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
     -> m (ma s)
 
   -- | Convert the state of an immutable memory region to the mutable one. This is a no
-  -- copy operation, as such it is fast, but dangerous. See `thawCopyMutMem` for a safe alternative.
+  -- copy operation, as such it is fast, but dangerous. See `thawCloneMutMem` for a safe
+  -- alternative.
   --
   -- [Unsafe] It makes it possible to break referential transparency, because any
   -- subsequent destructive operation to the mutable region of memory will also be
@@ -748,7 +760,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- subsequent destructive operation to the mutable region of memory will also be
   -- reflected in the frozen immutable type as well.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   freezeMutMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
 
   -- | Either grow or shrink currently allocated mutable region of memory. For some
@@ -765,7 +777,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. The same unsafety
   -- notice from `allocMutMem` with regards to @memCount@ is applicable here as well.
   --
-  -- @since 0.1.0
+  -- @since 0.3.0
   reallocMutMem :: (MonadPrim s m, Prim e)
     => ma s
     -- ^ /memSource/ - Source memory region to resize
@@ -783,6 +795,12 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
 
 
 instance MemRead ByteString where
+  isSameMem bs1 bs2 =
+    unsafeInlineIO $
+    withPtrAccess bs1 $ \ptr1 ->
+      withPtrAccess bs2 $ \ptr2 -> -- Can refer to same memory but sliced differently:
+        pure (ptr1 == (ptr2 :: Ptr Word8) && BS.length bs1 == BS.length bs2)
+  {-# INLINE isSameMem #-}
   byteCountMem = Count . BS.length
   {-# INLINE byteCountMem #-}
   indexOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readOffPtr` i)
@@ -790,20 +808,25 @@ instance MemRead ByteString where
   indexByteOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readByteOffPtr` i)
   {-# INLINE indexByteOffMem #-}
   copyByteOffToMBytesMem bs srcOff mb dstOff c =
-    withPtrAccess bs $ \srcPtr -> copyByteOffPtrToMBytes srcPtr srcOff mb dstOff c
+    withPtrAccess bs $ \srcPtr ->
+      copyByteOffPtrToMBytes srcPtr srcOff mb dstOff c
   {-# INLINE copyByteOffToMBytesMem #-}
   copyByteOffToPtrMem bs srcOff dstPtr dstOff c =
-    withPtrAccess bs $ \srcPtr -> copyByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
+    withPtrAccess bs $ \srcPtr ->
+      copyByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
   {-# INLINE copyByteOffToPtrMem #-}
   compareByteOffToPtrMem bs off1 ptr2 off2 c =
-    withPtrAccess bs $ \ptr1 -> pure $! compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+    withPtrAccess bs $ \ptr1 ->
+      pure $! compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMem #-}
   compareByteOffToBytesMem bs off1 bytes off2 c =
-    unsafeInlineIO $ withPtrAccess bs $ \ptr1 ->
+    unsafeInlineIO $
+    withPtrAccess bs $ \ptr1 ->
       pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
   {-# INLINE compareByteOffToBytesMem #-}
   compareByteOffMem mem1 off1 bs off2 c =
-    unsafeInlineIO $ withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
+    unsafeInlineIO $
+    withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
   {-# INLINE compareByteOffMem #-}
 
 
@@ -828,6 +851,8 @@ instance MemAlloc MByteString where
   {-# INLINE reallocMutMem #-}
 
 instance MemWrite MByteString where
+  isSameMutMem (MByteString bs1) (MByteString bs2) = isSameMem bs1 bs2
+  {-# INLINE isSameMutMem #-}
   readOffMutMem (MByteString mbs) i = withPtrAccess mbs (`readOffPtr` i)
   {-# INLINE readOffMutMem #-}
   readByteOffMutMem (MByteString mbs) i = withPtrAccess mbs (`readByteOffPtr` i)
@@ -852,57 +877,63 @@ instance MemWrite MByteString where
   {-# INLINE setMutMem #-}
 
 instance MemRead T.Array where
-  byteCountMem = byteCountMem . T.toBytesArray
+  isSameMem a1 a2 = isSameMem (T.fromArrayBytes a1) (T.fromArrayBytes a2)
+  {-# INLINE isSameMem #-}
+  byteCountMem = byteCountMem . T.fromArrayBytes
   {-# INLINE byteCountMem #-}
-  indexOffMem a = indexOffMem (T.toBytesArray a)
+  indexOffMem a = indexOffMem (T.fromArrayBytes a)
   {-# INLINE indexOffMem #-}
-  indexByteOffMem a = indexByteOffMem (T.toBytesArray a)
+  indexByteOffMem a = indexByteOffMem (T.fromArrayBytes a)
   {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (T.toBytesArray a)
+  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (T.fromArrayBytes a)
   {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem a = copyByteOffToPtrMem (T.toBytesArray a)
+  copyByteOffToPtrMem a = copyByteOffToPtrMem (T.fromArrayBytes a)
   {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem a = compareByteOffToPtrMem (T.toBytesArray a)
+  compareByteOffToPtrMem a = compareByteOffToPtrMem (T.fromArrayBytes a)
   {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem a = compareByteOffToBytesMem (T.toBytesArray a)
+  compareByteOffToBytesMem a = compareByteOffToBytesMem (T.fromArrayBytes a)
   {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem off1 a = compareByteOffMem mem off1 (T.toBytesArray a)
+  compareByteOffMem mem off1 a = compareByteOffMem mem off1 (T.fromArrayBytes a)
   {-# INLINE compareByteOffMem #-}
 
 instance MemAlloc T.MArray where
   type FrozenMem T.MArray = T.Array
-  getByteCountMutMem = getByteCountMBytes . T.toMBytesMArray
+  getByteCountMutMem = getByteCountMBytes . T.fromMArrayMBytes
   {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap T.fromMBytesMArray . allocUnpinnedMBytes
+  allocMutMem = fmap T.toMArrayMBytes . allocUnpinnedMBytes
   {-# INLINE allocMutMem #-}
-  thawMem = fmap T.fromMBytesMArray . thawBytes . T.toBytesArray
+  thawMem = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
   {-# INLINE thawMem #-}
-  freezeMutMem = fmap T.fromBytesArray . freezeMBytes . T.toMBytesMArray
+  freezeMutMem = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
   {-# INLINE freezeMutMem #-}
-  reallocMutMem m = fmap T.fromMBytesMArray . reallocMBytes (T.toMBytesMArray m)
+  reallocMutMem m = fmap T.toMArrayMBytes . reallocMBytes (T.fromMArrayMBytes m)
   {-# INLINE reallocMutMem #-}
 
 instance MemWrite T.MArray where
-  readOffMutMem m = readOffMBytes (T.toMBytesMArray m)
+  isSameMutMem ma1 ma2 = isSameMutMem (T.fromMArrayMBytes ma1) (T.fromMArrayMBytes ma2)
+  {-# INLINE isSameMutMem #-}
+  readOffMutMem m = readOffMBytes (T.fromMArrayMBytes m)
   {-# INLINE readOffMutMem #-}
-  readByteOffMutMem m = readByteOffMBytes (T.toMBytesMArray m)
+  readByteOffMutMem m = readByteOffMBytes (T.fromMArrayMBytes m)
   {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem m = writeOffMBytes (T.toMBytesMArray m)
+  writeOffMutMem m = writeOffMBytes (T.fromMArrayMBytes m)
   {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem m = writeByteOffMBytes (T.toMBytesMArray m)
+  writeByteOffMutMem m = writeByteOffMBytes (T.fromMArrayMBytes m)
   {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem m = moveByteOffMBytesToPtr (T.toMBytesMArray m)
+  moveByteOffToPtrMutMem m = moveByteOffMBytesToPtr (T.fromMArrayMBytes m)
   {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem m = moveByteOffMBytesToMBytes (T.toMBytesMArray m)
+  moveByteOffToMBytesMutMem m = moveByteOffMBytesToMBytes (T.fromMArrayMBytes m)
   {-# INLINE moveByteOffToMBytesMutMem #-}
-  moveByteOffMutMem src srcOff m = moveByteOffToMBytesMutMem src srcOff (T.toMBytesMArray m)
+  moveByteOffMutMem src srcOff m = moveByteOffToMBytesMutMem src srcOff (T.fromMArrayMBytes m)
   {-# INLINE moveByteOffMutMem #-}
-  copyByteOffMem src srcOff m = copyByteOffToMBytesMem src srcOff (T.toMBytesMArray m)
+  copyByteOffMem src srcOff m = copyByteOffToMBytesMem src srcOff (T.fromMArrayMBytes m)
   {-# INLINE copyByteOffMem #-}
-  setMutMem m = setMBytes (T.toMBytesMArray m)
+  setMutMem m = setMBytes (T.fromMArrayMBytes m)
   {-# INLINE setMutMem #-}
 
 instance MemRead T.Text where
+  isSameMem (T.Text a1 o1 n1) (T.Text a2 o2 n2) = isSameMem a1 a2 && o1 == o2 && n1 == n2
+  {-# INLINE isSameMem #-}
   byteCountMem (T.Text _ _ n) = toByteCount (Count n :: Count Word16)
   {-# INLINE byteCountMem #-}
   indexByteOffMem (T.Text a o _) i = indexByteOffMem a (toByteOff (Off o :: Off Word16) + i)
@@ -925,6 +956,8 @@ instance MemRead T.Text where
 
 
 instance MemRead ShortByteString where
+  isSameMem sbs1 sbs2 = isSameMem (fromShortByteStringBytes sbs1) (fromShortByteStringBytes sbs2)
+  {-# INLINE isSameMem #-}
   byteCountMem = byteCountMem . fromShortByteStringBytes
   {-# INLINE byteCountMem #-}
   indexOffMem sbs = indexOffMem (fromShortByteStringBytes sbs)
@@ -949,6 +982,12 @@ instance MemRead ShortByteString where
 newtype MemState a s = MemState { unMemState :: a }
 
 instance MemWrite (MemState (ForeignPtr a)) where
+  isSameMutMem (MemState fptr1) (MemState fptr2) =
+    unsafeInlineIO $
+    withPtrAccess fptr1 $ \ptr1 ->
+      withPtrAccess fptr2 $ \ptr2 ->
+        pure (ptr1 == (ptr2 :: Ptr Word8))
+  {-# INLINE isSameMutMem #-}
   readOffMutMem (MemState fptr) i = withForeignPtr fptr $ \ptr -> readOffPtr (castPtr ptr) i
   {-# INLINE readOffMutMem #-}
   readByteOffMutMem (MemState fptr) i =
@@ -976,18 +1015,24 @@ instance MemWrite (MemState (ForeignPtr a)) where
   setMutMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMutMem #-}
 
+--
+-- @since 0.3.0
 modifyFetchOldMutMem ::
      (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> e) -> m e
 modifyFetchOldMutMem mem o f = modifyFetchOldMutMemM mem o (pure . f)
 {-# INLINE modifyFetchOldMutMem #-}
 
 
+--
+-- @since 0.3.0
 modifyFetchNewMutMem ::
      (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> e) -> m e
 modifyFetchNewMutMem mem o f = modifyFetchNewMutMemM mem o (pure . f)
 {-# INLINE modifyFetchNewMutMem #-}
 
 
+--
+-- @since 0.3.0
 modifyFetchOldMutMemM ::
      (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> m e) -> m e
 modifyFetchOldMutMemM mem o f = do
@@ -996,6 +1041,8 @@ modifyFetchOldMutMemM mem o f = do
 {-# INLINE modifyFetchOldMutMemM #-}
 
 
+--
+-- @since 0.3.0
 modifyFetchNewMutMemM ::
      (MemWrite mw, MonadPrim s m, Prim e) => mw s -> Off e -> (e -> m e) -> m e
 modifyFetchNewMutMemM mem o f = do
@@ -1112,7 +1159,7 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 -- >>> toListMem b :: [Int]
 -- [0,0,0,0,0,0,0,0,0,0]
 --
--- @since 0.1.0
+-- @since 0.3.0
 allocZeroMutMem ::
      forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
   => Count e
@@ -1290,6 +1337,8 @@ copyMem src srcOff dst dstOff = copyByteOffMem src (toByteOff srcOff) dst (toByt
 {-# INLINE copyMem #-}
 
 
+--
+-- @since 0.3.0
 moveMutMem ::
      (MonadPrim s m, MemWrite mw1, MemWrite mw2, Prim e)
   => mw1 s -- ^ Source memory region
@@ -1329,18 +1378,84 @@ concatMem xs = do
     foldM_ load 0 xs
 {-# INLINABLE concatMem #-}
 
+-- | This is a safe version of `thawMem`. It first makes an exact copy of the supplied
+-- memory region and only then thaws it, thus yielding a mutable region of memory. This
+-- means any mutation, will only affect the newly allocated region that was returned and
+-- not the source region.
+--
+-- ====__Examples__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> let fm = fromListMem @Word8 @(MBytes 'Inc) [1,2,3,4]
+-- >>> mm <- thawCloneMem fm
+-- >>> writeOffMutMem mm 1 (0xadde :: Word16)
+-- >>> freezeMutMem mm
+-- [0x01,0x02,0xde,0xad]
+-- >>> fm
+-- [0x01,0x02,0x03,0x04]
+--
+-- @since 0.1.0
+thawCloneMem ::
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => FrozenMem ma
+  -> m (ma s)
+thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
+{-# INLINE thawCloneMem #-}
 
+
+-- | Similar to `thawCloneMem`, except it is possible to specify which portion of the
+-- frozen region will be copied over and thawed.
+--
+-- [Unsafe] When any precondition for eihter an offset @memSourceOff@ or the element count
+-- @memCount@ is violated a call to this function can result in: copy of data that doesn't
+-- belong to @memSource@ or failure with a segfault.
+--
+-- ====__Examples__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> let fm = fromListMem @Word8 @(MBytes 'Inc) [1,2,3,4,5]
+-- >>> mm <- thawCopyMem fm 1 (3 :: Count Word8)
+-- >>> writeOffMutMem mm 1 (0 :: Word8)
+-- >>> freezeMutMem mm
+-- [0x02,0x00,0x04]
+-- >>> fm
+-- [0x01,0x02,0x03,0x04,0x05]
+--
+-- @since 0.1.0
 thawCopyMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => FrozenMem ma
+  => FrozenMem ma -- ^ /memSource/ - Read-only source memory region from which the data
+                  -- will copied and thawed
   -> Off e
+  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- > unOff memSourceOff < unCount (countMem memSource)
   -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > unOff memSourceOff + unCount memCount < unCount (countMem memSource)
   -> m (ma s)
 thawCopyMem a off c = do
   mem <- allocMutMem c
   mem <$ copyMem a off mem 0 c
 {-# INLINE thawCopyMem #-}
 
+
+
+--
+-- @since 0.3.0
 freezeCopyMutMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
   => ma s
@@ -1350,14 +1465,25 @@ freezeCopyMutMem ::
 freezeCopyMutMem mem off c = freezeMutMem mem >>= \r -> thawCopyMem r off c >>= freezeMutMem
 {-# INLINE freezeCopyMutMem #-}
 
-
-thawCloneMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
-  => FrozenMem ma
-  -> m (ma s)
-thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
-{-# INLINE thawCloneMem #-}
-
+-- | Safe version of `freezeMutMem`. Yields an immutable copy of the supplied mutable
+-- memory region. Further mutation of the source memory region will not affect the
+-- produced copy.
+---
+-- ====__Example__
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XDataKinds
+-- >>> import Data.Prim.Memory
+-- >>> mb <- allocZeroMutMem @Word8 @(MBytes 'Pin) 4
+-- >>> writeOffMutMem mb 2 (0xff :: Word8)
+-- >>> b <- freezeCloneMutMem mb
+-- >>> writeOffMutMem mb 1 (0xab :: Word8)
+-- >>> b
+-- [0x00,0x00,0xff,0x00]
+-- >>> freezeMutMem mb
+-- [0x00,0xab,0xff,0x00]
+--
+-- @since 0.3.0
 freezeCloneMutMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
@@ -1444,7 +1570,7 @@ countRemMem = fromByteCountRem . byteCountMem
 -- >>> getCountMutMem mb' :: IO (Count Word32)
 -- Count {unCount = 12}
 --
--- @since 0.1.0
+-- @since 0.3.0
 getCountMutMem :: forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e) => ma s -> m (Count e)
 getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 {-# INLINE getCountMutMem #-}
@@ -1465,7 +1591,7 @@ getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 -- >>> getCountRemMutMem @Word64 b
 -- (Count {unCount = 0},Count {unCount = 6})
 --
--- @since 0.1.0
+-- @since 0.3.0
 getCountRemMutMem ::
      forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
   => ma s
@@ -1476,19 +1602,13 @@ getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
 -- | Allocate the same amount of memory as the source memory region and copy all of its
 -- data over.
 --
--- ====__Examples__
---
--- @since 0.1.0
-clone ::
+-- @since 0.3.0
+cloneMutMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
   -> m (ma s)
-clone mm = do
-  fm <- freezeMutMem mm
-  let n = byteCountMem fm
-  mm' <- allocMutMem n
-  mm' <$ copyMem fm 0 mm' 0 n
-{-# INLINE clone #-}
+cloneMutMem = freezeMutMem >=> thawCloneMem
+{-# INLINE cloneMutMem #-}
 
 -- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
 -- reported by `byteCountMem` do not match. Computation may be short-circuited on the
@@ -1864,7 +1984,7 @@ loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff
 -- >>> freezeMutMem ma
 -- [0x48,0xff,0xff,0xff,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
--- @since 0.2.0
+-- @since 0.3.0
 loadListByteOffMutMem ::
      (MemAlloc ma, MonadPrim s m, Prim e)
   => [e] -- ^ /listSource/ - List with elements that should be loaded
@@ -2009,7 +2129,7 @@ loadListMutMemN_ (Count n) ys mb =
 -- [Unsafe] When a precondition for the element count @memCount@ is violated then a call
 -- to this function can result in heap corruption or failure with a segfault.
 --
--- @since 0.2.0
+-- @since 0.3.0
 loadListOffMutMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
   => [e] -- ^ /listSource/ - List with elements that should be loaded
@@ -2050,7 +2170,7 @@ loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c 
 -- >>> freezeMutMem ma
 -- [0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
--- @since 0.2.0
+-- @since 0.3.0
 loadListMutMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
   => [e] -- ^ /listSource/ - List with elements to load
@@ -2293,6 +2413,8 @@ izipWithOffMemM_ r1 off1 r2 off2 nc f =
 ---------------------
 
 instance MemRead (Bytes p) where
+  isSameMem = isSameBytes
+  {-# INLINE isSameMem #-}
   byteCountMem = byteCountBytes
   {-# INLINE byteCountMem #-}
   indexOffMem = indexOffBytes
@@ -2327,6 +2449,8 @@ instance Typeable p => MemAlloc (MBytes p) where
   {-# INLINE reallocMutMem #-}
 
 instance MemWrite (MBytes p) where
+  isSameMutMem = isSameMBytes
+  {-# INLINE isSameMutMem #-}
   readOffMutMem = readOffMBytes
   {-# INLINE readOffMutMem #-}
   readByteOffMutMem = readByteOffMBytes
@@ -2409,11 +2533,12 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
          else id) .
       showHex b8
 
--- | Ensure that memory is filled with zeros before and after it gets used. `PtrAccess` is
--- not used directly, but istead is used to guarantee that the memory is pinned and its
--- contents do get moved around by the garbage collector.
+-- | Allocate a new region of memory and Ensure that it is filled with zeros before and
+-- after it gets used. `PtrAccess` is not used directly, but instead is used to guarantee
+-- that the memory is pinned and its contents will not get moved around by the garbage
+-- collector.
 --
--- @since 0.2.0
+-- @since 0.3.0
 withScrubbedMutMem ::
      forall e ma m a.
      (MonadUnliftPrim RW m, Prim e, MemAlloc ma, PtrAccess RW (ma RW))
@@ -2425,5 +2550,5 @@ withScrubbedMutMem c f = do
   let _fptr = toForeignPtr mem :: IO (ForeignPtr e) -- Enforce the `PtrAccess` constraint.
   f mem `finallyPrim` setMutMem mem 0 (toByteCount c) 0
   where
-    finallyPrim m1 m2 = withRunInPrimBase $ \run -> finally (run m1) (run m2)
+    finallyPrim m1 m2 = withRunInPrimBase $ \run -> run m1 `finally` run m2
 {-# INLINE withScrubbedMutMem #-}

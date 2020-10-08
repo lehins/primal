@@ -184,13 +184,6 @@ fromMutableByteArray# = MBytes
 
 
 
--- | Check if two mutable bytes pointers refer to the same memory
---
--- @since 0.1.0
-isSameMBytes :: MBytes p1 s -> MBytes p2 s -> Bool
-isSameMBytes (MBytes mb1#) (MBytes mb2#) = isTrue# (sameMutableByteArray# mb1# mb2#)
-{-# INLINE isSameMBytes #-}
-
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
 {-# INLINE eqBytes #-}
