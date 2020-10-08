@@ -34,12 +34,12 @@ main = do
          in a'
       mkMBytes :: Prim e => (Int -> e) -> IO (MBytes 'Inc RW)
       mkMBytes f = singletonMBytes (f e0)
-      mkMPrimArray :: Prim e => (Int -> e) -> IO (MPrimArray 'Inc e RW)
-      mkMPrimArray f = newMRef (f e0)
+      mkPMArray :: Prim e => (Int -> e) -> IO (PMArray 'Inc e RW)
+      mkPMArray f = newMRef (f e0)
       mkRef :: (Int -> e) -> IO (Ref e RW)
       mkRef f = newMRef (f e0)
-      mkMSBArray :: (Int -> e) -> IO (MSBArray e RW)
-      mkMSBArray f = newMRef (f e0)
+      mkSBMArray :: (Int -> e) -> IO (SBMArray e RW)
+      mkSBMArray f = newMRef (f e0)
       mkIORef :: (Int -> e) -> IO (IORef e)
       mkIORef f = newIORef (f e0)
       benchSeq mkEnv name f =
@@ -58,9 +58,9 @@ main = do
                   [ bench "readMBytes" $ nfIO (readOffMBytes mb off0)
                   , bench "atomicReadMBytes" $ nfIO (atomicReadMBytes mb off0)
                   ]
-            , env (newMRef e0 :: IO (MPrimArray 'Inc Int RW)) $ \mb ->
+            , env (newMRef e0 :: IO (PMArray 'Inc Int RW)) $ \mb ->
                 bgroup
-                  "MPrimArray"
+                  "PMArray"
                   [ bench "readMRef" $ nfIO (readMRef mb)
                   , bench "atomicReadMRef" $ nfIO (atomicReadMRef mb)
                   ]
@@ -132,11 +132,11 @@ main = do
                     atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k)
                   ]
             , bgroup
-                "MPrimArray"
-                [ env (newMRef e0 :: IO (MPrimArray 'Inc Int RW)) $ \mb ->
+                "PMArray"
+                [ env (newMRef e0 :: IO (PMArray 'Inc Int RW)) $ \mb ->
                     bench "atomicAddFetchOldMRef" $
                     nfIO $ atomicAddFetchOldMRef mb k
-                , env (newMRef (fromIntegral e0) :: IO (MPrimArray 'Inc Int64 RW)) $ \mb ->
+                , env (newMRef (fromIntegral e0) :: IO (PMArray 'Inc Int64 RW)) $ \mb ->
                     bench "atomicAddFetchOldMRef" $
                     nfIO $ atomicAddFetchOldMRef mb (fromIntegral k)
                 ]
@@ -262,19 +262,19 @@ main = do
                     atomicModifyFetchOldMBytes mb (coerce off0) (+ Atom k')
                 ]
             , bgroup
-                "MPrimArray"
-                [ benchConc (mkMPrimArray id) "atomicModifyFetchOldMRef" $ \mb k' ->
+                "PMArray"
+                [ benchConc (mkPMArray id) "atomicModifyFetchOldMRef" $ \mb k' ->
                     atomicModifyFetchOldMRef mb (+ k')
-                , benchConc (mkMPrimArray id) "atomicAddFetchOldMRef" $ \mb ->
+                , benchConc (mkPMArray id) "atomicAddFetchOldMRef" $ \mb ->
                     atomicAddFetchOldMRef mb
-                , benchConc (mkMPrimArray fromIntegral) "atomicAddFetchOldMRef" $ \mb k' ->
+                , benchConc (mkPMArray fromIntegral) "atomicAddFetchOldMRef" $ \mb k' ->
                     atomicAddFetchOldMRef mb (fromIntegral k' :: Int64)
                 ]
             , bgroup
-                "MSBArray"
-                [ benchConc (mkMSBArray id) "atomicModifyFetchOldMRef" $ \ref k' ->
+                "SBMArray"
+                [ benchConc (mkSBMArray id) "atomicModifyFetchOldMRef" $ \ref k' ->
                     atomicModifyFetchOldMRef ref (+ k')
-                , benchConc (mkMSBArray id) "atomicAddFetchOldMRef" $ \ref k' ->
+                , benchConc (mkSBMArray id) "atomicAddFetchOldMRef" $ \ref k' ->
                     atomicAddFetchOldMRef ref k'
                 ]
             , bgroup
@@ -311,9 +311,9 @@ main = do
                       (\(Atom a) -> Atom (addTup k' a))
                 ]
             , bgroup
-                "MPrimArray"
+                "PMArray"
                 [ benchConc
-                    (mkMPrimArray (Atom . tup))
+                    (mkPMArray (Atom . tup))
                     "atomicModifyFetchOldMRef" $ \mb k' ->
                     atomicModifyFetchOldMRef
                       mb

@@ -209,7 +209,7 @@ instance Typeable p => AtomicBitsMRef (MBytes p) where
   atomicNotFetchNewMRef mb = atomicNotFetchNewMBytes mb (0 :: Off Word8)
   {-# INLINE atomicNotFetchNewMRef #-}
 
-instance (Typeable p, Atomic e) => AtomicMRef (MPrimArray p e) where
+instance (Typeable p, Atomic e) => AtomicMRef (PMArray p e) where
   atomicReadMRef mba = atomicReadMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicReadMRef #-}
   atomicWriteMRef mba = atomicWriteMBytes (coerce mba) (0 :: Off e)
@@ -220,7 +220,7 @@ instance (Typeable p, Atomic e) => AtomicMRef (MPrimArray p e) where
   {-# INLINE atomicModifyMRef #-}
 
 
-instance (Typeable p, Num e, AtomicCount e) => AtomicCountMRef (MPrimArray p e) where
+instance (Typeable p, Num e, AtomicCount e) => AtomicCountMRef (PMArray p e) where
   atomicAddFetchOldMRef mba = atomicAddFetchOldMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicAddFetchOldMRef #-}
   atomicAddFetchNewMRef mba = atomicAddFetchNewMBytes (coerce mba) (0 :: Off e)
@@ -231,7 +231,7 @@ instance (Typeable p, Num e, AtomicCount e) => AtomicCountMRef (MPrimArray p e) 
   {-# INLINE atomicSubFetchNewMRef #-}
 
 
-instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMRef (MPrimArray p e) where
+instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMRef (PMArray p e) where
   atomicAndFetchOldMRef mba = atomicAndFetchOldMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicAndFetchOldMRef #-}
   atomicAndFetchNewMRef mba = atomicAndFetchNewMBytes (coerce mba) (0 :: Off e)

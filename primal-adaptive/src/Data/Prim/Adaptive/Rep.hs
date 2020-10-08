@@ -45,24 +45,24 @@ import GHC.Real
 import GHC.TypeLits
 
 type family BestRep def r1 r2 where
-  BestRep def MUArray MUArray = MUArray
+  BestRep def UMArray UMArray = UMArray
   BestRep def      r1      r2 = def
 
 type family AtomicPrimRep def (isAtomic :: Bool) where
-  AtomicPrimRep def 'True = MUArray
+  AtomicPrimRep def 'True = UMArray
   AtomicPrimRep def 'False = def
 
 type family AdaptRep def e :: Type -> Type -> Type where
-  AdaptRep def () = MUArray
-  AdaptRep def (a :~: b) = MUArray
+  AdaptRep def () = UMArray
+  AdaptRep def (a :~: b) = UMArray
   -- In case we are not on 64bit architecture
-  AdaptRep def Int64 = MUArray
-  AdaptRep def Word64 = MUArray
-  AdaptRep def CLLong = MUArray
-  AdaptRep def CULLong = MUArray
-  AdaptRep def (Unbox a) = MUArray
+  AdaptRep def Int64 = UMArray
+  AdaptRep def Word64 = UMArray
+  AdaptRep def CLLong = UMArray
+  AdaptRep def CULLong = UMArray
+  AdaptRep def (Unbox a) = UMArray
 #if __GLASGOW_HASKELL__ >= 802
-  AdaptRep def (a :~~: b) = MUArray
+  AdaptRep def (a :~~: b) = UMArray
 #if __GLASGOW_HASKELL__ >= 806
   AdaptRep def (Ap f a) = AdaptRep def (f a)
 #endif /* __GLASGOW_HASKELL__ >= 806 */
@@ -80,7 +80,7 @@ type family AdaptRep def e :: Type -> Type -> Type where
   AdaptRep def (Dual a) = AdaptRep def a
   AdaptRep def (Sum a) = AdaptRep def a
   AdaptRep def (Product a) = AdaptRep def a
-  AdaptRep def Fingerprint = MUArray
+  AdaptRep def Fingerprint = UMArray
   AdaptRep def (Ratio a) = AdaptRep def a
   AdaptRep def (Complex a) = AdaptRep def a
   AdaptRep def (Maybe a) = AdaptRep def a
@@ -102,10 +102,10 @@ type family AdaptRep def e :: Type -> Type -> Type where
     BestRep def (AdaptRep def (a, b, c, d)) (AdaptRep def (e, f, g, h))
   AdaptRep def (a, b, c, d, e, f, g, h, i) =
     BestRep def (AdaptRep def (a, b, c, d, e)) (AdaptRep def (f, g, h, i))
-  AdaptRep def (UArray a) = MRArray 0
-  AdaptRep def (Bytes 'Inc) = MRArray 0
-  AdaptRep def (PrimArray 'Inc a) = MRArray 0
-  AdaptRep def (RArray n a) = MRArray (n + 1)
+  AdaptRep def (UArray a) = RMArray 0
+  AdaptRep def (Bytes 'Inc) = RMArray 0
+  AdaptRep def (PArray 'Inc a) = RMArray 0
+  AdaptRep def (RArray n a) = RMArray (n + 1)
   AdaptRep def a = AtomicPrimRep def (IsBasicAtomic a)
 
 
@@ -247,5 +247,5 @@ type family IsAtomic e :: Bool where
   IsAtomic a = IsBasicAtomic a
 
 type family AWrap rep (a :: Bool) e :: Type where
-  AWrap MUArray 'False e = Atom e
+  AWrap UMArray 'False e = Atom e
   AWrap rep a e = e

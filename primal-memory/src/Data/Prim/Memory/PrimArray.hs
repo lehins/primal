@@ -16,35 +16,35 @@
 -- Portability : non-portable
 --
 module Data.Prim.Memory.PrimArray
-  ( PrimArray(..)
-  , MPrimArray(..)
+  ( PArray(..)
+  , PMArray(..)
   , Pinned(..)
-  , fromBytesPrimArray
-  , toBytesPrimArray
-  , castPrimArray
-  , fromMBytesMPrimArray
-  , toMBytesMPrimArray
-  , castMPrimArray
-  , allocMPrimArray
-  , allocPinnedMPrimArray
-  , allocAlignedMPrimArray
-  , allocUnpinnedMPrimArray
-  , shrinkMPrimArray
-  , resizeMPrimArray
-  , reallocMPrimArray
-  , isPinnedPrimArray
-  , isPinnedMPrimArray
+  , fromBytesPArray
+  , toBytesPArray
+  , castPArray
+  , fromMBytesPMArray
+  , toMBytesPMArray
+  , castPMArray
+  , allocPMArray
+  , allocPinnedPMArray
+  , allocAlignedPMArray
+  , allocUnpinnedPMArray
+  , shrinkPMArray
+  , resizePMArray
+  , reallocPMArray
+  , isPinnedPArray
+  , isPinnedPMArray
 
-  , thawPrimArray
-  , freezeMPrimArray
-  , sizePrimArray
-  , getSizeMPrimArray
-  , readMPrimArray
-  , writeMPrimArray
+  , thawPArray
+  , freezePMArray
+  , sizePArray
+  , getSizePMArray
+  , readPMArray
+  , writePMArray
 
-  , setMPrimArray
-  , copyPrimArrayToMPrimArray
-  , moveMPrimArrayToMPrimArray
+  , setPMArray
+  , copyPArrayToPMArray
+  , movePMArrayToPMArray
   ) where
 
 import Control.DeepSeq
@@ -56,125 +56,125 @@ import Data.Prim.Memory.Internal
 import Data.Prim.Memory.ForeignPtr
 
 
--- | An immutable array of bytes of type @e@
-newtype PrimArray (p :: Pinned) e = PrimArray (Bytes p)
+-- | An immutable array with elements of type @e@
+newtype PArray (p :: Pinned) e = PArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
-type role PrimArray nominal nominal
+type role PArray nominal nominal
 
--- | A mutable array of bytes of type @e@
-newtype MPrimArray (p :: Pinned) e s = MPrimArray (MBytes p s)
+-- | A mutable array with elements of type @e@
+newtype PMArray (p :: Pinned) e s = PMArray (MBytes p s)
   deriving (NFData, MemWrite)
-type role MPrimArray nominal nominal nominal
+type role PMArray nominal nominal nominal
 
 -- | Read-only access, but it is not enforced.
-instance PtrAccess s (PrimArray 'Pin e) where
-  toForeignPtr = pure . toForeignPtrBytes . toBytesPrimArray
+instance PtrAccess s (PArray 'Pin e) where
+  toForeignPtr = pure . toForeignPtrBytes . toBytesPArray
   {-# INLINE toForeignPtr #-}
-  withPtrAccess b = withPtrBytes (toBytesPrimArray b)
+  withPtrAccess b = withPtrBytes (toBytesPArray b)
   {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess b = withNoHaltPtrBytes (toBytesPrimArray b)
+  withNoHaltPtrAccess b = withNoHaltPtrBytes (toBytesPArray b)
   {-# INLINE withNoHaltPtrAccess #-}
 
-instance PtrAccess s (MPrimArray 'Pin e s) where
-  toForeignPtr = pure . toForeignPtrMBytes . toMBytesMPrimArray
+instance PtrAccess s (PMArray 'Pin e s) where
+  toForeignPtr = pure . toForeignPtrMBytes . toMBytesPMArray
   {-# INLINE toForeignPtr #-}
-  withPtrAccess mb = withPtrMBytes (toMBytesMPrimArray mb)
+  withPtrAccess mb = withPtrMBytes (toMBytesPMArray mb)
   {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess mb = withNoHaltPtrMBytes (toMBytesMPrimArray mb)
+  withNoHaltPtrAccess mb = withNoHaltPtrMBytes (toMBytesPMArray mb)
   {-# INLINE withNoHaltPtrAccess #-}
 
-instance Typeable p => MemAlloc (MPrimArray p e) where
-  type FrozenMem (MPrimArray p e) = PrimArray p e
-  getByteCountMutMem = getByteCountMutMem . toMBytesMPrimArray
+instance Typeable p => MemAlloc (PMArray p e) where
+  type FrozenMem (PMArray p e) = PArray p e
+  getByteCountMutMem = getByteCountMutMem . toMBytesPMArray
   {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap fromMBytesMPrimArray . allocMBytes
+  allocMutMem = fmap fromMBytesPMArray . allocMBytes
   {-# INLINE allocMutMem #-}
-  thawMem = thawPrimArray
+  thawMem = thawPArray
   {-# INLINE thawMem #-}
-  freezeMutMem = freezeMPrimArray
+  freezeMutMem = freezePMArray
   {-# INLINE freezeMutMem #-}
-  reallocMutMem mba = fmap fromMBytesMPrimArray . reallocMBytes (toMBytesMPrimArray mba)
+  reallocMutMem mba = fmap fromMBytesPMArray . reallocMBytes (toMBytesPMArray mba)
   {-# INLINE reallocMutMem #-}
 
-instance (Typeable p, Prim e) => IsList (PrimArray p e) where
-  type Item (PrimArray p e) = e
+instance (Typeable p, Prim e) => IsList (PArray p e) where
+  type Item (PArray p e) = e
   fromList = fromListMem
   fromListN n = fromListZeroMemN_ (Count n)
   toList = toListMem
 
-instance Typeable p => IsString (PrimArray p Char) where
+instance Typeable p => IsString (PArray p Char) where
   fromString = fromListMem
 
-instance (Show e, Prim e) => Show (PrimArray p e) where
-  show = show . toListPrimArray
+instance (Show e, Prim e) => Show (PArray p e) where
+  show = show . toListPArray
 
 
-toListPrimArray :: Prim e => PrimArray p e -> [e]
-toListPrimArray = toListMem
+toListPArray :: Prim e => PArray p e -> [e]
+toListPArray = toListMem
 
-castPrimArray :: PrimArray p e' -> PrimArray p e
-castPrimArray = coerce
+castPArray :: PArray p e' -> PArray p e
+castPArray = coerce
 
-fromBytesPrimArray :: Bytes p -> PrimArray p e
-fromBytesPrimArray = coerce
+fromBytesPArray :: Bytes p -> PArray p e
+fromBytesPArray = coerce
 
-toBytesPrimArray :: PrimArray p e -> Bytes p
-toBytesPrimArray = coerce
+toBytesPArray :: PArray p e -> Bytes p
+toBytesPArray = coerce
 
-castMPrimArray :: MPrimArray p e' s -> MPrimArray p e s
-castMPrimArray = coerce
+castPMArray :: PMArray p e' s -> PMArray p e s
+castPMArray = coerce
 
-fromMBytesMPrimArray :: MBytes p s -> MPrimArray p e s
-fromMBytesMPrimArray = coerce
+fromMBytesPMArray :: MBytes p s -> PMArray p e s
+fromMBytesPMArray = coerce
 
-toMBytesMPrimArray :: MPrimArray p e s -> MBytes p s
-toMBytesMPrimArray = coerce
+toMBytesPMArray :: PMArray p e s -> MBytes p s
+toMBytesPMArray = coerce
 
-sizePrimArray :: forall e p. Prim e => PrimArray p e -> Size
-sizePrimArray = (coerce :: Count e -> Size) . countBytes . toBytesPrimArray
-{-# INLINE sizePrimArray #-}
+sizePArray :: forall e p. Prim e => PArray p e -> Size
+sizePArray = (coerce :: Count e -> Size) . countBytes . toBytesPArray
+{-# INLINE sizePArray #-}
 
-getSizeMPrimArray :: forall e p m s. (MonadPrim s m, Prim e) => MPrimArray p e s -> m Size
-getSizeMPrimArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesMPrimArray
-{-# INLINE getSizeMPrimArray #-}
+getSizePMArray :: forall e p m s. (MonadPrim s m, Prim e) => PMArray p e s -> m Size
+getSizePMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPMArray
+{-# INLINE getSizePMArray #-}
 
-allocMPrimArray ::
-     forall e p m s . (Typeable p, Prim e, MonadPrim s m) => Size -> m (MPrimArray p e s)
-allocMPrimArray sz = fromMBytesMPrimArray <$> allocMBytes (coerce sz :: Count e)
-{-# INLINE allocMPrimArray #-}
+allocPMArray ::
+     forall e p m s . (Typeable p, Prim e, MonadPrim s m) => Size -> m (PMArray p e s)
+allocPMArray sz = fromMBytesPMArray <$> allocMBytes (coerce sz :: Count e)
+{-# INLINE allocPMArray #-}
 
-allocUnpinnedMPrimArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MPrimArray 'Inc e s)
-allocUnpinnedMPrimArray sz = fromMBytesMPrimArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
-{-# INLINE allocUnpinnedMPrimArray #-}
+allocUnpinnedPMArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (PMArray 'Inc e s)
+allocUnpinnedPMArray sz = fromMBytesPMArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
+{-# INLINE allocUnpinnedPMArray #-}
 
-allocPinnedMPrimArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (MPrimArray 'Pin e s)
-allocPinnedMPrimArray sz = fromMBytesMPrimArray <$> allocPinnedMBytes (coerce sz :: Count e)
-{-# INLINE allocPinnedMPrimArray #-}
+allocPinnedPMArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (PMArray 'Pin e s)
+allocPinnedPMArray sz = fromMBytesPMArray <$> allocPinnedMBytes (coerce sz :: Count e)
+{-# INLINE allocPinnedPMArray #-}
 
-allocAlignedMPrimArray ::
+allocAlignedPMArray ::
      (MonadPrim s m, Prim e)
   => Count e -- ^ Size in number of bytes
-  -> m (MPrimArray 'Pin e s)
-allocAlignedMPrimArray = fmap fromMBytesMPrimArray . allocAlignedMBytes
-{-# INLINE allocAlignedMPrimArray #-}
+  -> m (PMArray 'Pin e s)
+allocAlignedPMArray = fmap fromMBytesPMArray . allocAlignedMBytes
+{-# INLINE allocAlignedPMArray #-}
 
-freezeMPrimArray :: MonadPrim s m => MPrimArray p e s -> m (PrimArray p e)
-freezeMPrimArray = fmap fromBytesPrimArray . freezeMBytes . toMBytesMPrimArray
-{-# INLINE freezeMPrimArray #-}
+freezePMArray :: MonadPrim s m => PMArray p e s -> m (PArray p e)
+freezePMArray = fmap fromBytesPArray . freezeMBytes . toMBytesPMArray
+{-# INLINE freezePMArray #-}
 
-thawPrimArray :: MonadPrim s m => PrimArray p e -> m (MPrimArray p e s)
-thawPrimArray = fmap fromMBytesMPrimArray . thawBytes . toBytesPrimArray
-{-# INLINE thawPrimArray #-}
+thawPArray :: MonadPrim s m => PArray p e -> m (PMArray p e s)
+thawPArray = fmap fromMBytesPMArray . thawBytes . toBytesPArray
+{-# INLINE thawPArray #-}
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
--- than or equal to the current count as reported by `getCountMPrimArray`.
-shrinkMPrimArray ::
+-- than or equal to the current count as reported by `getCountPMArray`.
+shrinkPMArray ::
      forall e p m s. (MonadPrim s m, Prim e)
-  => MPrimArray p e s
+  => PMArray p e s
   -> Size
   -> m ()
-shrinkMPrimArray mba sz = shrinkMBytes (toMBytesMPrimArray mba) (coerce sz :: Count e)
-{-# INLINE shrinkMPrimArray #-}
+shrinkPMArray mba sz = shrinkMBytes (toMBytesPMArray mba) (coerce sz :: Count e)
+{-# INLINE shrinkPMArray #-}
 
 
 -- | Attempt to resize mutable bytes in place.
@@ -182,125 +182,125 @@ shrinkMPrimArray mba sz = shrinkMBytes (toMBytesMPrimArray mba) (coerce sz :: Co
 -- * New bytes might be allocated, with the copy of an old one.
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
-resizeMPrimArray ::
+resizePMArray ::
      forall e p m s. (MonadPrim s m, Prim e)
-  => MPrimArray p e s
+  => PMArray p e s
   -> Size
-  -> m (MPrimArray 'Inc e s)
-resizeMPrimArray mba sz =
-  fromMBytesMPrimArray <$>
-  resizeMBytes (toMBytesMPrimArray mba) (coerce sz :: Count e)
-{-# INLINE resizeMPrimArray #-}
+  -> m (PMArray 'Inc e s)
+resizePMArray mba sz =
+  fromMBytesPMArray <$>
+  resizeMBytes (toMBytesPMArray mba) (coerce sz :: Count e)
+{-# INLINE resizePMArray #-}
 
-reallocMPrimArray ::
+reallocPMArray ::
      forall e p m s. (MonadPrim s m, Typeable p,  Prim e)
-  => MPrimArray p e s
+  => PMArray p e s
   -> Size
-  -> m (MPrimArray p e s)
-reallocMPrimArray mba sz =
-  fromMBytesMPrimArray <$>
-  reallocMBytes (toMBytesMPrimArray mba) (coerce sz :: Count e)
-{-# INLINABLE reallocMPrimArray #-}
+  -> m (PMArray p e s)
+reallocPMArray mba sz =
+  fromMBytesPMArray <$>
+  reallocMBytes (toMBytesPMArray mba) (coerce sz :: Count e)
+{-# INLINABLE reallocPMArray #-}
 
 
-isPinnedPrimArray :: PrimArray p e -> Bool
-isPinnedPrimArray (PrimArray b) = isPinnedBytes b
-{-# INLINE isPinnedPrimArray #-}
+isPinnedPArray :: PArray p e -> Bool
+isPinnedPArray (PArray b) = isPinnedBytes b
+{-# INLINE isPinnedPArray #-}
 
-isPinnedMPrimArray :: MPrimArray p e s -> Bool
-isPinnedMPrimArray (MPrimArray mb) = isPinnedMBytes mb
-{-# INLINE isPinnedMPrimArray #-}
+isPinnedPMArray :: PMArray p e s -> Bool
+isPinnedPMArray (PMArray mb) = isPinnedMBytes mb
+{-# INLINE isPinnedPMArray #-}
 
-readMPrimArray :: (MonadPrim s m, Prim e) => MPrimArray p e s -> Int -> m e
-readMPrimArray (MPrimArray mb) = readOffMBytes mb . coerce
-{-# INLINE readMPrimArray #-}
+readPMArray :: (MonadPrim s m, Prim e) => PMArray p e s -> Int -> m e
+readPMArray (PMArray mb) = readOffMBytes mb . coerce
+{-# INLINE readPMArray #-}
 
-writeMPrimArray :: (MonadPrim s m, Prim e) => MPrimArray p e s -> Int -> e -> m ()
-writeMPrimArray (MPrimArray mb) o = writeOffMBytes mb (coerce o)
-{-# INLINE writeMPrimArray #-}
+writePMArray :: (MonadPrim s m, Prim e) => PMArray p e s -> Int -> e -> m ()
+writePMArray (PMArray mb) o = writeOffMBytes mb (coerce o)
+{-# INLINE writePMArray #-}
 
 
 
-setMPrimArray ::
+setPMArray ::
      forall e p m s. (MonadPrim s m, Prim e)
-  => MPrimArray p e s -- ^ Chunk of memory to fill
+  => PMArray p e s -- ^ Chunk of memory to fill
   -> Int -- ^ Offset in number of elements
   -> Size -- ^ Number of cells to fill
   -> e -- ^ A value to fill the cells with
   -> m ()
-setMPrimArray (MPrimArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
-{-# INLINE setMPrimArray #-}
+setPMArray (PMArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
+{-# INLINE setPMArray #-}
 
-copyPrimArrayToMPrimArray ::
+copyPArrayToPMArray ::
      forall e p m s. (MonadPrim s m, Prim e)
-  => PrimArray p e
+  => PArray p e
   -> Int
-  -> MPrimArray p e s
+  -> PMArray p e s
   -> Int
   -> Size
   -> m ()
-copyPrimArrayToMPrimArray ba srcOff mba dstOff sz =
+copyPArrayToPMArray ba srcOff mba dstOff sz =
   copyMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz `countForProxyTypeOf` ba)
-{-# INLINE copyPrimArrayToMPrimArray #-}
+{-# INLINE copyPArrayToPMArray #-}
 
-moveMPrimArrayToMPrimArray ::
+movePMArrayToPMArray ::
      forall e p m s. (MonadPrim s m, Prim e)
-  => MPrimArray p e s
+  => PMArray p e s
   -> Int
-  -> MPrimArray p e s
+  -> PMArray p e s
   -> Int
   -> Size
   -> m ()
-moveMPrimArrayToMPrimArray ba srcOff mba dstOff sz =
+movePMArrayToPMArray ba srcOff mba dstOff sz =
   moveMutMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
-{-# INLINE moveMPrimArrayToMPrimArray #-}
+{-# INLINE movePMArrayToPMArray #-}
 
 
 
--- toPtrPrimArray :: PrimArray Pin e -> Ptr e
--- toPtrPrimArray (PrimArray ba#) = Ptr (byteArrayContents# ba#)
--- {-# INLINE toPtrPrimArray #-}
+-- toPtrPArray :: PArray Pin e -> Ptr e
+-- toPtrPArray (PArray ba#) = Ptr (byteArrayContents# ba#)
+-- {-# INLINE toPtrPArray #-}
 
--- toPtrMPrimArray :: MPrimArray Pin e s -> Ptr e
--- toPtrMPrimArray (MPrimArray mba#) = Ptr (mutablePrimArrayContents# mba#)
--- {-# INLINE toPtrMPrimArray #-}
+-- toPtrPMArray :: PMArray Pin e s -> Ptr e
+-- toPtrPMArray (PMArray mba#) = Ptr (mutablePArrayContents# mba#)
+-- {-# INLINE toPtrPMArray #-}
 
--- -- | Pointer access to immutable `PrimArray` should be for read only purposes, but it is
+-- -- | Pointer access to immutable `PArray` should be for read only purposes, but it is
 -- -- not enforced. Any mutation will break referential transparency
--- withPtrPrimArray :: MonadPrim s m => PrimArray Pin e -> (Ptr e -> m b) -> m b
--- withPtrPrimArray b f = do
---   res <- f (toPtrPrimArray b)
+-- withPtrPArray :: MonadPrim s m => PArray Pin e -> (Ptr e -> m b) -> m b
+-- withPtrPArray b f = do
+--   res <- f (toPtrPArray b)
 --   res <$ touch b
--- {-# INLINE withPtrPrimArray #-}
+-- {-# INLINE withPtrPArray #-}
 
--- -- | Same as `withPtrPrimArray`, but is suitable for actions that don't terminate
--- withNoHaltPtrPrimArray :: MonadUnliftPrim s m => PrimArray Pin e -> (Ptr e -> m b) -> m b
--- withNoHaltPtrPrimArray b f = withAliveUnliftPrim b $ f (toPtrPrimArray b)
--- {-# INLINE withNoHaltPtrPrimArray #-}
+-- -- | Same as `withPtrPArray`, but is suitable for actions that don't terminate
+-- withNoHaltPtrPArray :: MonadUnliftPrim s m => PArray Pin e -> (Ptr e -> m b) -> m b
+-- withNoHaltPtrPArray b f = withAliveUnliftPrim b $ f (toPtrPArray b)
+-- {-# INLINE withNoHaltPtrPArray #-}
 
--- withPtrMPrimArray :: MonadPrim s m => MPrimArray Pin e s -> (Ptr e -> m b) -> m b
--- withPtrMPrimArray mb f = do
---   res <- f (toPtrMPrimArray mb)
+-- withPtrPMArray :: MonadPrim s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
+-- withPtrPMArray mb f = do
+--   res <- f (toPtrPMArray mb)
 --   res <$ touch mb
--- {-# INLINE withPtrMPrimArray #-}
+-- {-# INLINE withPtrPMArray #-}
 
--- withNoHaltPtrMPrimArray :: MonadUnliftPrim s m => MPrimArray Pin e s -> (Ptr e -> m b) -> m b
--- withNoHaltPtrMPrimArray mb f = withAliveUnliftPrim mb $ f (toPtrMPrimArray mb)
--- {-# INLINE withNoHaltPtrMPrimArray #-}
+-- withNoHaltPtrPMArray :: MonadUnliftPrim s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
+-- withNoHaltPtrPMArray mb f = withAliveUnliftPrim mb $ f (toPtrPMArray mb)
+-- {-# INLINE withNoHaltPtrPMArray #-}
 
 
 -- -- -- | Check if two byte arrays refer to pinned memory and compare their pointers.
--- -- isSamePrimArray :: PrimArray p1 e -> PrimArray p2 e -> Bool
--- -- isSamePrimArray (PrimArray b1#) (PrimArray b2#) = isTrue# (isSameByteArray# b1# b2#)
--- -- {-# INLINE[0] isSamePrimArray #-}
+-- -- isSamePArray :: PArray p1 e -> PArray p2 e -> Bool
+-- -- isSamePArray (PArray b1#) (PArray b2#) = isTrue# (isSameByteArray# b1# b2#)
+-- -- {-# INLINE[0] isSamePArray #-}
 -- -- {-# RULES
--- -- "isSamePinnedPrimArray" isSamePrimArray = isSamePinnedPrimArray
+-- -- "isSamePinnedPArray" isSamePArray = isSamePinnedPArray
 -- --   #-}
 
--- -- -- | Perform pointer equality on pinned `PrimArray`.
--- -- isSamePinnedPrimArray :: PrimArray Pin e -> PrimArray Pin e -> Bool
--- -- isSamePinnedPrimArray pb e1 pb2 = toPtrPrimArray pb e1 == toPtrPrimArray pb e2
--- -- {-# INLINE isSamePinnedPrimArray #-}
+-- -- -- | Perform pointer equality on pinned `PArray`.
+-- -- isSamePinnedPArray :: PArray Pin e -> PArray Pin e -> Bool
+-- -- isSamePinnedPArray pb e1 pb2 = toPtrPArray pb e1 == toPtrPArray pb e2
+-- -- {-# INLINE isSamePinnedPArray #-}
 
 
 

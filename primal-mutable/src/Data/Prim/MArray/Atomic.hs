@@ -222,7 +222,7 @@ instance Typeable p => AtomicBitsMArray (MBytes p) where
 
 
 
-instance (Typeable p, Atomic e) => AtomicMArray (MPrimArray p e) where
+instance (Typeable p, Atomic e) => AtomicMArray (PMArray p e) where
   atomicReadMArray mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (coerce mba) (coerce i :: Off e)
@@ -233,7 +233,7 @@ instance (Typeable p, Atomic e) => AtomicMArray (MPrimArray p e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MPrimArray p e) where
+instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (PMArray p e) where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -244,7 +244,7 @@ instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (MPrimArray p e
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (MPrimArray p e) where
+instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (PMArray p e) where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -314,7 +314,7 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (MAddr e) where
   {-# INLINE atomicNotFetchNewMArray #-}
 
 
-instance Atomic e => AtomicMArray (U.MUArray e) where
+instance Atomic e => AtomicMArray (U.UMArray e) where
   atomicReadMArray mba i = atomicReadMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -325,7 +325,7 @@ instance Atomic e => AtomicMArray (U.MUArray e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Num e, AtomicCount e) => AtomicCountMArray (U.MUArray e) where
+instance (Num e, AtomicCount e) => AtomicCountMArray (U.UMArray e) where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -336,7 +336,7 @@ instance (Num e, AtomicCount e) => AtomicCountMArray (U.MUArray e) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.MUArray e) where
+instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.UMArray e) where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
@@ -358,17 +358,17 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.MUArray e) where
   atomicNotFetchNewMArray mba i = atomicNotFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNotFetchNewMArray #-}
 
-instance AtomicMArray (B.MBArray e) where
-  casMArray = B.casMBArray
+instance AtomicMArray (B.BMArray e) where
+  casMArray = B.casBMArray
   {-# INLINE casMArray #-}
 
-instance Num e => AtomicCountMArray (B.MBArray e)
-instance Bits e => AtomicBitsMArray (B.MBArray e)
+instance Num e => AtomicCountMArray (B.BMArray e)
+instance Bits e => AtomicBitsMArray (B.BMArray e)
 
 
-instance AtomicMArray (SB.MSBArray e) where
-  casMArray = SB.casMSBArray
+instance AtomicMArray (SB.SBMArray e) where
+  casMArray = SB.casSBMArray
   {-# INLINE casMArray #-}
 
-instance Num e => AtomicCountMArray (SB.MSBArray e)
-instance Bits e => AtomicBitsMArray (SB.MSBArray e)
+instance Num e => AtomicCountMArray (SB.SBMArray e)
+instance Bits e => AtomicBitsMArray (SB.SBMArray e)

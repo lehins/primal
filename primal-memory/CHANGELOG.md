@@ -6,6 +6,7 @@
   with mutable source memory regions.
 * Rename `resizeMem` -> `reallocMutMem`
 * Export `defaultReallocMutMem`
+* Rename `PrimArray` -> `PArray` and `MPrimArray` -> `PMArray`
 
 ## 0.2.0
 

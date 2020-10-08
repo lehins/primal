@@ -24,13 +24,13 @@ primMRefSpec ::
   => Spec
 primMRefSpec = do
   MRef.spec @(MAddr e)
-  MRef.spec @(MPrimArray 'Inc e)
-  MRef.spec @(MPrimArray 'Pin e)
-  MRef.spec @(MUArray e)
+  MRef.spec @(PMArray 'Inc e)
+  MRef.spec @(PMArray 'Pin e)
+  MRef.spec @(UMArray e)
   MRef.spec @(NEMArrayIx (MAddr e))
-  MRef.spec @(NEMArrayIx (MPrimArray 'Inc e))
-  MRef.spec @(NEMArrayIx (MPrimArray 'Pin e))
-  MRef.spec @(NEMArrayIx (MUArray e))
+  MRef.spec @(NEMArrayIx (PMArray 'Inc e))
+  MRef.spec @(NEMArrayIx (PMArray 'Pin e))
+  MRef.spec @(NEMArrayIx (UMArray e))
 
 
 spec :: Spec
@@ -45,11 +45,11 @@ spec = do
   primMRefSpec @Word16
   primMRefSpec @Word32
   primMRefSpec @Word64
-  MRef.spec @(MSBArray Int)
-  MRef.spec @(MBArray Int)
-  specMArray @(MUArray Int)
-  -- specMArray @(MBArray Int)
-  -- specMArray @(MBArray Integer)
+  MRef.spec @(SBMArray Int)
+  MRef.spec @(BMArray Int)
+  specMArray @(UMArray Int)
+  -- specMArray @(BMArray Int)
+  -- specMArray @(BMArray Integer)
   MRef.spec @(Ref Int)
   MRef.spec @(Ref Integer)
   MRef.spec @(MBytes 'Pin)

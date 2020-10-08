@@ -70,16 +70,16 @@ instance Prim e => MRef (MAddr e) where
 
 
 
-instance (Typeable p, Prim e) => MRef (MPrimArray p e) where
-  type Elt (MPrimArray p e) = e
+instance (Typeable p, Prim e) => MRef (PMArray p e) where
+  type Elt (PMArray p e) = e
 
-  newRawMRef = allocMPrimArray 1
+  newRawMRef = allocPMArray 1
   {-# INLINE newRawMRef #-}
 
-  writeMRef mba = writeMPrimArray mba 0
+  writeMRef mba = writePMArray mba 0
   {-# INLINE writeMRef #-}
 
-  readMRef mba = readMPrimArray mba 0
+  readMRef mba = readPMArray mba 0
   {-# INLINE readMRef #-}
 
 

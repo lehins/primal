@@ -308,46 +308,46 @@ instance Prim e => MArray (MAddr e) where
 
 
 
-instance (Typeable p, Prim e) => MArray (MPrimArray p e) where
-  type Array (MPrimArray p e) = PrimArray p e
+instance (Typeable p, Prim e) => MArray (PMArray p e) where
+  type Array (PMArray p e) = PArray p e
 
-  sizeOfArray = sizePrimArray
+  sizeOfArray = sizePArray
   {-# INLINE sizeOfArray #-}
 
   indexArray a i = indexOffMem a (coerce i)
   {-# INLINE indexArray #-}
 
-  getSizeOfMArray = getSizeMPrimArray
+  getSizeOfMArray = getSizePMArray
   {-# INLINE getSizeOfMArray #-}
 
-  thawArray = thawPrimArray
+  thawArray = thawPArray
   {-# INLINE thawArray #-}
 
-  freezeMArray = freezeMPrimArray
+  freezeMArray = freezePMArray
   {-# INLINE freezeMArray #-}
 
-  newRawMArray = allocMPrimArray
+  newRawMArray = allocPMArray
   {-# INLINE newRawMArray #-}
 
-  writeMArray = writeMPrimArray
+  writeMArray = writePMArray
   {-# INLINE writeMArray #-}
 
-  readMArray = readMPrimArray
+  readMArray = readPMArray
   {-# INLINE readMArray #-}
 
-  copyArray = copyPrimArrayToMPrimArray
+  copyArray = copyPArrayToPMArray
   {-# INLINE copyArray #-}
 
-  moveMArray = moveMPrimArrayToMPrimArray
+  moveMArray = movePMArrayToPMArray
   {-# INLINE moveMArray #-}
 
-  setMArray = setMPrimArray
+  setMArray = setPMArray
   {-# INLINE setMArray #-}
 
-  shrinkMArray ma sz = ma <$ shrinkMPrimArray ma sz
+  shrinkMArray ma sz = ma <$ shrinkPMArray ma sz
   {-# INLINE shrinkMArray #-}
 
-  resizeMArray = reallocMPrimArray
+  resizeMArray = reallocPMArray
   {-# INLINE resizeMArray #-}
 
 -- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
