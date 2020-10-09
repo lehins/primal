@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -29,6 +30,7 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
+import Data.Functor.Identity
 import Data.Kind
 import Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
@@ -38,8 +40,8 @@ import Data.Prim.Memory.Bytes.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Ptr
-import qualified Data.Semigroup as Semigroup
 import qualified Data.Prim.Memory.Text as T
+import qualified Data.Semigroup as Semigroup
 import Foreign.Prim
 import Numeric (showHex)
 
@@ -1263,7 +1265,7 @@ createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
 -- >>> let report bEq pEq = print $ "Bytes equal: " ++ show bEq ++ ", their pointers equal: " ++ show pEq
 -- >>> withPtrBytes xs $ \ xsPtr -> withPtrBytes ys $ \ ysPtr -> report (xs == ys) (xsPtr == ysPtr)
 -- "Bytes equal: True, their pointers equal: False"
--- >>> report (eqMem xs ys) (isSameBytes xs ys)
+-- >>> report (eqByteMem xs ys) (isSameBytes xs ys)
 -- "Bytes equal: True, their pointers equal: False"
 --
 -- @since 0.2.0
@@ -1610,34 +1612,94 @@ cloneMutMem ::
 cloneMutMem = freezeMutMem >=> thawCloneMem
 {-# INLINE cloneMutMem #-}
 
--- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
--- reported by `byteCountMem` do not match. Computation may be short-circuited on the
+-- | Compare two memory regions byte-by-byte. Computation may be short-circuited on the
 -- first mismatch, but it is `MemRead` implementation specific.
 --
--- @since 0.1.0
-eqMem :: (MemRead mr1, MemRead mr2) => mr1 -> mr2 -> Bool
-eqMem b1 b2 = n == byteCountMem b2 && compareByteOffMem b1 0 b2 0 n == EQ
+-- @since 0.3.0
+eqByteOffMem ::
+     (MemRead mr1, MemRead mr2)
+  => mr1 -- ^ /memRead1/ - First region of memory
+  -> Off Word8
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff1
+  -> mr2 -- ^ /memRead2/ - Second region of memory
+  -> Off Word8
+  -- ^ /memOff2/ - Offset for @memRead1@ in number of bytes
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff2
+  -> Count Word8
+  -- ^ /memCount/ - Number of bytes compare
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > offToCount memOff1 + memCount < countMem memRead1
+  --
+  -- > offToCount memOff2 + memCount < countMem memRead2
+  -> Bool
+eqByteOffMem b1 off1 b2 off2 n = compareByteOffMem b1 off1 b2 off2 n == EQ
+{-# INLINE eqByteOffMem #-}
+
+-- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
+-- reported by `byteCountMem` do not match.
+--
+-- @since 0.3.0
+eqByteMem :: (MemRead mr1, MemRead mr2) => mr1 -> mr2 -> Bool
+eqByteMem b1 b2 = n == byteCountMem b2 && eqByteOffMem b1 0 b2 0 n
   where
     n = byteCountMem b1
-{-# INLINE eqMem #-}
+{-# INLINE eqByteMem #-}
 
--- | Compare two regions of memory byte-by-byte. It will return `EQ` whenever both regions
--- are exactly the same and `LT` or `GT` as soon as the first byte is reached that is less
--- than or greater than respectfully in the first region when compared to the second
--- one. It is safe for both regions to refer to the same part of memory, since this is a
--- pure function and both regions of memory are read-only.
+-- | Compare two regions using the `Ord` instance. It will return `EQ` whenever both
+-- regions hold exactly the same elements and `LT` or `GT` as soon as the first discovered
+-- element that is less than or greater than respectfully in the first region when
+-- compared to the second one. It is safe for both regions to refer to the same part of
+-- memory.
 --
--- @since 0.1.0
-compareMem ::
-     forall e mr1 mr2. (MemRead mr1, MemRead mr2, Prim e)
-  => mr1 -- ^ First region of memory
-  -> Off e -- ^ Offset in number of elements into the first region
-  -> mr2 -- ^ Second region of memory
-  -> Off e -- ^ Offset in number of elements into the second region
-  -> Count e -- ^ Number of elements to compare
+-- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
+-- element count @memCount@ is violated the result is either unpredictable output or
+-- failure with a segfault.
+--
+-- @since 0.3.0
+compareOffMem ::
+     (Prim e, Ord e, MemRead mr1, MemRead mr2)
+  => mr1 -- ^ /memRead1/ - First region of memory
+  -> Off e
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of elements
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff1
+  -> mr2 -- ^ /memRead2/ - Second region of memory
+  -> Off e
+  -- ^ /memOff2/ - Offset for @memRead1@ in number of elements
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff2
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to compare
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > offToCount memOff1 + memCount < countMem memRead1
+  --
+  -- > offToCount memOff2 + memCount < countMem memRead2
   -> Ordering
-compareMem r1 off1 r2 off2 = compareByteOffMem r1 (toByteOff off1) r2 (toByteOff off2)
-{-# INLINE compareMem #-}
+compareOffMem m1 off1 m2 off2 count =
+  let doff = off2 - off1
+      f _ ioff e = compare e (indexOffMem m2 (ioff + doff))
+      {-# INLINE f #-}
+   in ifoldlShortMem off1 count (== EQ) f EQ m1
+{-# INLINE compareOffMem #-}
 
 -- =============== --
 -- List conversion --
@@ -2284,23 +2346,142 @@ forByteOffMemM_ r (Off byteOff) c f =
         | otherwise = pure $ Off i
    in go byteOff
 
-loopShortM :: Monad m => Int -> (Int -> a -> Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
+
+
+
+ifoldlShortMem ::
+     (Prim e, MemRead mr)
+  => Off e
+  -- ^ Initial offset to start at
+  -> Count e
+  -- ^ Total number of elements to iterate through
+  -> (a -> Bool)
+  -- ^ Continuation condition applied to an accumulator. When `False` it will terminate
+  -- early
+  -> (a -> Off e -> e -> a)
+  -- ^ Folding function
+  -> a
+  -- ^ Initial accumulator
+  -> mr
+  -- ^ Memory region to iterate over
+  -> a
+ifoldlShortMem off count g f initAcc mem =
+  runIdentity $
+  ifoldlShortMemM off count (pure . g) (\a o e -> pure $! f a o e) initAcc mem
+  -- loopShortM (coerce off) (\i a -> pure (g a && i < k)) (+ 1) initAcc $ \ !i !acc ->
+  --   let ioff = coerce i
+  --    in pure $! f acc ioff (indexOffMem mem ioff)
+  -- where
+  --   k = coerce count
+{-# INLINE ifoldlShortMem #-}
+
+ifoldlShortMemM ::
+     (Prim e, MemRead mr, Monad m)
+  => Off e
+  -- ^ Initial offset to start at
+  -> Count e
+  -- ^ Total number of elements to iterate through
+  -> (a -> m Bool)
+  -- ^ Continuation condition applied to an accumulator. When `False` it will terminate
+  -- early
+  -> (a -> Off e -> e -> m a)
+  -- ^ Folding function
+  -> a
+  -- ^ Initial accumulator
+  -> mr
+  -- ^ Memory region to iterate over
+  -> m a
+ifoldlShortMemM off count g f initAcc mem =
+  loopShortM (coerce off) (\i a -> (\p -> p && i < k) <$> g a) (+ 1) initAcc $ \ !i !acc ->
+    let ioff = coerce i
+     in f acc ioff (indexOffMem mem ioff)
+  where
+    k = coerce count
+{-# INLINE ifoldlShortMemM #-}
+
+
+foldlShortMem ::
+     (Prim e, MemRead mr)
+  => Off e
+  -- ^ Initial offset to start at
+  -> Count e
+  -- ^ Total number of elements to iterate through
+  -> (a -> Bool)
+  -- ^ Continuation condition applied to an accumulator. When `False` it will terminate
+  -- early
+  -> (a -> e -> a)
+  -- ^ Folding function
+  -> a
+  -- ^ Initial accumulator
+  -> mr
+  -- ^ Memory region to iterate over
+  -> a
+foldlShortMem off count g f = ifoldlShortMem off count g (\a _ -> f a)
+{-# INLINE foldlShortMem #-}
+
+-- Dangerous: ignores the slack
+eqMem :: forall e mr . (Prim e, Eq e, MemRead mr) => mr -> mr -> Bool
+eqMem m1 m2 = isSameMem m1 m2 || (n == countMem m2 && eqOffMem m1 0 m2 0 n)
+  where
+    n = countMem m1 :: Count e
+{-# INLINE eqMem #-}
+
+
+-- | Check two regions of memory for equality using the `Eq` instance. It will return
+-- `True` whenever both regions hold exactly the same elements and `False` as soon as the
+-- first pair of mismatched elements is discovered in the two regions. It is safe for both
+-- regions to refer to the same part of memory.
+--
+-- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
+-- element count @memCount@ is violated the result is either unpredictable output or
+-- failure with a segfault.
+--
+-- @since 0.3.0
+eqOffMem ::
+     (Prim e, Eq e, MemRead mr1, MemRead mr2)
+  => mr1 -- ^ /memRead1/ - First region of memory
+  -> Off e
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of elements
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff1
+  -> mr2 -- ^ /memRead2/ - Second region of memory
+  -> Off e
+  -- ^ /memOff2/ - Offset for @memRead1@ in number of elements
+  --
+  -- /__Precondition:__/
+  --
+  -- > 0 <= memOff2
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to compare
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > offToCount memOff1 + memCount < countMem memRead1
+  --
+  -- > offToCount memOff2 + memCount < countMem memRead2
+  -> Bool
+eqOffMem m1 off1 m2 off2 count =
+  let doff = off2 - off1
+      f _ ioff e = e == indexOffMem m2 (ioff + doff)
+      {-# INLINE f #-}
+   in ifoldlShortMem off1 count id f True m1
+{-# INLINE eqOffMem #-}
+
+
+
+loopShortM :: Monad m => Int -> (Int -> a -> m Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
 loopShortM !startAt condition increment !initAcc f = go startAt initAcc
   where
-    go !step !acc
-      | condition step acc = f step acc >>= go (increment step)
-      | otherwise = pure acc
+    go !step !acc = do
+      shouldContinue <- condition step acc
+      if shouldContinue
+        then f step acc >>= go (increment step)
+        else return acc
 {-# INLINE loopShortM #-}
-
-loopShortM' :: Monad m => Int -> (Int -> a -> m Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
-loopShortM' !startAt condition increment !initAcc f = go startAt initAcc
-  where
-    go !step !acc =
-      condition step acc >>= \cont ->
-        if cont
-          then f step acc >>= go (increment step)
-          else pure acc
-{-# INLINE loopShortM' #-}
 
 -- -- | Iterate over a region of memory
 -- loopMemM_ ::
@@ -2486,7 +2667,7 @@ instance Typeable p => IsList (Bytes p) where
   {-# INLINE toList #-}
 
 instance Eq (Bytes p) where
-  b1 == b2 = isSameBytes b1 b2 || eqMem b1 b2
+  b1 == b2 = isSameBytes b1 b2 || eqByteMem b1 b2
   {-# INLINE (==) #-}
 
 instance Ord (Bytes p) where

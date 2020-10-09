@@ -159,9 +159,20 @@ data MAddr e s = MAddr
 type role MAddr nominal nominal
 
 
+instance (Eq e, Prim e) => Eq (Addr e) where
+  a1 == a2 = isSameAddr a1 a2 || (n == countAddr a2 && eqOffMem a1 0 a2 0 n)
+    where
+      n = countAddr a1 :: Count e
+  {-# INLINE (==) #-}
 
-instance Eq (Addr e) where
-  a1 == a2 = isSameAddr a1 a2 || eqMem a1 a2
+instance (Prim e, Ord e) => Ord (Addr e) where
+  compare a1 a2
+    | isSameAddr a1 a2 = EQ
+    | otherwise = compare n (countAddr a2) <> compareOffMem a1 0 a2 0 n
+    where
+      n = countAddr a1 :: Count e
+  {-# INLINE compare #-}
+
 
 instance (Show e, Prim e) => Show (Addr e) where
   show a = show (toListMem a :: [e])

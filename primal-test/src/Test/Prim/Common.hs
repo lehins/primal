@@ -89,8 +89,7 @@ instance Exception ExpectedException
 
 
 instance Eq T.Array where
-  b1 == b2 = eqMem b1 b2
-  {-# INLINE (==) #-}
+  b1 == b2 = eqByteMem b1 b2
 
 instance Show T.Array where
   show b =

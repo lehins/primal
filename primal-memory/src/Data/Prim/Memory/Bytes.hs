@@ -185,7 +185,7 @@ fromMutableByteArray# = MBytes
 
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
-eqBytes b1 b2 = isSameBytes b1 b2 || eqMem b1 b2
+eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2
 {-# INLINE eqBytes #-}
 
 ---- Pure

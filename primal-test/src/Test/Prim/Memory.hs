@@ -24,7 +24,7 @@ import Test.Prim
 data Mem a e = Mem [e] (FrozenMem a)
 
 instance (MemRead (FrozenMem a), Eq e) => Eq (Mem a e) where
-  Mem xs1 m1 == Mem xs2 m2 = xs1 == xs2 && eqMem m1 m2
+  Mem xs1 m1 == Mem xs2 m2 = xs1 == xs2 && eqByteMem m1 m2
 
 instance (Show e, Prim e, MemAlloc a) => Show (Mem a e) where
   show (Mem xs bs) =
@@ -42,7 +42,7 @@ instance (MemAlloc a, Prim e, Arbitrary e) => Arbitrary (Mem a e) where
 data NEMem a e = NEMem (Off e) [e] (FrozenMem a)
 
 instance (MemRead (FrozenMem a), Eq e) => Eq (NEMem a e) where
-  NEMem o1 xs1 m1 == NEMem o2 xs2 m2 = o1 == o2 && xs1 == xs2 && eqMem m1 m2
+  NEMem o1 xs1 m1 == NEMem o2 xs2 m2 = o1 == o2 && xs1 == xs2 && eqByteMem m1 m2
 
 instance (Show e, Prim e, MemAlloc a) => Show (NEMem a e) where
   show (NEMem o xs bs) =
@@ -426,7 +426,7 @@ prop_reallocMutMem (Mem xs fm) (NonNegative n) pt =
       mm' <- reallocMutMem mm c'
       getByteCountMutMem mm' `shouldReturn` c8'
       fm' <- freezeMutMem mm'
-      compareMem fm 0 fm' 0 (min c8 c8') `shouldBe` EQ
+      compareByteOffMem fm 0 fm' 0 (min c8 c8') `shouldBe` EQ
       let ce' = countMem fm' `countForProxyTypeOf` xs
       zipWithM_ (\off x -> indexOffMem fm' off `shouldBe` x) [0 .. countToOff ce' - 1] xs
 

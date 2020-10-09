@@ -6,6 +6,8 @@
 -- Stability   : experimental
 -- Portability : non-portable
 --
+{-# LANGUAGE BangPatterns #-}
+
 module Data.Prim.Memory
   ( module Data.Prim
   , Pinned(..)
@@ -34,8 +36,10 @@ module Data.Prim.Memory
   , copyByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , copyByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Compare
-  , eqMem                     -- DOC: [x], DOCTEST [ ], TEST: [ ]
-  , compareMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , eqOffMem                  -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , eqByteMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , eqByteOffMem              -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , compareOffMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , compareByteOffMem         -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , compareByteOffToPtrMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , compareByteOffToBytesMem  -- DOC: [x], DOCTEST [ ], TEST: [x]
@@ -54,6 +58,9 @@ module Data.Prim.Memory
   , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]
+  -- ** Iterators
+  , foldlShortMem
+  , ifoldlShortMem
   -- * Mutable
   , MBytes
   , MemWrite

@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Data.Prim.Memory.PrimArray
@@ -60,6 +61,22 @@ import Data.Prim.Memory.ForeignPtr
 newtype PArray (p :: Pinned) e = PArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
 type role PArray nominal nominal
+
+
+instance (Prim e, Eq e) => Eq (PArray p e) where
+  (==) = eqMem @e --  (PArray bs1) (PArray bs2) =
+    -- isSameBytes bs1 bs2 || (n == countBytes bs2 && eqOffMem bs1 0 bs2 0 n)
+    -- where
+    --   n = countBytes bs1 :: Count e
+  {-# INLINE (==) #-}
+
+instance (Prim e, Ord e) => Ord (PArray p e) where
+  compare (PArray bs1) (PArray bs2)
+    | isSameBytes bs1 bs2 = EQ
+    | otherwise = compare n (countBytes bs2) <> compareOffMem bs1 0 bs2 0 n
+    where
+      n = countBytes bs1 :: Count e
+  {-# INLINE compare #-}
 
 -- | A mutable array with elements of type @e@
 newtype PMArray (p :: Pinned) e s = PMArray (MBytes p s)
