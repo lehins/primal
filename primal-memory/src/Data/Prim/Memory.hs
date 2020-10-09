@@ -58,9 +58,6 @@ module Data.Prim.Memory
   , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]
-  -- ** Iterators
-  , foldlShortMem
-  , ifoldlShortMem
   -- * Mutable
   , MBytes
   , MemWrite
@@ -114,3 +111,4 @@ module Data.Prim.Memory
 
 import Data.Prim
 import Data.Prim.Memory.Internal
+import Data.Prim.Memory.Fold

@@ -31,6 +31,7 @@ library
                      , Data.Prim.Memory.ByteString
                      , Data.Prim.Memory.Bytes
                      , Data.Prim.Memory.ForeignPtr
+                     , Data.Prim.Memory.Fold
                      , Data.Prim.Memory.PrimArray
                      , Data.Prim.Memory.Ptr
                      , Data.Prim.Memory.Text

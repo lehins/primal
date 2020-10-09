@@ -64,9 +64,10 @@ module Data.Prim
   , ForeignPtr
   , Typeable
   , Proxy(..)
+  , module Data.Coerce
+  , (#.)
   , module Data.Semigroup
   , module Data.Monoid
-  , module Data.Coerce
   ) where
 
 import Control.DeepSeq
@@ -393,3 +394,11 @@ prefetchValue2 a = prim_ (prefetchValue2# a)
 prefetchValue3 :: MonadPrim s m => a -> m ()
 prefetchValue3 a = prim_ (prefetchValue3# a)
 {-# INLINE prefetchValue3 #-}
+
+
+-- | Coerce result of a function (it is also a hidden function in Data.Functor.Utils)
+--
+-- @since 0.2.1
+(#.) :: Coercible b c => proxy b c -> (a -> b) -> (a -> c)
+(#.) _f = coerce
+{-# INLINE (#.) #-}

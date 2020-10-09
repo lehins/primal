@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -1656,51 +1657,6 @@ eqByteMem b1 b2 = n == byteCountMem b2 && eqByteOffMem b1 0 b2 0 n
     n = byteCountMem b1
 {-# INLINE eqByteMem #-}
 
--- | Compare two regions using the `Ord` instance. It will return `EQ` whenever both
--- regions hold exactly the same elements and `LT` or `GT` as soon as the first discovered
--- element that is less than or greater than respectfully in the first region when
--- compared to the second one. It is safe for both regions to refer to the same part of
--- memory.
---
--- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
--- element count @memCount@ is violated the result is either unpredictable output or
--- failure with a segfault.
---
--- @since 0.3.0
-compareOffMem ::
-     (Prim e, Ord e, MemRead mr1, MemRead mr2)
-  => mr1 -- ^ /memRead1/ - First region of memory
-  -> Off e
-  -- ^ /memOff1/ - Offset for @memRead1@ in number of elements
-  --
-  -- /__Precondition:__/
-  --
-  -- > 0 <= memOff1
-  -> mr2 -- ^ /memRead2/ - Second region of memory
-  -> Off e
-  -- ^ /memOff2/ - Offset for @memRead1@ in number of elements
-  --
-  -- /__Precondition:__/
-  --
-  -- > 0 <= memOff2
-  -> Count e
-  -- ^ /memCount/ - Number of elements of type __@e@__ to compare
-  --
-  -- /__Preconditions:__/
-  --
-  -- > 0 <= memCount
-  --
-  -- > offToCount memOff1 + memCount < countMem memRead1
-  --
-  -- > offToCount memOff2 + memCount < countMem memRead2
-  -> Ordering
-compareOffMem m1 off1 m2 off2 count =
-  let doff = off2 - off1
-      f _ ioff e = compare e (indexOffMem m2 (ioff + doff))
-      {-# INLINE f #-}
-   in ifoldlShortMem off1 count (== EQ) f EQ m1
-{-# INLINE compareOffMem #-}
-
 -- =============== --
 -- List conversion --
 -- =============== --
@@ -2346,6 +2302,66 @@ forByteOffMemM_ r (Off byteOff) c f =
         | otherwise = pure $ Off i
    in go byteOff
 
+{-
+
+loopShort :: Int -> (Int -> a -> Bool) -> (Int -> Int) -> a -> (Int -> a -> a) -> a
+loopShort !startAt condition increment !initAcc f = go startAt initAcc
+  where
+    go !step !acc =
+      if condition step acc
+        then go (increment step) (f step acc)
+        else acc
+{-# INLINE loopShort #-}
+
+loopShortM :: Monad m => Int -> (Int -> a -> m Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
+loopShortM !startAt condition increment !initAcc f = go startAt initAcc
+  where
+    go !step !acc = do
+      shouldContinue <- condition step acc
+      if shouldContinue
+        then f step acc >>= go (increment step)
+        else return acc
+{-# INLINE loopShortM #-}
+
+
+
+ifoldlShortBytes ::
+     (Prim e)
+  => Off e
+  -- ^ Initial offset to start at
+  -> Count e
+  -- ^ Total number of elements to iterate through
+  -> (a -> Bool)
+  -- ^ Continuation condition applied to an accumulator. When `False` it will terminate
+  -- early
+  -> (a -> Off e -> e -> a)
+  -- ^ Folding function
+  -> a
+  -- ^ Initial accumulator
+  -> Bytes p
+  -- ^ Memory region to iterate over
+  -> a
+ifoldlShortBytes off count g f initAcc mem =
+  loopShort (coerce off) cond (+ 1) initAcc inner
+  where
+    inner !i !acc =
+      let ioff = coerce i
+       in f acc ioff $! indexOffBytes mem ioff
+    {-# INLINE inner #-}
+    cond i a = g a && i < k
+    {-# INLINE cond #-}
+    k = coerce count
+{-# INLINE ifoldlShortBytes #-}
+-}
+
+
+
+
+
+
+
+{-
+
 
 
 
@@ -2365,12 +2381,16 @@ ifoldlShortMem ::
   -> mr
   -- ^ Memory region to iterate over
   -> a
-ifoldlShortMem off count g f initAcc mem =
-  runIdentity $
-  ifoldlShortMemM off count (pure . g) (\a o e -> pure $! f a o e) initAcc mem
-  -- loopShortM (coerce off) (\i a -> pure (g a && i < k)) (+ 1) initAcc $ \ !i !acc ->
+ifoldlShortMem off count g f initAcc mem = loop initAcc off
+  where
+    k = countToOff count + off
+    loop !acc !i
+      | g acc && i < k = loop (f acc i (indexOffMem mem i)) (i + 1)
+      | otherwise = acc
+
+  -- loopShort (coerce off) (\i a -> g a && i < k) (+ 1) initAcc $ \ !i !acc ->
   --   let ioff = coerce i
-  --    in pure $! f acc ioff (indexOffMem mem ioff)
+  --    in f acc ioff (indexOffMem mem ioff)
   -- where
   --   k = coerce count
 {-# INLINE ifoldlShortMem #-}
@@ -2418,70 +2438,10 @@ foldlShortMem ::
   -> a
 foldlShortMem off count g f = ifoldlShortMem off count g (\a _ -> f a)
 {-# INLINE foldlShortMem #-}
-
--- Dangerous: ignores the slack
-eqMem :: forall e mr . (Prim e, Eq e, MemRead mr) => mr -> mr -> Bool
-eqMem m1 m2 = isSameMem m1 m2 || (n == countMem m2 && eqOffMem m1 0 m2 0 n)
-  where
-    n = countMem m1 :: Count e
-{-# INLINE eqMem #-}
-
-
--- | Check two regions of memory for equality using the `Eq` instance. It will return
--- `True` whenever both regions hold exactly the same elements and `False` as soon as the
--- first pair of mismatched elements is discovered in the two regions. It is safe for both
--- regions to refer to the same part of memory.
---
--- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
--- element count @memCount@ is violated the result is either unpredictable output or
--- failure with a segfault.
---
--- @since 0.3.0
-eqOffMem ::
-     (Prim e, Eq e, MemRead mr1, MemRead mr2)
-  => mr1 -- ^ /memRead1/ - First region of memory
-  -> Off e
-  -- ^ /memOff1/ - Offset for @memRead1@ in number of elements
-  --
-  -- /__Precondition:__/
-  --
-  -- > 0 <= memOff1
-  -> mr2 -- ^ /memRead2/ - Second region of memory
-  -> Off e
-  -- ^ /memOff2/ - Offset for @memRead1@ in number of elements
-  --
-  -- /__Precondition:__/
-  --
-  -- > 0 <= memOff2
-  -> Count e
-  -- ^ /memCount/ - Number of elements of type __@e@__ to compare
-  --
-  -- /__Preconditions:__/
-  --
-  -- > 0 <= memCount
-  --
-  -- > offToCount memOff1 + memCount < countMem memRead1
-  --
-  -- > offToCount memOff2 + memCount < countMem memRead2
-  -> Bool
-eqOffMem m1 off1 m2 off2 count =
-  let doff = off2 - off1
-      f _ ioff e = e == indexOffMem m2 (ioff + doff)
-      {-# INLINE f #-}
-   in ifoldlShortMem off1 count id f True m1
-{-# INLINE eqOffMem #-}
+-}
 
 
 
-loopShortM :: Monad m => Int -> (Int -> a -> m Bool) -> (Int -> Int) -> a -> (Int -> a -> m a) -> m a
-loopShortM !startAt condition increment !initAcc f = go startAt initAcc
-  where
-    go !step !acc = do
-      shouldContinue <- condition step acc
-      if shouldContinue
-        then f step acc >>= go (increment step)
-        else return acc
-{-# INLINE loopShortM #-}
 
 -- -- | Iterate over a region of memory
 -- loopMemM_ ::

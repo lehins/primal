@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
@@ -136,6 +137,7 @@ import Data.Prim.Class
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Bytes.Internal
 import Data.Prim.Memory.ByteString
+import Data.Prim.Memory.Fold
 import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Internal
 import Data.Prim.Memory.Ptr
@@ -160,17 +162,11 @@ type role MAddr nominal nominal
 
 
 instance (Eq e, Prim e) => Eq (Addr e) where
-  a1 == a2 = isSameAddr a1 a2 || (n == countAddr a2 && eqOffMem a1 0 a2 0 n)
-    where
-      n = countAddr a1 :: Count e
+  (==) = eqMem @e
   {-# INLINE (==) #-}
 
 instance (Prim e, Ord e) => Ord (Addr e) where
-  compare a1 a2
-    | isSameAddr a1 a2 = EQ
-    | otherwise = compare n (countAddr a2) <> compareOffMem a1 0 a2 0 n
-    where
-      n = countAddr a1 :: Count e
+  compare = compareMem @e
   {-# INLINE compare #-}
 
 
@@ -188,13 +184,19 @@ instance Prim e => IsList (Addr e) where
 
 instance Semigroup.Semigroup (Addr e) where
   (<>) = appendMem
+  {-# INLINE (<>) #-}
   sconcat (x :| xs) = concatMem (x:xs)
+  {-# INLINE sconcat #-}
   stimes i = cycleMemN (fromIntegral i)
+  {-# INLINE stimes #-}
 
 instance Monoid.Monoid (Addr e) where
   mappend = appendMem
+  {-# INLINE mappend #-}
   mconcat = concatMem
+  {-# INLINE mconcat #-}
   mempty = emptyMem
+  {-# INLINE mempty #-}
 
 
 castAddr :: Addr e -> Addr b
