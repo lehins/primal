@@ -216,7 +216,7 @@ foldMapOffMem ::
   -> (e -> m)
   -> mr
   -> m
-foldMapOffMem off count f = ifoldrLazyOffMem off count (\_ e acc -> f e <> acc) mempty
+foldMapOffMem off count f = ifoldrLazyOffMem off count (\_ e acc -> f e `mappend` acc) mempty
 {-# INLINE foldMapOffMem #-}
 
 ifoldMapOffMem ::
@@ -227,7 +227,7 @@ ifoldMapOffMem ::
   -> mr
   -> m
 ifoldMapOffMem off count f =
-  ifoldrLazyOffMem off count (\i e acc -> f i e <> acc) mempty
+  ifoldrLazyOffMem off count (\i e acc -> f i e `mappend` acc) mempty
 {-# INLINE ifoldMapOffMem #-}
 
 allMem :: forall e mr . (Prim e, MemRead mr) => (e -> Bool) -> mr -> Bool
@@ -435,45 +435,9 @@ compareOffMem m1 off1 m2 off2 count = loop off1
   where
     doff = off2 - off1
     k = countToOff count + off1
-    loop !i
-      | i < k = compare (indexOffMem m1 i) (indexOffMem m2 (i + doff)) <> loop (i + 1)
-      | otherwise = EQ
-{-# INLINE [1] compareOffMem #-}
-
--- Some loop unrolling to get an extra kick.
-{-# RULES
-"compareOffMem/Word8" compareOffMem = compareByteOffMem
-"compareOffMem/Word16"
-  forall mr1 (off1 :: Off Word16) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Word32"
-  forall mr1 (off1 :: Off Word32) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Int8"
-  forall mr1 (off1 :: Off Int8) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Int16"
-  forall mr1 (off1 :: Off Int16) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Int32"
-  forall mr1 (off1 :: Off Int32) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Char"
-  forall mr1 (off1 :: Off Char) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-"compareOffMem/Float"
-  forall mr1 (off1 :: Off Float) . compareOffMem mr1 off1 = compareOffMem4x mr1 off1
-#-}
-
--- | A compare function that handles 4 elements from each region in a single iteration
-compareOffMem4x ::
-     (Prim e, Ord e, MemRead mr1, MemRead mr2)
-  => mr1 -- ^ /memRead1/ - First region of memory
-  -> Off e
-  -> mr2 -- ^ /memRead2/ - Second region of memory
-  -> Off e
-  -> Count e
-  -> Ordering
-compareOffMem4x m1 off1 m2 off2 count = loop off1
-  where
-    doff = off2 - off1
-    k = countToOff count + off1
     kRem = countToOff count `rem` 4
     k4 = k - kRem
+    -- Some loop unrolling to get an extra 25% kick for smaller types
     loop !i
       | i < k4 =
         let !i' = i + 1
@@ -486,4 +450,8 @@ compareOffMem4x m1 off1 m2 off2 count = loop off1
             loop (i + 4)
       | i < k = compare (indexOffMem m1 i) (indexOffMem m2 (i + doff)) <> loop (i + 1)
       | otherwise = EQ
-{-# INLINE compareOffMem4x #-}
+{-# INLINE [1] compareOffMem #-}
+
+{-# RULES
+"compareOffMem/Word8" compareOffMem = compareByteOffMem
+#-}
