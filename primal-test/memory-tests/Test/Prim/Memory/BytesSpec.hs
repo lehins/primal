@@ -27,7 +27,7 @@ import Data.Functor.Identity
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Text
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.Memory.ByteString
 import Foreign.Prim hiding (Any)
 import Foreign.Prim.Ptr

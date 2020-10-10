@@ -11,7 +11,7 @@ import Data.Prim.Memory
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.ByteString
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import qualified Data.Primitive.ByteArray as BA
 import Data.Primitive.PrimArray
 

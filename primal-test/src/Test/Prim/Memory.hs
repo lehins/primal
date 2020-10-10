@@ -16,6 +16,7 @@ module Test.Prim.Memory
 import Control.Monad
 import Control.DeepSeq
 import Data.Prim.Memory
+import Data.Prim.Memory.Fold
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Test.Prim
@@ -473,7 +474,10 @@ memSpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem ma e)) ""
   describe memTypeName $ do
     prop "eqMem" $ \(Mem xs1 fm1 :: Mem ma e) (Mem xs2 fm2 :: Mem ma e) ->
-      conjoin [(xs1 == xs2) === (fm1 == fm2), fm1 === fm1, fm2 === fm2]
+      conjoin [ (xs1 == xs2) === (fm1 == fm2)
+              , fm1 === fm1
+              , fm2 === fm2
+              , property $ iallMem (\i e -> (e :: e) == indexOffMem fm2 i) fm1]
     describe "MemRead" $ do
       prop "byteCountMem" $ prop_byteCountMem @ma @e
       prop "indexOffMem" $ prop_indexOffMem @ma @e

@@ -12,7 +12,7 @@ import Data.Atomics
 --import Data.Prim.Atomic
 import Data.Prim.Memory
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Addr
 import Data.Prim.MArray.Boxed.Small
 import Data.Prim.MRef

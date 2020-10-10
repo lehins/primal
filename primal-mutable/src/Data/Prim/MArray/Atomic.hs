@@ -21,13 +21,13 @@ module Data.Prim.MArray.Atomic
 
 import Control.Prim.Monad
 import Data.Bits
-import Data.Prim.MArray.Internal
 import qualified Data.Prim.MArray.Boxed as B
 import qualified Data.Prim.MArray.Boxed.Small as SB
+import Data.Prim.MArray.Internal
 import qualified Data.Prim.MArray.Unboxed as U
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.PrimArray
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.PArray
 
 
 

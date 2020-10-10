@@ -60,7 +60,7 @@ module Data.Prim.MArray.Unboxed.Ragged
 
 import Control.Prim.Monad
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.MRef.Internal
 import qualified Data.Prim.MArray.Unboxed as U
 import qualified Data.Prim.MArray.Internal as I

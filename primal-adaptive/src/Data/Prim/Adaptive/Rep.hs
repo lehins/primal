@@ -30,7 +30,7 @@ import Data.Prim
 import Data.Prim.Class
 import Data.Prim.MArray.Unboxed
 import Data.Prim.MArray.Unboxed.Ragged
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.Unbox
 import Data.Semigroup

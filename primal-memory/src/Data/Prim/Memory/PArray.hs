@@ -9,14 +9,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
--- Module      : Data.Prim.Memory.PrimArray
+-- Module      : Data.Prim.Memory.PArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.PrimArray
+module Data.Prim.Memory.PArray
   ( PArray(..)
   , PMArray(..)
   , Pinned(..)

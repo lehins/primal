@@ -75,7 +75,7 @@ import Data.Bits
 import Data.Prim
 import Data.Prim.Class
 import qualified Data.Prim.MArray.Internal as I
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal

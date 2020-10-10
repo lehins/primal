@@ -168,7 +168,7 @@ foldrLazyMem ::
   -> mr
   -- ^ Memory region to iterate over
   -> a
-foldrLazyMem f = ifoldrLazyMem (\_ -> f)
+foldrLazyMem f = ifoldrLazyMem (const f)
 {-# INLINE foldrLazyMem #-}
 
 ifoldrLazyMem ::
@@ -230,12 +230,64 @@ ifoldMapOffMem off count f =
   ifoldrLazyOffMem off count (\i e acc -> f i e `mappend` acc) mempty
 {-# INLINE ifoldMapOffMem #-}
 
+
+
+anyOffMem ::
+     forall e mr. (Prim e, MemRead mr)
+  => Off e
+  -> Count e
+  -> (e -> Bool)
+  -> mr
+  -> Bool
+anyOffMem off count p = getAny #. foldMapOffMem off count (Any #. p)
+{-# INLINE anyOffMem #-}
+
+ianyOffMem ::
+     forall e mr. (Prim e, MemRead mr)
+  => Off e
+  -> Count e
+  -> (Off e -> e -> Bool)
+  -> mr
+  -> Bool
+ianyOffMem off count p = getAny #. ifoldMapOffMem off count (\i -> Any #. p i)
+{-# INLINE ianyOffMem #-}
+
+
+anyMem :: forall e mr . (Prim e, MemRead mr) => (e -> Bool) -> mr -> Bool
+anyMem p xs = anyOffMem 0 (countMem xs :: Count e) p xs
+{-# INLINE anyMem #-}
+
+ianyMem :: forall e mr . (Prim e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
+ianyMem p xs = ianyOffMem 0 (countMem xs :: Count e) p xs
+{-# INLINE ianyMem #-}
+
+allOffMem ::
+     forall e mr. (Prim e, MemRead mr)
+  => Off e
+  -> Count e
+  -> (e -> Bool)
+  -> mr
+  -> Bool
+allOffMem off count p = getAll #. foldMapOffMem off count (All #. p)
+{-# INLINE allOffMem #-}
+
+iallOffMem ::
+     forall e mr. (Prim e, MemRead mr)
+  => Off e
+  -> Count e
+  -> (Off e -> e -> Bool)
+  -> mr
+  -> Bool
+iallOffMem off count p = getAll #. ifoldMapOffMem off count (\i -> All #. p i)
+{-# INLINE iallOffMem #-}
+
+
 allMem :: forall e mr . (Prim e, MemRead mr) => (e -> Bool) -> mr -> Bool
-allMem p xs = getAll #. foldMapOffMem 0 (countMem xs :: Count e) (All #. p) $ xs
+allMem p xs = allOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE allMem #-}
 
 iallMem :: forall e mr . (Prim e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
-iallMem p xs = getAll #. ifoldMapOffMem 0 (countMem xs :: Count e) (\i -> All #. p i) $ xs
+iallMem p xs = iallOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE iallMem #-}
 
 
@@ -250,7 +302,6 @@ eqMem :: forall e mr . (Prim e, Eq e, MemRead mr) => mr -> mr -> Bool
 eqMem m1 m2
   | isSameMem m1 m2 = True
   | otherwise = n == countMem m2 && eqOffMem m1 0 m2 0 n
-   -- iallMem (\i e -> (e :: e) == indexOffMem m2 i) m1)
   where
     n = countMem m1 :: Count e
 {-# INLINE eqMem #-}
@@ -315,9 +366,8 @@ eqOffMemBinary m1 off1 m2 off2 count =
   eqByteOffMem m1 (toByteOff off1) m2 (toByteOff off2) (toByteCount count)
 {-# INLINE eqOffMemBinary #-}
 
--- Verify this rule holds:
--- "eqOffMem/Char" forall mr1 (off1 :: Off Word) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
 {-# RULES
+"eqOffMem/Char" forall mr1 (off1 :: Off Char) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
 "eqOffMem/Word" forall mr1 (off1 :: Off Word) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
 "eqOffMem/Word8" eqOffMem = eqByteOffMem
 "eqOffMem/Word16" forall mr1 (off1 :: Off Word16) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1

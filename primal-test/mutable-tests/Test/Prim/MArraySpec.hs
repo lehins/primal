@@ -12,7 +12,7 @@ import Data.Prim.MArray.Unboxed
 import Data.Prim.MRef.Ref
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Test.Prim
 import Test.Prim.MArray
 import qualified Test.Prim.MRef as MRef

@@ -24,7 +24,7 @@ import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Prim.Monad
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.PrimArray
+import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
 
 
