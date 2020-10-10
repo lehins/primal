@@ -119,6 +119,18 @@ primTypeSpec = do
   memSpec @MArray @e
   memSpec @MByteString @e
 
+
+primBaseTypeSpec ::
+     forall e. (NFData e, Ord e, Show e, Prim e, Arbitrary e, Typeable e)
+  => Spec
+primBaseTypeSpec = do
+  memSpec @(MAddr e) @e
+  memSpec @(PMArray 'Inc e) @e
+  memSpec @(PMArray 'Pin e) @e
+  memOrdSpec @MAddr @e
+  memOrdSpec @(PMArray 'Inc) @e
+  memOrdSpec @(PMArray 'Pin) @e
+
 primBinarySpec ::
      forall (p :: Pinned). (Typeable p)
   => Spec
@@ -192,6 +204,7 @@ primBinarySpec = do
            "]")
     memBinarySpec @(MBytes p)
 
+
 spec :: Spec
 spec = do
   primBinarySpec @'Pin
@@ -201,6 +214,22 @@ spec = do
   memBinarySpec @(MAddr Word8)
   memBinarySpec @MArray
   memBinarySpec @MByteString
+
+  primBaseTypeSpec @Char
+  primBaseTypeSpec @Float
+  primBaseTypeSpec @Double
+  primBaseTypeSpec @Int
+  primBaseTypeSpec @Int8
+  primBaseTypeSpec @Int16
+  primBaseTypeSpec @Int32
+  primBaseTypeSpec @Int64
+  primBaseTypeSpec @Word
+  primBaseTypeSpec @Word8
+  primBaseTypeSpec @Word16
+  primBaseTypeSpec @Word32
+  primBaseTypeSpec @Word64
+  primBaseTypeSpec @(Ptr Char)
+
   primTypeSpec @(Identity Word)
   primTypeSpec @(Down Word8)
   primTypeSpec @(Dual Word16)
@@ -208,11 +237,8 @@ spec = do
   primTypeSpec @(Product Word64)
   primTypeSpec @(Ratio Int)
   primTypeSpec @(Complex Float)
-  primTypeSpec @Double
   primTypeSpec @Ordering
   primTypeSpec @SeekMode
-  primTypeSpec @(Int8, Int16)
-  primTypeSpec @(Int32, Int64, Char)
   primTypeSpec @((), Ptr (), FunPtr (), StablePtr ())
   primTypeSpec @(All, Any, Fingerprint, IntPtr, WordPtr)
   describe "Allocation" $ do

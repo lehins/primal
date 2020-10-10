@@ -36,10 +36,13 @@ module Data.Prim.Memory
   , copyByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , copyByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Compare
+  , eqMem                     -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , eqOffMem                  -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , eqByteMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , eqByteOffMem              -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , compareMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , compareOffMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , compareByteMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , compareByteOffMem         -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , compareByteOffToPtrMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , compareByteOffToBytesMem  -- DOC: [x], DOCTEST [ ], TEST: [x]

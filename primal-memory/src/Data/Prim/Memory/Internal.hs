@@ -31,7 +31,6 @@ import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
-import Data.Functor.Identity
 import Data.Kind
 import Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
@@ -1647,8 +1646,8 @@ eqByteOffMem ::
 eqByteOffMem b1 off1 b2 off2 n = compareByteOffMem b1 off1 b2 off2 n == EQ
 {-# INLINE eqByteOffMem #-}
 
--- | Compare two memory regions byte-by-byte. `False` is returned immediately when sizes
--- reported by `byteCountMem` do not match.
+-- | Compare two memory regions for equality byte-by-byte. `False` is returned immediately
+-- when sizes reported by `byteCountMem` do not match.
 --
 -- @since 0.3.0
 eqByteMem :: (MemRead mr1, MemRead mr2) => mr1 -> mr2 -> Bool
@@ -1656,6 +1655,16 @@ eqByteMem b1 b2 = n == byteCountMem b2 && eqByteOffMem b1 0 b2 0 n
   where
     n = byteCountMem b1
 {-# INLINE eqByteMem #-}
+
+
+-- | Compare two memory regions byte-by-byte.
+--
+-- @since 0.3.0
+compareByteMem :: (MemRead mr1, MemRead mr2) => mr1 -> mr2 -> Ordering
+compareByteMem b1 b2 = compare n (byteCountMem b2) <> compareByteOffMem b1 0 b2 0 n
+  where
+    n = byteCountMem b1
+{-# INLINE compareByteMem #-}
 
 -- =============== --
 -- List conversion --

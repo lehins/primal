@@ -89,7 +89,10 @@ instance Exception ExpectedException
 
 
 instance Eq T.Array where
-  b1 == b2 = eqByteMem b1 b2
+  (==) = eqByteMem
+
+instance Ord T.Array where
+  compare = compareByteMem
 
 instance Show T.Array where
   show b =

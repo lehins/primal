@@ -1,8 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-
+-- |
+-- Module      : Data.Prim.Memory.Fold
+-- Copyright   : (c) Alexey Kuleshevich 2020
+-- License     : BSD3
+-- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
+-- Stability   : experimental
+-- Portability : non-portable
+--
 module Data.Prim.Memory.Fold where
 
 import Data.Prim
@@ -381,9 +387,10 @@ compareMem ::
   -> Ordering
 compareMem m1 m2
   | isSameMem m1 m2 = EQ
-  | otherwise = compare n (countMem m2) <> compareOffMem m1 0 m2 0 n
+  | otherwise = compareOffMem m1 0 m2 0 (min n1 n2) <> compare n1 n2
   where
-    n = countMem m1 :: Count e
+    n1 = countMem m1 :: Count e
+    n2 = countMem m2 :: Count e
 {-# INLINE compareMem #-}
 
 -- | Compare two regions using the `Ord` instance. It will return `EQ` whenever both
