@@ -158,7 +158,9 @@ ifoldrOffMem off count f initAcc mem = loop initAcc off
 {-# INLINE ifoldrOffMem #-}
 
 
-
+-- | Right fold with a lazy accumulator
+--
+-- @since 0.3.0
 foldrLazyMem ::
      forall e a mr. (Prim e, MemRead mr)
   => (e -> a -> a)
@@ -171,6 +173,9 @@ foldrLazyMem ::
 foldrLazyMem f = ifoldrLazyMem (const f)
 {-# INLINE foldrLazyMem #-}
 
+-- | Right fold with a lazy accumulator using an offset aware function
+--
+-- @since 0.3.0
 ifoldrLazyMem ::
      forall e a mr. (Prim e, MemRead mr)
   => (Off e -> e -> a -> a)

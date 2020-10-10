@@ -720,7 +720,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- unless it is guaranteed that all of allocated memory will be overwritten.
   --
   -- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
-  -- upredictable. One possible outcome is termination with
+  -- unpredictable. One possible outcome is termination with
   -- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
   -- executed within `runST`, if allocated memory is not fully overwritten it can lead to
   -- violation of referential transparency, because content of newly allocated region is
@@ -729,7 +729,8 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- @since 0.3.0
   allocMutMem :: (Prim e, MonadPrim s m)
     => Count e
-    -- ^ /memCount/ - Number of elements to allocate.
+    -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+    -- type __@e@__
     --
     -- /__Preconditions:__/
     --
@@ -737,7 +738,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
     --
     -- Possibility of overflow:
     --
-    -- > unCount memCount <= fromByteCount @e (Count maxBound)
+    -- > memCount <= fromByteCount maxBound
     --
     -- When converted to bytes the value should be less then available physical memory
     -> m (ma s)
@@ -1146,7 +1147,7 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 -- zeros.
 --
 -- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
--- upredictable. One possible outcome is termination with `Control.Exception.HeapOverflow`
+-- unpredictable. One possible outcome is termination with `Control.Exception.HeapOverflow`
 -- async exception.
 --
 -- ====__Example__
@@ -1163,51 +1164,111 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 allocZeroMutMem ::
      forall e ma m s. (MemAlloc ma, MonadPrim s m, Prim e)
   => Count e
-  -- ^ /memCount/ - Number of elements to allocate.
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+  -- type __@e@__
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memCount
   --
-  -- Converted to bytes should be less then available physical memory
+  -- Possibility of overflow:
+  --
+  -- > memCount <= fromByteCount maxBound
+  --
+  -- When converted to bytes the value should be less then available physical memory
   -> m (ma s)
 allocZeroMutMem n = do
   m <- allocMutMem n
   m <$ setMutMem m 0 (toByteCount n) (0 :: Word8)
 {-# INLINE allocZeroMutMem #-}
 
-
+-- | Allocate a mutable region of memory and fill it with the supplied `ST` action. Besides
+-- the newly filled frozen memory this function also returns the result produced by the
+-- filling action. See `createMemST_` for the version that discards it. Also see
+-- `createZeroMemST` for a safer alternative.
+--
+-- [Unsafe] Same caviats as in `allocMutMem`
+--
+-- @since 0.1.0
 createMemST ::
      forall e b ma. (MemAlloc ma, Prim e)
   => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+  -- type __@e@__
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Possibility of overflow:
+  --
+  -- > memCount <= fromByteCount maxBound
+  --
+  -- When converted to bytes the value should be less then available physical memory
   -> (forall s. ma s -> ST s b)
+  -- ^ /memFillAction/ - This action will be used to modify the contents of newly
+  -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
+  -- breaking referential transparency.
   -> (b, FrozenMem ma)
 createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
 {-# INLINE createMemST #-}
 
-createMemST_ :: (MemAlloc ma, Prim e)
+
+createMemST_ ::
+     (MemAlloc ma, Prim e)
   => Count e
-  -> (forall s . ma s -> ST s b)
-  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
-  -- memory.
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+  -- type __@e@__
   --
-  -- /__Required invariant:__/
+  -- /__Preconditions:__/
   --
-  -- It is important that this action overwrites all of newly allocated memory.
+  -- > 0 <= memCount
+  --
+  -- Possibility of overflow:
+  --
+  -- > memCount <= fromByteCount maxBound
+  --
+  -- When converted to bytes the value should be less then available physical memory
+  -> (forall s. ma s -> ST s b)
+  -- ^ /memFillAction/ - This action will be used to modify the contents of newly
+  -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
+  -- breaking referential transparency.
   -> FrozenMem ma
 createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMutMem m)
 {-# INLINE createMemST_ #-}
 
+-- | Same as `createMemST`, except it in ensures that the memory is reset to zeros right
+-- after allocation
+--
+-- [Unsafe] Same caviats as in `allocZeroMutMem`: violation of precondition for @memCount@ may
+-- result in undefined behavior or `Control.Exception.HeapOverflow` async exception.
+--
+-- @since 0.1.0
 createZeroMemST ::
      forall e ma b. (MemAlloc ma, Prim e)
   => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+  -- type __@e@__
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Possibility of overflow:
+  --
+  -- > memCount <= fromByteCount maxBound
+  --
+  -- When converted to bytes the value should be less then available physical memory
   -> (forall s. ma s -> ST s b)
+  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
+  -- memory. It is not required to overwrite the full region, since the whole thing will
+  -- be reset to zeros before applying this action.
   -> (b, FrozenMem ma)
 createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
 {-# INLINE createZeroMemST #-}
 
--- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros prior
--- to applying the @ST@ filling action @fillAction@.
+-- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros right
+-- after allocation and prior applying the @ST@ filling action @fillAction@.
 --
 -- [Unsafe] Same reasons as `allocZeroMutMem`: violation of precondition for @memCount@ may
 -- result in undefined behavior or `Control.Exception.HeapOverflow` async exception.
@@ -1229,7 +1290,7 @@ createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freeze
 createZeroMemST_ ::
      forall e ma b. (MemAlloc ma, Prim e)
   => Count e
-  -- ^ /memCount/ - Size of the newly allocated memory region in number of elements of
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Precoditions:__/
@@ -1241,11 +1302,12 @@ createZeroMemST_ ::
   --
   -- Possibility of overflow:
   --
-  -- > unCount memCount <= fromByteCount @e (Count maxBound)
+  -- > memCount <= fromByteCount maxBound
+  --
   -> (forall s. ma s -> ST s b)
   -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
-  -- memory. It is not required to overwrite the full region, since it was reset to zeros
-  -- right after allocation.
+  -- memory. It is not required to overwrite the full region, since the whole thing will
+  -- be reset to zeros before applying this action.
   -> FrozenMem ma
 createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
 {-# INLINE createZeroMemST_ #-}
