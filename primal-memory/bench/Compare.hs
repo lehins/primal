@@ -42,6 +42,19 @@ main = do
       addr8Eq2 = fromBytesAddr bEq2 :: Addr Word8
       prim8Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word8
       prim8Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word8
+
+      addr16Eq1 = fromBytesAddr bEq1 :: Addr Word16
+      addr16Eq2 = fromBytesAddr bEq2 :: Addr Word16
+      pa16Eq1 = PArray bEq1 :: PArray 'Pin Word16
+      pa16Eq2 = PArray bEq2 :: PArray 'Pin Word16
+      prim16Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word16
+      prim16Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word16
+      addr32Eq1 = fromBytesAddr bEq1 :: Addr Word32
+      addr32Eq2 = fromBytesAddr bEq2 :: Addr Word32
+      pa32Eq1 = PArray bEq1 :: PArray 'Pin Word32
+      pa32Eq2 = PArray bEq2 :: PArray 'Pin Word32
+      prim32Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word32
+      prim32Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word32
   defaultMain
     [ bgroup
         "eq"
@@ -71,6 +84,18 @@ main = do
             , bench "Addr" $ whnf (compare addr8Eq1) addr8Eq2
             , bench "PArray" $ whnf (compare pa8Eq1) pa8Eq2
             , bench "PrimArray" $ whnf (compare prim8Eq1) prim8Eq2
+            ]
+        , bgroup
+            "Word16"
+            [ bench "Addr" $ whnf (compare addr16Eq1) addr16Eq2
+            , bench "PArray" $ whnf (compare pa16Eq1) pa16Eq2
+            , bench "PrimArray" $ whnf (compare prim16Eq1) prim16Eq2
+            ]
+        , bgroup
+            "Word32"
+            [ bench "Addr" $ whnf (compare addr32Eq1) addr32Eq2
+            , bench "PArray" $ whnf (compare pa32Eq1) pa32Eq2
+            , bench "PrimArray" $ whnf (compare prim32Eq1) prim32Eq2
             ]
         , bgroup
             "Word64"
