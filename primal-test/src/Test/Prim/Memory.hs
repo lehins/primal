@@ -7,18 +7,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
-
 module Test.Prim.Memory
   ( module Test.Prim.Memory
   , module Data.Prim.Memory
   ) where
 
-import Control.Monad
 import Control.DeepSeq
+import Control.Monad
 import Data.Prim.Memory
-import Data.Prim.Memory.Fold
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.ByteString
+import Data.Prim.Memory.Fold
+import Data.Prim.Memory.PArray
+import qualified Data.Prim.Memory.Text as T
 import Test.Prim
 
 
@@ -72,6 +74,21 @@ instance Typeable p => Arbitrary (Bytes p) where
     pure b
 
 instance (Arbitrary e, Prim e) => Arbitrary (Addr e) where
+  arbitrary = do
+    Mem (_ :: [e]) b <- arbitrary
+    pure b
+
+instance Arbitrary T.Array where
+  arbitrary = do
+    Mem (_ :: [Word8]) b <- arbitrary
+    pure b
+
+instance Arbitrary ByteString where
+  arbitrary = do
+    Mem (_ :: [Word8]) b <- arbitrary
+    pure b
+
+instance (Typeable p, Prim e, Arbitrary e) => Arbitrary (PArray p e) where
   arbitrary = do
     Mem (_ :: [e]) b <- arbitrary
     pure b
@@ -473,10 +490,6 @@ memSpec ::
 memSpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem ma e)) ""
   describe memTypeName $ do
-    prop "eqMem" $ \(Mem xs1 fm1 :: Mem ma e) (Mem xs2 fm2 :: Mem ma e) ->
-      conjoin [ (xs1 == xs2) === (fm1 == fm2)
-              , fm1 === fm1
-              , fm2 === fm2 ]
     describe "MemRead" $ do
       prop "byteCountMem" $ prop_byteCountMem @ma @e
       prop "indexOffMem" $ prop_indexOffMem @ma @e
@@ -514,15 +527,21 @@ memOrdSpec ::
      , Typeable (ma e)
      , MemAlloc (ma e)
      , Ord (FrozenMem (ma e))
+     , Show (FrozenMem (ma e))
      )
   => Spec
 memOrdSpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem (ma e) e)) ""
   describe memTypeName $ do
     prop "eqMem" $ \(Mem xs1 fm1 :: Mem (ma e) e) (Mem xs2 fm2 :: Mem (ma e) e) ->
-      (fm1 == fm2) ===
-      (byteCountMem fm1 == byteCountMem fm2 &&
-       iallMem (\i e -> (e :: e) == indexOffMem fm2 i) fm1)
+      conjoin
+        [ fm1 === fm1
+        , fm2 === fm2
+        , (xs1 == xs2) === (fm1 == fm2)
+        , (fm1 == fm2) ===
+          (byteCountMem fm1 == byteCountMem fm2 &&
+           iallMem (\i e -> (e :: e) == indexOffMem fm2 i) fm1)
+        ]
     prop "compareMem" $ \(Mem xs1 fm1 :: Mem (ma e) e) (Mem xs2 fm2 :: Mem (ma e) e) ->
       conjoin
         [ compare xs1 xs2 === compare fm1 fm2
@@ -532,7 +551,13 @@ memOrdSpec = do
 
 
 memBinarySpec ::
-     forall ma. (Typeable ma, MemAlloc ma, Eq (FrozenMem ma), Show (FrozenMem ma))
+     forall ma.
+     ( Typeable ma
+     , MemAlloc ma
+     , Eq (FrozenMem ma)
+     , Show (FrozenMem ma)
+     , Arbitrary (FrozenMem ma)
+     )
   => Spec
 memBinarySpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem ma Word8)) "-Binary"
@@ -542,6 +567,10 @@ memBinarySpec = do
     prop "fromByteListMem" $ \(Mem xs fm :: Mem ma Word8) ->
       fromByteListMem xs === fm
     prop "toListSlackMem" $ prop_toListSlackMem @ma
+    prop "eqMem" $ \(fm1 :: FrozenMem ma) (fm2 :: FrozenMem ma) ->
+      conjoin [ eqMem @Word8 fm1 fm2 === ((convertMem fm1 :: ByteString) == convertMem fm2)
+              , fm1 === fm1
+              , fm2 === fm2 ]
 
 
 -- primSpec ::
