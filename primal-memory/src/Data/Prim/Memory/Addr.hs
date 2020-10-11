@@ -25,6 +25,7 @@ module Data.Prim.Memory.Addr
   , byteCountAddr
   , countAddr
   , plusOffAddr
+  , plusByteOffAddr
   , indexAddr
   , indexOffAddr
   , indexByteOffAddr
@@ -50,6 +51,7 @@ module Data.Prim.Memory.Addr
   , getByteCountMAddr
   , getCountMAddr
   , plusOffMAddr
+  , plusByteOffMAddr
   , readMAddr
   , readOffMAddr
   , readByteOffMAddr
@@ -201,9 +203,11 @@ instance Monoid.Monoid (Addr e) where
 
 castAddr :: Addr e -> Addr b
 castAddr (Addr a b) = Addr a b
+{-# INLINE castAddr #-}
 
 castMAddr :: MAddr e s -> MAddr b s
 castMAddr (MAddr a mb) = MAddr a mb
+{-# INLINE castMAddr #-}
 
 castStateMAddr :: MAddr e s' -> MAddr b s
 castStateMAddr = unsafeCoerce
@@ -269,8 +273,14 @@ reallocMAddr maddr c = do
 plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
 
+plusByteOffAddr :: Prim e => Addr e -> Off Word8 -> Addr e
+plusByteOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
+
 plusOffMAddr :: Prim e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
+
+plusByteOffMAddr :: Prim e => MAddr e s -> Off Word8 -> MAddr e s
+plusByteOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
 
 curOffAddr :: Prim e => Addr e -> Off e
 curOffAddr a@(Addr addr# b) = (Ptr addr# `minusOffPtr` toPtrBytes b) `offForProxyTypeOf` a
@@ -296,9 +306,12 @@ getByteCountMAddr = getCountMAddr . castMAddr
 
 indexAddr :: Prim e => Addr e -> e
 indexAddr addr = indexOffAddr addr 0
+{-# INLINE indexAddr #-}
 
 indexOffAddr :: Prim e => Addr e -> Off e -> e
-indexOffAddr addr off = unsafeInlineIO $ readOffAddr addr off
+indexOffAddr addr (Off (I# off#)) =
+  unsafeInlineIO $ withAddrAddr# addr $ \addr# -> pure $ indexOffAddr# addr# off#
+{-# INLINE indexOffAddr #-}
 
 indexByteOffAddr :: Prim e => Addr e -> Off Word8 -> e
 indexByteOffAddr addr off = unsafeInlineIO $ readByteOffAddr addr off
@@ -489,14 +502,13 @@ readAddr addr = readOffAddr addr 0
 
 readOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m e
 readOffAddr (Addr addr# b) (Off (I# off#)) = do
-  -- TODO: benchmark and see if `readOffAddr` is faster here
-  a <- prim (seq# (indexOffAddr# addr# off#))
+  a <- prim (readOffAddr# addr# off#)
   a <$ touch b
 {-# INLINE readOffAddr #-}
 
 readByteOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off Word8 -> m e
 readByteOffAddr (Addr addr# b) (Off (I# off#)) = do
-  a <- prim (seq# (indexOffAddr# (addr# `plusAddr#` off#) 0#))
+  a <- prim (readOffAddr# (addr# `plusAddr#` off#) 0#)
   a <$ touch b
 {-# INLINE readByteOffAddr #-}
 
