@@ -476,8 +476,7 @@ memSpec = do
     prop "eqMem" $ \(Mem xs1 fm1 :: Mem ma e) (Mem xs2 fm2 :: Mem ma e) ->
       conjoin [ (xs1 == xs2) === (fm1 == fm2)
               , fm1 === fm1
-              , fm2 === fm2
-              , property $ iallMem (\i e -> (e :: e) == indexOffMem fm2 i) fm1]
+              , fm2 === fm2 ]
     describe "MemRead" $ do
       prop "byteCountMem" $ prop_byteCountMem @ma @e
       prop "indexOffMem" $ prop_indexOffMem @ma @e
@@ -520,6 +519,10 @@ memOrdSpec ::
 memOrdSpec = do
   let memTypeName = showsType (Proxy :: Proxy (Mem (ma e) e)) ""
   describe memTypeName $ do
+    prop "eqMem" $ \(Mem xs1 fm1 :: Mem (ma e) e) (Mem xs2 fm2 :: Mem (ma e) e) ->
+      (fm1 == fm2) ===
+      (byteCountMem fm1 == byteCountMem fm2 &&
+       iallMem (\i e -> (e :: e) == indexOffMem fm2 i) fm1)
     prop "compareMem" $ \(Mem xs1 fm1 :: Mem (ma e) e) (Mem xs2 fm2 :: Mem (ma e) e) ->
       conjoin
         [ compare xs1 xs2 === compare fm1 fm2

@@ -273,13 +273,13 @@ reallocMAddr maddr c = do
 plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
 
-plusByteOffAddr :: Prim e => Addr e -> Off Word8 -> Addr e
+plusByteOffAddr :: Addr e -> Off Word8 -> Addr e
 plusByteOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
 
 plusOffMAddr :: Prim e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
 
-plusByteOffMAddr :: Prim e => MAddr e s -> Off Word8 -> MAddr e s
+plusByteOffMAddr :: MAddr e s -> Off Word8 -> MAddr e s
 plusByteOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
 
 curOffAddr :: Prim e => Addr e -> Off e

@@ -486,6 +486,21 @@ makeMArray sz@(Size n) f = do
   ma <$ go 0
 {-# INLINE makeMArray #-}
 
+
+makeMArrayWith ::
+     Monad m
+  => (Size -> m b)
+  -> (b -> Int -> a -> m ())
+  -> Size
+  -> (Int -> m a)
+  -> m b
+makeMArrayWith create write sz@(Size n) f = do
+  ma <- create sz
+  let go i = when (i < n) $ f i >>= write ma i >> go (i + 1)
+  ma <$ go 0
+{-# INLINE makeMArrayWith #-}
+
+
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
