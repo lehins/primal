@@ -747,8 +747,8 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- copy operation, as such it is fast, but dangerous. See `thawCloneMutMem` for a safe
   -- alternative.
   --
-  -- [Unsafe] It makes it possible to break referential transparency, because any
-  -- subsequent destructive operation to the mutable region of memory will also be
+  -- [Unsafe] This function makes it possible to break referential transparency, because
+  -- any subsequent destructive operation to the mutable region of memory will also be
   -- reflected in the frozen immutable type as well.
   --
   -- @since 0.1.0

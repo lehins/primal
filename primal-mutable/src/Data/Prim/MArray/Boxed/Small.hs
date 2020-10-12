@@ -33,7 +33,7 @@ module Data.Prim.MArray.Boxed.Small
   -- ** Access
   , readSBMArray
   , writeSBMArray
-  , writeSBMArrayLazy
+  , writeLazySBMArray
   , writeSBMArrayDeep
   -- *** Atomic
   , casSBMArray
@@ -179,7 +179,7 @@ indexSBArray (SBArray a#) (I# i#) =
 {-# INLINE indexSBArray #-}
 
 -- | Create a mutable boxed array where each element is set to the supplied initial
--- value, which is evaluated immediately before that. See `newSBMArrayLazy` for an ability
+-- value, which is evaluated immediately before that. See `newLazySBMArray` for an ability
 -- to initialize with a thunk or `newRawSBArray` that will set each element to an
 -- `UndefinedElement` exception.
 --
@@ -193,7 +193,7 @@ indexSBArray (SBArray a#) (I# i#) =
 --
 -- @since 0.1.0
 newSBMArray :: MonadPrim s m => Size -> e -> m (SBMArray e s)
-newSBMArray sz a = seqPrim a >>= newSBMArrayLazy sz
+newSBMArray sz a = seqPrim a >>= newLazySBMArray sz
 {-# INLINE newSBMArray #-}
 
 -- | Same as `newSBMArray`, except initial element is allowed to be a thunk. Prefer using
@@ -205,12 +205,12 @@ newSBMArray sz a = seqPrim a >>= newSBMArrayLazy sz
 -- asynchronous exception.
 --
 -- @since 0.1.0
-newSBMArrayLazy :: MonadPrim s m => Size -> e -> m (SBMArray e s)
-newSBMArrayLazy (Size (I# n#)) a =
+newLazySBMArray :: MonadPrim s m => Size -> e -> m (SBMArray e s)
+newLazySBMArray (Size (I# n#)) a =
   prim $ \s ->
     case newSmallArray# n# a s of
       (# s', ma# #) -> (# s', SBMArray ma# #)
-{-# INLINE newSBMArrayLazy #-}
+{-# INLINE newLazySBMArray #-}
 
 -- | Create new mutable array, where each element is set to a thunk that throws an error
 -- when evaluated. This is useful when there is a plan to iterate over the whole array
@@ -230,7 +230,7 @@ newSBMArrayLazy (Size (I# n#)) a =
 --
 -- @since 0.1.0
 newRawSBMArray :: MonadPrim s m => Size -> m (SBMArray e s)
-newRawSBMArray sz = newSBMArrayLazy sz (uninitialized "Data.Prim.MAray.Boxed.Small" "newRawSBMArray")
+newRawSBMArray sz = newLazySBMArray sz (uninitialized "Data.Prim.MAray.Boxed.Small" "newRawSBMArray")
 {-# INLINE newRawSBMArray #-}
 
 -- | Get the size of a mutable boxed array
@@ -292,7 +292,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 --
 -- @since 0.1.0
 writeSBMArray :: MonadPrim s m => SBMArray e s -> Int -> e -> m ()
-writeSBMArray ma i x = seqPrim x >>= writeSBMArrayLazy ma i
+writeSBMArray ma i x = seqPrim x >>= writeLazySBMArray ma i
 {-# INLINE writeSBMArray #-}
 
 
@@ -302,9 +302,9 @@ writeSBMArray ma i x = seqPrim x >>= writeSBMArrayLazy ma i
 -- [Unsafe index] Negative or larger than array size can fail with unchecked exception
 --
 -- @since 0.1.0
-writeSBMArrayLazy :: MonadPrim s m => SBMArray e s -> Int -> e -> m ()
-writeSBMArrayLazy (SBMArray ma#) (I# i#) a = prim_ (writeSmallArray# ma# i# a)
-{-# INLINE writeSBMArrayLazy #-}
+writeLazySBMArray :: MonadPrim s m => SBMArray e s -> Int -> e -> m ()
+writeLazySBMArray (SBMArray ma#) (I# i#) a = prim_ (writeSmallArray# ma# i# a)
+{-# INLINE writeLazySBMArray #-}
 
 
 -- | Same as `writeSBMArray` but ensure that the value being written is fully evaluated.
@@ -313,7 +313,7 @@ writeSBMArrayLazy (SBMArray ma#) (I# i#) a = prim_ (writeSmallArray# ma# i# a)
 --
 -- @since 0.1.0
 writeSBMArrayDeep :: (MonadPrim s m, NFData e) => SBMArray e s -> Int -> e -> m ()
-writeSBMArrayDeep ma i x = x `deepseq` writeSBMArrayLazy ma i x
+writeSBMArrayDeep ma i x = x `deepseq` writeLazySBMArray ma i x
 {-# INLINE writeSBMArrayDeep #-}
 
 -- | Convert a pure immutable boxed array into a mutable boxed array. See

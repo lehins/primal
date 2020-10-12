@@ -14,12 +14,12 @@ module Data.Prim.MRef.Ref
   ( Ref(..)
   -- * Create
   , newRef
-  , newRefLazy
+  , newLazyRef
   -- * Read/write
   , readRef
   , swapRef
   , writeRef
-  , writeRefLazy
+  , writeLazyRef
   -- * Modify
   -- ** Pure
   , modifyRef
@@ -27,14 +27,14 @@ module Data.Prim.MRef.Ref
   , modifyFetchNewRef
   , modifyFetchOldRef
   -- *** Lazy
-  , modifyRefLazy
+  , modifyLazyRef
   -- ** Monadic
   , modifyRefM
   , modifyRefM_
   , modifyFetchNewRefM
   , modifyFetchOldRefM
   -- *** Lazy
-  , modifyRefLazyM
+  , modifyLazyRefM
   -- * Atomic
   -- ** Write
   , atomicSwapRef
@@ -49,12 +49,12 @@ module Data.Prim.MRef.Ref
   , atomicModifyFetchOldRef
   , casRef
   -- *** Lazy
-  , atomicWriteRefLazy
-  , atomicWriteRefLazy_
-  , atomicModifyRefLazy
+  , atomicWriteLazyRef
+  , atomicWriteLazyRef_
+  , atomicModifyLazyRef
   , atomicModifyRef2Lazy
-  , atomicModifyFetchNewRefLazy
-  , atomicModifyFetchOldRefLazy
+  , atomicModifyFetchNewLazyRef
+  , atomicModifyFetchOldLazyRef
   -- * Conversion
   -- ** STRef
   , toSTRef
@@ -133,7 +133,7 @@ instance Bits a => AtomicBitsMRef (Ref a)
 --
 -- @since 0.1.0
 newRef :: MonadPrim s m => a -> m (Ref a s)
-newRef a = a `seq` newRefLazy a
+newRef a = a `seq` newLazyRef a
 {-# INLINE newRef #-}
 
 -- | Create a new mutable variable. Initial value stays unevaluated.
@@ -144,18 +144,18 @@ newRef a = a `seq` newRefLazy a
 --
 -- >>> import Debug.Trace
 -- >>> import Data.Prim.Ref
--- >>> ref <- newRefLazy (trace "Initial value is evaluated" (undefined :: Int))
+-- >>> ref <- newLazyRef (trace "Initial value is evaluated" (undefined :: Int))
 -- >>> writeRef ref 1024
 -- >>> modifyFetchNewRef ref succ
 -- 1025
 --
 -- @since 0.1.0
-newRefLazy :: MonadPrim s m => a -> m (Ref a s)
-newRefLazy a =
+newLazyRef :: MonadPrim s m => a -> m (Ref a s)
+newLazyRef a =
   prim $ \s ->
     case newMutVar# a s of
       (# s', ref# #) -> (# s', Ref ref# #)
-{-# INLINE newRefLazy #-}
+{-# INLINE newLazyRef #-}
 
 ----------------
 -- Read/Write --
@@ -197,7 +197,7 @@ swapRef ref a = do
 
 -- | Write a value into a mutable variable strictly. If evaluating a value results in
 -- exception, original value in the mutable variable will not be affected. Another great
--- benfit of this over `writeRefLazy` is that it helps avoiding memory leaks.
+-- benfit of this over `writeLazyRef` is that it helps avoiding memory leaks.
 --
 -- ==== __Examples__
 --
@@ -213,7 +213,7 @@ swapRef ref a = do
 -- @since 0.1.0
 writeRef :: MonadPrim s m => Ref a s -> a -> m ()
 writeRef ref a =
-  a `seq` writeRefLazy ref a
+  a `seq` writeLazyRef ref a
 {-# INLINE writeRef #-}
 
 -- | Write a value into a mutable variable lazily.
@@ -222,7 +222,7 @@ writeRef ref a =
 --
 -- >>> ref <- newRef "Original value"
 -- >>> import Debug.Trace
--- >>> writeRefLazy ref (trace "'New string' is evaluated" "New string")
+-- >>> writeLazyRef ref (trace "'New string' is evaluated" "New string")
 -- >>> x <- readRef ref
 -- >>> writeRef ref (trace "'Totally new string' is evaluated" "Totally new string")
 -- 'Totally new string' is evaluated
@@ -231,9 +231,9 @@ writeRef ref a =
 -- New string
 --
 -- @since 0.1.0
-writeRefLazy :: MonadPrim s m => Ref a s -> a -> m ()
-writeRefLazy (Ref ref#) a = prim_ (writeMutVar# ref# a)
-{-# INLINE writeRefLazy #-}
+writeLazyRef :: MonadPrim s m => Ref a s -> a -> m ()
+writeLazyRef (Ref ref#) a = prim_ (writeMutVar# ref# a)
+{-# INLINE writeLazyRef #-}
 
 
 ------------
@@ -244,7 +244,7 @@ writeRefLazy (Ref ref#) a = prim_ (writeMutVar# ref# a)
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the
 -- artifact produced by the modifying function. This function is a faster alternative to
 -- `atomicModifyRef`, without any atomicity guarantees. For lazy version checkout
--- `modifyRefLazy`
+-- `modifyLazyRef`
 --
 -- @since 0.1.0
 modifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
@@ -287,9 +287,9 @@ modifyFetchOldRef ref f = modifyFetchOldRefM ref (pure . f)
 -- artifact produced by the modifying function.
 --
 -- @since 0.1.0
-modifyRefLazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
-modifyRefLazy ref f = modifyRefLazyM ref (pure . f)
-{-# INLINE modifyRefLazy #-}
+modifyLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
+modifyLazyRef ref f = modifyLazyRefM ref (pure . f)
+{-# INLINE modifyLazyRef #-}
 
 
 
@@ -355,12 +355,12 @@ modifyFetchNewRefM ref f = do
 {-# INLINE modifyFetchNewRefM #-}
 
 
-modifyRefLazyM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
-modifyRefLazyM ref f = do
+modifyLazyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
+modifyLazyRefM ref f = do
   a <- readRef ref
   (a', b) <- f a
-  b <$ writeRefLazy ref a'
-{-# INLINE modifyRefLazyM #-}
+  b <$ writeLazyRef ref a'
+{-# INLINE modifyLazyRefM #-}
 
 ------------
 -- Atomic --
@@ -493,26 +493,26 @@ atomicModifyRef2Lazy (Ref ref#) f =
       (# s', old, ~(new, b) #) -> (# s', (old, new, b) #)
 
 
-atomicModifyRefLazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
-atomicModifyRefLazy (Ref ref#) f = prim (atomicModifyMutVar# ref# f)
+atomicModifyLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
+atomicModifyLazyRef (Ref ref#) f = prim (atomicModifyMutVar# ref# f)
 
-atomicModifyFetchOldRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
-atomicModifyFetchOldRefLazy (Ref ref#) f =
+atomicModifyFetchOldLazyRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+atomicModifyFetchOldLazyRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', prev, _cur #) -> (# s', prev #)
 
-atomicModifyFetchNewRefLazy :: MonadPrim s m => Ref a s -> (a -> a) -> m a
-atomicModifyFetchNewRefLazy (Ref ref#) f =
+atomicModifyFetchNewLazyRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
+atomicModifyFetchNewLazyRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, cur #) -> (# s', cur #)
 
-atomicWriteRefLazy :: MonadPrim s m => Ref b s -> b -> m b
-atomicWriteRefLazy ref x = atomicModifyFetchOldRefLazy ref (const x)
+atomicWriteLazyRef :: MonadPrim s m => Ref b s -> b -> m b
+atomicWriteLazyRef ref x = atomicModifyFetchOldLazyRef ref (const x)
 
-atomicWriteRefLazy_ :: MonadPrim s m => Ref b s -> b -> m ()
-atomicWriteRefLazy_ ref x = void $ atomicWriteRefLazy ref x
+atomicWriteLazyRef_ :: MonadPrim s m => Ref b s -> b -> m ()
+atomicWriteLazyRef_ ref x = void $ atomicWriteLazyRef ref x
 
 
 -- | Convert `Ref` to `STRef`

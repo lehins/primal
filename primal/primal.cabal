@@ -1,5 +1,5 @@
 name:                primal
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Primeval world of Haskell.
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
 homepage:            https://github.com/lehins/primal
@@ -35,6 +35,7 @@ library
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName
+                     , Data.Prim.Array
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr

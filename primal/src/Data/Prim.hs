@@ -398,7 +398,7 @@ prefetchValue3 a = prim_ (prefetchValue3# a)
 
 -- | Coerce result of a function (it is also a hidden function in Data.Functor.Utils)
 --
--- @since 0.2.1
+-- @since 0.3.0
 (#.) :: Coercible b c => proxy b c -> (a -> b) -> (a -> c)
 (#.) _f = coerce
 {-# INLINE (#.) #-}
