@@ -9,7 +9,6 @@
 --
 module Data.Prim.MRef.Internal
   ( MRef(..)
-  , uninitialized
   , modifyMRef
   , modifyMRef_
   , modifyFetchOldMRef
@@ -26,7 +25,6 @@ import Data.Prim.Memory
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
-
 
 class MRef mut where
   type Elt mut :: *
@@ -82,13 +80,6 @@ instance (Typeable p, Prim e) => MRef (PMArray p e) where
   readMRef mba = readPMArray mba 0
   {-# INLINE readMRef #-}
 
-
-uninitialized ::
-     String -- ^ Module name
-  -> String -- ^ Function name
-  -> a
-uninitialized mname fname = throw (UndefinedElement (mname ++ "." ++ fname))
-{-# NOINLINE uninitialized #-}
 
 
 -- modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
