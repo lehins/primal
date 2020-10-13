@@ -48,7 +48,6 @@ module Data.Prim.MArray
   , module Data.Prim.MArray.Atomic
   ) where
 
-import Data.Prim
 import Data.Prim.MArray.Atomic
 import Data.Prim.MArray.Internal
 

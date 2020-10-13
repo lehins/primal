@@ -2,14 +2,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE Unsafe #-}
 -- |
@@ -22,6 +19,7 @@
 --
 module Data.Prim.MArray.Internal
   ( Elt
+  , Size(..)
   , module Data.Prim.MArray.Internal
   ) where
 
@@ -33,7 +31,7 @@ import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef
 import Foreign.Prim
-
+import Data.Prim.Array (Size(..))
 
 class MRef mut => MArray mut where
   type Array mut = (frozen :: *) | frozen -> mut

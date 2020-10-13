@@ -72,6 +72,7 @@ import Data.Prim.MRef.Internal
 import Foreign.Prim
 import GHC.IORef
 import GHC.STRef
+import Data.Prim.Array
 
 -- | Mutable variable that can store any boxed value. Because it stores just a reference
 -- to the value it is named "Ref". This is just like `Data.STRef.STRef`,

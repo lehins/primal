@@ -25,7 +25,7 @@ module Data.Prim.MArray.Boxed.Small
   -- ** Create
   , newSBMArray
   , newRawSBMArray
-  , newSBMArrayLazy
+  , newLazySBMArray
   , makeSBMArray
   , createSBArrayM
   , createSBArrayM_
@@ -65,6 +65,7 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Bits
 import Data.Prim
+import Data.Prim.Array
 import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal

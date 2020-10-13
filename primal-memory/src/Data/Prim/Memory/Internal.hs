@@ -719,11 +719,11 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- reset and will likely hold some garbage data, therefore prefer to use `allocZeroMutMem`,
   -- unless it is guaranteed that all of allocated memory will be overwritten.
   --
-  -- [Unsafe] When precondition for @memCount@ argument is violated the outcome is
+  -- [Unsafe] When any of preconditions for @memCount@ argument is violated the outcome is
   -- unpredictable. One possible outcome is termination with
   -- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
   -- executed within `runST`, if allocated memory is not fully overwritten it can lead to
-  -- violation of referential transparency, because content of newly allocated region is
+  -- violation of referential transparency, because contents of newly allocated region is
   -- non-determinstic.
   --
   -- @since 0.3.0

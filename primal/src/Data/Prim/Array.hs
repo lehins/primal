@@ -1,5 +1,8 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
@@ -11,13 +14,12 @@
 -- Portability : non-portable
 --
 module Data.Prim.Array
-  ( -- * Arrays
-    -- $arrays
+  ( -- $arrays
       Size(..)
-    -- ** Boxed Array
+    -- * Boxed Array
     -- $boxedArray
 
-    -- *** Immutable
+    -- ** Immutable
     , BArray(..)
     , sizeOfBArray
     , indexBArray
@@ -28,14 +30,13 @@ module Data.Prim.Array
     , toListBArray
     , fromListBArray
     , fromListBArrayN
-    -- *** Mutable
+    -- ** Mutable
     , BMArray(..)
     , sizeOfBMArray
     , readBMArray
     , writeBMArray
     , writeLazyBMArray
     , writeDeepBMArray
-    , casBMArray
     , isSameBMArray
     , newBMArray
     , newLazyBMArray
@@ -45,8 +46,32 @@ module Data.Prim.Array
     , cloneBMArray
     , freezeBMArray
     , freezeCopyBMArray
-    -- ** Small Boxed Array
-    -- ** Unboxed Array
+
+    -- * Small Boxed Array
+    -- ** Immutable
+    -- ** Mutable
+
+    -- * Unboxed Array
+    -- ** Immutable
+    , UArray(..)
+    , sizeOfUArray
+    , indexUArray
+    , copyUArray
+    , thawUArray
+    -- ** Mutable
+    , UMArray(..)
+    , isSameUMArray
+    , getSizeOfUMArray
+    , readUMArray
+    , writeUMArray
+    , newRawUMArray
+    , newPinnedRawUMArray
+    , newAlignedPinnedRawUMArray
+    , moveUMArray
+    , setUMArray
+    , shrinkUMArray
+    , resizeUMArray
+    , freezeUMArray
     -- * Helper functions
     , uninitialized
     , makeMutWith
@@ -59,12 +84,13 @@ import Control.DeepSeq
 import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Prim
+import Data.Prim.Class
 import Foreign.Prim
 import GHC.Stack
 
 -- $arrays
 --
--- Minimal interface
+-- Minimal interface, wrappers around primops
 --
 -- Indexing and Size type
 --
@@ -77,6 +103,14 @@ import GHC.Stack
 -- Mutable vs Immutable
 --
 -- Note more features in primal-memory and primal-mutable
+
+
+newtype Size = Size { unSize :: Int }
+  deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
+
+instance Prim Size where
+  type PrimBase Size = Int
+
 
 -----------------
 -- Boxed Array --
@@ -114,7 +148,7 @@ instance Show e => Show (BArray e) where
     | n > 1 = ('(' :) . inner . (')' :)
     | otherwise = inner
     where
-      inner = ("Array " ++) . shows (toList arr)
+      inner = ("BArray " ++) . shows (toList arr)
 
 instance IsList (BArray e) where
   type Item (BArray e) = e
@@ -130,7 +164,9 @@ instance e ~ Char => IsString (BArray e) where
   {-# INLINE fromString #-}
 
 
--- | /O(1)/ - Get the number of elements in an immutable array
+-- | /O(1)/ - Get number of elements in an immutable array
+--
+-- Documentation for utilized primop: `sizeofArray#`.
 --
 -- @since 0.3.0
 sizeOfBArray :: BArray e -> Size
@@ -138,6 +174,8 @@ sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 {-# INLINE sizeOfBArray #-}
 
 -- | /O(1)/ - Index an element in the immutable boxed array.
+--
+-- Documentation for utilized primop: `indexArray#`.
 --
 -- [Unsafe] Bounds are not checked. When a precondition for @ix@ argument is violated the
 -- result is either unpredictable output or failure with a segfault.
@@ -163,7 +201,6 @@ indexBArray ::
   -- > 0 <= ix
   --
   -- > ix < unSize (sizeOfBArray array)
-  --
   -> e
 indexBArray (BArray a#) (I# i#) =
   case indexArray# a# i# of
@@ -178,13 +215,15 @@ indexBArray (BArray a#) (I# i#) =
 -- failure with a segfault. Failure with out of memory is also possibility when the @sz is
 -- too large.
 --
+-- Documentation for utilized primop: `cloneArray#`.
+--
 -- ====__Examples__
 --
 -- >>> let a = fromListBArray ['a'..'z']
 -- >>> a
--- Array "abcdefghijklmnopqrstuvwxyz"
+-- BArray "abcdefghijklmnopqrstuvwxyz"
 -- >>> cloneBArray a 23 3
--- Array "xyz"
+-- BArray "xyz"
 --
 -- @since 0.3.0
 cloneBArray ::
@@ -215,8 +254,10 @@ cloneBArray (BArray a#) (I# i#) (Size (I# n#)) = BArray (cloneArray# a# i# n#)
 
 
 
--- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of another
--- mutable array. The two arrays must not be the same array in different states.
+-- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of another mutable
+-- array. Source and destination arrays must not be the same array in different states.
+--
+-- Documentation for utilized primop: `copyArray#`.
 --
 -- [Unsafe] When any of the preconditions for @srcStartIx@, @dstStartIx@ or @sz@ is violated
 -- this function can result in a copy of some data that doesn't belong to @srcArray@ or more
@@ -242,7 +283,8 @@ copyBArray ::
   -- > srcStartIx < unSize (sizeOfBArray srcArray)
   -> BMArray e s -- ^ /dstMutArray/ - Destination mutable array
   -> Int
-  -- ^ /dstStartIx/ - Offset into the destination mutable array where copy should start to
+  -- ^ /dstStartIx/ - Offset into the destination mutable array where the copy should start
+  -- at
   --
   -- /__Preconditions:__/
   --
@@ -259,7 +301,6 @@ copyBArray ::
   -- > srcStartIx + unSize sz < unSize (sizeOfBArray srcArray)
   --
   -- > dstStartIx + unSize sz < unSize (sizeOfBMArray dstMutArray)
-  --
   -> m ()
 copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyArray# src# srcOff# dst# dstOff# n#)
@@ -269,14 +310,16 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 -- | /O(1)/ - Convert a pure immutable boxed array into a mutable boxed array. Use
 -- `freezeBMArray` in order to go in the opposite direction.
 --
+-- Documentation for utilized primop: `unsafeThawArray#`.
+--
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the mutable boxed array will also be reflected in
 -- the source immutable array as well. See `thawCopyBArray` that avoids this problem with
--- a fresh allocation.
+-- a fresh allocation and data copy.
 --
 -- ====__Examples__
 --
--- >>> ma <- thawBArray $ fromListBArray [1 .. 5 :: Int]
+-- >>> ma <- thawBArray $ fromListBArray [1 .. 5 :: Integer]
 -- >>> writeBMArray ma 1 10
 -- >>> freezeBMArray ma
 -- Array [1,10,3,4,5]
@@ -284,11 +327,11 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 -- Be careful not to retain a reference to the pure immutable source array after the
 -- thawed version gets mutated.
 --
--- >>> let a = fromListBArray [1 .. 5 :: Int]
+-- >>> let a = fromListBArray [1 .. 5 :: Integer]
 -- >>> ma' <- thawBArray a
 -- >>> writeBMArray ma' 0 100000
 -- >>> a
--- Array [100000,2,3,4,5]
+-- BArray [100000,2,3,4,5]
 --
 -- @since 0.3.0
 thawBArray ::
@@ -319,6 +362,8 @@ thawBArray (BArray a#) = prim $ \s ->
 -- can result in a copy of some data that doesn't belong to @srcArray@ or more likely a
 -- failure with a segfault. Failure with out of memory is also possibility when the @sz is
 -- too large.
+--
+-- Documentation for utilized primop: `thawArray#`.
 --
 -- ====__Examples__
 --
@@ -373,7 +418,7 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 
 
 
--- | Same as `fromListBArray`, except it will allocate an array exactly of @n@ size, as
+-- | /O(min(length list, sz))/ - Same as `fromListBArray`, except it will allocate an array exactly of @n@ size, as
 -- such it will not convert any portion of the list that doesn't fit into the newly
 -- created array.
 --
@@ -394,15 +439,15 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 -- @since 0.1.0
 fromListBArrayN ::
      HasCallStack
-  => Size -- ^ Expected @n@ size of a list
-  -> [e]
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> BArray e
 fromListBArrayN sz xs =
   runST $ fromListMutWith newRawBMArray writeBMArray sz xs >>= freezeBMArray
 {-# INLINE fromListBArrayN #-}
 
 
--- | Convert a list into an immutable boxed array. It is more efficient to use
+-- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
 -- `fromListBArrayN` when the number of elements is known ahead of time. The reason for this
 -- is that it is necessary to iterate the whole list twice: once to count how many elements
 -- there is in order to create large enough array that can fit them; and the second time to
@@ -411,7 +456,7 @@ fromListBArrayN sz xs =
 -- ====__Example__
 --
 -- >>> fromListBArray "Hello Haskell"
--- Array "Hello Haskell"
+-- BArray "Hello Haskell"
 --
 -- @since 0.3.0
 fromListBArray :: [e] -> BArray e
@@ -437,6 +482,8 @@ instance Eq (BMArray e s) where
 
 -- | Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
+-- Documentation for utilized primop: `sameMutableArray#`.
+--
 -- @since 0.3.0
 isSameBMArray :: BMArray a s -> BMArray a s -> Bool
 isSameBMArray (BMArray ma1#) (BMArray ma2#) =
@@ -444,6 +491,8 @@ isSameBMArray (BMArray ma1#) (BMArray ma2#) =
 {-# INLINE isSameBMArray #-}
 
 -- | /O(1)/ - Get the size of a mutable boxed array
+--
+-- Documentation for utilized primop: `sizeofMutableArray#`.
 --
 -- ====__Example__
 --
@@ -456,7 +505,9 @@ sizeOfBMArray :: BMArray e s -> Size
 sizeOfBMArray (BMArray ma#) = Size (I# (sizeofMutableArray# ma#))
 {-# INLINE sizeOfBMArray #-}
 
--- | /O(1)/ - Read an element from a mutable boxed array at a supplied index.
+-- | /O(1)/ - Read an element from a mutable boxed array at the supplied index.
+--
+-- Documentation for utilized primop: `readArray#`.
 --
 -- [Unsafe] Violation of @ix@ preconditions can result in undefined behavior or a failure
 -- with a segfault
@@ -470,31 +521,30 @@ sizeOfBMArray (BMArray ma#) = Size (I# (sizeofMutableArray# ma#))
 -- @since 0.1.0
 readBMArray ::
      MonadPrim s m
-  => BMArray e s -- ^ /srcArray/ - An array to read an element from
+  => BMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
-  -- ^ /ix/ - Index that refers to an element we need within the the @srcArray@
+  -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
   --
   -- /__Precoditions:__/
   --
   -- > 0 <= ix
   --
-  -- > ix < unSize (sizeOfMBArray srcArray)
-  --
+  -- > ix < unSize (sizeOfMBArray srcMutArray)
   -> m e
 readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 {-# INLINE readBMArray #-}
 
 
 
--- | /O(1)/ - Write an element @elt@ into the mutable boxed array @dstMutArray@ at the supplied index
--- @ix@. The actual element will be evaluated to WHNF prior to mutation.
+-- | /O(1)/ - Write an element @elt@ into the mutable boxed array @dstMutArray@ at the
+-- supplied index @ix@. The actual element will be evaluated to WHNF prior to mutation.
 --
 -- [Unsafe] Violation of @ix@ preconditions can result in heap corruption or a failure
 -- with a segfault
 --
 -- ==== __Examples__
 --
--- >>> ma <- newBMArray 4 (Nothing :: Maybe Int)
+-- >>> ma <- newBMArray 4 (Nothing :: Maybe Integer)
 -- >>> writeBMArray ma 2 (Just 2)
 -- >>> freezeBMArray ma
 -- Array [Nothing,Nothing,Just 2,Nothing]
@@ -541,6 +591,8 @@ writeBMArray ma i x = x `seq` writeLazyBMArray ma i x
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an
 -- evaluated element. Careful with memory leaks and thunks that evaluate to exceptions.
 --
+-- Documentation for utilized primop: `writeArray#`.
+--
 -- [Unsafe] Same reasons as `writeBMArray`
 --
 -- @since 0.3.0
@@ -561,73 +613,6 @@ writeDeepBMArray ma i x = x `deepseq` writeLazyBMArray ma i x
 
 
 
--- | /O(1)/ - Compare-and-swap operation that can be used as a concurrency primitive for
--- implementing atomic operations on mutable boxed arrays. Returns a boolean value, which
--- indicates `True` for success and `False` otherwise for the update, as well as the current
--- value at the supplied index. In case of success current value returned will be the newly
--- supplied one, otherwise it will still be the old one. Note that there is no `Eq`
--- constraint on the element, that is because compare operation is done on a reference,
--- rather than on the value itself, in other words the expected value must be the exact same
--- one.
---
--- [Unsafe] Violation of @ix@ preconditions can result in heap corruption or a failure
--- with a segfault
---
--- ====__Examples__
---
--- >>> ma <- makeBMArray 5 (pure . (*10))
--- >>> freezeBMArray ma
--- Array [0,10,20,30,40]
---
--- A possible mistake is to try and pass the expected value, instead of an actual element:
---
--- >>> casBMArray ma 2 20 1000
--- (False,20)
--- >>> freezeBMArray ma
--- Array [0,10,20,30,40]
---
--- But this will get us nowhere, since what we really need is the actual reference to the
--- value currently in the array cell
---
--- >>> expected <- readBMArray ma 2
--- >>> r@(_, currentValue) <- casBMArray ma 2 expected 1000
--- >>> freezeBMArray ma
--- Array [0,10,1000,30,40]
--- >>> r
--- (True,1000)
---
--- In a concurrent setting current value can potentially be modified by some other
--- thread, therefore returned value can be immediately used as the expected one to the
--- next call, if we want to retry the atomic swap:
---
--- >>> casBMArray ma 2 currentValue 2000
--- (True,2000)
--- >>> freezeBMArray ma
--- Array [0,10,2000,30,40]
---
--- @since 0.3.0
-casBMArray ::
-     MonadPrim s m
-  => BMArray e s
-  -- ^ /dstMutArray/ - Mutable array that will have an atomic swap operation applied to
-  -> Int
-  -- ^ /ix/ - Index of a cell which should be set to the new value
-  --
-  -- /__Precoditions:__/
-  --
-  -- > 0 <= ix
-  --
-  -- > ix < unSize (sizeOfMBArray dstMutArray)
-  -> e -- ^ /expElt/ - Reference to the expected boxed value
-  -> e -- ^ /elt/ - New value to update the cell with
-  -> m (Bool, e)
-casBMArray (BMArray ma#) (I# i#) expected new =
-  prim $ \s ->
-    case casArray# ma# i# expected new s of
-      (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
-{-# INLINE casBMArray #-}
-
-
 -- | Create a mutable boxed array where each element is set to the supplied initial value
 -- @elt@, which is evaluated before array allocation happens. See `newLazyBMArrayLazy` for
 -- an ability to initialize with a thunk.
@@ -639,7 +624,7 @@ casBMArray (BMArray ma#) (I# i#) expected new =
 -- ====__Examples__
 --
 -- >>> newBMArray 10 'A' >>= freezeBMArray
--- Array "AAAAAAAAAA"
+-- BArray "AAAAAAAAAA"
 --
 -- @since 0.3.0
 newBMArray ::
@@ -651,14 +636,16 @@ newBMArray ::
   --
   -- > 0 <= sz
   --
-  -- Should be below some pper limit that is dictated by the operating system and amount
-  -- of available memory
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
   -> e -- ^ /elt/ - Value to use for all array cells
   -> m (BMArray e s)
 newBMArray sz x = x `seq` newLazyBMArray sz x
 {-# INLINE newBMArray #-}
 
 -- | Same as `newBMArray`, except initial element is allowed to be a thunk.
+--
+-- Documentation for utilized primop: `newArray#`.
 --
 -- [Unsafe] Same reasons as `newBMArray`
 --
@@ -674,20 +661,22 @@ newLazyBMArray (Size (I# n#)) a =
 
 
 -- | Create new mutable array, where each element is initilized to a thunk that throws an
--- error when evaluated. This is useful when there is a plan to iterate over the whole array
--- and write values into each cell later in some index aware fashion.
+-- error when evaluated. This is useful when there is a plan to later iterate over the whole
+-- array and write values into each cell in some index aware fashion. Consider `makeBMArray`
+-- as an alternative.
 --
--- [Partial] All array cells a initialized with thunks that throw `UndefinedElement`
+-- [Partial] All array cells are initialized with thunks that throw `UndefinedElement`
 -- exception.
 --
 -- [Unsafe] Same reasons as `newBMArray`
 --
 -- ==== __Examples__
 --
--- >>> import Control.Prim.Monad
--- >>> ma <- newRawBMArray 10 :: IO (BMArray Int RW)
--- >>> sizeOfBMArray ma
--- Size {unSize = 10}
+-- >>> let xs = "Hello Haskell"
+-- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RealWorld)
+-- >>> mapM_ (\(i, x) -> writeBMArray ma i x) (zip [0..] xs)
+-- >>> freezeBMArray ma
+-- BArray "Hello Haskell"
 --
 -- @since 0.3.0
 newRawBMArray :: (HasCallStack, MonadPrim s m) => Size -> m (BMArray e s)
@@ -710,7 +699,7 @@ newRawBMArray sz = newLazyBMArray sz (uninitialized "Data.Prim.Aray" "newRawBMAr
 -- Handling index: 3
 -- Handling index: 4
 -- >>> freezeBMArray ma
--- Array "abcde"
+-- BArray "abcde"
 --
 -- @since 0.3.0
 makeBMArray :: MonadPrim s m => Size -> (Int -> m e) -> m (BMArray e s)
@@ -721,11 +710,12 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 -- | /O(1)/ - Convert a mutable boxed array into an immutable one. Use `thawBArray` in order
 -- to go in the opposite direction.
 --
+-- Documentation for utilized primop: `unsafeFreezeArray#`.
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the source mutable boxed array will also be
--- reflected in the resulting immutable array as well. See `freezeCopyBMArray` that avoids
--- this problem with fresh allocation.
+-- subsequent destructive operation to the source mutable boxed array will also be reflected
+-- in the resulting immutable array. See `freezeCopyBMArray` that avoids this problem with
+-- fresh allocation.
 --
 -- @since 0.3.0
 freezeBMArray :: MonadPrim s m => BMArray e s -> m (BArray e)
@@ -738,6 +728,8 @@ freezeBMArray (BMArray ma#) = prim $ \s ->
 
 -- | /O(sz)/ - Similar to `freezeBMArray`, except it creates a new array with the copy of a
 -- subsection of a mutable array before converting it into an immutable.
+--
+-- Documentation for utilized primop: `freezeArray#`.
 --
 -- [Unsafe] When any of the preconditions for @startIx@ or @sz@ is violated this function
 -- can result in a copy of some data that doesn't belong to @srcArray@ or more likely a
@@ -780,6 +772,8 @@ freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
 -- elements over from the @srcArray@ starting at index @ix@. Similar to `cloneBArray`,
 -- except it works on mutable arrays.
 --
+-- Documentation for utilized primop: `cloneMutableArray#`.
+--
 -- [Unsafe] When any of the preconditions for @startIx@ or @sz@ is violated this function
 -- can result in a copy of some data that doesn't belong to @srcArray@ or more likely a
 -- failure with a segfault. Failure with out of memory is also possibility when the @sz is
@@ -818,14 +812,14 @@ cloneBMArray (BMArray ma#) (I# i#) (Size (I# n#)) =
 
 
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
--- mutable array. Therefore, unlike `copyBArray`, memory overlap is allowed between source
+-- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between source
 -- and destination.
 --
--- [Unsafe offset] Each offset cannot be negative or larger than the size of a
--- corresponding array, otherwise it can result in an unchecked exception
+-- Documentation for utilized primop: `copyMutableArray#`.
 --
--- [Unsafe new size] Number of elements to be copied cannot be larger than the size of an
--- each array minus their corersponding offsets.
+-- [Unsafe] When any of the preconditions for @srcStartIx@, @dstStartIx@ or @sz@ is violated
+-- this function can result in a copy of some data that doesn't belong to @srcArray@ or more
+-- likely a failure with a segfault.
 --
 -- @since 0.3.0
 moveBMArray ::
@@ -883,14 +877,490 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 -- ============= --
 
 
-
 -- Immutable Unboxed Array --
 -----------------------------
+
+data UArray e = UArray ByteArray#
+type role UArray nominal
+
+
+-- | /O(1)/ - Get number of elements in an immutable array
+--
+-- Documentation for utilized primop: `sizeofByteArray#`.
+--
+-- @since 0.3.0
+sizeOfUArray :: UArray e -> Size
+sizeOfUArray (UArray a#) = Size (I# (sizeofByteArray# a#))
+{-# INLINE sizeOfUArray #-}
+
+
+-- | Index an element of a pure unboxed array.
+--
+-- Documentation for utilized primop: `indexByteArray#`.
+--
+-- [Unsafe] Bounds are not checked. When a precondition for @ix@ argument is violated the
+-- result is either unpredictable output or failure with a segfault.
+--
+-- ==== __Examples__
+--
+-- >>> import Data.Prim.Array.Unboxed
+-- >>> let a = makeUArray 1024 (\i -> [0 .. i])
+-- >>> indexUArray a 1
+-- [0,1]
+-- >>> indexUArray a 5
+-- [0,1,2,3,4,5]
+--
+-- @since 0.3.0
+indexUArray ::
+     Prim e
+  => UArray e
+  -- ^ /array/ - Array where to lookup an element from
+  -> Int
+  -- ^ /ix/ - Position of the element within the @array@
+  --
+  -- /__Precoditions:__/
+  --
+  -- > 0 <= ix
+  --
+  -- > ix < unSize (sizeOfUArray array)
+  -> e
+indexUArray (UArray a#) (I# i#) = indexByteArray# a# i#
+{-# INLINE indexUArray #-}
+
+
+-- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of another mutable
+-- array. Source and destination arrays must not be the same array in different states.
+--
+-- Documentation for utilized primop: `copyByteArray#`.
+--
+-- [Unsafe] When any of the preconditions for @srcStartIx@, @dstStartIx@ or @sz@ is violated
+-- this function can result in a copy of some data that doesn't belong to @srcArray@ or
+-- failure with a segfault.
+--
+-- @since 0.3.0
+copyUArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => UArray e
+  -- ^ /srcArray/ - Source immutable array
+  --
+  -- /__Precondition:__/
+  --
+  -- > srcMutArray <- thawUArray srcArray
+  -- > srcMutArray /= dstMutArray
+  -> Int
+  -- ^ /srcStartIx/ - Offset into the source immutable array where copy should start from
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= srcStartIx
+  --
+  -- > srcStartIx < unSize (sizeOfUArray srcArray)
+  -> UMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> Int
+  -- ^ /dstStartIx/ - Offset into the destination mutable array where the copy should start
+  -- at
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= dstStartIx
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx < unSize dstSize
+  -> Size
+  -- ^ /sz/ - Number of elements to copy over
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- > srcStartIx + unSize sz < unSize (sizeOfUArray srcArray)
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx + unSize sz < unSize dstSize
+  -> m ()
+copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
+  let srcOff# = unOffBytes# (coerce srcOff :: Off e)
+      dstOff# = unOffBytes# (coerce dstOff :: Off e)
+      n# = unCountBytes# (coerce n :: Count e)
+  in prim_ (copyByteArray# src# srcOff# dst# dstOff# n#)
+{-# INLINE copyUArray #-}
+
+
+-- | Convert a pure immutable unboxed array into a mutable unboxed array. Use
+-- `freezeUMArray` in order to go in the opposite direction.
+--
+-- Documentation for utilized primop: `unsafeThawByteArray#`.
+--
+-- [Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable unboxed array will also be reflected in
+-- the source immutable array as well.
+--
+-- ====__Examples__
+--
+-- >>> ma <- thawUArray $ fromListUArray [1 .. 5 :: Int]
+-- >>> writeUMArray ma 1 10
+-- >>> freezeUMArray ma
+-- Array [1,10,3,4,5]
+--
+-- Be careful not to retain a reference to the pure immutable source array after the
+-- thawed version gets mutated.
+--
+-- >>> let a = fromListUArray [1 .. 5 :: Int]
+-- >>> ma' <- thawUArray a
+-- >>> writeUMArray ma' 0 100000
+-- >>> a
+-- UArray [100000,2,3,4,5]
+--
+-- @since 0.3.0
+thawUArray :: MonadPrim s m => UArray e -> m (UMArray e s)
+thawUArray (UArray a#) =
+  prim $ \s ->
+    case unsafeThawByteArray# a# s of
+      (# s', ma# #) -> (# s', UMArray ma# #)
+{-# INLINE thawUArray #-}
 
 
 -- Mutable Unboxed Array --
 ---------------------------
 
+data UMArray e s = UMArray (MutableByteArray# s)
+type role UMArray nominal nominal
+
+-- | Check if both of the arrays refer to the exact same one through poiner equality. None
+-- of the elements are evaluated.
+instance Eq (UMArray e s) where
+  (==) = isSameUMArray
+  {-# INLINE (==) #-}
+
+-- | Compare pointers for two mutable arrays and see if they refer to the exact same one.
+--
+-- Documentation for utilized primop: `sameMutableByteArray#`.
+--
+-- @since 0.3.0
+isSameUMArray :: forall a b s. UMArray a s -> UMArray b s -> Bool
+isSameUMArray (UMArray ma1#) (UMArray ma2#) = isTrue# (sameMutableByteArray# ma1# ma2#)
+{-# INLINE isSameUMArray #-}
+
+
+-- | /O(1)/ - Get the size of a mutable unboxed array
+--
+-- Documentation for utilized primop: `getSizeofMutableByteArray#`.
+--
+-- ====__Example__
+--
+-- >>> ma <- thawUArray $ fromListUArray ['a' .. 'z']
+-- >>> sizeOfUMArray ma
+-- Size 26
+--
+-- @since 0.3.0
+getSizeOfUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => UMArray e s
+  -> m Size
+getSizeOfUMArray (UMArray ma#) =
+  prim $ \s ->
+    case getSizeofMutableByteArray# ma# s of
+      (# s', n# #) -> (# s', coerce (fromByteCount (Count (I# n#)) :: Count e) #)
+{-# INLINE getSizeOfUMArray #-}
+
+
+
+-- | /O(1)/ - Read an element from a mutable unboxed array at the supplied index.
+--
+-- Documentation for utilized primop: `readMutableByteArray#`.
+--
+-- [Unsafe] Violation of @ix@ preconditions can result in value that doesn't belong to
+-- @srcMutArray@ or a failure with a segfault
+--
+-- ==== __Examples__
+--
+-- >>> ma <- thawUArray $ fromListUArray "Hi!"
+-- >>> readUMArray ma 2
+-- '!'
+--
+-- @since 0.3.0
+readUMArray ::
+     (Prim e, MonadPrim s m)
+  => UMArray e s -- ^ /srcMutArray/ - Array to read an element from
+  -> Int
+  -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
+  --
+  -- /__Precoditions:__/
+  --
+  -- > 0 <= ix
+  --
+  -- > srcSize <- getSizeOfMUArray srcMutArray
+  -- > ix < unSize srcSize
+  -> m e
+readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
+{-# INLINE readUMArray #-}
+
+
+-- | Write an element into an unboxed mutable array at a supplied index.
+--
+-- Documentation for utilized primop: `writeMutableByteArray#`.
+--
+-- [Unsafe] Violation of @ix@ preconditions can result in heap corruption or a failure
+-- with a segfault
+--
+-- ==== __Examples__
+--
+-- >>> ma <- newUMArray 4 (Nothing :: Maybe Int)
+-- >>> writeUMArray ma 2 (Just 2)
+-- >>> freezeUMArray ma
+-- UArray [Nothing,Nothing,Just 2,Nothing]
+--
+-- @since 0.3.0
+writeUMArray :: (Prim e, MonadPrim s m) => UMArray e s -> Int -> e -> m ()
+writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
+{-# INLINE writeUMArray #-}
+
+
+-- | /O(1)/ - Allocate new mutable unboxed array. None of the elements are initialized so
+-- expect it to contain some random garbage.
+--
+-- Documentation for utilized primop: `newByteArray#`.
+--
+-- [Unsafe] When any of preconditions for @sz@ argument is violated the outcome is
+-- unpredictable. One possible outcome is termination with `HeapOverflow` async
+-- exception. In a pure setting, such as when executed within `runST`, if each cell in new
+-- array is not overwritten it can lead to violation of referential transparency, because
+-- contents of newly allocated unboxed array is non-determinstic.
+--
+-- ==== __Examples__
+--
+-- >>> let xs = "Hello Haskell"
+-- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RealWorld)
+-- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
+-- >>> freezeUMArray ma
+-- UArray "Hello Haskell"
+--
+-- @since 0.3.0
+newRawUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -- ^ /sz/ - Size of the array in number of elements.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Susceptible to overflow:
+  --
+  -- > 0 <= toByteCount (Count (unSize n) :: Count e)
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> m (UMArray e s)
+newRawUMArray n =
+  prim $ \s ->
+    case newByteArray# (unCountBytes# (coerce n :: Count e)) s of
+      (# s', ma# #) -> (# s', UMArray ma# #)
+{-# INLINE newRawUMArray #-}
+
+-- | /O(1)/ - Same as `newRawUMArray` except allocate new mutable unboxed array as pinned
+--
+-- Documentation for utilized primop: `newPinnedByteArray#`.
+--
+-- [Unsafe] Same reasons as in `newRawUMArray`.
+--
+-- @since 0.3.0
+newPinnedRawUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> m (UMArray e s)
+newPinnedRawUMArray n =
+  prim $ \s ->
+    case newPinnedByteArray# (unCountBytes# (coerce n :: Count e)) s of
+      (# s', ma# #) -> (# s', UMArray ma# #)
+{-# INLINE newPinnedRawUMArray #-}
+
+-- | /O(1)/ - Same as `newPinnedRawUMArray` except allocate new mutable unboxed array as
+-- pinned and aligned according to the `Prim` instance for the type of element @__e__@
+--
+-- Documentation for utilized primop: `newAlignedPinnedByteArray#`.
+--
+-- [Unsafe] Same reasons as in `newRawUMArray`.
+--
+-- @since 0.3.0
+newAlignedPinnedRawUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> m (UMArray e s)
+newAlignedPinnedRawUMArray n =
+  prim $ \s ->
+    let c# = unCountBytes# (coerce n :: Count e)
+        a# = alignment# (proxy# :: Proxy# e)
+     in case newAlignedPinnedByteArray# c# a# s of
+          (# s', ma# #) -> (# s', UMArray ma# #)
+{-# INLINE newAlignedPinnedRawUMArray #-}
+
+
+-- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
+-- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between
+-- source and destination.
+--
+-- Documentation for utilized primop: `copyMutableByteArray#`.
+--
+-- [Unsafe] When any of the preconditions for @srcStartIx@, @dstStartIx@ or @sz@ is violated
+-- this function can result in a copy of some data that doesn't belong to @srcArray@ or
+-- failure with a segfault.
+--
+-- @since 0.3.0
+moveUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => UMArray e s -- ^ /srcMutArray/ - Source mutable array
+  -> Int
+  -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= srcStartIx
+  --
+  -- > srcSize <- getSizeOfMUArray srcMutArray
+  -- > srcStartIx < unSize srcSize
+  -> UMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> Int
+  -- ^ /dstStartIx/ - Offset into the destination mutable array where copy should start to
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= dstStartIx
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx < unSize dstSize
+  -> Size
+  -- ^ /sz/ - Number of elements to copy over
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- > srcSize <- getSizeOfMUArray srcMutArray
+  -- > srcStartIx + unSize sz < unSize srcSize
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx + unSize sz < unSize dstSize
+  -> m ()
+moveUMArray (UMArray src#) srcOff (UMArray dst#) dstOff n =
+  let srcOff# = unOffBytes# (coerce srcOff :: Off e)
+      dstOff# = unOffBytes# (coerce dstOff :: Off e)
+      n# = unCountBytes# (coerce n :: Count e)
+  in prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
+{-# INLINE moveUMArray #-}
+
+
+-- | /O(n)/ - Write the same element into the @dstMutArray@ mutable array @n@ times starting
+-- at @dstStartIx@ offset.
+--
+-- [Unsafe]
+--
+-- @since 0.3.0
+setUMArray ::
+     (Prim e, MonadPrim s m)
+  => UMArray e s -- ^ /dstMutArray/ - Mutable array
+  -> Int
+  -- ^ /dstStartIx/ - Offset into the mutable array
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= dstStartIx
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx < unSize dstSize
+  -> Size
+  -- ^ /n/ - Number of elements to overwrite
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= n
+  --
+  -- > dstSize <- getSizeOfMUArray dstMutArray
+  -- > dstStartIx + unSize n < unSize dstSize
+  -> e -- ^ /elt/ - Value to overwrite the cells with in the specified block
+  -> m ()
+setUMArray (UMArray ma#) (I# o#) (Size (I# n#)) a =
+  prim_ (setMutableByteArray# ma# o# n# a)
+{-# INLINE setUMArray #-}
+
+
+-- | /O(1)/ - Reduce the size of a mutable unboxed array.
+--
+-- Documentation for utilized primop: `shrinkMutableByteArray#`.
+--
+-- [Unsafe] - Violation of preconditions for @sz@ leads to undefined behavior
+--
+-- 0.3.0
+shrinkUMArray ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => UMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- > curSize <- getSizeOfUMArray mutArray
+  -- > sz <= curSize
+  -> m ()
+shrinkUMArray (UMArray mb#) sz =
+  prim_ (shrinkMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)))
+{-# INLINE shrinkUMArray #-}
+
+-- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array, possibly without
+-- new allocation and data copy. Source array @srcArray@ should no longer be used after the
+-- resize operation completes. In case when in place resize was not possible the new array
+-- is allocated as unpinned.
+--
+-- Documentation on the utilized primop: `resizeMutableByteArray#`.
+--
+-- [Unsafe] - Same reasons as in `newRawUMArray`. When size @sz@ is larger then the size of
+-- @srcMutArray@ then @dstMutArray@ will contain uninitialized memory at its end, hence a
+-- potential problem for referential transparency.
+--
+-- 0.3.0
+resizeUMArray ::
+     forall e m s. (MonadPrim s m, Prim e)
+  => UMArray e s -- ^ /srcMutArray/ - Mutable unboxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Susceptible to overflow:
+  --
+  -- > 0 <= toByteCount (Count (unSize n) :: Count e)
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> m (UMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+resizeUMArray (UMArray mb#) sz =
+  prim $ \s ->
+    case resizeMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)) s of
+      (# s', mb'# #) -> (# s', UMArray mb'# #)
+{-# INLINE resizeUMArray #-}
+
+
+
+-- | /O(1)/ - Convert a mutable unboxed array into an immutable one. Use `thawUArray` in order
+-- to go in the opposite direction.
+--
+-- Documentation on the utilized primop: `unsafeFreezeByteArray#`.
+--
+-- [Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the source mutable boxed array will also be reflected
+-- in the resulting immutable array. See `freezeCopyBMArray` that avoids this problem with
+-- fresh allocation.
+--
+-- @since 0.3.0
+freezeUMArray :: MonadPrim s m => UMArray e s -> m (UArray e)
+freezeUMArray (UMArray ma#) = prim $ \s ->
+  case unsafeFreezeByteArray# ma# s of
+    (# s', a# #) -> (# s', UArray a# #)
+{-# INLINE freezeUMArray #-}
 
 -------------
 -- Helpers --

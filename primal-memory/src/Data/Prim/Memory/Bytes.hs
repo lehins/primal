@@ -104,6 +104,10 @@ module Data.Prim.Memory.Bytes
   , toForeignPtrBytes
   , toForeignPtrMBytes
   -- * Conversion
+  , toUArrayBytes
+  , fromUArrayBytes
+  , toUMArrayMBytes
+  , fromUMArrayMBytes
   , fromListBytes
   , fromListBytesN
   , fromListZeroBytesN_
@@ -154,6 +158,7 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Maybe (fromMaybe)
 import Data.Prim
+import Data.Prim.Array
 import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
 import Foreign.Prim
@@ -440,6 +445,35 @@ toPinnedMBytes (MBytes mb#)
 
 
 
+-- | /O(1)/ - Cast an unboxed array into `Bytes`
+--
+-- @since 0.3.0
+fromUArrayBytes :: UArray e -> Bytes 'Inc
+fromUArrayBytes (UArray ba#) = fromByteArray# ba#
+{-# INLINE fromUArrayBytes #-}
+
+-- | /O(1)/ - Cast `Bytes` into an unboxed array
+--
+-- @since 0.3.0
+toUArrayBytes :: Bytes p -> UArray e
+toUArrayBytes b = UArray (toByteArray# b)
+{-# INLINE toUArrayBytes #-}
+
+-- | /O(1)/ - Cast a mutable unboxed array into `MBytes`
+--
+-- @since 0.3.0
+fromUMArrayMBytes :: UMArray e s -> MBytes 'Inc s
+fromUMArrayMBytes (UMArray a#) = fromMutableByteArray# a#
+{-# INLINE fromUMArrayMBytes #-}
+
+-- | /O(1)/ - Cast `MBytes` into a mutable unboxed array
+--
+-- @since 0.3.0
+toUMArrayMBytes :: MBytes p s -> UMArray e s
+toUMArrayMBytes mb = UMArray (toMutableByteArray# mb)
+{-# INLINE toUMArrayMBytes #-}
+
+
 -- | Perform atomic modification of an element in the `MBytes` at the supplied
 -- index. Returns the actual value.  Offset is in number of elements,
 -- rather than bytes. Implies a full memory barrier.
@@ -454,7 +488,8 @@ casMBytes ::
   -> e -- ^ Expected old value
   -> e -- ^ New value
   -> m e
-casMBytes (MBytes mba#) (Off (I# i#)) expected new = prim $ casMutableByteArray# mba# i# expected new
+casMBytes (MBytes mba#) (Off (I# i#)) expected new =
+  prim $ casMutableByteArray# mba# i# expected new
 {-# INLINE casMBytes #-}
 
 

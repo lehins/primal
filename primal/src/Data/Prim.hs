@@ -28,8 +28,6 @@ module Data.Prim
   , alignment
   , alignmentType
   , alignmentProxy
-  -- * Size
-  , Size(..)
   -- * Count
   , Count(..)
   , unCountBytes
@@ -84,9 +82,6 @@ import Data.Word
 import Foreign.ForeignPtr (ForeignPtr)
 import GHC.Base (quotInt, quotRemInt)
 import GHC.Exts
-
-newtype Size = Size { unSize :: Int }
-  deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
 --

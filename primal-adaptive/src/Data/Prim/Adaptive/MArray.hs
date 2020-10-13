@@ -24,6 +24,7 @@ import Control.Prim.Monad
 import Data.Coerce
 import Data.Prim
 import Data.Prim.Adaptive.Rep
+import Data.Prim.Array (Size(..))
 import qualified Data.Prim.MArray as M
 import qualified Data.Prim.MArray.Boxed as B
 import Data.Prim.MRef

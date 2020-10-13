@@ -242,10 +242,10 @@ class Prim a where
 instance Prim () where
   type PrimBase () = ()
   type SizeOf () = 0
-  type Alignment () = 0
+  type Alignment () = 1
   sizeOf# _ = 0#
   {-# INLINE sizeOf# #-}
-  alignment# _ = 0#
+  alignment# _ = 1#
   {-# INLINE alignment# #-}
   indexByteOffByteArray# _ _ = ()
   {-# INLINE indexByteOffByteArray# #-}
@@ -1230,16 +1230,22 @@ instance Prim Any where
 
 instance Prim Fingerprint where
   type PrimBase Fingerprint = (Word64, Word64)
+  type Alignment Fingerprint = Alignment Word64
+  alignment# _ = alignment# (proxy# :: Proxy# Word64)
   toPrimBase (Fingerprint a b) = (a, b)
   fromPrimBase (a, b) = Fingerprint a b
 
 instance Prim a => Prim (Ratio a) where
   type PrimBase (Ratio a) = (a, a)
+  type Alignment (Ratio a) = Alignment a
+  alignment# _ = alignment# (proxy# :: Proxy# a)
   toPrimBase (a :% b) = (a, b)
   fromPrimBase (a, b) = a :% b
 
 instance Prim a => Prim (Complex a) where
   type PrimBase (Complex a) = (a, a)
+  type Alignment (Complex a) = Alignment a
+  alignment# _ = alignment# (proxy# :: Proxy# a)
   toPrimBase (a :+ b) = (a, b)
   fromPrimBase (a, b) = a :+ b
 

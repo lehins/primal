@@ -315,47 +315,47 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (MAddr e) where
 
 
 instance Atomic e => AtomicMArray (U.UMArray e) where
-  atomicReadMArray mba i = atomicReadMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicReadMArray mba i = atomicReadMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
-  atomicWriteMArray mba i = atomicWriteMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicWriteMArray mba i = atomicWriteMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicWriteMArray #-}
-  casMArray mba i = casBoolFetchMBytes (U.toMBytes mba) (coerce i :: Off e)
+  casMArray mba i = casBoolFetchMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE casMArray #-}
-  atomicModifyMArray mba i = atomicModifyMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicModifyMArray mba i = atomicModifyMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicModifyMArray #-}
 
 
 instance (Num e, AtomicCount e) => AtomicCountMArray (U.UMArray e) where
-  atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
-  atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchNewMArray #-}
-  atomicSubFetchOldMArray mba i = atomicSubFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicSubFetchOldMArray mba i = atomicSubFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicSubFetchOldMArray #-}
-  atomicSubFetchNewMArray mba i = atomicSubFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicSubFetchNewMArray mba i = atomicSubFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
 instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.UMArray e) where
-  atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
-  atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchNewMArray #-}
-  atomicNandFetchOldMArray mba i = atomicNandFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicNandFetchOldMArray mba i = atomicNandFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNandFetchOldMArray #-}
-  atomicNandFetchNewMArray mba i = atomicNandFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicNandFetchNewMArray mba i = atomicNandFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNandFetchNewMArray #-}
-  atomicOrFetchOldMArray mba i = atomicOrFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicOrFetchOldMArray mba i = atomicOrFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicOrFetchOldMArray #-}
-  atomicOrFetchNewMArray mba i = atomicOrFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicOrFetchNewMArray mba i = atomicOrFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicOrFetchNewMArray #-}
-  atomicXorFetchOldMArray mba i = atomicXorFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicXorFetchOldMArray mba i = atomicXorFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicXorFetchOldMArray #-}
-  atomicXorFetchNewMArray mba i = atomicXorFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicXorFetchNewMArray mba i = atomicXorFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicXorFetchNewMArray #-}
-  atomicNotFetchOldMArray mba i = atomicNotFetchOldMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicNotFetchOldMArray mba i = atomicNotFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNotFetchOldMArray #-}
-  atomicNotFetchNewMArray mba i = atomicNotFetchNewMBytes (U.toMBytes mba) (coerce i :: Off e)
+  atomicNotFetchNewMArray mba i = atomicNotFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNotFetchNewMArray #-}
 
 instance AtomicMArray (B.BMArray e) where

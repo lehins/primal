@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
@@ -22,9 +23,13 @@ module Data.Prim.Memory.PArray
   , Pinned(..)
   , fromBytesPArray
   , toBytesPArray
+  , fromUArrayPArray
+  , toUArrayPArray
   , castPArray
   , fromMBytesPMArray
   , toMBytesPMArray
+  , fromUMArrayPMArray
+  , toUMArrayPMArray
   , castPMArray
   , allocPMArray
   , allocPinnedPMArray
@@ -50,12 +55,13 @@ module Data.Prim.Memory.PArray
 
 import Control.DeepSeq
 import Control.Prim.Monad
-import Foreign.Prim
 import Data.Prim
+import Data.Prim.Array (Size(..), UArray(..), UMArray(..))
 import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Internal
-import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Fold
+import Data.Prim.Memory.ForeignPtr
+import Data.Prim.Memory.Internal
+import Foreign.Prim
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)
@@ -136,6 +142,20 @@ toListPArray = toListMem
 castPArray :: PArray p e' -> PArray p e
 castPArray = coerce
 
+-- | /O(1)/ - Cast `PArray` to `UArray`
+--
+-- @since 0.3.0
+toUArrayPArray :: PArray p e -> UArray e
+toUArrayPArray pa = UArray (toByteArray# (toBytesPArray pa))
+{-# INLINE toUArrayPArray #-}
+
+-- | /O(1)/ - Cast `UArray` to `PArray`
+--
+-- @since 0.3.0
+fromUArrayPArray :: UArray e -> PArray 'Inc e
+fromUArrayPArray (UArray ba#) = fromBytesPArray (fromByteArray# ba#)
+{-# INLINE fromUArrayPArray #-}
+
 fromBytesPArray :: Bytes p -> PArray p e
 fromBytesPArray = coerce
 
@@ -150,6 +170,21 @@ fromMBytesPMArray = coerce
 
 toMBytesPMArray :: PMArray p e s -> MBytes p s
 toMBytesPMArray = coerce
+
+-- | /O(1)/ - Cast `PMArray` to `UMArray`
+--
+-- @since 0.3.0
+toUMArrayPMArray :: PMArray p e s -> UMArray e s
+toUMArrayPMArray pa = UMArray (toMutableByteArray# (toMBytesPMArray pa))
+{-# INLINE toUMArrayPMArray #-}
+
+-- | /O(1)/ - Cast `UMArray` to `PMArray`
+--
+-- @since 0.3.0
+fromUMArrayPMArray :: UMArray e s -> PMArray 'Inc e s
+fromUMArrayPMArray (UMArray mba#) = fromMBytesPMArray (fromMutableByteArray# mba#)
+{-# INLINE fromUMArrayPMArray #-}
+
 
 sizePArray :: forall e p. Prim e => PArray p e -> Size
 sizePArray = (coerce :: Count e -> Size) . countBytes . toBytesPArray

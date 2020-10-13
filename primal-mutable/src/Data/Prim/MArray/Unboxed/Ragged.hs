@@ -59,11 +59,12 @@ module Data.Prim.MArray.Unboxed.Ragged
   ) where
 
 import Control.Prim.Monad
+import Data.Prim.Array
+import qualified Data.Prim.MArray.Internal as I
+import qualified Data.Prim.MArray.Unboxed as U
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.PArray
 import Data.Prim.MRef.Internal
-import qualified Data.Prim.MArray.Unboxed as U
-import qualified Data.Prim.MArray.Internal as I
 import Foreign.Prim
 import GHC.TypeLits
 
