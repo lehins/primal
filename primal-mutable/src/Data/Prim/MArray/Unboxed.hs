@@ -68,27 +68,12 @@ module Data.Prim.MArray.Unboxed
 import Control.Prim.Monad
 import Data.Bits
 import Data.Prim
-import Data.Prim.Class
 import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
-import Foreign.Prim
 import Data.Prim.Array
-
-instance (Prim e, Show e) => Show (UArray e) where
-  showsPrec n arr
-    | n > 1 = ('(' :) . inner . (')' :)
-    | otherwise = inner
-    where
-      inner = ("Array " ++) . shows (toList arr)
-
-instance Prim e => IsList (UArray e) where
-  type Item (UArray e) = e
-  fromList = I.fromListArray
-  fromListN n = I.fromListArrayN (Size n)
-  toList = I.toListArray
 
 
 
@@ -265,51 +250,6 @@ cloneUMArray :: (Prim e, MonadPrim s m) => UMArray e s -> Int -> Size -> m (UMAr
 cloneUMArray = I.cloneMArray
 {-# INLINE cloneUMArray #-}
 
-
--- | Convert a list into an array strictly, i.e. each element is evaluated to WHNF prior
--- to being written into the newly created array. In order to allocate the array ahead
--- of time, the spine of a list will be evaluated first, in order to get the total
--- number of elements. Infinite lists will cause the program to halt. On the other hand
--- if the length of a list is known ahead of time, `fromListUArrayN` can be used instead as
--- optimization.
---
--- @since 0.1.0
-fromListUArray :: Prim e => [e] -> UArray e
-fromListUArray xs = fromListUArrayN (Size (length xs)) xs
-{-# INLINE fromListUArray #-}
-
--- | Same as `fromListUArray`, except it will allocate an array exactly of @n@ size, as
--- such it will not convert any portion of the list that doesn't fit into the newly
--- created array.
---
--- [Unsafe size] if the length of supplied list is actually smaller then the expected
--- size, thunks with `UndefinedElement` will be left in the tail of the array.
---
--- ====__Examples__
---
--- >>> fromListUArrayN 3 [1 :: Int, 2, 3]
--- UArray [1,2,3]
--- >>> fromListUArrayN 3 [1 :: Int ..]
--- UArray [1,2,3]
--- >>> fromListUArrayN 3 [1 :: Int, 2]
--- UArray [1,2*** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
---
--- @since 0.1.0
-fromListUArrayN ::
-     Prim e
-  => Size -- ^ Expected @n@ size of a list
-  -> [e]
-  -> UArray e
-fromListUArrayN = I.fromListArrayN
-{-# INLINE fromListUArrayN #-}
-
--- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
--- fusion.
---
--- @since 0.1.0
-toListUArray :: Prim e => UArray e -> [e]
-toListUArray = I.toListArray
-{-# INLINE toListUArray #-}
 
 -- | Strict right fold
 foldrUArray :: Prim e => (e -> b -> b) -> b -> UArray e -> b

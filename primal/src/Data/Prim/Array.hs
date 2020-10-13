@@ -58,6 +58,9 @@ module Data.Prim.Array
     , indexUArray
     , copyUArray
     , thawUArray
+    , toListUArray
+    , fromListUArray
+    , fromListUArrayN
     -- ** Mutable
     , UMArray(..)
     , isSameUMArray
@@ -322,7 +325,7 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 -- >>> ma <- thawBArray $ fromListBArray [1 .. 5 :: Integer]
 -- >>> writeBMArray ma 1 10
 -- >>> freezeBMArray ma
--- Array [1,10,3,4,5]
+-- BArray [1,10,3,4,5]
 --
 -- Be careful not to retain a reference to the pure immutable source array after the
 -- thawed version gets mutated.
@@ -371,9 +374,9 @@ thawBArray (BArray a#) = prim $ \s ->
 -- >>> ma <- thawCopyBArray a 1 3
 -- >>> writeBMArray ma 1 10
 -- >>> freezeBMArray ma
--- Array [2,10,4]
+-- BArray [2,10,4]
 -- >>> a
--- Array [1,2,3,4,5]
+-- BArray [1,2,3,4,5]
 --
 -- @since 0.3.0
 thawCopyBArray ::
@@ -432,9 +435,9 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 -- ====__Examples__
 --
 -- >>> fromListBArrayN 3 [1 :: Int, 2, 3]
--- Array [1,2,3]
+-- BArray [1,2,3]
 -- >>> fromListBArrayN 3 [1 :: Int ..]
--- Array [1,2,3]
+-- BArray [1,2,3]
 --
 -- @since 0.1.0
 fromListBArrayN ::
@@ -547,7 +550,7 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- >>> ma <- newBMArray 4 (Nothing :: Maybe Integer)
 -- >>> writeBMArray ma 2 (Just 2)
 -- >>> freezeBMArray ma
--- Array [Nothing,Nothing,Just 2,Nothing]
+-- BArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- It is important to note that an element is evaluated prior to being written into a
 -- cell, so it will not overwrite the value of an array's cell if it evaluates to an
@@ -557,14 +560,14 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- >>> writeBMArray ma 2 (throw DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeBMArray ma
--- Array [Nothing,Nothing,Just 2,Nothing]
+-- BArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
 -- to write something that eventually evaluates to bottom.
 --
 -- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
 -- >>> freezeBMArray ma
--- Array [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
+-- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 --
 -- Either `deepseq` or `writeDeepBMArray` can be used to alleviate that.
 --
@@ -672,8 +675,9 @@ newLazyBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
+-- >>> import Data.Prim
 -- >>> let xs = "Hello Haskell"
--- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RealWorld)
+-- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeBMArray ma i x) (zip [0..] xs)
 -- >>> freezeBMArray ma
 -- BArray "Hello Haskell"
@@ -883,14 +887,37 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 data UArray e = UArray ByteArray#
 type role UArray nominal
 
+instance (Prim e, Show e) => Show (UArray e) where
+  showsPrec n arr
+    | n > 1 = ('(' :) . inner . (')' :)
+    | otherwise = inner
+    where
+      inner = ("UArray " ++) . shows (toList arr)
 
--- | /O(1)/ - Get number of elements in an immutable array
+instance Prim e => IsList (UArray e) where
+  type Item (UArray e) = e
+  fromList = fromListUArray
+  {-# INLINE fromList #-}
+  fromListN n = fromListUArrayN (coerce n)
+  {-# INLINE fromListN #-}
+  toList = toListUArray
+  {-# INLINE toList #-}
+
+instance e ~ Char => IsString (UArray e) where
+  fromString = fromListUArray
+  {-# INLINE fromString #-}
+
+-- | /O(1)/ - Get the size of an immutable array in number of elements.
 --
 -- Documentation for utilized primop: `sizeofByteArray#`.
 --
 -- @since 0.3.0
-sizeOfUArray :: UArray e -> Size
-sizeOfUArray (UArray a#) = Size (I# (sizeofByteArray# a#))
+sizeOfUArray ::
+     forall e. Prim e
+  => UArray e
+  -> Size
+sizeOfUArray (UArray a#) =
+  coerce (fromByteCount (coerce (I# (sizeofByteArray# a#))) :: Count e)
 {-# INLINE sizeOfUArray #-}
 
 
@@ -903,12 +930,11 @@ sizeOfUArray (UArray a#) = Size (I# (sizeofByteArray# a#))
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim.Array.Unboxed
--- >>> let a = makeUArray 1024 (\i -> [0 .. i])
+-- >>> let a = fromListUArray ([Left pi, Right 123] :: [Either Double Int])
+-- >>> indexUArray a 0
+-- Left 3.141592653589793
 -- >>> indexUArray a 1
--- [0,1]
--- >>> indexUArray a 5
--- [0,1,2,3,4,5]
+-- Right 123
 --
 -- @since 0.3.0
 indexUArray ::
@@ -1000,7 +1026,7 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 -- >>> ma <- thawUArray $ fromListUArray [1 .. 5 :: Int]
 -- >>> writeUMArray ma 1 10
 -- >>> freezeUMArray ma
--- Array [1,10,3,4,5]
+-- UArray [1,10,3,4,5]
 --
 -- Be careful not to retain a reference to the pure immutable source array after the
 -- thawed version gets mutated.
@@ -1018,6 +1044,61 @@ thawUArray (UArray a#) =
     case unsafeThawByteArray# a# s of
       (# s', ma# #) -> (# s', UMArray ma# #)
 {-# INLINE thawUArray #-}
+
+
+
+-- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
+-- fusion.
+--
+-- @since 0.1.0
+toListUArray :: Prim e => UArray e -> [e]
+toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
+{-# INLINE toListUArray #-}
+
+-- | /O(min(length list, sz))/ - Same as `fromListUArray`, except it will allocate an array exactly of @n@ size, as
+-- such it will not convert any portion of the list that doesn't fit into the newly
+-- created array.
+--
+-- [Partial] When length of supplied list is in fact smaller then the expected size @sz@,
+-- thunks with `UndefinedElement` exception throwing function will be placed in the tail
+-- portion of the array.
+--
+-- [Unsafe] When a precondition @sz@ is violated this function can result in critical
+-- failure with out of memory or `HeapOverflow` async exception.
+--
+-- ====__Examples__
+--
+-- >>> fromListUArrayN 3 [1 :: Int, 2, 3]
+-- UArray [1,2,3]
+-- >>> fromListUArrayN 3 [1 :: Int ..]
+-- UArray [1,2,3]
+--
+-- @since 0.1.0
+fromListUArrayN ::
+     (HasCallStack, Prim e)
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to bew loaded into the array
+  -> UArray e
+fromListUArrayN sz xs =
+  runST $ fromListMutWith newRawUMArray writeUMArray sz xs >>= freezeUMArray
+{-# INLINE fromListUArrayN #-}
+
+
+-- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
+-- `fromListUArrayN` when the number of elements is known ahead of time. The reason for this
+-- is that it is necessary to iterate the whole list twice: once to count how many elements
+-- there is in order to create large enough array that can fit them; and the second time to
+-- load the actual elements. Naturally, infinite lists will grind the program to a halt.
+--
+-- ====__Example__
+--
+-- >>> fromListUArray "Hello Haskell"
+-- UArray "Hello Haskell"
+--
+-- @since 0.3.0
+fromListUArray :: Prim e => [e] -> UArray e
+fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
+{-# INLINE fromListUArray #-}
 
 
 -- Mutable Unboxed Array --
@@ -1049,8 +1130,8 @@ isSameUMArray (UMArray ma1#) (UMArray ma2#) = isTrue# (sameMutableByteArray# ma1
 -- ====__Example__
 --
 -- >>> ma <- thawUArray $ fromListUArray ['a' .. 'z']
--- >>> sizeOfUMArray ma
--- Size 26
+-- >>> getSizeOfUMArray ma
+-- Size {unSize = 26}
 --
 -- @since 0.3.0
 getSizeOfUMArray ::
@@ -1105,7 +1186,9 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- ==== __Examples__
 --
--- >>> ma <- newUMArray 4 (Nothing :: Maybe Int)
+-- >>> import Data.Prim
+-- >>> ma <- newRawUMArray 4 :: IO (UMArray (Maybe Int) RW)
+-- >>> mapM_ (\i -> writeUMArray ma i Nothing) [0, 1, 3]
 -- >>> writeUMArray ma 2 (Just 2)
 -- >>> freezeUMArray ma
 -- UArray [Nothing,Nothing,Just 2,Nothing]
@@ -1129,8 +1212,9 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 --
 -- ==== __Examples__
 --
+-- >>> import Data.Prim
 -- >>> let xs = "Hello Haskell"
--- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RealWorld)
+-- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
 -- >>> freezeUMArray ma
 -- UArray "Hello Haskell"
