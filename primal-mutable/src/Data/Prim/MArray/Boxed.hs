@@ -29,7 +29,7 @@ module Data.Prim.MArray.Boxed
   , makeBMArray
   , createBArrayM
   , createBArrayM_
-  , sizeOfBMArray
+  , getSizeOfBMArray
   -- ** Access
   , readBMArray
   , writeBMArray
@@ -96,7 +96,7 @@ instance I.MArray (BMArray e) where
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfBArray
   {-# INLINE sizeOfArray #-}
-  getSizeOfMArray = pure . sizeOfBMArray
+  getSizeOfMArray = getSizeOfBMArray
   {-# INLINE getSizeOfMArray #-}
   thawArray = thawBArray
   {-# INLINE thawArray #-}

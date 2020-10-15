@@ -33,7 +33,7 @@ module Data.Prim.Array
     , fromListBArrayN
     -- ** Mutable
     , BMArray(..)
-    , sizeOfBMArray
+    , getSizeOfBMArray
     , readBMArray
     , writeBMArray
     , writeLazyBMArray
@@ -45,6 +45,8 @@ module Data.Prim.Array
     , makeBMArray
     , moveBMArray
     , cloneBMArray
+    --, shrinkBMArray TODO (add primop)
+    --, resizeBMArray TODO (implement)
     , freezeBMArray
     , freezeCopyBMArray
 
@@ -74,6 +76,8 @@ module Data.Prim.Array
     , makeSBMArray
     , moveSBMArray
     , cloneSBMArray
+    --, shrinkSBMArray TODO (add primop for older ghc)
+    --, resizeSBMArray TODO (implement for older ghc)
     , freezeSBMArray
     , freezeCopySBMArray
     -- * Unboxed Array
@@ -321,7 +325,8 @@ copyBArray ::
   --
   -- > 0 <= dstStartIx
   --
-  -- > dstStartIx < unSize (sizeOfBMArray dstMutArray)
+  -- > dstSize <- getSizeOfBMArray dstMutArray
+  -- > dstStartIx < unSize dstSize
   -> Size
   -- ^ /sz/ - Number of elements to copy over
   --
@@ -331,7 +336,8 @@ copyBArray ::
   --
   -- > srcStartIx + unSize sz < unSize (sizeOfBArray srcArray)
   --
-  -- > dstStartIx + unSize sz < unSize (sizeOfBMArray dstMutArray)
+  -- > dstSize <- getSizeOfBMArray dstMutArray
+  -- > dstStartIx + unSize sz < unSize dstSize
   -> m ()
 copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#)) =
   prim_ (copyArray# src# srcOff# dst# dstOff# n#)
@@ -528,13 +534,13 @@ isSameBMArray (BMArray ma1#) (BMArray ma2#) =
 -- ====__Example__
 --
 -- >>> ma <- newBMArray 1024 "Element of each cell"
--- >>> sizeOfBMArray ma
+-- >>> getSizeOfBMArray ma
 -- Size {unSize = 1024}
 --
 -- @since 0.3.0
-sizeOfBMArray :: BMArray e s -> Size
-sizeOfBMArray (BMArray ma#) = Size (I# (sizeofMutableArray# ma#))
-{-# INLINE sizeOfBMArray #-}
+getSizeOfBMArray :: MonadPrim s m => BMArray e s -> m Size
+getSizeOfBMArray (BMArray ma#) = pure $! Size (I# (sizeofMutableArray# ma#))
+{-# INLINE getSizeOfBMArray #-}
 
 -- | /O(1)/ - Read an element from a mutable boxed array at the supplied index.
 --
@@ -864,7 +870,8 @@ moveBMArray ::
   --
   -- > 0 <= srcStartIx
   --
-  -- > srcStartIx < unSize (sizeOfBMArray srcArray)
+  -- > srcSize <- getSizeOfBMArray srcMutArray
+  -- > srcStartIx < unSize srcSize
   -> BMArray e s -- ^ /dstMutArray/ - Destination mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the destination mutable array where copy should start to
@@ -873,7 +880,8 @@ moveBMArray ::
   --
   -- > 0 <= dstStartIx
   --
-  -- > dstStartIx < unSize (sizeOfBMArray dstMutArray)
+  -- > dstSize <- getSizeOfBMArray dstMutArray
+  -- > dstStartIx < unSize dstSize
   -> Size
   -- ^ /sz/ - Number of elements to copy over
   --
@@ -881,9 +889,11 @@ moveBMArray ::
   --
   -- > 0 <= sz
   --
-  -- > srcStartIx + unSize sz < unSize (sizeOfBMArray srcMutArray)
+  -- > srcSize <- getSizeOfBMArray srcMutArray
+  -- > srcStartIx + unSize sz < unSize srcSize
   --
-  -- > dstStartIx + unSize sz < unSize (sizeOfBMArray dstMutArray)
+  -- > dstSize <- getSizeOfBMArray dstMutArray
+  -- > dstStartIx + unSize sz < unSize dstSize
   --
   -> m ()
 moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#)) =
