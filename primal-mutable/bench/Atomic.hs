@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
+import Control.DeepSeq
 import Control.Concurrent
 import Control.Monad
 import Criterion.Main
@@ -19,6 +20,11 @@ import Data.Prim.MRef
 import Data.Prim.MRef.Ref
 import Prelude as P
 import UnliftIO.Async
+
+newtype BogusNF a = BogusNF a
+
+instance NFData (BogusNF a) where
+  rnf (BogusNF a) = a `seq` ()
 
 main :: IO ()
 main = do
@@ -43,9 +49,9 @@ main = do
       mkIORef :: (Int -> e) -> IO (IORef e)
       mkIORef f = newIORef (f e0)
       benchSeq mkEnv name f =
-        env mkEnv $ \ref -> bench name $ whnfIO $ forM_ [1 .. n] (f ref)
+        env (BogusNF <$> mkEnv) $ \(BogusNF ref) -> bench name $ whnfIO $ forM_ [1 .. n] (f ref)
       benchConc mkEnv name f =
-        env mkEnv $ \ref ->
+        env (BogusNF <$> mkEnv) $ \(BogusNF ref) ->
           bench name $ whnfIO $ pooledForConcurrentlyN_ c [1 .. n] (f ref)
   defaultMain
     [ bgroup
