@@ -222,7 +222,6 @@ prop_writeReadException nea e' = propIO $ do
   ma@(NEMArrayIx i xs m) <- thawCopyArray nea 0 (sizeOfArray nea)
   e <- readMRef ma
   e `shouldBe` (xs !! i)
-  writeBMArray m i (Just 2)
   writeBMArray m i (throw DivideByZero) `shouldThrow` (== DivideByZero)
   readBMArray m i `shouldReturn` e
   let i' = i + 1
