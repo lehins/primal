@@ -15,8 +15,10 @@
 --
 module Test.Prim.MArray where
 
+import Control.Exception
 import Control.Prim.Monad
 import Data.Prim
+import Data.Prim.Array
 import Data.Prim.MArray
 import Data.Prim.MRef
 import Test.Prim.MRef
@@ -152,6 +154,10 @@ instance MArray mut => MArray (NEMArrayIx mut) where
   {-# INLINE getSizeOfMArray #-}
   thawArray (NEArrayIx i xs a) = NEMArrayIx i xs <$> thawArray a
   {-# INLINE thawArray #-}
+  thawCopyArray (NEArrayIx i xs a) o sz@(Size n)
+    | n == 0 = error "NEArrayIx cannot be empty"
+    | otherwise = NEMArrayIx (i `mod` n) (take n (drop o xs)) <$> thawCopyArray a o sz
+  {-# INLINE thawCopyArray #-}
   freezeMArray (NEMArrayIx i xs ma) = NEArrayIx i xs <$> freezeMArray ma
   {-# INLINE freezeMArray #-}
   newRawMArray sz = NEMArrayIx 0 [] <$> newRawMArray sz
@@ -162,9 +168,11 @@ instance MArray mut => MArray (NEMArrayIx mut) where
   {-# INLINE writeMArray #-}
   readMArray (NEMArrayIx _ _ ma) = readMArray ma
   {-# INLINE readMArray #-}
-  copyArray (NEArrayIx _ _ src) isrc (NEMArrayIx _ _ mdst) idst = copyArray src isrc mdst idst
+  copyArray (NEArrayIx _ _ src) isrc (NEMArrayIx _ _ mdst) idst =
+    copyArray src isrc mdst idst
   {-# INLINE copyArray #-}
-  moveMArray (NEMArrayIx _ _ msrc) isrc (NEMArrayIx _ _ mdst) idst = moveMArray msrc isrc mdst idst
+  moveMArray (NEMArrayIx _ _ msrc) isrc (NEMArrayIx _ _ mdst) idst =
+    moveMArray msrc isrc mdst idst
   {-# INLINE moveMArray #-}
   setMArray (NEMArrayIx _ _ ma) = setMArray ma
   {-# INLINE setMArray #-}
@@ -208,6 +216,43 @@ prop_writeReadAtomic nea e' = propIO $ do
   expectWriteReadAtomicMRef ma e'
 
 
+prop_writeReadException ::
+     HasCallStack => NEArrayIx (BMArray (Maybe Integer)) -> Integer -> Property
+prop_writeReadException nea e' = propIO $ do
+  ma@(NEMArrayIx i xs m) <- thawCopyArray nea 0 (sizeOfArray nea)
+  e <- readMRef ma
+  e `shouldBe` (xs !! i)
+  writeBMArray m i (Just 2)
+  writeBMArray m i (throw DivideByZero) `shouldThrow` (== DivideByZero)
+  readBMArray m i `shouldReturn` e
+  let i' = i + 1
+  when (i' < length xs) $ do
+    writeBMArray m i' (Just (e' `div` 0))
+    a <- freezeBMArray m
+    case indexBArray a i' of
+      Just x -> do
+        (pure $! x) `shouldThrow` (== DivideByZero)
+      Nothing -> expectationFailure "Wrote Just got back Nothing"
+
+-- BArray [Nothing,Nothing,Just 2,Nothing]
+--
+-- It is important to note that an element is evaluated prior to being written into a
+-- cell, so it will not overwrite the value of an array's cell if it evaluates to an
+-- exception:
+--
+-- >>> import Control.Exception
+-- >>> writeBMArray ma 2 (throw DivideByZero)
+-- *** Exception: divide by zero
+-- >>> freezeBMArray ma
+-- BArray [Nothing,Nothing,Just 2,Nothing]
+--
+-- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
+-- to write something that eventually evaluates to bottom.
+--
+-- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
+-- >>> freezeBMArray ma
+-- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
+
 
 
 specMArray ::
@@ -225,7 +270,7 @@ specMArray = do
   describe mutTypeName $ do
     prop "writeRead" $ prop_writeRead @mut
     prop "writeReadAtomic" $ prop_writeReadAtomic @mut
-
+    prop "funny" prop_writeReadException
 
 -- forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property
 -- forAllIO g propM = forAll g $ \v -> monadicIO $ run $ propM v

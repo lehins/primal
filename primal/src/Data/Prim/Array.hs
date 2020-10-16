@@ -600,8 +600,8 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- to write something that eventually evaluates to bottom.
 --
 -- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
--- >>> freezeBMArray ma
--- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
+-- >>> readBMArray ma 3
+-- Just *** Exception: divide by zero
 --
 -- Either `deepseq` or `writeDeepBMArray` can be used to alleviate that.
 --
@@ -623,6 +623,8 @@ writeBMArray ::
   -> m ()
 writeBMArray ma i x = x `seq` writeLazyBMArray ma i x
 {-# INLINE writeBMArray #-}
+-- >>> freezeBMArray ma
+-- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 
 
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an

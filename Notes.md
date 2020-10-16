@@ -11,6 +11,11 @@ reallyUnsafePtrEquality# (unsafeCoerce# ba1 :: ()) (unsafeCoerce# ba2 :: ())
 * Lack of backwards compatibility (eg, isPinnedByteArray only works on ghc-8.2 and up)
 * Lack of unified interface
 
+`vector` limitations
+
+* `Unbox` is not suiatable for sum types (i.e. `Maybe`, `Either`)
+* `Unbox` works only on `Vector`, while `Prim` works for anything backed by `ByteArray`
+* Singleton `PVar` backed by `Vector` is too wasteful (size and offset are useless)
 
 
 === Plan

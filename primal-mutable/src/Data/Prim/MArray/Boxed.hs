@@ -42,7 +42,7 @@ module Data.Prim.MArray.Boxed
   , atomicModifyBMArray
   , atomicModifyBMArray_
   , atomicModifyBMArray2
-  -- *
+  -- * Mutable
   , thawBArray
   , thawCopyBArray
   , freezeBMArray
@@ -60,9 +60,7 @@ module Data.Prim.MArray.Boxed
   , traverseBArray
   ) where
 
-import Control.Monad.ST
 import Control.Prim.Monad
-import Data.Prim
 import Data.Bits
 import qualified Data.Prim.MArray.Internal as I
 import Data.Prim.MRef.Atomic
