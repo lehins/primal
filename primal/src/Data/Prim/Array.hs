@@ -47,7 +47,8 @@ module Data.Prim.Array
     , moveBMArray
     , cloneBMArray
     , shrinkBMArray
-    --, resizeBMArray TODO (implement)
+    , resizeBMArray
+    , resizeRawBMArray
     , freezeBMArray
     , freezeCopyBMArray
 
@@ -78,12 +79,15 @@ module Data.Prim.Array
     , moveSBMArray
     , cloneSBMArray
     , shrinkSBMArray
-    --, resizeSBMArray TODO (implement for older ghc)
+    , resizeSBMArray
+    , resizeRawSBMArray
     , freezeSBMArray
     , freezeCopySBMArray
     -- * Unboxed Array
     -- ** Immutable
     , UArray(..)
+    , isSameUArray
+    , isPinnedUArray
     , sizeOfUArray
     , indexUArray
     , copyUArray
@@ -94,12 +98,20 @@ module Data.Prim.Array
     -- ** Mutable
     , UMArray(..)
     , isSameUMArray
+    , isPinnedUMArray
     , getSizeOfUMArray
     , readUMArray
     , writeUMArray
+    , newUMArray
     , newRawUMArray
+    , makeUMArray
+
+    , newPinnedUMArray
     , newPinnedRawUMArray
+    , makePinnedUMArray
+    , newAlignedPinnedUMArray
     , newAlignedPinnedRawUMArray
+    , makeAlignedPinnedUMArray
     , moveUMArray
     , setUMArray
     , shrinkUMArray
@@ -205,7 +217,7 @@ instance NFData e => NFData (BArray e) where
 -- Documentation for utilized primop: `sizeofArray#`.
 --
 -- @since 0.3.0
-sizeOfBArray :: BArray e -> Size
+sizeOfBArray :: forall e. BArray e -> Size
 sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 {-# INLINE sizeOfBArray #-}
 
@@ -227,6 +239,7 @@ sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 --
 -- @since 0.3.0
 indexBArray ::
+     forall e.
      BArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
@@ -263,6 +276,7 @@ indexBArray (BArray a#) (I# i#) =
 --
 -- @since 0.3.0
 cloneBArray ::
+     forall e.
      BArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -301,7 +315,7 @@ cloneBArray (BArray a#) (I# i#) (Size (I# n#)) = BArray (cloneArray# a# i# n#)
 --
 -- @since 0.3.0
 copyBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -373,7 +387,7 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 --
 -- @since 0.3.0
 thawBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BArray e
   -- ^ /array/ - Source immutable array that will be thawed
   -> m (BMArray e s)
@@ -415,7 +429,7 @@ thawBArray (BArray a#) = prim $ \s ->
 --
 -- @since 0.3.0
 thawCopyBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -450,7 +464,7 @@ thawCopyBArray (BArray a#) (I# i#) (Size (I# n#)) = prim $ \s ->
 -- fusion.
 --
 -- @since 0.1.0
-toListBArray :: BArray e -> [e]
+toListBArray :: forall e. BArray e -> [e]
 toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 {-# INLINE toListBArray #-}
 
@@ -476,7 +490,7 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 --
 -- @since 0.1.0
 fromListBArrayN ::
-     HasCallStack
+     forall e. HasCallStack
   => Size -- ^ /sz/ - Expected number of elements in the @list@
   -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> BArray e
@@ -497,7 +511,7 @@ fromListBArrayN sz xs =
 -- BArray "Hello Haskell"
 --
 -- @since 0.3.0
-fromListBArray :: [e] -> BArray e
+fromListBArray :: forall e. [e] -> BArray e
 fromListBArray xs = fromListBArrayN (coerce (length xs)) xs
 {-# INLINE fromListBArray #-}
 
@@ -523,7 +537,7 @@ instance Eq (BMArray e s) where
 -- Documentation for utilized primop: `sameMutableArray#`.
 --
 -- @since 0.3.0
-isSameBMArray :: BMArray a s -> BMArray a s -> Bool
+isSameBMArray :: forall a s. BMArray a s -> BMArray a s -> Bool
 isSameBMArray (BMArray ma1#) (BMArray ma2#) =
   isTrue# (sameMutableArray# ma1# ma2#)
 {-# INLINE isSameBMArray #-}
@@ -539,7 +553,10 @@ isSameBMArray (BMArray ma1#) (BMArray ma2#) =
 -- Size {unSize = 1024}
 --
 -- @since 0.3.0
-getSizeOfBMArray :: MonadPrim s m => BMArray e s -> m Size
+getSizeOfBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s
+  -> m Size
 getSizeOfBMArray (BMArray ma#) = --pure $! Size (I# (sizeofMutableArray# ma#))
   prim $ \s ->
     case getSizeofMutableArray# ma# s of
@@ -561,7 +578,7 @@ getSizeOfBMArray (BMArray ma#) = --pure $! Size (I# (sizeofMutableArray# ma#))
 --
 -- @since 0.1.0
 readBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
@@ -613,8 +630,8 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 --
 -- @since 0.3.0
 writeBMArray ::
-     MonadPrim s m
-  => BMArray e s -- ^ /dstMutArray/ - An array to have the element writtent to
+     forall e m s. MonadPrim s m
+  => BMArray e s -- ^ /dstMutArray/ - An array to have the element written to
   -> Int
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
   -- @elt@ will be written to.
@@ -639,7 +656,12 @@ writeBMArray ma i !x = writeLazyBMArray ma i x
 -- [Unsafe] Same reasons as `writeBMArray`
 --
 -- @since 0.3.0
-writeLazyBMArray :: MonadPrim s m => BMArray e s -> Int -> e -> m ()
+writeLazyBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s
+  -> Int
+  -> e
+  -> m ()
 writeLazyBMArray (BMArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 {-# INLINE writeLazyBMArray #-}
 
@@ -650,8 +672,15 @@ writeLazyBMArray (BMArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 -- [Unsafe] Same reasons as `writeBMArray`
 --
 -- @since 0.3.0
-writeDeepBMArray :: (MonadPrim s m, NFData e) => BMArray e s -> Int -> e -> m ()
-writeDeepBMArray ma i !x = x `deepseq` writeLazyBMArray ma i x
+writeDeepBMArray ::
+     forall e m s. (MonadPrim s m, NFData e)
+  => BMArray e s
+  -> Int
+  -> e
+  -> m ()
+writeDeepBMArray ma i !x =
+  case rnf x of
+    () -> writeLazyBMArray ma i x
 {-# INLINE writeDeepBMArray #-}
 
 
@@ -671,7 +700,7 @@ writeDeepBMArray ma i !x = x `deepseq` writeLazyBMArray ma i x
 --
 -- @since 0.3.0
 newBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => Size
   -- ^ /sz/ - Size of the array
   --
@@ -693,7 +722,11 @@ newBMArray sz x = x `seq` newLazyBMArray sz x
 -- [Unsafe] Same reasons as `newBMArray`
 --
 -- @since 0.3.0
-newLazyBMArray :: MonadPrim s m => Size -> e -> m (BMArray e s)
+newLazyBMArray ::
+     forall e m s. MonadPrim s m
+  => Size
+  -> e
+  -> m (BMArray e s)
 newLazyBMArray (Size (I# n#)) a =
   prim $ \s ->
     case newArray# n# a s of
@@ -723,7 +756,10 @@ newLazyBMArray (Size (I# n#)) a =
 -- BArray "Hello Haskell"
 --
 -- @since 0.3.0
-newRawBMArray :: (HasCallStack, MonadPrim s m) => Size -> m (BMArray e s)
+newRawBMArray ::
+     forall e m s. (HasCallStack, MonadPrim s m)
+  => Size
+  -> m (BMArray e s)
 newRawBMArray sz = newLazyBMArray sz (uninitialized "Data.Prim.Aray" "newRawBMArray")
 {-# INLINE newRawBMArray #-}
 
@@ -746,7 +782,11 @@ newRawBMArray sz = newLazyBMArray sz (uninitialized "Data.Prim.Aray" "newRawBMAr
 -- BArray "abcde"
 --
 -- @since 0.3.0
-makeBMArray :: MonadPrim s m => Size -> (Int -> m e) -> m (BMArray e s)
+makeBMArray ::
+     forall e m s. MonadPrim s m
+  => Size
+  -> (Int -> m e)
+  -> m (BMArray e s)
 makeBMArray = makeMutWith newRawBMArray writeBMArray
 {-# INLINE makeBMArray #-}
 
@@ -762,7 +802,10 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 -- fresh allocation.
 --
 -- @since 0.3.0
-freezeBMArray :: MonadPrim s m => BMArray e s -> m (BArray e)
+freezeBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s
+  -> m (BArray e)
 freezeBMArray (BMArray ma#) = prim $ \s ->
   case unsafeFreezeArray# ma# s of
     (# s', a# #) -> (# s', BArray a# #)
@@ -781,7 +824,7 @@ freezeBMArray (BMArray ma#) = prim $ \s ->
 --
 -- @since 0.3.0
 freezeCopyBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -825,7 +868,7 @@ freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
 --
 -- @since 0.3.0
 cloneBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -881,6 +924,66 @@ shrinkBMArray (BMArray ma#) (Size (I# sz#)) =
 {-# INLINE shrinkBMArray #-}
 
 
+-- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array. Shrinking happens
+-- in-place without new array creation and data copy, while growing the array is
+-- implemented with creating new array and copy of the data over from the source array
+-- @srcMutArray@. This has a consequence that produced array @dstMutArray@ might refer to
+-- the same @srcMutArray@ or to a totally new array, which can be checked with
+-- `isSameBMArray`.
+--
+-- Documentation on the utilized primop: `resizeMutableArray#`.
+--
+-- [Unsafe] - Same reasons as in `newRawBMArray`.
+--
+-- 0.3.0
+resizeBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> e
+  -- ^ /elt/ - Element to write into extra space at the end when growing the array.
+  -> m (BMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+resizeBMArray (BMArray ma#) (Size (I# sz#)) e =
+  prim $ \s ->
+    case resizeMutableArray# ma# sz# e s of
+      (# s', ma'# #) -> (# s', BMArray ma'# #)
+{-# INLINE resizeBMArray #-}
+
+-- | /O(1)/ - Same as `resizeBMArray`, except when growing the array empty space at the
+-- end is filled with bottom.
+--
+-- [Partial] - When size @sz@ is larger then the size of @srcMutArray@ then @dstMutArray@
+-- will have cells at the end initialized with thunks that throw `UndefinedElement`
+-- exception.
+--
+-- [Unsafe] - Same reasons as in `newBMArray`.
+--
+-- 0.3.0
+resizeRawBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> m (BMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+resizeRawBMArray ma sz = resizeBMArray ma sz (uninitialized "Data.Prim.Aray" "resizeRawBMArray")
+{-# INLINE resizeRawBMArray #-}
+
+
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between source
 -- and destination.
@@ -893,7 +996,7 @@ shrinkBMArray (BMArray ma#) (Size (I# sz#)) =
 --
 -- @since 0.3.0
 moveBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => BMArray e s -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
@@ -985,7 +1088,7 @@ instance NFData e => NFData (SBArray e) where
 -- Documentation for utilized primop: `sizeofSmallArray#`.
 --
 -- @since 0.3.0
-sizeOfSBArray :: SBArray e -> Size
+sizeOfSBArray :: forall e. SBArray e -> Size
 sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 {-# INLINE sizeOfSBArray #-}
 
@@ -1008,6 +1111,7 @@ sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 --
 -- @since 0.3.0
 indexSBArray ::
+     forall e.
      SBArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
@@ -1045,6 +1149,7 @@ indexSBArray (SBArray a#) (I# i#) =
 --
 -- @since 0.3.0
 cloneSBArray ::
+     forall e.
      SBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -1097,6 +1202,65 @@ shrinkSBMArray (SBMArray ma#) (Size (I# sz#)) =
 {-# INLINE shrinkSBMArray #-}
 
 
+-- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array. Shrinking happens
+-- in-place without new array creation and data copy, while growing the array is
+-- implemented with creating new array and copy of the data over from the source array
+-- @srcMutArray@. This has a consequence that produced array @dstMutArray@ might refer to
+-- the same @srcMutArray@ or to a totally new array, which can be checked with
+-- `isSameSBMArray`.
+--
+-- Documentation on the utilized primop: `resizeSmallMutableArray#`.
+--
+-- [Unsafe] - Same reasons as in `newRawSBMArray`.
+--
+-- 0.3.0
+resizeSBMArray ::
+     forall e m s. MonadPrim s m
+  => SBMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> e
+  -- ^ /elt/ - Element to write into extra space at the end when growing the array.
+  -> m (SBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+resizeSBMArray (SBMArray ma#) (Size (I# sz#)) e =
+  prim $ \s ->
+    case resizeSmallMutableArray# ma# sz# e s of
+      (# s', ma'# #) -> (# s', SBMArray ma'# #)
+{-# INLINE resizeSBMArray #-}
+
+-- | /O(1)/ - Same as `resizeSBMArray`, except when growing the array empty space at the
+-- end is filled with bottom.
+--
+-- [Partial] - When size @sz@ is larger then the size of @srcMutArray@ then @dstMutArray@
+-- will have cells at the end initialized with thunks that throw `UndefinedElement`
+-- exception.
+--
+-- [Unsafe] - Same reasons as in `newSBMArray`.
+--
+-- 0.3.0
+resizeRawSBMArray ::
+     forall e m s. MonadPrim s m
+  => SBMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> m (SBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+resizeRawSBMArray ma sz = resizeSBMArray ma sz (uninitialized "Data.Prim.Aray" "resizeRawSBMArray")
+{-# INLINE resizeRawSBMArray #-}
+
 
 -- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of a mutable
 -- array. Source and destination arrays must not be the same array in different states.
@@ -1109,7 +1273,7 @@ shrinkSBMArray (SBMArray ma#) (Size (I# sz#)) =
 --
 -- @since 0.3.0
 copySBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -1181,7 +1345,7 @@ copySBArray (SBArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n
 --
 -- @since 0.3.0
 thawSBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBArray e
   -- ^ /array/ - Source immutable array that will be thawed
   -> m (SBMArray e s)
@@ -1215,7 +1379,7 @@ thawSBArray (SBArray a#) = prim $ \s ->
 --
 -- @since 0.3.0
 thawCopySBArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -1250,7 +1414,7 @@ thawCopySBArray (SBArray a#) (I# i#) (Size (I# n#)) = prim $ \s ->
 -- fusion.
 --
 -- @since 0.1.0
-toListSBArray :: SBArray e -> [e]
+toListSBArray :: forall e. SBArray e -> [e]
 toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba)
 {-# INLINE toListSBArray #-}
 
@@ -1276,7 +1440,7 @@ toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba
 --
 -- @since 0.1.0
 fromListSBArrayN ::
-     HasCallStack
+     forall e. HasCallStack
   => Size -- ^ /sz/ - Expected number of elements in the @list@
   -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> SBArray e
@@ -1297,7 +1461,7 @@ fromListSBArrayN sz xs =
 -- SBArray "Hello Haskell"
 --
 -- @since 0.3.0
-fromListSBArray :: [e] -> SBArray e
+fromListSBArray :: forall e. [e] -> SBArray e
 fromListSBArray xs = fromListSBArrayN (coerce (length xs)) xs
 {-# INLINE fromListSBArray #-}
 
@@ -1320,10 +1484,11 @@ instance Eq (SBMArray e s) where
 -- Documentation for utilized primop: `sameSmallMutableArray#`.
 --
 -- @since 0.3.0
-isSameSBMArray :: SBMArray a s -> SBMArray a s -> Bool
+isSameSBMArray :: forall a s. SBMArray a s -> SBMArray a s -> Bool
 isSameSBMArray (SBMArray ma1#) (SBMArray ma2#) =
   isTrue# (sameSmallMutableArray# ma1# ma2#)
 {-# INLINE isSameSBMArray #-}
+
 
 -- | /O(1)/ - Get the size of a mutable boxed array
 --
@@ -1337,7 +1502,7 @@ isSameSBMArray (SBMArray ma1#) (SBMArray ma2#) =
 -- Size {unSize = 1024}
 --
 -- @since 0.3.0
-getSizeOfSBMArray :: MonadPrim s m => SBMArray e s -> m Size
+getSizeOfSBMArray :: forall e m s. MonadPrim s m => SBMArray e s -> m Size
 getSizeOfSBMArray (SBMArray ma#) =
   prim $ \s ->
     case getSizeofSmallMutableArray# ma# s of
@@ -1359,7 +1524,7 @@ getSizeOfSBMArray (SBMArray ma#) =
 --
 -- @since 0.1.0
 readSBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
@@ -1410,8 +1575,8 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 --
 -- @since 0.3.0
 writeSBMArray ::
-     MonadPrim s m
-  => SBMArray e s -- ^ /dstMutArray/ - An array to have the element writtent to
+     forall e m s. MonadPrim s m
+  => SBMArray e s -- ^ /dstMutArray/ - An array to have the element written to
   -> Int
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
   -- @elt@ will be written to.
@@ -1424,7 +1589,7 @@ writeSBMArray ::
   -> e
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
-writeSBMArray ma i x = x `seq` writeLazySBMArray ma i x
+writeSBMArray ma i !x = writeLazySBMArray ma i x
 {-# INLINE writeSBMArray #-}
 
 
@@ -1436,7 +1601,12 @@ writeSBMArray ma i x = x `seq` writeLazySBMArray ma i x
 -- [Unsafe] Same reasons as `writeSBMArray`
 --
 -- @since 0.3.0
-writeLazySBMArray :: MonadPrim s m => SBMArray e s -> Int -> e -> m ()
+writeLazySBMArray ::
+     forall e m s. MonadPrim s m
+  => SBMArray e s
+  -> Int
+  -> e
+  -> m ()
 writeLazySBMArray (SBMArray ma#) (I# i#) a = prim_ (writeSmallArray# ma# i# a)
 {-# INLINE writeLazySBMArray #-}
 
@@ -1447,8 +1617,15 @@ writeLazySBMArray (SBMArray ma#) (I# i#) a = prim_ (writeSmallArray# ma# i# a)
 -- [Unsafe] Same reasons as `writeSBMArray`
 --
 -- @since 0.3.0
-writeDeepSBMArray :: (MonadPrim s m, NFData e) => SBMArray e s -> Int -> e -> m ()
-writeDeepSBMArray ma i x = x `deepseq` writeLazySBMArray ma i x
+writeDeepSBMArray ::
+     forall e m s. (MonadPrim s m, NFData e)
+  => SBMArray e s
+  -> Int
+  -> e
+  -> m ()
+writeDeepSBMArray ma i !x =
+  case rnf x of
+    () -> writeLazySBMArray ma i x
 {-# INLINE writeDeepSBMArray #-}
 
 
@@ -1468,7 +1645,7 @@ writeDeepSBMArray ma i x = x `deepseq` writeLazySBMArray ma i x
 --
 -- @since 0.3.0
 newSBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => Size
   -- ^ /sz/ - Size of the array
   --
@@ -1490,7 +1667,11 @@ newSBMArray sz x = x `seq` newLazySBMArray sz x
 -- [Unsafe] Same reasons as `newSBMArray`
 --
 -- @since 0.3.0
-newLazySBMArray :: MonadPrim s m => Size -> e -> m (SBMArray e s)
+newLazySBMArray ::
+     forall e m s. MonadPrim s m
+  => Size
+  -> e
+  -> m (SBMArray e s)
 newLazySBMArray (Size (I# n#)) a =
   prim $ \s ->
     case newSmallArray# n# a s of
@@ -1520,7 +1701,10 @@ newLazySBMArray (Size (I# n#)) a =
 -- SBArray "Hello Haskell"
 --
 -- @since 0.3.0
-newRawSBMArray :: (HasCallStack, MonadPrim s m) => Size -> m (SBMArray e s)
+newRawSBMArray ::
+     forall e m s. (HasCallStack, MonadPrim s m)
+  => Size
+  -> m (SBMArray e s)
 newRawSBMArray sz = newLazySBMArray sz (uninitialized "Data.Prim.Aray" "newRawSBMArray")
 {-# INLINE newRawSBMArray #-}
 
@@ -1543,7 +1727,11 @@ newRawSBMArray sz = newLazySBMArray sz (uninitialized "Data.Prim.Aray" "newRawSB
 -- SBArray "abcde"
 --
 -- @since 0.3.0
-makeSBMArray :: MonadPrim s m => Size -> (Int -> m e) -> m (SBMArray e s)
+makeSBMArray ::
+     forall e m s. MonadPrim s m
+  => Size
+  -> (Int -> m e)
+  -> m (SBMArray e s)
 makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 {-# INLINE makeSBMArray #-}
 
@@ -1559,7 +1747,10 @@ makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 -- fresh allocation.
 --
 -- @since 0.3.0
-freezeSBMArray :: MonadPrim s m => SBMArray e s -> m (SBArray e)
+freezeSBMArray ::
+     forall e m s. MonadPrim s m
+  => SBMArray e s
+  -> m (SBArray e)
 freezeSBMArray (SBMArray ma#) = prim $ \s ->
   case unsafeFreezeSmallArray# ma# s of
     (# s', a# #) -> (# s', SBArray a# #)
@@ -1578,7 +1769,7 @@ freezeSBMArray (SBMArray ma#) = prim $ \s ->
 --
 -- @since 0.3.0
 freezeCopySBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1619,7 +1810,7 @@ freezeCopySBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
 --
 -- @since 0.3.0
 cloneSBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1661,7 +1852,7 @@ cloneSBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) =
 --
 -- @since 0.3.0
 moveSBMArray ::
-     MonadPrim s m
+     forall e m s. MonadPrim s m
   => SBMArray e s -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
@@ -1739,6 +1930,27 @@ instance NFData (UArray e) where
   {-# INLINE rnf #-}
 
 
+-- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+--
+-- Documentation for utilized primop: `isSameByteArray#`.
+--
+-- @since 0.3.0
+isSameUArray :: forall a b. UArray a -> UArray b -> Bool
+isSameUArray (UArray ma1#) (UArray ma2#) = isTrue# (isSameByteArray# ma1# ma2#)
+{-# INLINE isSameUArray #-}
+
+
+-- | Check if memory for immutable unboxed array was allocated as pinned.
+--
+-- Documentation for utilized primop: `isByteArrayPinned#`.
+--
+-- @since 0.3.0
+isPinnedUArray :: forall e. UArray e -> Bool
+isPinnedUArray (UArray b#) = isTrue# (isByteArrayPinned# b#)
+{-# INLINE isPinnedUArray #-}
+
+
+
 -- | /O(1)/ - Get the size of an immutable array in number of elements.
 --
 -- Documentation for utilized primop: `sizeofByteArray#`.
@@ -1770,7 +1982,7 @@ sizeOfUArray (UArray a#) =
 --
 -- @since 0.3.0
 indexUArray ::
-     Prim e
+     forall e. Prim e
   => UArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
@@ -1870,7 +2082,7 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 -- UArray [100000,2,3,4,5]
 --
 -- @since 0.3.0
-thawUArray :: MonadPrim s m => UArray e -> m (UMArray e s)
+thawUArray :: forall e m s. MonadPrim s m => UArray e -> m (UMArray e s)
 thawUArray (UArray a#) =
   prim $ \s ->
     case unsafeThawByteArray# a# s of
@@ -1883,7 +2095,10 @@ thawUArray (UArray a#) =
 -- fusion.
 --
 -- @since 0.1.0
-toListUArray :: Prim e => UArray e -> [e]
+toListUArray ::
+     forall e. Prim e
+  => UArray e
+  -> [e]
 toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
 {-# INLINE toListUArray #-}
 
@@ -1907,7 +2122,7 @@ toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
 --
 -- @since 0.1.0
 fromListUArrayN ::
-     Prim e
+     forall e. Prim e
   => Size -- ^ /sz/ - Expected number of elements in the @list@
   -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> UArray e
@@ -1928,7 +2143,10 @@ fromListUArrayN sz xs =
 -- UArray "Hello Haskell"
 --
 -- @since 0.3.0
-fromListUArray :: Prim e => [e] -> UArray e
+fromListUArray ::
+     forall e. Prim e
+  => [e]
+  -> UArray e
 fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
 {-# INLINE fromListUArray #-}
 
@@ -1959,6 +2177,15 @@ isSameUMArray :: forall a b s. UMArray a s -> UMArray b s -> Bool
 isSameUMArray (UMArray ma1#) (UMArray ma2#) = isTrue# (sameMutableByteArray# ma1# ma2#)
 {-# INLINE isSameUMArray #-}
 
+
+-- | Check if memory for mutable unboxed array was allocated as pinned.
+--
+-- Documentation for utilized primop: `isMutableByteArrayPinned#`.
+--
+-- @since 0.3.0
+isPinnedUMArray :: forall e s. UMArray e s -> Bool
+isPinnedUMArray (UMArray mb#) = isTrue# (isMutableByteArrayPinned# mb#)
+{-# INLINE isPinnedUMArray #-}
 
 -- | /O(1)/ - Get the size of a mutable unboxed array
 --
@@ -1998,7 +2225,7 @@ getSizeOfUMArray (UMArray ma#) =
 --
 -- @since 0.3.0
 readUMArray ::
-     (Prim e, MonadPrim s m)
+     forall e m s. (Prim e, MonadPrim s m)
   => UMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
@@ -2031,9 +2258,137 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 -- UArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- @since 0.3.0
-writeUMArray :: (Prim e, MonadPrim s m) => UMArray e s -> Int -> e -> m ()
+writeUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => UMArray e s
+  -> Int
+  -> e
+  -> m ()
 writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 {-# INLINE writeUMArray #-}
+
+-- prop> newUMArray sz a === makeUMArray sz (const (pure a))
+-- | /O(1)/ - Allocate new mutable unboxed array. Similar to
+-- `newRawUMArray`, except all elements are initialized to the supplied
+-- initial value. This is equivalent to @makeUMArray sz (const (pure a))@ but often will be
+-- more efficient.
+--
+-- [Unsafe] When any of preconditions for @sz@ argument is violated the outcome is
+-- unpredictable. One possible outcome is termination with `HeapOverflow` async
+-- exception.
+--
+-- ==== __Examples__
+--
+-- >>> import Data.Prim
+-- >>> let xs = "Hello"
+-- >>> ma <- newUMArray (Size (length xs)) '!' :: IO (UMArray Char RW)
+-- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
+-- >>> freezeUMArray ma
+-- UArray "Hello!!!!!!!!"
+--
+-- @since 0.3.0
+newUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -- ^ /sz/ - Size of the array in number of elements.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- Susceptible to overflow:
+  --
+  -- > 0 <= toByteCount (Count (unSize n) :: Count e)
+  --
+  -- Should be below some upper limit that is dictated by the operating system and the total
+  -- amount of available memory
+  -> e
+  -> m (UMArray e s)
+newUMArray n e = newRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
+{-# INLINE newUMArray #-}
+
+
+-- | Same `newUMArray`, but allocate memory as pinned. See `newPinnedRawUMArray` for more info.
+--
+-- [Unsafe] - Same reasons as `newUMArray`.
+--
+-- @since 0.3.0
+newPinnedUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> e
+  -> m (UMArray e s)
+newPinnedUMArray n e = newPinnedRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
+{-# INLINE newPinnedUMArray #-}
+
+
+-- | Same `newUMArray`, but allocate memory as pinned and aligned. See
+-- `newAlignedPinnedRawUMArray` for more info.
+--
+-- [Unsafe] - Same reasons as `newUMArray`.
+--
+-- @since 0.3.0
+newAlignedPinnedUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> e
+  -> m (UMArray e s)
+newAlignedPinnedUMArray n e = newAlignedPinnedRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
+{-# INLINE newAlignedPinnedUMArray #-}
+
+
+
+-- | Create new mutable unboxed array of the supplied size and fill it with a monadic action
+-- that is applied to indices of each array cell.
+--
+-- [Unsafe] Same reasons as `newUMArray`
+--
+-- ====__Examples__
+--
+-- >>> ma <- makeUMArray 5 $ \i -> (toEnum (i + 97) :: Char) <$ putStrLn ("Handling index: " ++ show i)
+-- Handling index: 0
+-- Handling index: 1
+-- Handling index: 2
+-- Handling index: 3
+-- Handling index: 4
+-- >>> freezeUMArray ma
+-- UArray "abcde"
+--
+-- @since 0.3.0
+makeUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> (Int -> m e)
+  -> m (UMArray e s)
+makeUMArray = makeMutWith newRawUMArray writeUMArray
+{-# INLINE makeUMArray #-}
+
+
+-- | Same as `makeUMArray`, but allocate memory as pinned.
+--
+-- [Unsafe] Same reasons as `newUMArray`
+--
+-- @since 0.3.0
+makePinnedUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> (Int -> m e)
+  -> m (UMArray e s)
+makePinnedUMArray = makeMutWith newPinnedRawUMArray writeUMArray
+{-# INLINE makePinnedUMArray #-}
+
+-- | Same as `makeUMArray`, but allocate memory as pinned and aligned.
+--
+-- [Unsafe] Same reasons as `newUMArray`
+--
+-- @since 0.3.0
+makeAlignedPinnedUMArray ::
+     forall e m s. (Prim e, MonadPrim s m)
+  => Size
+  -> (Int -> m e)
+  -> m (UMArray e s)
+makeAlignedPinnedUMArray = makeMutWith newAlignedPinnedRawUMArray writeUMArray
+{-# INLINE makeAlignedPinnedUMArray #-}
 
 
 -- | /O(1)/ - Allocate new mutable unboxed array. None of the elements are initialized so
@@ -2178,7 +2533,7 @@ moveUMArray (UMArray src#) srcOff (UMArray dst#) dstOff n =
 --
 -- @since 0.3.0
 setUMArray ::
-     (Prim e, MonadPrim s m)
+     forall e m s. (Prim e, MonadPrim s m)
   => UMArray e s -- ^ /dstMutArray/ - Mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the mutable array
@@ -2229,16 +2584,18 @@ shrinkUMArray (UMArray mb#) sz =
   prim_ (shrinkMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)))
 {-# INLINE shrinkUMArray #-}
 
--- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array, possibly without
--- new allocation and data copy. Source array @srcArray@ should no longer be used after the
--- resize operation completes. In case when in place resize was not possible the new array
--- is allocated as unpinned.
+-- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array. Shrinking happens
+-- without new allocation and data copy, while growing the array is implemented with
+-- allocation of new unpinned array and copy of the data over from the source array
+-- @srcMutArray@. This has a consequence that produced array @dstMutArray@ might refer to
+-- the same @srcMutArray@ or to a totally new array, which can be checked with
+-- `isSameUMArray`.
 --
 -- Documentation on the utilized primop: `resizeMutableByteArray#`.
 --
--- [Unsafe] - Same reasons as in `newRawUMArray`. When size @sz@ is larger then the size of
--- @srcMutArray@ then @dstMutArray@ will contain uninitialized memory at its end, hence a
--- potential problem for referential transparency.
+-- [Unsafe] - Same reasons as in `newRawUMArray`. When size @sz@ is larger then the
+-- size of @srcMutArray@ then @dstMutArray@ will contain uninitialized memory at its end,
+-- hence a potential problem for referential transparency.
 --
 -- 0.3.0
 resizeUMArray ::
@@ -2277,7 +2634,10 @@ resizeUMArray (UMArray mb#) sz =
 -- fresh allocation.
 --
 -- @since 0.3.0
-freezeUMArray :: MonadPrim s m => UMArray e s -> m (UArray e)
+freezeUMArray ::
+     forall e m s. MonadPrim s m
+  => UMArray e s
+  -> m (UArray e)
 freezeUMArray (UMArray ma#) = prim $ \s ->
   case unsafeFreezeByteArray# ma# s of
     (# s', a# #) -> (# s', UArray a# #)
@@ -2287,7 +2647,7 @@ freezeUMArray (UMArray ma#) = prim $ \s ->
 -- Helpers --
 -- ======= --
 
-
+-- | Default "raw" element for boxed arrays.
 uninitialized ::
      HasCallStack
   => String -- ^ Module name
@@ -2298,7 +2658,7 @@ uninitialized mname fname =
   UndefinedElement $ mname ++ "." ++ fname ++ "\n" ++ prettyCallStack callStack
 {-# NOINLINE uninitialized #-}
 
-
+-- | Convert a list to a mutable array
 fromListMutWith ::
      Monad m
   => (Size -> m b) -- ^ Function for array creation
