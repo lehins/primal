@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
-
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 module Test.Prim.ArraySpec (spec) where
 
 import Data.Prim
@@ -50,6 +50,7 @@ arrayLawsSpec ::
      , Arbitrary a
      , Arbitrary (Item a)
      , Monoid a
+     , Semigroup a
      )
   => Proxy a
   -> Spec
