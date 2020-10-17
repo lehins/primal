@@ -24,6 +24,7 @@ import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.List as List
 import Data.Functor.Identity
+import Data.Prim.Array
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.Text
@@ -124,9 +125,11 @@ primBaseTypeSpec ::
      forall e. (NFData e, Ord e, Show e, Prim e, Arbitrary e, Typeable e)
   => Spec
 primBaseTypeSpec = do
+  memSpec @(UMArray e) @e
   memSpec @(MAddr e) @e
   memSpec @(PMArray 'Inc e) @e
   memSpec @(PMArray 'Pin e) @e
+  memOrdSpec @UMArray @e
   memOrdSpec @MAddr @e
   memOrdSpec @(PMArray 'Inc) @e
   memOrdSpec @(PMArray 'Pin) @e

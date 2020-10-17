@@ -23,16 +23,13 @@ module Data.Prim.Array
 
     -- ** Immutable
     , BArray(..)
-    -- *** Size/Index
+    , isSameBArray
     , sizeOfBArray
     , indexBArray
-    -- *** Copy/Clone
     , copyBArray
     , cloneBArray
-    -- *** Thaw
     , thawBArray
     , thawCopyBArray
-    -- *** To/From list
     , toListBArray
     , fromListBArray
     , fromListBArrayN
@@ -59,6 +56,7 @@ module Data.Prim.Array
     -- * Small Boxed Array
     -- ** Immutable
     , SBArray(..)
+    , isSameSBArray
     , sizeOfSBArray
     , indexSBArray
     , copySBArray
@@ -126,6 +124,8 @@ module Data.Prim.Array
     , makeMutWith
     , fromListMutWith
     , foldrWithFB
+    , eqWith
+    , compareWith
   ) where
 
 import Control.Exception
@@ -215,6 +215,22 @@ instance e ~ Char => IsString (BArray e) where
 instance NFData e => NFData (BArray e) where
   rnf = foldrWithFB sizeOfBArray indexBArray deepseq ()
   {-# INLINE rnf #-}
+
+instance Eq e => Eq (BArray e) where
+  (==) = eqWith isSameBArray sizeOfBArray indexBArray
+  {-# INLINE (==) #-}
+
+instance Ord e => Ord (BArray e) where
+  compare = compareWith isSameBArray sizeOfBArray indexBArray
+  {-# INLINE compare #-}
+
+
+-- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+--
+-- @since 0.3.0
+isSameBArray :: BArray a -> BArray a -> Bool
+isSameBArray a1 a2 = runST (isSameBMArray <$> thawBArray a1 <*> thawBArray a2)
+{-# INLINE isSameBArray #-}
 
 -- | /O(1)/ - Get the number of elements in an immutable array
 --
@@ -1087,6 +1103,22 @@ instance NFData e => NFData (SBArray e) where
   rnf = foldrWithFB sizeOfSBArray indexSBArray deepseq ()
   {-# INLINE rnf #-}
 
+
+instance Eq e => Eq (SBArray e) where
+  (==) = eqWith isSameSBArray sizeOfSBArray indexSBArray
+  {-# INLINE (==) #-}
+
+instance Ord e => Ord (SBArray e) where
+  compare = compareWith isSameSBArray sizeOfSBArray indexSBArray
+  {-# INLINE compare #-}
+
+-- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+--
+-- @since 0.3.0
+isSameSBArray :: SBArray a -> SBArray a -> Bool
+isSameSBArray a1 a2 = runST (isSameSBMArray <$> thawSBArray a1 <*> thawSBArray a2)
+{-# INLINE isSameSBArray #-}
+
 -- | /O(1)/ - Get the number of elements in an immutable array
 --
 -- Documentation for utilized primop: `sizeofSmallArray#`.
@@ -1933,8 +1965,16 @@ instance NFData (UArray e) where
   rnf (UArray _) = ()
   {-# INLINE rnf #-}
 
+instance (Prim e, Eq e) => Eq (UArray e) where
+  (==) = eqWith isSameUArray sizeOfUArray indexUArray
+  {-# INLINE (==) #-}
 
--- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+instance (Prim e, Ord e) => Ord (UArray e) where
+  compare = compareWith isSameUArray sizeOfUArray indexUArray
+  {-# INLINE compare #-}
+
+
+-- | /O(1)/ - Compare pointers for two immutable arrays and see if they refer to the exact same one.
 --
 -- Documentation for utilized primop: `isSameByteArray#`.
 --
@@ -1944,7 +1984,7 @@ isSameUArray (UArray ma1#) (UArray ma2#) = isTrue# (isSameByteArray# ma1# ma2#)
 {-# INLINE isSameUArray #-}
 
 
--- | Check if memory for immutable unboxed array was allocated as pinned.
+-- | /O(1)/ - Check if memory for immutable unboxed array was allocated as pinned.
 --
 -- Documentation for utilized primop: `isByteArrayPinned#`.
 --
@@ -1969,7 +2009,7 @@ sizeOfUArray (UArray a#) =
 {-# INLINE sizeOfUArray #-}
 
 
--- | Index an element of a pure unboxed array.
+-- | /O(1)/ - Index an element of a pure unboxed array.
 --
 -- Documentation for utilized primop: `indexByteArray#`.
 --
@@ -2060,7 +2100,7 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 {-# INLINE copyUArray #-}
 
 
--- | Convert a pure immutable unboxed array into a mutable unboxed array. Use
+-- | /O(1)/ - Convert a pure immutable unboxed array into a mutable unboxed array. Use
 -- `freezeUMArray` in order to go in the opposite direction.
 --
 -- Documentation for utilized primop: `unsafeThawByteArray#`.
@@ -2095,7 +2135,7 @@ thawUArray (UArray a#) =
 
 
 
--- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
+-- | /O(n)/ - Convert a pure boxed array into a list. It should work fine with GHC built-in list
 -- fusion.
 --
 -- @since 0.1.0
@@ -2172,7 +2212,7 @@ instance NFData (UMArray e s) where
   rnf (UMArray _) = ()
   {-# INLINE rnf #-}
 
--- | Compare pointers for two mutable arrays and see if they refer to the exact same one.
+-- | /O(1)/ - Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
 -- Documentation for utilized primop: `sameMutableByteArray#`.
 --
@@ -2182,7 +2222,7 @@ isSameUMArray (UMArray ma1#) (UMArray ma2#) = isTrue# (sameMutableByteArray# ma1
 {-# INLINE isSameUMArray #-}
 
 
--- | Check if memory for mutable unboxed array was allocated as pinned.
+-- | /O(1)/ - Check if memory for mutable unboxed array was allocated as pinned.
 --
 -- Documentation for utilized primop: `isMutableByteArrayPinned#`.
 --
@@ -2245,7 +2285,7 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 {-# INLINE readUMArray #-}
 
 
--- | Write an element into an unboxed mutable array at a supplied index.
+-- | /O(1)/ - Write an element into an unboxed mutable array at a supplied index.
 --
 -- Documentation for utilized primop: `writeMutableByteArray#`.
 --
@@ -2272,10 +2312,9 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 {-# INLINE writeUMArray #-}
 
 -- prop> newUMArray sz a === makeUMArray sz (const (pure a))
--- | /O(1)/ - Allocate new mutable unboxed array. Similar to
--- `newRawUMArray`, except all elements are initialized to the supplied
--- initial value. This is equivalent to @makeUMArray sz (const (pure a))@ but often will be
--- more efficient.
+-- | /O(sz)/ - Allocate new mutable unboxed array. Similar to `newRawUMArray`, except all
+-- elements are initialized to the supplied initial value. This is equivalent to
+-- @makeUMArray sz (const (pure a))@ but often will be more efficient.
 --
 -- [Unsafe] When any of preconditions for @sz@ argument is violated the outcome is
 -- unpredictable. One possible outcome is termination with `HeapOverflow` async
@@ -2300,7 +2339,7 @@ newUMArray ::
   --
   -- > 0 <= sz
   --
-  -- Susceptible to overflow:
+  -- Susceptible to integer overflow:
   --
   -- > 0 <= toByteCount (Count (unSize n) :: Count e)
   --
@@ -2425,7 +2464,7 @@ newRawUMArray ::
   --
   -- > 0 <= sz
   --
-  -- Susceptible to overflow:
+  -- Susceptible to integer overflow:
   --
   -- > 0 <= toByteCount (Count (unSize n) :: Count e)
   --
@@ -2612,7 +2651,7 @@ resizeUMArray ::
   --
   -- > 0 <= sz
   --
-  -- Susceptible to overflow:
+  -- Susceptible to integer overflow:
   --
   -- > 0 <= toByteCount (Count (unSize n) :: Count e)
   --
@@ -2718,3 +2757,39 @@ foldrWithFB size index c nil a = go 0
         let v = index a i
          in v `seq` (v `c` go (i + 1))
 {-# INLINE[0] foldrWithFB #-}
+
+-- | Check for equality of two arrays
+eqWith ::
+     Eq e
+  => (a e -> a e -> Bool) -- ^ Pointer equality
+  -> (a e -> Size) -- ^ Get the size of array
+  -> (a e -> Int -> e) -- ^ Index an element of an array
+  -> a e -- ^ First array
+  -> a e -- ^ Second array
+  -> Bool
+eqWith isSame sizeOf index a1 a2 = isSame a1 a2 || (sz1 == sizeOf a2 && loop 0)
+  where
+    sz1@(Size n) = sizeOf a1
+    loop i
+      | i < n = index a1 i == index a2 i && loop (i + 1)
+      | otherwise = True
+{-# INLINE eqWith #-}
+
+-- | Compare two arrays using supplied functions
+compareWith ::
+     Ord e
+  => (a e -> a e -> Bool) -- ^ Pointer equality
+  -> (a e -> Size) -- ^ Get the size of array
+  -> (a e -> Int -> e) -- ^ Index an element of an array
+  -> a e -- ^ First array
+  -> a e -- ^ Second array
+  -> Ordering
+compareWith isSame sizeOf index a1 a2
+  | isSame a1 a2 = EQ
+  | otherwise = loop 0
+  where
+    Size n = min (sizeOf a1) (sizeOf a2)
+    loop i
+      | i < n = compare (index a1 i) (index a2 i) <> loop (i + 1)
+      | otherwise = compare (sizeOf a1) (sizeOf a2)
+{-# INLINE compareWith #-}
