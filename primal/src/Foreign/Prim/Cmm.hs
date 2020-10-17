@@ -25,10 +25,8 @@ module Foreign.Prim.Cmm
   , shrinkSmallMutableArray#
   , resizeSmallMutableArray#
 #endif
-#if __GLASGOW_HASKELL__ < 804
-  , getSizeofSmallMutableArray#
-  , shrinkMutableByteArray#
-  , resizeSmallMutableArray#
+#if __GLASGOW_HASKELL__ < 800
+  , getSizeofMutableByteArray#
 #endif
   ) where
 
@@ -146,21 +144,5 @@ getSizeofMutableByteArray# :: MutableByteArray# s -> State# s -> (# State# s, In
 getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
 {-# INLINE getSizeofMutableByteArray# #-}
 
-
--- ghc complains if we try to return State# s, so fallback onto unboxed tuple
--- | Shrink MutableByteArray#
-foreign import prim "primal_stg_shrinkMutableByteArrayzh"
-  shrinkMutableByteArrayCmm# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, Int# #)
-
-shrinkMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> State# s
-shrinkMutableByteArray# ma# i# s =
-  case shrinkMutableByteArrayCmm# ma# i# s of
-    (# s', _ #) -> s'
-{-# INLINE shrinkMutableByteArray# #-}
-
-
-foreign import prim "primal_stg_shrinkMutableByteArrayzh"
-  resizeMutableByteArray# ::
-    MutableByteArray# s -> Int# -> State# s -> (# State# s, MutableByteArray# s #)
 
 #endif

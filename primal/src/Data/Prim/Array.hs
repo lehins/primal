@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -603,6 +604,8 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- to write something that eventually evaluates to bottom.
 --
 -- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
+-- >>> freezeBMArray ma
+-- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 -- >>> readBMArray ma 3
 -- Just *** Exception: divide by zero
 --
@@ -624,10 +627,8 @@ writeBMArray ::
   -> e
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
-writeBMArray ma i x = x `seq` writeLazyBMArray ma i x
+writeBMArray ma i !x = writeLazyBMArray ma i x
 {-# INLINE writeBMArray #-}
--- >>> freezeBMArray ma
--- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 
 
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an
@@ -650,7 +651,7 @@ writeLazyBMArray (BMArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 --
 -- @since 0.3.0
 writeDeepBMArray :: (MonadPrim s m, NFData e) => BMArray e s -> Int -> e -> m ()
-writeDeepBMArray ma i x = x `deepseq` writeLazyBMArray ma i x
+writeDeepBMArray ma i !x = x `deepseq` writeLazyBMArray ma i x
 {-# INLINE writeDeepBMArray #-}
 
 
