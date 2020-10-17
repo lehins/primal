@@ -45,7 +45,7 @@ module Data.Prim.Array
     , makeBMArray
     , moveBMArray
     , cloneBMArray
-    --, shrinkBMArray TODO (add primop)
+    , shrinkBMArray
     --, resizeBMArray TODO (implement)
     , freezeBMArray
     , freezeCopyBMArray
@@ -76,7 +76,7 @@ module Data.Prim.Array
     , makeSBMArray
     , moveSBMArray
     , cloneSBMArray
-    --, shrinkSBMArray TODO (add primop for older ghc)
+    , shrinkSBMArray
     --, resizeSBMArray TODO (implement for older ghc)
     , freezeSBMArray
     , freezeCopySBMArray
@@ -118,6 +118,7 @@ import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
+import Foreign.Prim.Cmm
 import GHC.Stack
 
 -- $arrays
@@ -539,7 +540,10 @@ isSameBMArray (BMArray ma1#) (BMArray ma2#) =
 --
 -- @since 0.3.0
 getSizeOfBMArray :: MonadPrim s m => BMArray e s -> m Size
-getSizeOfBMArray (BMArray ma#) = pure $! Size (I# (sizeofMutableArray# ma#))
+getSizeOfBMArray (BMArray ma#) = --pure $! Size (I# (sizeofMutableArray# ma#))
+  prim $ \s ->
+    case getSizeofMutableArray# ma# s of
+      (# s', n# #) -> (# s', coerce (I# n#) #)
 {-# INLINE getSizeOfBMArray #-}
 
 -- | /O(1)/ - Read an element from a mutable boxed array at the supplied index.
@@ -851,6 +855,32 @@ cloneBMArray (BMArray ma#) (I# i#) (Size (I# n#)) =
 {-# INLINE cloneBMArray #-}
 
 
+
+-- | /O(1)/ - Reduce the size of a mutable boxed array.
+--
+-- Documentation for utilized primop: `shrinkMutableArray#`.
+--
+-- [Unsafe] - Violation of preconditions for @sz@ leads to undefined behavior
+--
+-- 0.3.0
+shrinkBMArray ::
+     forall e m s. MonadPrim s m
+  => BMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- > curSize <- getSizeOfBMArray mutArray
+  -- > sz <= curSize
+  -> m ()
+shrinkBMArray (BMArray ma#) (Size (I# sz#)) =
+  prim_ (shrinkMutableArray# ma# sz#)
+{-# INLINE shrinkBMArray #-}
+
+
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between source
 -- and destination.
@@ -1039,6 +1069,32 @@ cloneSBArray ::
   -> SBArray e
 cloneSBArray (SBArray a#) (I# i#) (Size (I# n#)) = SBArray (cloneSmallArray# a# i# n#)
 {-# INLINE cloneSBArray #-}
+
+
+
+-- | /O(1)/ - Reduce the size of a mutable small boxed array.
+--
+-- Documentation for utilized primop: `shrinkSmallMutableArray#`.
+--
+-- [Unsafe] - Violation of preconditions for @sz@ leads to undefined behavior
+--
+-- 0.3.0
+shrinkSBMArray ::
+     forall e m s. MonadPrim s m
+  => SBMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
+  -> Size
+  -- ^ /sz/ - New size for the array in number of elements
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= sz
+  --
+  -- > curSize <- getSizeOfSBMArray mutArray
+  -- > sz <= curSize
+  -> m ()
+shrinkSBMArray (SBMArray ma#) (Size (I# sz#)) =
+  prim_ (shrinkSmallMutableArray# ma# sz#)
+{-# INLINE shrinkSBMArray #-}
 
 
 
@@ -1283,13 +1339,9 @@ isSameSBMArray (SBMArray ma1#) (SBMArray ma2#) =
 -- @since 0.3.0
 getSizeOfSBMArray :: MonadPrim s m => SBMArray e s -> m Size
 getSizeOfSBMArray (SBMArray ma#) =
-#if __GLASGOW_HASKELL__ >= 810
   prim $ \s ->
     case getSizeofSmallMutableArray# ma# s of
-      (# s', i# #) -> (# s', Size (I# i#) #)
-#else
-  pure $! Size (I# (sizeofSmallMutableArray# ma#))
-#endif
+      (# s', i# #) -> (# s', coerce (I# i#) #)
 {-# INLINE getSizeOfSBMArray #-}
 
 -- | /O(1)/ - Read an element from a mutable small boxed array at the supplied index.

@@ -270,6 +270,26 @@ specMArray = do
     prop "writeRead" $ prop_writeRead @mut
     prop "writeReadAtomic" $ prop_writeReadAtomic @mut
     prop "funny" prop_writeReadException
+    prop "shrinkSBMArray" $ \ (a :: SBArray Integer) (NonNegative k) -> do
+      ma <- thawSBArray a
+      n <- getSizeOfSBMArray ma
+      let k'
+            | n == 0 = 0
+            | otherwise = k `mod` n
+      shrinkSBMArray ma k'
+      getSizeOfSBMArray ma `shouldReturn` k'
+      a' <- freezeSBMArray ma
+      sizeOfSBArray a' `shouldBe` k'
+    prop "shrinkBMArray" $ \ (a :: BArray Integer) (NonNegative k) -> do
+      ma <- thawBArray a
+      n <- getSizeOfBMArray ma
+      let k'
+            | n == 0 = 0
+            | otherwise = k `mod` n
+      shrinkBMArray ma k'
+      getSizeOfBMArray ma `shouldReturn` k'
+      a' <- freezeBMArray ma
+      sizeOfBArray a' `shouldBe` k'
 
 -- forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property
 -- forAllIO g propM = forAll g $ \v -> monadicIO $ run $ propM v

@@ -16,6 +16,11 @@
 #define TO_ZXW_(x) %zx64(x)
 #endif
 
+// macro was changed in ghc-9
+#ifndef OVERWRITING_CLOSURE_OFS
+#define OVERWRITING_CLOSURE_OFS(c,n) OVERWRITING_CLOSURE_MUTABLE(c,n)
+#endif
+
 primal_stg_word64ToDoublezh(I64 w)
 {
     D_ d;
@@ -75,4 +80,83 @@ primal_stg_floatToWord32zh(F_ f)
     }
 
     return (w);
+}
+
+
+// shrink size of MutableByteArray in-place
+primal_stg_shrinkMutableByteArrayzh ( gcptr mba, W_ new_size )
+// MutableByteArray# s -> Int# -> State# s -> State# s
+{
+   ASSERT(new_size <= StgArrBytes_bytes(mba));
+
+   OVERWRITING_CLOSURE_OFS(mba, (BYTES_TO_WDS(SIZEOF_StgArrBytes) +
+                                 ROUNDUP_BYTES_TO_WDS(new_size)));
+   StgArrBytes_bytes(mba) = new_size;
+   // No need to call LDV_RECORD_CREATE. See Note [LDV profiling and resizing arrays]
+
+   return ();
+}
+
+
+
+// resize MutableByteArray
+//
+// The returned MutableByteArray is either the original
+// MutableByteArray resized in-place or, if not possible, a newly
+// allocated (unpinned) MutableByteArray (with the original content
+// copied over)
+primal_stg_resizzeMutableByteArrayzh ( gcptr mba, W_ new_size )
+// MutableByteArray# s -> Int# -> State# s -> (# State# s, MutableByteArray# s #)
+{
+   W_ new_size_wds;
+
+   ASSERT(new_size >= 0);
+
+   new_size_wds = ROUNDUP_BYTES_TO_WDS(new_size);
+
+   if (new_size_wds <= BYTE_ARR_WDS(mba)) {
+      OVERWRITING_CLOSURE_OFS(mba, (BYTES_TO_WDS(SIZEOF_StgArrBytes) +
+                                    new_size_wds));
+      StgArrBytes_bytes(mba) = new_size;
+
+      return (mba);
+   } else {
+      (P_ new_mba) = call stg_newByteArrayzh(new_size);
+
+
+      // copy over old content
+      prim %memcpy(BYTE_ARR_CTS(new_mba), BYTE_ARR_CTS(mba),
+                   StgArrBytes_bytes(mba), SIZEOF_W);
+
+      return (new_mba);
+   }
+}
+
+
+// shrink size of MutableArray in-place
+primal_stg_shrinkMutableArrayzh ( gcptr arr, W_ new_size )
+// MutableArray# s a -> Int# -> State# s -> State# s
+{
+   ASSERT(new_size <= StgMutArrPtrs_ptrs(mba));
+
+
+   OVERWRITING_CLOSURE_OFS(arr, (BYTES_TO_WDS(SIZEOF_StgMutArrPtrs) +
+                                 new_size));
+   StgMutArrPtrs_ptrs(arr) = new_size;
+
+   return (new_size);
+}
+
+
+// shrink size of SmallMutableArray in-place
+primal_stg_shrinkSmallMutableArrayzh ( gcptr arr, W_ new_size )
+// SmallMutableArray# s a -> Int# -> State# s -> State# s
+{
+   ASSERT(new_size <= StgSmallMutArrPtrs_ptrs(arr));
+
+   OVERWRITING_CLOSURE_OFS(arr, (BYTES_TO_WDS(SIZEOF_StgSmallMutArrPtrs) +
+                                 new_size));
+   StgSmallMutArrPtrs_ptrs(arr) = new_size;
+
+   return (new_size);
 }

@@ -16,6 +16,7 @@ import Control.Prim.Monad as X
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.Prim as X
+import Data.Prim.Array
 import Data.Prim.Memory.Internal
 import qualified Data.Prim.Memory.Text as T
 import Data.Proxy as X
@@ -97,3 +98,15 @@ instance Show T.Array where
   show b =
     Foldable.foldr' ($) "]" $
     ('[' :) : List.intersperse (',' :) (map (("0x" ++) .) (showsHexMem b))
+
+
+instance Arbitrary Size where
+  arbitrary = coerce (arbitrary :: Gen Int)
+
+instance Arbitrary a => Arbitrary (BArray a) where
+  arbitrary = fromListBArray <$> arbitrary
+
+
+instance Arbitrary a => Arbitrary (SBArray a) where
+  arbitrary = fromListSBArray <$> arbitrary
+

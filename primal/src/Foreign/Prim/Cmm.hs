@@ -3,6 +3,7 @@
 {-# LANGUAGE GHCForeignImportPrim #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Foreign.Prim.Cmm
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -16,6 +17,19 @@ module Foreign.Prim.Cmm
   , floatToWord32#
   , word64ToDouble#
   , doubleToWord64#
+  , getSizeofMutableArray#
+  , shrinkMutableArray#
+  , resizeMutableArray#
+#if __GLASGOW_HASKELL__ < 810
+  , getSizeofSmallMutableArray#
+  , shrinkSmallMutableArray#
+  , resizeSmallMutableArray#
+#endif
+#if __GLASGOW_HASKELL__ < 804
+  , getSizeofSmallMutableArray#
+  , shrinkMutableByteArray#
+  , resizeSmallMutableArray#
+#endif
   ) where
 
 
@@ -45,4 +59,108 @@ foreign import prim "primal_stg_doubleToWord64zh"
   doubleToWord64# :: Double# -> Word#
 #else
   doubleToWord64# :: Double# -> Word64#
+#endif
+
+
+
+getSizeofMutableArray# :: MutableArray# s a -> State# s -> (# State# s, Int# #)
+getSizeofMutableArray# sma# s# = (# s#, sizeofMutableArray# sma# #)
+{-# INLINE getSizeofMutableArray# #-}
+
+
+-- | Shrink MutableArray#
+foreign import prim "primal_stg_shrinkMutableArrayzh"
+  shrinkMutableArrayCmm# :: MutableArray# s a -> Int# -> State# s -> (# State# s, Int# #)
+
+shrinkMutableArray# :: MutableArray# s a -> Int# -> State# s -> State# s
+shrinkMutableArray# ma# i# s =
+  case shrinkMutableArrayCmm# ma# i# s of
+    (# s', _ #) -> s'
+{-# INLINE shrinkMutableArray# #-}
+
+resizeMutableArray# ::
+     MutableArray# s a -- ^ Array to resize
+  -> Int# -- ^ New size of array
+  -> a -- ^ Newly created slots initialized to this element. Only used when array is
+       -- grown.
+  -> State# s
+  -> (# State# s, MutableArray# s a #)
+resizeMutableArray# arr0 szNew a s0 =
+  case getSizeofMutableArray# arr0 s0 of
+    (# s1, szOld #) ->
+      if isTrue# (szNew <# szOld)
+        then case shrinkMutableArrayCmm# arr0 szNew s1 of
+               (# s2, _ #) -> (# s2, arr0 #)
+        else if isTrue# (szNew ># szOld)
+               then case newArray# szNew a s1 of
+                      (# s2, arr1 #) ->
+                        case copyMutableArray# arr0 0# arr1 0# szOld s2 of
+                          s3 -> (# s3, arr1 #)
+               else (# s1, arr0 #)
+{-# INLINE resizeMutableArray# #-}
+
+
+#if __GLASGOW_HASKELL__ < 810
+
+getSizeofSmallMutableArray# :: SmallMutableArray# s a -> State# s -> (# State# s, Int# #)
+getSizeofSmallMutableArray# sma# s# = (# s#, sizeofSmallMutableArray# sma# #)
+{-# INLINE getSizeofSmallMutableArray# #-}
+
+-- | Shrink SmallMutableArray#
+foreign import prim "primal_stg_shrinkSmallMutableArrayzh"
+  shrinkSmallMutableArrayCmm# :: SmallMutableArray# s a -> Int# -> State# s -> (# State# s, Int# #)
+
+shrinkSmallMutableArray# :: SmallMutableArray# s a -> Int# -> State# s -> State# s
+shrinkSmallMutableArray# ma# i# s =
+  case shrinkSmallMutableArrayCmm# ma# i# s of
+    (# s', _ #) -> s'
+{-# INLINE shrinkSmallMutableArray# #-}
+
+resizeSmallMutableArray#
+  :: SmallMutableArray# s a -- ^ Array to resize
+  -> Int# -- ^ New size of array
+  -> a
+     -- ^ Newly created slots initialized to this element.
+     -- Only used when array is grown.
+  -> State# s
+  -> (# State# s, SmallMutableArray# s a #)
+resizeSmallMutableArray# arr0 szNew a s0 =
+  case getSizeofSmallMutableArray# arr0 s0 of
+    (# s1, szOld #) ->
+      if isTrue# (szNew <# szOld)
+        then case shrinkSmallMutableArrayCmm# arr0 szNew s1 of
+               (# s2, _ #) -> (# s2, arr0 #)
+        else if isTrue# (szNew ># szOld)
+               then case newSmallArray# szNew a s1 of
+                      (# s2, arr1 #) ->
+                        case copySmallMutableArray# arr0 0# arr1 0# szOld s2 of
+                          s3 -> (# s3, arr1 #)
+               else (# s1, arr0 #)
+
+
+#endif
+
+#if __GLASGOW_HASKELL__ < 804
+
+getSizeofMutableByteArray# :: MutableArray# s -> State# s -> (# State# s, Int# #)
+getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
+{-# INLINE getSizeofMutableByteArray# #-}
+
+
+-- ghc complains if we try to return State# s, so fallback onto unboxed tuple
+-- | Shrink MutableByteArray#
+foreign import prim "primal_stg_shrinkMutableByteArrayzh"
+  shrinkMutableByteArrayCmm# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, Int# #)
+
+shrinkMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> State# s
+shrinkMutableByteArray# ma# i# s =
+  case shrinkMutableByteArrayCmm# ma# i# s of
+    (# s', _ #) -> s'
+{-# INLINE shrinkMutableByteArray# #-}
+
+
+foreign import prim "primal_stg_shrinkMutableByteArrayzh"
+  resizeMutableByteArray# ::
+    MutableByteArray# s -> Int# -> State# s -> (# State# s, MutableByteArray# s #)
+
 #endif
