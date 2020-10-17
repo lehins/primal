@@ -198,15 +198,6 @@ fromPMArray (PMArray mb) = UMArray (toMutableByteArray# mb)
 
 
 
-
-
-newUMArray :: (Prim e, MonadPrim s m) => Size -> e -> m (UMArray e s)
-newUMArray = I.newMArray
-{-# INLINE newUMArray #-}
-
-
-
-
 thawCopyUArray :: (Prim e, MonadPrim s m) => UArray e -> Int -> Size -> m (UMArray e s)
 thawCopyUArray = I.thawCopyArray
 {-# INLINE thawCopyUArray #-}
@@ -271,31 +262,6 @@ createUArrayM = I.createArrayM
 createUArrayM_ :: (Prim e, MonadPrim s m) => Size -> (UMArray e s -> m b) -> m (UArray e)
 createUArrayM_ = I.createArrayM_
 {-# INLINE createUArrayM_ #-}
-
-
--- | Create a new mutable array of a supplied size by applying a monadic action to indices
--- of each one of the new elements.
---
--- [Unsafe size] Negative or too large of an array size can kill the current thread with
--- `HeapOverflow` asynchronous exception.
---
--- ====__Examples__
---
--- >>> import Control.Monad ((>=>))
--- >>> import Data.Prim.Ref
--- >>> ref <- newRef "Numbers: "
--- >>> ma <- makeUMArray 5 $ \i -> modifyFetchRef ref (\cur -> cur ++ show i ++ ",")
--- >>> mapM_ (readUMArray ma >=> putStrLn) [0 .. 4]
--- Numbers: 0,
--- Numbers: 0,1,
--- Numbers: 0,1,2,
--- Numbers: 0,1,2,3,
--- Numbers: 0,1,2,3,4,
---
--- @since 0.1.0
-makeUMArray :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (UMArray e s)
-makeUMArray = I.makeMArray
-{-# INLINE makeUMArray #-}
 
 -- | Traverse an array with a monadic action.
 --

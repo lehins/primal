@@ -23,12 +23,16 @@ module Data.Prim.Array
 
     -- ** Immutable
     , BArray(..)
+    -- *** Size/Index
     , sizeOfBArray
     , indexBArray
+    -- *** Copy/Clone
     , copyBArray
     , cloneBArray
+    -- *** Thaw
     , thawBArray
     , thawCopyBArray
+    -- *** To/From list
     , toListBArray
     , fromListBArray
     , fromListBArrayN
