@@ -34,6 +34,7 @@ import Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
 import Data.Prim
+import Data.Prim.Array
 import Data.Prim.Memory.Bytes.Internal
 import Data.Prim.Memory.ByteString
 import Data.Prim.Memory.ForeignPtr
@@ -794,12 +795,67 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   reallocMutMem = defaultReallocMutMem
   {-# INLINE reallocMutMem #-}
 
+instance MemRead (UArray e) where
+  isSameMem = isSameUArray
+  {-# INLINE isSameMem #-}
+  byteCountMem = byteCountMem . fromUArrayBytes
+  {-# INLINE byteCountMem #-}
+  indexOffMem a = indexOffMem (fromUArrayBytes a)
+  {-# INLINE indexOffMem #-}
+  indexByteOffMem a = indexByteOffMem (fromUArrayBytes a)
+  {-# INLINE indexByteOffMem #-}
+  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (fromUArrayBytes a)
+  {-# INLINE copyByteOffToMBytesMem #-}
+  copyByteOffToPtrMem a = copyByteOffToPtrMem (fromUArrayBytes a)
+  {-# INLINE copyByteOffToPtrMem #-}
+  compareByteOffToPtrMem a = compareByteOffToPtrMem (fromUArrayBytes a)
+  {-# INLINE compareByteOffToPtrMem #-}
+  compareByteOffToBytesMem a = compareByteOffToBytesMem (fromUArrayBytes a)
+  {-# INLINE compareByteOffToBytesMem #-}
+  compareByteOffMem mem1 off1 a = compareByteOffMem mem1 off1 (fromUArrayBytes a)
+  {-# INLINE compareByteOffMem #-}
+
+instance MemWrite (UMArray e) where
+  isSameMutMem = isSameUMArray
+  {-# INLINE isSameMutMem #-}
+  readOffMutMem ma = readOffMutMem (fromUMArrayMBytes ma)
+  {-# INLINE readOffMutMem #-}
+  readByteOffMutMem ma = readByteOffMutMem (fromUMArrayMBytes ma)
+  {-# INLINE readByteOffMutMem #-}
+  writeOffMutMem ma = writeOffMutMem (fromUMArrayMBytes ma)
+  {-# INLINE writeOffMutMem #-}
+  writeByteOffMutMem ma = writeByteOffMutMem (fromUMArrayMBytes ma)
+  {-# INLINE writeByteOffMutMem #-}
+  moveByteOffToPtrMutMem ma = moveByteOffToPtrMutMem (fromUMArrayMBytes ma)
+  {-# INLINE moveByteOffToPtrMutMem #-}
+  moveByteOffToMBytesMutMem ma = moveByteOffToMBytesMutMem (fromUMArrayMBytes ma)
+  {-# INLINE moveByteOffToMBytesMutMem #-}
+  copyByteOffMem src srcOff ma = copyByteOffMem src srcOff (fromUMArrayMBytes ma)
+  {-# INLINE copyByteOffMem #-}
+  moveByteOffMutMem src srcOff ma = moveByteOffMutMem src srcOff (fromUMArrayMBytes ma)
+  {-# INLINE moveByteOffMutMem #-}
+  setMutMem ma = setMutMem (fromUMArrayMBytes ma)
+  {-# INLINE setMutMem #-}
+
+instance MemAlloc (UMArray e) where
+  type FrozenMem (UMArray e) = UArray e
+  getByteCountMutMem = getByteCountMutMem . fromUMArrayMBytes
+  {-# INLINE getByteCountMutMem #-}
+  allocMutMem = fmap toUMArrayMBytes . allocUnpinnedMBytes
+  {-# INLINE allocMutMem #-}
+  thawMem = fmap toUMArrayMBytes . thawBytes . fromUArrayBytes
+  {-# INLINE thawMem #-}
+  freezeMutMem = fmap toUArrayBytes . freezeMBytes . fromUMArrayMBytes
+  {-# INLINE freezeMutMem #-}
+  reallocMutMem ma = fmap toUMArrayMBytes . reallocMBytes (fromUMArrayMBytes ma)
+  {-# INLINE reallocMutMem #-}
+
 
 instance MemRead ByteString where
   isSameMem bs1 bs2 =
     unsafeInlineIO $
     withPtrAccess bs1 $ \ptr1 ->
-      withPtrAccess bs2 $ \ptr2 -> -- Can refer to same memory but sliced differently:
+      withPtrAccess bs2 $ \ptr2 -> -- Can refer to the same memory but sliced differently:
         pure (ptr1 == (ptr2 :: Ptr Word8) && BS.length bs1 == BS.length bs2)
   {-# INLINE isSameMem #-}
   byteCountMem = Count . BS.length
@@ -830,27 +886,6 @@ instance MemRead ByteString where
     withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
   {-# INLINE compareByteOffMem #-}
 
-
-instance MemAlloc MByteString where
-  type FrozenMem MByteString = ByteString
-  getByteCountMutMem (MByteString bs) = pure $! Count (BS.length bs)
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem c = do
-    let cb = toByteCount c
-    fp <- mallocByteCountPlainForeignPtr cb
-    pure $ MByteString (PS fp 0 (coerce cb))
-  {-# INLINE allocMutMem #-}
-  thawMem bs = pure $ MByteString bs
-  {-# INLINE thawMem #-}
-  freezeMutMem (MByteString bs) = pure bs
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem bsm@(MByteString (PS fp o n)) newc
-    | newn > n = defaultReallocMutMem bsm newc
-    | otherwise = pure $ MByteString (PS fp o newn)
-    where -- constant time slice if we need to reduce the size
-      Count newn = toByteCount newc
-  {-# INLINE reallocMutMem #-}
-
 instance MemWrite MByteString where
   isSameMutMem (MByteString bs1) (MByteString bs2) = isSameMem bs1 bs2
   {-# INLINE isSameMutMem #-}
@@ -876,6 +911,27 @@ instance MemWrite MByteString where
   {-# INLINE moveByteOffMutMem #-}
   setMutMem (MByteString mbs) off c a = withPtrAccess mbs $ \ptr -> setOffPtr ptr off c a
   {-# INLINE setMutMem #-}
+
+instance MemAlloc MByteString where
+  type FrozenMem MByteString = ByteString
+  getByteCountMutMem (MByteString bs) = pure $! Count (BS.length bs)
+  {-# INLINE getByteCountMutMem #-}
+  allocMutMem c = do
+    let cb = toByteCount c
+    fp <- mallocByteCountPlainForeignPtr cb
+    pure $ MByteString (PS fp 0 (coerce cb))
+  {-# INLINE allocMutMem #-}
+  thawMem bs = pure $ MByteString bs
+  {-# INLINE thawMem #-}
+  freezeMutMem (MByteString bs) = pure bs
+  {-# INLINE freezeMutMem #-}
+  reallocMutMem bsm@(MByteString (PS fp o n)) newc
+    | newn > n = defaultReallocMutMem bsm newc
+    | otherwise = pure $ MByteString (PS fp o newn)
+    where -- constant time slice if we need to reduce the size
+      Count newn = toByteCount newc
+  {-# INLINE reallocMutMem #-}
+
 
 instance MemRead T.Array where
   isSameMem a1 a2 = isSameMem (T.fromArrayBytes a1) (T.fromArrayBytes a2)

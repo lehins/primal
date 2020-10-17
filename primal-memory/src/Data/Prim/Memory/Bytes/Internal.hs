@@ -21,6 +21,10 @@ module Data.Prim.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)
+  , toByteArray#
+  , fromByteArray#
+  , toMutableByteArray#
+  , fromMutableByteArray#
   , isSameBytes
   , isSamePinnedBytes
   , isSameMBytes
@@ -57,6 +61,10 @@ module Data.Prim.Memory.Bytes.Internal
   , readByteOffMBytes
   , writeOffMBytes
   , writeByteOffMBytes
+  , toUArrayBytes
+  , fromUArrayBytes
+  , toUMArrayMBytes
+  , fromUMArrayMBytes
   , toPtrBytes
   , toPtrMBytes
   , withPtrBytes
@@ -74,6 +82,7 @@ import Control.DeepSeq
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Prim
+import Data.Prim.Array
 import Data.Prim.Class
 import Data.Typeable
 import Foreign.Prim
@@ -131,6 +140,32 @@ instance NFData (Bytes p) where
 
 instance NFData (MBytes p s) where
   rnf (MBytes _) = ()
+
+
+-- | Unwrap `Bytes` to get the underlying `ByteArray#`.
+--
+-- @since 0.1.0
+toByteArray# :: Bytes p -> ByteArray#
+toByteArray# (Bytes b#) = b#
+
+-- | Wrap `ByteArray#` into `Bytes`
+--
+-- @since 0.1.0
+fromByteArray# :: ByteArray# -> Bytes 'Inc
+fromByteArray# = Bytes
+
+-- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
+--
+-- @since 0.1.0
+toMutableByteArray# :: MBytes p s -> MutableByteArray# s
+toMutableByteArray# (MBytes mb#) = mb#
+
+-- | Wrap `MutableByteArray#` into `MBytes`
+--
+-- @since 0.1.0
+fromMutableByteArray# :: MutableByteArray# s -> MBytes 'Inc s
+fromMutableByteArray# = MBytes
+
 
 
 
@@ -361,6 +396,36 @@ setMBytes ::
   -> m ()
 setMBytes (MBytes mba#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setMutableByteArray# mba# o# n# a)
 {-# INLINE setMBytes #-}
+
+
+-- | /O(1)/ - Cast an unboxed array into `Bytes`
+--
+-- @since 0.3.0
+fromUArrayBytes :: UArray e -> Bytes 'Inc
+fromUArrayBytes (UArray ba#) = fromByteArray# ba#
+{-# INLINE fromUArrayBytes #-}
+
+-- | /O(1)/ - Cast `Bytes` into an unboxed array
+--
+-- @since 0.3.0
+toUArrayBytes :: Bytes p -> UArray e
+toUArrayBytes b = UArray (toByteArray# b)
+{-# INLINE toUArrayBytes #-}
+
+-- | /O(1)/ - Cast a mutable unboxed array into `MBytes`
+--
+-- @since 0.3.0
+fromUMArrayMBytes :: UMArray e s -> MBytes 'Inc s
+fromUMArrayMBytes (UMArray a#) = fromMutableByteArray# a#
+{-# INLINE fromUMArrayMBytes #-}
+
+-- | /O(1)/ - Cast `MBytes` into a mutable unboxed array
+--
+-- @since 0.3.0
+toUMArrayMBytes :: MBytes p s -> UMArray e s
+toUMArrayMBytes mb = UMArray (toMutableByteArray# mb)
+{-# INLINE toUMArrayMBytes #-}
+
 
 
 toPtrBytes :: Bytes 'Pin -> Ptr e

@@ -163,32 +163,6 @@ import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
 import Foreign.Prim
 
--- | Unwrap `Bytes` to get the underlying `ByteArray#`.
---
--- @since 0.1.0
-toByteArray# :: Bytes p -> ByteArray#
-toByteArray# (Bytes b#) = b#
-
--- | Wrap `ByteArray#` into `Bytes`
---
--- @since 0.1.0
-fromByteArray# :: ByteArray# -> Bytes 'Inc
-fromByteArray# = Bytes
-
--- | Unwrap `MBytes` to get the underlying `MutableByteArray#`.
---
--- @since 0.1.0
-toMutableByteArray# :: MBytes p s -> MutableByteArray# s
-toMutableByteArray# (MBytes mb#) = mb#
-
--- | Wrap `MutableByteArray#` into `MBytes`
---
--- @since 0.1.0
-fromMutableByteArray# :: MutableByteArray# s -> MBytes 'Inc s
-fromMutableByteArray# = MBytes
-
-
-
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2
 {-# INLINE eqBytes #-}
@@ -443,35 +417,6 @@ toPinnedMBytes (MBytes mb#)
   | otherwise = Nothing
 {-# INLINE toPinnedMBytes #-}
 
-
-
--- | /O(1)/ - Cast an unboxed array into `Bytes`
---
--- @since 0.3.0
-fromUArrayBytes :: UArray e -> Bytes 'Inc
-fromUArrayBytes (UArray ba#) = fromByteArray# ba#
-{-# INLINE fromUArrayBytes #-}
-
--- | /O(1)/ - Cast `Bytes` into an unboxed array
---
--- @since 0.3.0
-toUArrayBytes :: Bytes p -> UArray e
-toUArrayBytes b = UArray (toByteArray# b)
-{-# INLINE toUArrayBytes #-}
-
--- | /O(1)/ - Cast a mutable unboxed array into `MBytes`
---
--- @since 0.3.0
-fromUMArrayMBytes :: UMArray e s -> MBytes 'Inc s
-fromUMArrayMBytes (UMArray a#) = fromMutableByteArray# a#
-{-# INLINE fromUMArrayMBytes #-}
-
--- | /O(1)/ - Cast `MBytes` into a mutable unboxed array
---
--- @since 0.3.0
-toUMArrayMBytes :: MBytes p s -> UMArray e s
-toUMArrayMBytes mb = UMArray (toMutableByteArray# mb)
-{-# INLINE toUMArrayMBytes #-}
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied

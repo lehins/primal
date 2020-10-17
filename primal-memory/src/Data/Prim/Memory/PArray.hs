@@ -70,22 +70,11 @@ type role PArray nominal nominal
 
 
 instance (Prim e, Eq e) => Eq (PArray p e) where
-  (==) b1 b2 = --(PArray b1) (PArray b2) =
-    eqMem @e b1 b2
+  (==) = eqMem @e
   {-# INLINE (==) #-}
-  -- (==) (PArray bs1) (PArray bs2) =
-  --   isSameBytes bs1 bs2 || (n == countBytes bs2 && eqOffBytes bs1 0 bs2 0 n)
-  --   where
-  --     n = countBytes bs1 :: Count e
-  -- {-# INLINE (==) #-}
 
 instance (Prim e, Ord e) => Ord (PArray p e) where
   compare = compareMem @e
-  -- compare (PArray bs1) (PArray bs2)
-  --   | isSameBytes bs1 bs2 = EQ
-  --   | otherwise = compare n (countBytes bs2) <> compareOffMem bs1 0 bs2 0 n
-  --   where
-  --     n = countBytes bs1 :: Count e
   {-# INLINE compare #-}
 
 -- | A mutable array with elements of type @e@

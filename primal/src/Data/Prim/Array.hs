@@ -2285,7 +2285,7 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 --
 -- >>> import Data.Prim
 -- >>> let xs = "Hello"
--- >>> ma <- newUMArray (Size (length xs)) '!' :: IO (UMArray Char RW)
+-- >>> ma <- newUMArray (Size (length xs) + 8) '!' :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
 -- >>> freezeUMArray ma
 -- UArray "Hello!!!!!!!!"
