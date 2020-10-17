@@ -20,14 +20,21 @@ instance Arbitrary Size where
   arbitrary = Size . getNonNegative <$> arbitrary
 
 instance Arbitrary e => Arbitrary (BArray e) where
-  arbitrary = do
+  arbitrary = arbitrary1
+
+instance Arbitrary1 BArray where
+  liftArbitrary gen = do
     sz@(Size n) <- arbitrary
-    fromListBArrayN sz <$> vector n
+    fromListBArrayN sz <$> vectorOf n gen
 
 instance Arbitrary e => Arbitrary (SBArray e) where
-  arbitrary = do
+  arbitrary = arbitrary1
+
+instance Arbitrary1 SBArray where
+  liftArbitrary gen = do
     sz@(Size n) <- arbitrary
-    fromListSBArrayN sz <$> vector n
+    fromListSBArrayN sz <$> vectorOf n gen
+
 
 instance (Prim e, Arbitrary e) => Arbitrary (UArray e) where
   arbitrary = do

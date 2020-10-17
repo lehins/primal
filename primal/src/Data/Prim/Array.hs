@@ -135,12 +135,13 @@ import Control.DeepSeq
 import Control.Exception
 import Control.Monad.ST
 import Control.Prim.Monad
+import qualified Data.Foldable as F
+import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
 import GHC.Stack
-import Data.Functor.Classes
 
 -- $arrays
 --
@@ -199,17 +200,18 @@ instance Functor BArray where
 
 -- | @since 0.3.0
 instance Foldable BArray where
+  null = (== 0) . sizeOfBArray
+  {-# INLINE null #-}
   length = coerce . sizeOfBArray
   {-# INLINE length #-}
   foldr = foldrWithFB sizeOfBArray indexBArray
   {-# INLINE foldr #-}
 
+instance Show1 BArray where
+  liftShowsPrec _ = liftShowsPrecArray "BArray"
+
 instance Show e => Show (BArray e) where
-  showsPrec n arr
-    | n > 1 = ('(' :) . inner . (')' :)
-    | otherwise = inner
-    where
-      inner = ("BArray " ++) . shows (toList arr)
+  showsPrec = showsPrec1
 
 instance IsList (BArray e) where
   type Item (BArray e) = e
@@ -235,6 +237,15 @@ instance Eq e => Eq (BArray e) where
 instance Ord e => Ord (BArray e) where
   compare = compareWith isSameBArray sizeOfBArray indexBArray
   {-# INLINE compare #-}
+
+instance Eq1 BArray where
+  liftEq = liftEqWith sizeOfBArray indexBArray
+  {-# INLINE liftEq #-}
+
+instance Ord1 BArray where
+  liftCompare = liftCompareWith sizeOfBArray indexBArray
+  {-# INLINE liftCompare #-}
+
 
 
 instance Semigroup (BArray e) where
@@ -1109,17 +1120,18 @@ instance Functor SBArray where
 
 -- | @since 0.3.0
 instance Foldable SBArray where
+  null = (== 0) . sizeOfSBArray
+  {-# INLINE null #-}
   length = coerce . sizeOfSBArray
   {-# INLINE length #-}
   foldr = foldrWithFB sizeOfSBArray indexSBArray
   {-# INLINE foldr #-}
 
+instance Show1 SBArray where
+  liftShowsPrec _ = liftShowsPrecArray "SBArray"
+
 instance Show e => Show (SBArray e) where
-  showsPrec n arr
-    | n > 1 = ('(' :) . inner . (')' :)
-    | otherwise = inner
-    where
-      inner = ("SBArray " ++) . shows (toList arr)
+  showsPrec = showsPrec1
 
 instance IsList (SBArray e) where
   type Item (SBArray e) = e
@@ -2874,6 +2886,13 @@ liftEqWith sizeOf index eq a1 a2 = sz1 == sizeOf a2 && loop 0
       | i < n = (index a1 i `eq` index a2 i) && loop (i + 1)
       | otherwise = True
 {-# INLINE liftEqWith #-}
+
+liftShowsPrecArray :: Foldable f => String -> ([e] -> ShowS) -> Int -> f e -> ShowS
+liftShowsPrecArray tyName listShows n arr
+  | n > 1 = ('(' :) . inner . (')' :)
+  | otherwise = inner
+  where
+    inner = (tyName ++) . (' ' :) . listShows (F.toList arr)
 
 
 -- | Compare two arrays using supplied functions
