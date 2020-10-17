@@ -142,7 +142,7 @@ resizeSmallMutableArray# arr0 szNew a s0 =
 
 #if __GLASGOW_HASKELL__ < 804
 
-getSizeofMutableByteArray# :: MutableArray# s -> State# s -> (# State# s, Int# #)
+getSizeofMutableByteArray# :: MutableByteArray# s -> State# s -> (# State# s, Int# #)
 getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
 {-# INLINE getSizeofMutableByteArray# #-}
 
