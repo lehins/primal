@@ -118,7 +118,6 @@ import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
-import Foreign.Prim.Cmm
 import GHC.Stack
 
 -- $arrays

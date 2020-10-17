@@ -31,11 +31,11 @@ library
                      , Control.Prim.Monad.Throw
                      , Control.Prim.Monad.Unsafe
                      , Data.Prim
+                     , Data.Prim.Array
                      , Data.Prim.Atom
                      , Data.Prim.Atomic
                      , Data.Prim.Class
                      , Data.Prim.StableName
-                     , Data.Prim.Array
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr
