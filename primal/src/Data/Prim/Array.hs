@@ -197,6 +197,13 @@ instance Functor BArray where
   (<$) x a = runST $ newLazyBMArray (sizeOfBArray a) x >>= freezeBMArray
   {-# INLINE (<$) #-}
 
+-- | @since 0.3.0
+instance Foldable BArray where
+  length = coerce . sizeOfBArray
+  {-# INLINE length #-}
+  foldr = foldrWithFB sizeOfBArray indexBArray
+  {-# INLINE foldr #-}
+
 instance Show e => Show (BArray e) where
   showsPrec n arr
     | n > 1 = ('(' :) . inner . (')' :)
@@ -1099,6 +1106,13 @@ instance Functor SBArray where
   {-# INLINE fmap #-}
   (<$) x a = runST $ newLazySBMArray (sizeOfSBArray a) x >>= freezeSBMArray
   {-# INLINE (<$) #-}
+
+-- | @since 0.3.0
+instance Foldable SBArray where
+  length = coerce . sizeOfSBArray
+  {-# INLINE length #-}
+  foldr = foldrWithFB sizeOfSBArray indexSBArray
+  {-# INLINE foldr #-}
 
 instance Show e => Show (SBArray e) where
   showsPrec n arr
