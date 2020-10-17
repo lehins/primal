@@ -3,6 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -126,16 +127,20 @@ module Data.Prim.Array
     , foldrWithFB
     , eqWith
     , compareWith
+    , appendWith
+    , concatWith
   ) where
 
-import Control.Exception
 import Control.DeepSeq
+import Control.Exception
 import Control.Monad.ST
 import Control.Prim.Monad
+import qualified Data.List.NonEmpty as NE (toList)
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
 import GHC.Stack
+import Data.Functor.Classes
 
 -- $arrays
 --
@@ -224,6 +229,22 @@ instance Ord e => Ord (BArray e) where
   compare = compareWith isSameBArray sizeOfBArray indexBArray
   {-# INLINE compare #-}
 
+
+instance Semigroup (BArray e) where
+  (<>) = appendWith newRawBMArray copyBArray freezeBMArray sizeOfBArray
+  {-# INLINE (<>) #-}
+  sconcat xs = concatWith newRawBMArray copyBArray freezeBMArray sizeOfBArray (NE.toList xs)
+  {-# INLINE sconcat #-}
+  stimes n = cycleWith newRawBMArray copyBArray freezeBMArray sizeOfBArray (fromIntegral n)
+  {-# INLINE stimes #-}
+
+instance Monoid (BArray e) where
+  mempty = runST $ newRawBMArray 0 >>= freezeBMArray
+  {-# NOINLINE mempty #-}
+  mappend = (<>)
+  {-# INLINE mappend #-}
+  mconcat = concatWith newRawBMArray copyBArray freezeBMArray sizeOfBArray
+  {-# INLINE mconcat #-}
 
 -- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
 --
@@ -1112,6 +1133,32 @@ instance Ord e => Ord (SBArray e) where
   compare = compareWith isSameSBArray sizeOfSBArray indexSBArray
   {-# INLINE compare #-}
 
+instance Eq1 SBArray where
+  liftEq = liftEqWith sizeOfSBArray indexSBArray
+  {-# INLINE liftEq #-}
+
+instance Ord1 SBArray where
+  liftCompare = liftCompareWith sizeOfSBArray indexSBArray
+  {-# INLINE liftCompare #-}
+
+
+instance Semigroup (SBArray e) where
+  (<>) = appendWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray
+  {-# INLINE (<>) #-}
+  sconcat xs = concatWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray (NE.toList xs)
+  {-# INLINE sconcat #-}
+  stimes n = cycleWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray (fromIntegral n)
+  {-# INLINE stimes #-}
+
+instance Monoid (SBArray e) where
+  mempty = runST $ newRawSBMArray 0 >>= freezeSBMArray
+  {-# NOINLINE mempty #-}
+  mappend = (<>)
+  {-# INLINE mappend #-}
+  mconcat = concatWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray
+  {-# INLINE mconcat #-}
+
+
 -- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
 --
 -- @since 0.3.0
@@ -1974,6 +2021,23 @@ instance (Prim e, Ord e) => Ord (UArray e) where
   {-# INLINE compare #-}
 
 
+instance Prim e => Semigroup (UArray e) where
+  (<>) = appendWith newRawUMArray copyUArray freezeUMArray sizeOfUArray
+  {-# INLINE (<>) #-}
+  sconcat xs = concatWith newRawUMArray copyUArray freezeUMArray sizeOfUArray (NE.toList xs)
+  {-# INLINE sconcat #-}
+  stimes n = cycleWith newRawUMArray copyUArray freezeUMArray sizeOfUArray (fromIntegral n)
+  {-# INLINE stimes #-}
+
+instance Prim e => Monoid (UArray e) where
+  mempty = runST $ newRawUMArray 0 >>= freezeUMArray
+  {-# NOINLINE mempty #-}
+  mappend = (<>)
+  {-# INLINE mappend #-}
+  mconcat = concatWith newRawUMArray copyUArray freezeUMArray sizeOfUArray
+  {-# INLINE mconcat #-}
+
+
 -- | /O(1)/ - Compare pointers for two immutable arrays and see if they refer to the exact same one.
 --
 -- Documentation for utilized primop: `isSameByteArray#`.
@@ -2759,6 +2823,8 @@ foldrWithFB size index c nil a = go 0
 {-# INLINE[0] foldrWithFB #-}
 
 -- | Check for equality of two arrays
+--
+-- @since 0.3.0
 eqWith ::
      Eq e
   => (a e -> a e -> Bool) -- ^ Pointer equality
@@ -2775,7 +2841,30 @@ eqWith isSame sizeOf index a1 a2 = isSame a1 a2 || (sz1 == sizeOf a2 && loop 0)
       | otherwise = True
 {-# INLINE eqWith #-}
 
+
+
+-- | Check for equality of two arrays
+--
+-- @since 0.3.0
+liftEqWith ::
+     (forall e. a e -> Size) -- ^ Get the size of array
+  -> (forall e. a e -> Int -> e) -- ^ Index an element of an array
+  -> (b -> c -> Bool)
+  -> a b -- ^ First array
+  -> a c -- ^ Second array
+  -> Bool
+liftEqWith sizeOf index eq a1 a2 = sz1 == sizeOf a2 && loop 0
+  where
+    sz1@(Size n) = sizeOf a1
+    loop i
+      | i < n = (index a1 i `eq` index a2 i) && loop (i + 1)
+      | otherwise = True
+{-# INLINE liftEqWith #-}
+
+
 -- | Compare two arrays using supplied functions
+--
+-- @since 0.3.0
 compareWith ::
      Ord e
   => (a e -> a e -> Bool) -- ^ Pointer equality
@@ -2793,3 +2882,88 @@ compareWith isSame sizeOf index a1 a2
       | i < n = compare (index a1 i) (index a2 i) <> loop (i + 1)
       | otherwise = compare (sizeOf a1) (sizeOf a2)
 {-# INLINE compareWith #-}
+
+
+-- | Compare two arrays using supplied functions
+--
+-- @since 0.3.0
+liftCompareWith ::
+     (forall e. a e -> Size) -- ^ Get the size of array
+  -> (forall e. a e -> Int -> e) -- ^ Index an element of an array
+  -> (b -> c -> Ordering)
+  -> a b -- ^ First array
+  -> a c -- ^ Second array
+  -> Ordering
+liftCompareWith sizeOf index comp a1 a2 = loop 0
+  where
+    Size n = min (sizeOf a1) (sizeOf a2)
+    loop i
+      | i < n = comp (index a1 i) (index a2 i) <> loop (i + 1)
+      | otherwise = compare (sizeOf a1) (sizeOf a2)
+{-# INLINE liftCompareWith #-}
+
+-- | Append two arrays together using supplied functions
+--
+-- @since 0.3.0
+appendWith ::
+     (forall s. Size -> ST s (ma e s))
+  -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
+  -> (forall s. ma e s -> ST s (a e))
+  -> (a e -> Size)
+  -> a e
+  -> a e
+  -> a e
+appendWith newRaw copy freeze sizeOf a1 a2 =
+  runST $ do
+    let n1 = sizeOf a1
+        n2 = sizeOf a2
+    ma <- newRaw (n1 + n2)
+    copy a1 0 ma 0 n1
+    copy a2 0 ma (coerce n1) n2
+    freeze ma
+{-# INLINE appendWith #-}
+
+
+-- | Concat many arrays together using supplied functions
+--
+-- @since 0.3.0
+concatWith ::
+     (forall s. Size -> ST s (ma e s))
+  -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
+  -> (forall s. ma e s -> ST s (a e))
+  -> (a e -> Size)
+  -> [a e]
+  -> a e
+concatWith newRaw copy freeze sizeOf xs =
+  runST $ do
+    let as = [(sizeOf a, a) | a <- xs]
+        !n = getSum $ foldMap (Sum . fst) as
+    ma <- newRaw n
+    let load i (sz, a) = (i + coerce sz) <$ copy a 0 ma i sz
+    foldM_ load 0 as
+    freeze ma
+{-# INLINE concatWith #-}
+
+
+-- | Repeat an array N times and concat them together using supplied functions
+--
+-- @since 0.3.0
+cycleWith ::
+     Monoid (a e)
+  => (forall s. Size -> ST s (ma e s))
+  -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
+  -> (forall s. ma e s -> ST s (a e))
+  -> (a e -> Size)
+  -> Int
+  -> a e
+  -> a e
+cycleWith newRaw copy freeze sizeOf k a
+  | k <= 0 = mempty
+  | otherwise =
+    runST $ do
+      let sz@(Size n) = sizeOf a
+      ma <- newRaw (Size k * sz)
+      let load i = when (i < k) $ copy a 0 ma (i * n) sz >> load (i + 1)
+      load 0
+      freeze ma
+{-# INLINE cycleWith #-}

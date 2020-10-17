@@ -83,7 +83,6 @@ test-suite doctests
   ghc-options:        -Wall
                       -threaded
 
-
 source-repository head
   type:     git
   location: https://github.com/lehins/primal
