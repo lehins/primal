@@ -58,6 +58,7 @@ module Data.Prim.Atom
   , atomicXorFetchNewOffAddrBits#
   ) where
 
+import Control.Concurrent
 import Control.DeepSeq
 import Control.Exception
 import Control.Monad
@@ -123,7 +124,7 @@ acquireLockByteOffMutableByteArray :: MutableByteArray# RealWorld -> Int# -> IO 
 acquireLockByteOffMutableByteArray mba# i# =
   let go = do
         locked <- syncLockTestSetInt8ArrayIO mba# i#
-        when (locked == 0) go
+        unless (locked == 0) $ yield >> go
    in go
 {-# INLINE acquireLockByteOffMutableByteArray #-}
 
@@ -136,7 +137,7 @@ acquireLockByteOffAddr :: Addr# -> Int# -> IO ()
 acquireLockByteOffAddr addr# i# =
   let go = do
         locked <- syncLockTestSetInt8AddrIO addr# i#
-        when (locked == 0) go
+        unless (locked == 0) $ yield >> go
    in go
 {-# INLINE acquireLockByteOffAddr #-}
 
@@ -157,13 +158,13 @@ withLockMutableByteArray mba# i# f =
         (unsafeUnmask (acquireLockByteOffMutableByteArray mba# li#))
         (releaseLockByteOffMutableByteArray mba# li#) $
       IO $ \s ->
-        case readMutableByteArray# mba# i# s of
+        case readByteOffMutableByteArray# mba# (1# +# li#) s of
           (# s', a #) ->
-            case f a of
+            case f (Atom a) of
               IO m ->
                 case m s' of
-                  (# s'', (a', b) #) ->
-                    (# writeMutableByteArray# mba# i# a' s'', b #)
+                  (# s'', (Atom a', b) #) ->
+                    (# writeByteOffMutableByteArray# mba# (1# +# li#) a' s'', b #)
 {-# INLINABLE withLockMutableByteArray #-}
 
 
@@ -222,12 +223,14 @@ atomicWriteAtomOffAddr ::
   -> Int#
   -> Atom e
   -> IO ()
-atomicWriteAtomOffAddr mba# i# (Atom a) =
+atomicWriteAtomOffAddr addr# i# (Atom a) =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
+      lockAddr# = addr# `plusAddr#` li#
+      valAddr# = lockAddr# `plusAddr#` 1#
    in bracket_
-        (unsafeUnmask (acquireLockByteOffAddr mba# li#))
-        (releaseLockByteOffAddr mba# li#)
-        (prim_ (writeOffAddr# mba# (1# +# li#) a))
+        (unsafeUnmask (acquireLockByteOffAddr lockAddr# 0#))
+        (releaseLockByteOffAddr lockAddr# 0#)
+        (prim_ (writeOffAddr# valAddr# 0# a))
 {-# INLINABLE atomicWriteAtomOffAddr #-}
 
 
@@ -240,17 +243,18 @@ withLockOffAddr ::
   -> IO b
 withLockOffAddr addr# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
+      offAddr# = addr# `plusAddr#` (1# +# li#)
    in bracket_
         (unsafeUnmask (acquireLockByteOffAddr addr# li#))
         (releaseLockByteOffAddr addr# li#) $
       IO $ \s ->
-        case readOffAddr# addr# i# s of
+        case readOffAddr# offAddr# 0# s of
           (# s', a #) ->
-            case f a of
+            case f (Atom a) of
               IO m ->
                 case m s' of
-                  (# s'', (a', b) #) ->
-                    (# writeOffAddr# addr# i# a' s'', b #)
+                  (# s'', (Atom a', b) #) ->
+                    (# writeOffAddr# offAddr# 0# a' s'', b #)
 {-# INLINABLE withLockOffAddr #-}
 
 atomicModifyAtomMutableByteArray# ::
@@ -268,11 +272,11 @@ atomicModifyAtomMutableByteArray# mba# i# f =
         (unsafeUnmask (acquireLockByteOffMutableByteArray mba'# li#))
         (releaseLockByteOffMutableByteArray mba'# li#) $
       IO $ \s ->
-        case readMutableByteArray# mba'# i# s of
+        case readByteOffMutableByteArray# mba'# (1# +# li#) s of
           (# s', a #) ->
-            case f a of
-              (# a', b #) ->
-                (# writeMutableByteArray# mba'# i# a' s', b #)
+            case f (Atom a) of
+              (# Atom a', b #) ->
+                (# writeByteOffMutableByteArray# mba'# (1# +# li#) a' s', b #)
 {-# INLINE atomicModifyAtomMutableByteArray#  #-}
 
 atomicModifyAtomOffAddr# ::
@@ -284,16 +288,17 @@ atomicModifyAtomOffAddr# ::
   -> (# State# s, b #)
 atomicModifyAtomOffAddr# addr# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
+      offAddr# = addr# `plusAddr#` (1# +# li#)
    in unsafePrimBase $
       bracket_
         (unsafeUnmask (acquireLockByteOffAddr addr# li#))
         (releaseLockByteOffAddr addr# li#) $
       IO $ \s ->
-        case readOffAddr# addr# i# s of
+        case readOffAddr# offAddr# 0# s of
           (# s', a #) ->
-            case f a of
-              (# a', b #) ->
-                (# writeOffAddr# addr# i# a' s', b #)
+            case f (Atom a) of
+              (# Atom a', b #) ->
+                (# writeOffAddr# offAddr# 0# a' s', b #)
 {-# INLINE atomicModifyAtomOffAddr# #-}
 
 
