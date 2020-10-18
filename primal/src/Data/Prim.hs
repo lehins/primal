@@ -106,7 +106,7 @@ byteCountType :: forall e . Prim e => Count Word8
 byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCountType #-}
 
--- | Same as `sizeOf`, but argument is a `Proxy` of @a@, instead of the type itself.
+-- | Same as `byteCount`, but argument is a `Proxy` of @e@, instead of the type itself.
 --
 -- >>> import Data.Prim
 -- >>> import Data.Proxy

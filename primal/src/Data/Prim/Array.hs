@@ -110,10 +110,10 @@ module Data.Prim.Array
     , makeUMArray
 
     , newPinnedUMArray
-    , newPinnedRawUMArray
+    , newRawPinnedUMArray
     , makePinnedUMArray
     , newAlignedPinnedUMArray
-    , newAlignedPinnedRawUMArray
+    , newRawAlignedPinnedUMArray
     , makeAlignedPinnedUMArray
     , moveUMArray
     , setUMArray
@@ -2441,7 +2441,7 @@ newUMArray n e = newRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
 {-# INLINE newUMArray #-}
 
 
--- | Same `newUMArray`, but allocate memory as pinned. See `newPinnedRawUMArray` for more info.
+-- | Same `newUMArray`, but allocate memory as pinned. See `newRawPinnedUMArray` for more info.
 --
 -- [Unsafe] - Same reasons as `newUMArray`.
 --
@@ -2451,12 +2451,12 @@ newPinnedUMArray ::
   => Size
   -> e
   -> m (UMArray e s)
-newPinnedUMArray n e = newPinnedRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
+newPinnedUMArray n e = newRawPinnedUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
 {-# INLINE newPinnedUMArray #-}
 
 
 -- | Same `newUMArray`, but allocate memory as pinned and aligned. See
--- `newAlignedPinnedRawUMArray` for more info.
+-- `newRawAlignedPinnedUMArray` for more info.
 --
 -- [Unsafe] - Same reasons as `newUMArray`.
 --
@@ -2466,7 +2466,7 @@ newAlignedPinnedUMArray ::
   => Size
   -> e
   -> m (UMArray e s)
-newAlignedPinnedUMArray n e = newAlignedPinnedRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
+newAlignedPinnedUMArray n e = newRawAlignedPinnedUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
 {-# INLINE newAlignedPinnedUMArray #-}
 
 
@@ -2507,7 +2507,7 @@ makePinnedUMArray ::
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
-makePinnedUMArray = makeMutWith newPinnedRawUMArray writeUMArray
+makePinnedUMArray = makeMutWith newRawPinnedUMArray writeUMArray
 {-# INLINE makePinnedUMArray #-}
 
 -- | Same as `makeUMArray`, but allocate memory as pinned and aligned.
@@ -2520,7 +2520,7 @@ makeAlignedPinnedUMArray ::
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
-makeAlignedPinnedUMArray = makeMutWith newAlignedPinnedRawUMArray writeUMArray
+makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 {-# INLINE makeAlignedPinnedUMArray #-}
 
 
@@ -2574,17 +2574,17 @@ newRawUMArray n =
 -- [Unsafe] Same reasons as in `newRawUMArray`.
 --
 -- @since 0.3.0
-newPinnedRawUMArray ::
+newRawPinnedUMArray ::
      forall e m s. (Prim e, MonadPrim s m)
   => Size
   -> m (UMArray e s)
-newPinnedRawUMArray n =
+newRawPinnedUMArray n =
   prim $ \s ->
     case newPinnedByteArray# (unCountBytes# (coerce n :: Count e)) s of
       (# s', ma# #) -> (# s', UMArray ma# #)
-{-# INLINE newPinnedRawUMArray #-}
+{-# INLINE newRawPinnedUMArray #-}
 
--- | /O(1)/ - Same as `newPinnedRawUMArray` except allocate new mutable unboxed array as
+-- | /O(1)/ - Same as `newRawPinnedUMArray` except allocate new mutable unboxed array as
 -- pinned and aligned according to the `Prim` instance for the type of element @__e__@
 --
 -- Documentation for utilized primop: `newAlignedPinnedByteArray#`.
@@ -2592,17 +2592,17 @@ newPinnedRawUMArray n =
 -- [Unsafe] Same reasons as in `newRawUMArray`.
 --
 -- @since 0.3.0
-newAlignedPinnedRawUMArray ::
+newRawAlignedPinnedUMArray ::
      forall e m s. (Prim e, MonadPrim s m)
   => Size
   -> m (UMArray e s)
-newAlignedPinnedRawUMArray n =
+newRawAlignedPinnedUMArray n =
   prim $ \s ->
     let c# = unCountBytes# (coerce n :: Count e)
         a# = alignment# (proxy# :: Proxy# e)
      in case newAlignedPinnedByteArray# c# a# s of
           (# s', ma# #) -> (# s', UMArray ma# #)
-{-# INLINE newAlignedPinnedRawUMArray #-}
+{-# INLINE newRawAlignedPinnedUMArray #-}
 
 
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same

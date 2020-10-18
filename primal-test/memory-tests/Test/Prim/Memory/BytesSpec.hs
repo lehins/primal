@@ -233,6 +233,7 @@ spec = do
   primBaseTypeSpec @Word64
   primBaseTypeSpec @(Ptr Char)
 
+  primTypeSpec @(Atom Word16)
   primTypeSpec @(Identity Word)
   primTypeSpec @(Down Word8)
   primTypeSpec @(Dual Word16)
