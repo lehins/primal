@@ -1,8 +1,14 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+#if !MIN_VERSION_base(4,9,0)
+  {-# LANGUAGE ConstraintKinds #-}
+  {-# LANGUAGE KindSignatures #-}
+  {-# LANGUAGE ImplicitParams #-}
+#endif
 -- |
 -- Module      : Control.Prim.Exception
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -12,16 +18,65 @@
 -- Portability : non-portable
 --
 module Control.Prim.Exception
-  ( module Control.Prim.Monad.Throw
-  , module Control.Prim.Exception
+  (
+  -- * Throwing
+    module Control.Prim.Monad.Throw
+  , throw
+  , throwPrim
+  , throwToPrim
+  -- * Catching
+  , catchPrim
+  , catchAnyPrim
+  , catchAnySyncPrim
+  , catchAllPrim
+  , catchAllSyncPrim
+  , maskAsyncExceptions
+  , unmaskAsyncExceptions
+  , maskUninterruptible
+  , getMaskingStatePrim
+  -- * Exceptions
+  , Exception(..)
+  , SomeException
+  -- ** Async exceptions
+  , AsyncException(..)
+  , SomeAsyncException
+  , isSyncException
+  , isAsyncException
+  , asyncExceptionToException
+  , asyncExceptionFromException
+  -- ** Standard exceptions
+  , ErrorCall(..)
+  , ArithException(..)
+  , ArrayException(..)
+  , AssertionFailed(..)
+  , IOException
+  , NonTermination(..)
+  , NestedAtomically(..)
+  , BlockedIndefinitelyOnMVar(..)
+  , BlockedIndefinitelyOnSTM(..)
+  , AllocationLimitExceeded(..)
+  , Deadlock(..)
+  -- * CallStack
+  , CallStack
+  , HasCallStack
+  , callStack
+  , getCallStack
+  , prettyCallStack
+  , SrcLoc(..)
+  , prettySrcLoc
   ) where
 
-import Control.Prim.Monad.Throw
 import Control.Exception as GHC
-import qualified GHC.Conc as GHC
 import Control.Prim.Monad.Internal
+import Control.Prim.Monad.Throw
 import Control.Prim.Monad.Unsafe
+import qualified GHC.Conc as GHC
 import GHC.Exts
+import GHC.Stack
+#if !MIN_VERSION_base(4,9,0)
+import Data.List (intercalate)
+import GHC.SrcLoc
+#endif
 
 
 
@@ -34,43 +89,61 @@ isAsyncException :: Exception e => e -> Bool
 isAsyncException exc =
   case fromException (toException exc) of
     Just (SomeAsyncException _) -> True
-    Nothing -> False
+    Nothing                     -> False
 
--- | This is the same as `throwM`, but restricted to `MonadPrim`
+-- | This is the same as `throwIO`, but works with any `MonadPrim` without restriction on
+-- `RealWorld`.
 throwPrim :: (Exception e, MonadPrim s m) => e -> m a
 throwPrim e = unsafeIOToPrim $ prim (raiseIO# (toException e))
 
-catch ::
+
+-- | Similar to `throwTo`, except that it wraps any known non-async exception with
+-- `SomeAsyncException`, just like
+-- [@UnliftIO.Exception.throwTo@](https://hackage.haskell.org/package/unliftio/docs/UnliftIO-Exception.html#v:throwTo)
+-- does. This is necessary, because receiving thread will get the exception in an
+-- asynchronous manner and without proper wrapping it will not be able to distinguish it
+-- from a regular synchronous exception
+throwToPrim :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
+throwToPrim tid e =
+  liftPrimBase $
+  GHC.throwTo tid $
+  if isAsyncException e
+    then toException e
+    else toException $ SomeAsyncException e
+
+-- | Behaves exactly as `catch`, except that it works in any `MonadUnliftPrim`.
+catchPrim ::
      forall e a m. (Exception e, MonadUnliftPrim RW m)
   => m a
   -> (e -> m a)
   -> m a
-catch action handler =
+catchPrim action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
-        handler# e =
-          case fromException e of
-            Just e' -> primBase (run (handler e') :: IO a)
-            Nothing -> raiseIO# e
+        handler# someExc =
+          case fromException someExc of
+            Just exc -> primBase (run (handler exc) :: IO a)
+            Nothing -> raiseIO# someExc
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAny ::
+
+catchAnyPrim ::
      forall a m. MonadUnliftPrim RW m
   => m a
   -> (SomeException -> m a)
   -> m a
-catchAny action handler =
+catchAnyPrim action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# exc = primBase (run (handler exc) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAnySync ::
+catchAnySyncPrim ::
      forall a m. MonadUnliftPrim RW m
   => m a
   -> (SomeException -> m a)
   -> m a
-catchAnySync action handler =
+catchAnySyncPrim action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# exc
@@ -78,23 +151,23 @@ catchAnySync action handler =
           | otherwise = primBase (run (handler exc) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAll ::
+catchAllPrim ::
      forall a m. MonadUnliftPrim RW m
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAll action handler =
+catchAllPrim action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# (SomeException e) = primBase (run (handler e) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAllSync ::
+catchAllSyncPrim ::
      forall a m. MonadUnliftPrim RW m
   => m a
   -> (forall e . Exception e => e -> m a)
   -> m a
-catchAllSync action handler =
+catchAllSyncPrim action handler =
   withRunInPrimBase $ \run ->
     let handler# :: SomeException -> (State# RW -> (# State# RW, a #))
         handler# exc@(SomeException e)
@@ -116,17 +189,36 @@ maskUninterruptible action =
   withRunInPrimBase $ \run -> prim (maskUninterruptible# (primBase (run action :: IO a)))
 
 -- | Same as `GHC.getMaskingState`, but generalized to `MonadPrim`
-getMaskingState :: MonadPrim RW m => m MaskingState
-getMaskingState = liftPrimBase GHC.getMaskingState
+getMaskingStatePrim :: MonadPrim RW m => m MaskingState
+getMaskingStatePrim = liftPrimBase GHC.getMaskingState
 
--- | Similar to @throwTo@ from
--- [unliftio](https://hackage.haskell.org/package/unliftio/docs/UnliftIO-Exception.html#v:throwTo)
--- this will wrap any known non-async exception with `SomeAsyncException`, because
--- otherwise semantics of `throwTo` with respect to asynchronous exceptions are violated.
-throwTo :: (MonadPrim RW m, Exception e) => GHC.ThreadId -> e -> m ()
-throwTo tid e =
-  liftPrimBase $
-  GHC.throwTo tid $
-  if isAsyncException e
-    then toException e
-    else toException $ SomeAsyncException e
+
+#if !MIN_VERSION_base(4,9,0)
+
+-- | (Implemented for compatibility with GHC-7.10.2)
+type HasCallStack = (?callStack :: CallStack)
+
+callStack :: HasCallStack => CallStack
+callStack = ?callStack
+
+-- | Pretty print a 'SrcLoc'. (Implemented for compatibility with GHC-7.10.2)
+--
+-- @since 3.0.0
+prettySrcLoc :: SrcLoc -> String
+prettySrcLoc = showSrcLoc
+
+-- | Pretty print a 'CallStack'. (Implemented for compatibility with GHC-7.10.2)
+--
+-- @since 3.0.0
+prettyCallStack :: CallStack -> String
+prettyCallStack = intercalate "\n" . prettyCallStackLines
+
+
+prettyCallStackLines :: CallStack -> [String]
+prettyCallStackLines cs = case getCallStack cs of
+  []  -> []
+  stk -> "CallStack (from HasCallStack):"
+       : map (("  " ++) . prettyCallSite) stk
+  where
+    prettyCallSite (f, loc) = f ++ ", called at " ++ prettySrcLoc loc
+#endif

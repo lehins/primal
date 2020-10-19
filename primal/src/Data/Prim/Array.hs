@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
@@ -132,8 +133,8 @@ module Data.Prim.Array
   ) where
 
 import Control.DeepSeq
-import Control.Exception
 import Control.Monad.ST
+import Control.Prim.Exception
 import Control.Prim.Monad
 import qualified Data.Foldable as F
 import Data.Functor.Classes
@@ -141,7 +142,6 @@ import qualified Data.List.NonEmpty as NE (toList)
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
-import GHC.Stack
 
 -- $arrays
 --

@@ -13,7 +13,12 @@ build-type:          Simple
 extra-source-files:  README.md
                    , CHANGELOG.md
 cabal-version:       1.18
-tested-with:         GHC == 8.4.3
+tested-with:         GHC == 7.10.2
+                   , GHC == 7.10.3
+                   , GHC == 8.0.1
+                   , GHC == 8.0.2
+                   , GHC == 8.2.2
+                   , GHC == 8.4.3
                    , GHC == 8.4.4
                    , GHC == 8.6.3
                    , GHC == 8.6.4
@@ -47,7 +52,7 @@ library
                      , Foreign.Prim.C.LtGHC802
                      , Foreign.Prim.C.LtGHC806
                      , Foreign.Prim.Cmm
-  build-depends:       base >= 4.8 && < 5
+  build-depends:       base >= 4.8.1 && < 5
                      , deepseq
                      , transformers
 
@@ -102,6 +107,8 @@ test-suite tests
                       -fno-warn-orphans
                       -threaded
                       -with-rtsopts=-N2
+  if !impl(ghc < 8.0)
+    ghc-options:      -fno-warn-redundant-constraints
 
 source-repository head
   type:     git

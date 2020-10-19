@@ -984,8 +984,11 @@ instance (Prim a, Prim b) => Prim (Arg a b) where
   toPrimBase (Arg a b) = (a, b)
   fromPrimBase (a, b) = Arg a b
 
+#if __GLASGOW_HASKELL__ >= 800
 instance Prim a => Prim (Const a b) where
   type PrimBase (Const a b) = a
+#endif /* __GLASGOW_HASKELL__ >= 800 */
+
 
 #if __GLASGOW_HASKELL__ >= 802
 

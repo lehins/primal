@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -50,24 +51,24 @@ delay :: MonadPrim s m => Int -> m ()
 delay (I# i#) = prim_ (delay# i#)
 
 -- | Wrapper for `waitRead#`. Block and wait for input to become available on the
--- `Fd`. Not designed for threaded runtime: __Errors when compiled with @-threaded@__
+-- `Fd`. Not designed for threaded runtime: __Errors out when compiled with @-threaded@__
 waitRead :: MonadPrim s m => Fd -> m ()
-waitRead fd =
+waitRead !fd =
   case fromIntegral fd of
     I# i# -> prim_ (waitRead# i#)
 
 
 -- | Wrapper for `waitWrite#`. Block and wait until output is possible on the `Fd`.
--- Not designed for threaded runtime: __Errors when compiled with @-threaded@__
+-- Not designed for threaded runtime: __Errors out when compiled with @-threaded@__
 waitWrite :: MonadPrim s m => Fd -> m ()
-waitWrite fd =
+waitWrite !fd =
   case fromIntegral fd of
     I# i# -> prim_ (waitWrite# i#)
 
 -- | Wrapper around `fork#`. Unlike `Control.Concurrent.forkIO` it does not install
 -- any exception handlers on the action, so you need make sure to do it yourself.
 fork :: MonadPrim RW m => m () -> m GHC.ThreadId
-fork action =
+fork !action =
   prim $ \s ->
     case fork# action s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
@@ -75,7 +76,7 @@ fork action =
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
 forkOn :: MonadPrim RW m => Int -> m () -> m GHC.ThreadId
-forkOn (I# cap#) action =
+forkOn (I# cap#) !action =
   prim $ \s ->
     case forkOn# cap# action s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
@@ -83,7 +84,7 @@ forkOn (I# cap#) action =
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
 killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
-killThread tid = throwTo tid GHC.ThreadKilled
+killThread !tid = throwToPrim tid GHC.ThreadKilled
 
 
 -- | Wrapper around `yield#`.

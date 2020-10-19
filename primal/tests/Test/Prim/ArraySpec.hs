@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 module Test.Prim.ArraySpec (spec) where
 
 import Data.Prim
