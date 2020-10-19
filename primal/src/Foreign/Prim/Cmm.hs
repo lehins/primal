@@ -25,9 +25,6 @@ module Foreign.Prim.Cmm
   , shrinkSmallMutableArray#
   , resizeSmallMutableArray#
 #endif
-#if __GLASGOW_HASKELL__ < 800
-  , getSizeofMutableByteArray#
-#endif
   ) where
 
 
@@ -135,13 +132,5 @@ resizeSmallMutableArray# arr0 szNew a s0 =
                           s3 -> (# s3, arr1 #)
                else (# s1, arr0 #)
 
-
-#endif
-
-#if __GLASGOW_HASKELL__ < 800
-
-getSizeofMutableByteArray# :: MutableByteArray# s -> State# s -> (# State# s, Int# #)
-getSizeofMutableByteArray# mba# s# = (# s#, sizeofMutableByteArray# mba# #)
-{-# INLINE getSizeofMutableByteArray# #-}
 
 #endif
