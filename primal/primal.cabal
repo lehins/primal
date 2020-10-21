@@ -54,7 +54,7 @@ library
                      , Foreign.Prim.Cmm
   build-depends:       base >= 4.8.1 && < 5
                      , deepseq
-                     , transformers
+                     , transformers >= 0.4.2.0
 
   default-language:    Haskell2010
   ghc-options:         -Wall

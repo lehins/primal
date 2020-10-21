@@ -208,7 +208,11 @@ instance Foldable BArray where
   {-# INLINE foldr #-}
 
 instance Show1 BArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftShowsPrec _ = liftShowsPrecArray "BArray"
+#else
+  showsPrec1 = liftShowsPrecArray "BArray" showList
+#endif
 
 instance Show e => Show (BArray e) where
   showsPrec = showsPrec1
@@ -239,13 +243,23 @@ instance Ord e => Ord (BArray e) where
   {-# INLINE compare #-}
 
 instance Eq1 BArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftEq = liftEqWith sizeOfBArray indexBArray
   {-# INLINE liftEq #-}
+#else
+  eq1 = liftEqWith sizeOfBArray indexBArray (==)
+  {-# INLINE eq1 #-}
+#endif
+
 
 instance Ord1 BArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftCompare = liftCompareWith sizeOfBArray indexBArray
   {-# INLINE liftCompare #-}
-
+#else
+  compare1 = liftCompareWith sizeOfBArray indexBArray compare
+  {-# INLINE compare1 #-}
+#endif
 
 
 instance Semigroup (BArray e) where
@@ -1128,7 +1142,11 @@ instance Foldable SBArray where
   {-# INLINE foldr #-}
 
 instance Show1 SBArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftShowsPrec _ = liftShowsPrecArray "SBArray"
+#else
+  showsPrec1 = liftShowsPrecArray "SBArray" showList
+#endif
 
 instance Show e => Show (SBArray e) where
   showsPrec = showsPrec1
@@ -1160,12 +1178,22 @@ instance Ord e => Ord (SBArray e) where
   {-# INLINE compare #-}
 
 instance Eq1 SBArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftEq = liftEqWith sizeOfSBArray indexSBArray
   {-# INLINE liftEq #-}
+#else
+  eq1 = liftEqWith sizeOfSBArray indexSBArray (==)
+  {-# INLINE eq1 #-}
+#endif
 
 instance Ord1 SBArray where
+#if MIN_VERSION_transformers(0,5,0)
   liftCompare = liftCompareWith sizeOfSBArray indexSBArray
   {-# INLINE liftCompare #-}
+#else
+  compare1 = liftCompareWith sizeOfSBArray indexSBArray compare
+  {-# INLINE compare1 #-}
+#endif
 
 
 instance Semigroup (SBArray e) where
