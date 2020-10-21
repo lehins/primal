@@ -89,11 +89,11 @@ class MonadPrim s m => MonadUnliftPrim s m where
   withRunInPrimBase :: MonadPrimBase s n => ((forall a. m a -> n a) -> n b) -> m b
 
 instance MonadUnliftPrim RealWorld IO where
-  withRunInPrimBase inner = liftPrimBase (inner liftPrimBase)
+  withRunInPrimBase inner = primBaseToIO (inner liftPrimBase)
   {-# INLINE withRunInPrimBase #-}
 
 instance MonadUnliftPrim s (ST s) where
-  withRunInPrimBase inner = liftPrimBase (inner liftPrimBase)
+  withRunInPrimBase inner = primBaseToST (inner liftPrimBase)
   {-# INLINE withRunInPrimBase #-}
 
 instance MonadUnliftPrim s m => MonadUnliftPrim s (IdentityT m) where

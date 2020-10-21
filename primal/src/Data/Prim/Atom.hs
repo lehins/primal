@@ -61,6 +61,7 @@ module Data.Prim.Atom
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Exception
+import Control.Prim.Exception
 import Control.Monad
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
@@ -145,6 +146,19 @@ releaseLockByteOffAddr :: Addr#-> Int# -> IO ()
 releaseLockByteOffAddr addr# i# = syncLockReleaseInt8AddrIO addr# i#
 {-# INLINE releaseLockByteOffAddr #-}
 
+-- -- bracket
+-- --         :: IO a         -- ^ computation to run first (\"acquire resource\")
+-- --         -> (a -> IO b)  -- ^ computation to run last (\"release resource\")
+-- --         -> (a -> IO c)  -- ^ computation to run in-between
+-- --         -> IO c         -- returns the value from the in-between computation
+-- withSpinLock before after thing = do
+--   -- blockUninterruptible >>= \case
+--   --   Unmasked -> 
+--   -- a <- before
+--   -- r <- restore (thing a) `onException` after a
+--   -- _ <- after a
+--   -- return r
+--   catchAllPrim
 
 withLockMutableByteArray ::
      forall e b. Prim e
@@ -257,6 +271,10 @@ withLockOffAddr addr# i# f =
                     (# writeOffAddr# offAddr# 0# a' s'', b #)
 {-# INLINABLE withLockOffAddr #-}
 
+-- blockUninterruptible :: IO a -> IO a
+-- blockUninterruptible (IO io) = IO $ maskUninterruptible# io
+
+
 atomicModifyAtomMutableByteArray# ::
      forall e b s. Prim e
   => MutableByteArray# s
@@ -267,16 +285,25 @@ atomicModifyAtomMutableByteArray# ::
 atomicModifyAtomMutableByteArray# mba# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       mba'# = unsafeCoerce# mba# :: MutableByteArray# RealWorld
-   in unsafePrimBase $
-      bracket_
-        (unsafeUnmask (acquireLockByteOffMutableByteArray mba'# li#))
-        (releaseLockByteOffMutableByteArray mba'# li#) $
-      IO $ \s ->
-        case readByteOffMutableByteArray# mba'# (1# +# li#) s of
-          (# s', a #) ->
-            case f (Atom a) of
-              (# Atom a', b #) ->
-                (# writeByteOffMutableByteArray# mba'# (1# +# li#) a' s', b #)
+   in unsafePrimBase $ maskUninterruptible $ do
+        acquireLockByteOffMutableByteArray mba'# li#
+        r <- IO $ \s ->
+          case readByteOffMutableByteArray# mba'# (1# +# li#) s of
+            (# s', a #) ->
+              case f (Atom a) of
+                (# Atom a', b #) ->
+                  (# writeByteOffMutableByteArray# mba'# (1# +# li#) a' s', b #)
+        releaseLockByteOffMutableByteArray mba'# li#
+        pure r
+      -- bracket_
+      --   (unsafeUnmask (acquireLockByteOffMutableByteArray mba'# li#))
+      --   (releaseLockByteOffMutableByteArray mba'# li#) $
+      -- IO $ \s ->
+      --   case readByteOffMutableByteArray# mba'# (1# +# li#) s of
+      --     (# s', a #) ->
+      --       case f (Atom a) of
+      --         (# Atom a', b #) ->
+      --           (# writeByteOffMutableByteArray# mba'# (1# +# li#) a' s', b #)
 {-# INLINE atomicModifyAtomMutableByteArray#  #-}
 
 atomicModifyAtomOffAddr# ::

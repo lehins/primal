@@ -77,7 +77,7 @@ import GHC.Stack
 import Data.List (intercalate)
 import GHC.SrcLoc
 #endif
-
+import GHC.IO (IO(..))
 
 
 ----- Exceptions
@@ -176,17 +176,22 @@ catchAllSyncPrim action handler =
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
 
-maskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
-maskAsyncExceptions action =
-  withRunInPrimBase $ \run -> prim (maskAsyncExceptions# (primBase (run action :: IO a)))
+--maskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
+maskAsyncExceptions :: MonadPrimBase RW m => m a -> m a
+maskAsyncExceptions action = prim (maskAsyncExceptions# (primBase action))
+  --withRunInPrimBase $ \run -> prim (maskAsyncExceptions# (primBase (run action :: IO a)))
+{-# INLINE maskAsyncExceptions  #-}
 
 unmaskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
 unmaskAsyncExceptions action =
   withRunInPrimBase $ \run -> prim (unmaskAsyncExceptions# (primBase (run action :: IO a)))
 
+-- maskUninterruptible :: MonadPrimBase RW m => m a -> m a
+-- maskUninterruptible action = prim (maskUninterruptible# (primBase action))
 maskUninterruptible :: forall a m. MonadUnliftPrim RW m => m a -> m a
 maskUninterruptible action =
-  withRunInPrimBase $ \run -> prim (maskUninterruptible# (primBase (run action :: IO a)))
+  withRunInPrimBase (\run -> IO (maskUninterruptible# (primBase (run action :: IO a))))
+{-# INLINE maskUninterruptible  #-}
 
 -- | Same as `GHC.getMaskingState`, but generalized to `MonadPrim`
 getMaskingStatePrim :: MonadPrim RW m => m MaskingState
