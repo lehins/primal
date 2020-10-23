@@ -12,7 +12,9 @@
 -- Portability : non-portable
 --
 module Control.Prim.Monad.Unsafe
-  ( unsafePrimBase
+  ( unsafePrim
+  , unsafePrim_
+  , unsafePrimBase
   , unsafePrimBase_
   , unsafePrimBaseToPrim
   , unsafePrimBaseToIO
@@ -41,6 +43,26 @@ import Control.Prim.Monad.Internal
 import Control.Monad.ST (ST)
 import GHC.IO
 import GHC.Exts
+
+-- | Coerce the state token of prim operation and wrap it into a `MonadPrim` action.
+--
+-- === Highly unsafe!
+--
+-- @since 0.3.0
+unsafePrim :: MonadPrim s m => (State# s' -> (# State# s', a #)) -> m a
+unsafePrim m = prim (unsafeCoerce# m)
+{-# INLINE unsafePrim #-}
+
+
+-- | Coerce the state token of prim operation and wrap it into a `MonadPrim` action.
+--
+-- === Highly unsafe!
+--
+-- @since 0.3.0
+unsafePrim_ :: MonadPrim s m => (State# s' -> State# s') -> m ()
+unsafePrim_ m = prim_ (unsafeCoerce# m)
+{-# INLINE unsafePrim_ #-}
+
 
 -- | Unwrap any `MonadPrimBase` action while coercing the state token
 --

@@ -83,13 +83,18 @@ forkOn (I# cap#) !action =
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
-killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
+killThread :: MonadPrimBase RW m => GHC.ThreadId -> m ()
 killThread !tid = throwToPrim tid GHC.ThreadKilled
 
 
--- | Wrapper around `yield#`.
-yield :: MonadPrim RW m => m ()
-yield = prim_ yield#
+-- | Just like `Control.Concurrent.yield` this is a Wrapper around `yield#` primop ,
+-- except that this version works for any state token. It is safe to use within `ST`
+-- because it can't affect the result of computation, just the order of evaluation with
+-- respect to other threads, which is not relevant for the state thread monad anyways.
+--
+-- @since 0.3.0
+yield :: forall m s. MonadPrim s m => m ()
+yield = prim_ (unsafeCoerce# yield# :: State# s -> State# s)
 
 -- | Wrapper around `myThreadId#`.
 myThreadId :: MonadPrim RW m => m GHC.ThreadId

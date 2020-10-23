@@ -21,8 +21,13 @@ module Control.Prim.Monad.Internal
   , MonadPrim(..)
   , MonadPrimBase(..)
   , MonadUnliftPrim(..)
+  , unIO
+  , unIO_
+  , unST
+  , unST_
   , prim_
   , primBase_
+  , withRunInPrimBase
   , runInPrimBase
   , liftPrimIO
   , liftPrimST
@@ -81,30 +86,41 @@ runInPrimBase ::
   => m a
   -> ((State# s -> (# State# s, a #)) -> State# s -> (# State# s, b #))
   -> m b
-runInPrimBase f g =
-  withRunInPrimBase (\run -> prim (g (primBase (run f :: ST s a))))
+runInPrimBase f g = withRunInST (\run -> prim (g (primBase (run f))))
 {-# INLINE runInPrimBase #-}
 
+withRunInPrimBase ::
+     (MonadUnliftPrim s m, MonadPrimBase s n)
+  => ((forall a. m a -> n a) -> n b)
+  -> m b
+withRunInPrimBase inner =
+  withRunInST $ \run -> liftPrimBase (inner (liftPrimST . run))
+{-# INLINE withRunInPrimBase #-}
+
 class MonadPrim s m => MonadUnliftPrim s m where
-  withRunInPrimBase :: MonadPrimBase s n => ((forall a. m a -> n a) -> n b) -> m b
+
+  withRunInST :: ((forall a. m a -> ST s a) -> ST s b) -> m b
 
 instance MonadUnliftPrim RealWorld IO where
-  withRunInPrimBase inner = primBaseToIO (inner liftPrimBase)
-  {-# INLINE withRunInPrimBase #-}
+  withRunInST inner = coerce (inner liftPrimBase)
+  {-# INLINE withRunInST #-}
 
 instance MonadUnliftPrim s (ST s) where
-  withRunInPrimBase inner = primBaseToST (inner liftPrimBase)
-  {-# INLINE withRunInPrimBase #-}
+  -- withRunInPrimBase inner = primBaseToST (inner liftPrimBase)
+  -- {-# INLINE withRunInPrimBase #-}
+  withRunInST inner = inner liftPrimBase
+  {-# INLINE withRunInST #-}
 
 instance MonadUnliftPrim s m => MonadUnliftPrim s (IdentityT m) where
-  withRunInPrimBase inner =
-    IdentityT $ withRunInPrimBase $ \run -> inner (run . runIdentityT)
-  {-# INLINE withRunInPrimBase #-}
+  -- withRunInPrimBase inner =
+  --   IdentityT $ withRunInPrimBase $ \run -> inner (run . runIdentityT)
+  -- {-# INLINE withRunInPrimBase #-}
+  withRunInST inner = IdentityT $ withRunInST $ \run -> inner (run . runIdentityT)
+  {-# INLINE withRunInST #-}
 
 instance MonadUnliftPrim s m => MonadUnliftPrim s (ReaderT r m) where
-  withRunInPrimBase inner =
-    ReaderT $ \r -> withRunInPrimBase $ \run -> inner (run . flip runReaderT r)
-  {-# INLINE withRunInPrimBase #-}
+  withRunInST inner = ReaderT $ \r -> withRunInST $ \run -> inner (run . flip runReaderT r)
+  {-# INLINE withRunInST #-}
 
 
 class MonadThrow m => MonadPrim s m | m -> s where
@@ -197,13 +213,13 @@ prim_ f = prim $ \s -> (# f s, () #)
 -- | Lift an `IO` action to `MonadPrim` with the `RealWorld` state token. Type restricted
 -- synonym for `liftPrimBase`
 liftPrimIO :: MonadPrim RW m => IO a -> m a
-liftPrimIO m = prim (primBase m)
+liftPrimIO (IO m) = prim m
 {-# INLINE liftPrimIO #-}
 
 -- | Lift an `ST` action to `MonadPrim` with the same state token. Type restricted synonym
 -- for `liftPrimBase`
 liftPrimST :: MonadPrim s m => ST s a -> m a
-liftPrimST m = prim (primBase m)
+liftPrimST (ST m) = prim m
 {-# INLINE liftPrimST #-}
 
 -- | Lift an action from the `MonadPrimBase` to another `MonadPrim` with the same state
@@ -221,3 +237,25 @@ primBaseToIO = liftPrimBase
 primBaseToST :: MonadPrimBase s m => m a -> ST s a
 primBaseToST = liftPrimBase
 {-# INLINE primBaseToST #-}
+
+
+-- | Unwrap `ST`
+unST :: ST s a -> State# s -> (# State# s, a #)
+unST (ST m) = m
+{-# INLINE unST #-}
+
+
+-- | Unwrap `ST` that returns unit
+unST_ :: ST s () -> State# s -> State# s
+unST_ (ST m) s =
+  case m s of
+    (# s', () #) -> s'
+{-# INLINE unST_ #-}
+
+
+-- | Unwrap `IO` that returns unit
+unIO_ :: IO () -> State# RW -> State# RW
+unIO_ (IO m) s =
+  case m s of
+    (# s', () #) -> s'
+{-# INLINE unIO_ #-}
