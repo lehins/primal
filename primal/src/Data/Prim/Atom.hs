@@ -67,7 +67,6 @@ import Data.Bits
 import Data.Prim.Atomic
 import Data.Prim.Class
 import Foreign.Prim hiding (Any)
-import GHC.IO (IO(..))
 import GHC.TypeLits
 
 newtype Atom a =

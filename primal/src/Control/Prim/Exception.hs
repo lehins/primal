@@ -29,7 +29,7 @@ module Control.Prim.Exception
   , catch
   , catchAny
   , catchAnySyncPrim
-  , catchAllPrim
+  , catchAll
   , catchAllSyncPrim
   , bracket
   , bracket_
@@ -144,13 +144,35 @@ catch ::
   -> (e -> m a)
   -> m a
 catch action handler =
-  withRunInPrimBase $ \run ->
-    let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
-        handler# someExc =
-          case GHC.fromException someExc of
-            Just exc -> primBase (run (handler exc) :: IO a)
-            Nothing -> raiseIO# someExc
-     in prim (catch# (primBase (run action :: IO a)) handler#)
+  runInPrimBase2
+    (\action# handler# ->
+       let handler'# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
+           handler'# someExc =
+             case GHC.fromException someExc of
+               Just exc -> handler# exc
+               Nothing -> raiseIO# someExc
+        in catch# (action# ()) handler#)
+    (const action)
+    handler
+  -- withRunInPrimBase $ \run ->
+  --   let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
+  --       handler# someExc =
+  --         case GHC.fromException someExc of
+  --           Just exc -> primBase (run (handler exc) :: IO a)
+  --           Nothing -> raiseIO# someExc
+  --    in prim (catch# (primBase (run action :: IO a)) handler#)
+
+
+-- catchAny ::
+--      forall a m. MonadUnliftPrim RW m
+--   => m a
+--   -> (GHC.SomeException -> m a)
+--   -> m a
+-- catchAny action handler =
+--   withRunInPrimBase $ \run ->
+--     let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
+--         handler# exc = primBase (run (handler exc) :: IO a)
+--      in prim (catch# (primBase (run action :: IO a)) handler#)
 
 
 catchAny ::
@@ -159,10 +181,9 @@ catchAny ::
   -> (GHC.SomeException -> m a)
   -> m a
 catchAny action handler =
-  withRunInPrimBase $ \run ->
-    let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
-        handler# exc = primBase (run (handler exc) :: IO a)
-     in prim (catch# (primBase (run action :: IO a)) handler#)
+  runInPrimBase2 (\action# handler# -> catch# (action# ()) handler#) (const action) handler
+{-# INLINE catchAny #-}
+
 
 catchAnySyncPrim ::
      forall a m. MonadUnliftPrim RW m
@@ -177,16 +198,20 @@ catchAnySyncPrim action handler =
           | otherwise = primBase (run (handler exc) :: IO a)
      in prim (catch# (primBase (run action :: IO a)) handler#)
 
-catchAllPrim ::
+catchAll ::
      forall a m. MonadUnliftPrim RW m
   => m a
   -> (forall e . GHC.Exception e => e -> m a)
   -> m a
-catchAllPrim action handler =
-  withRunInPrimBase $ \run ->
-    let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
-        handler# (GHC.SomeException e) = primBase (run (handler e) :: IO a)
-     in prim (catch# (primBase (run action :: IO a)) handler#)
+catchAll action handler =
+  runInPrimBase2
+    (\action# handler# -> catch# (action# ()) handler#)
+    (const action)
+    (\(GHC.SomeException e) -> handler e)
+  -- withRunInPrimBase $ \run ->
+  --   let handler# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
+  --       handler# (GHC.SomeException e) = primBase (run (handler e) :: IO a)
+  --    in prim (catch# (primBase (run action :: IO a)) handler#)
 
 catchAllSyncPrim ::
      forall a m. MonadUnliftPrim RW m
@@ -210,9 +235,13 @@ catchAllSyncPrim action handler =
 -- @since 0.3.0
 mask_ :: forall a m s. MonadPrimBase s m => m a -> m a
 mask_ action =
+  -- unsafeIOToPrim getMaskingStatePrim >>= \case
+  --   GHC.Unmasked -> unsafePrim (maskAsyncExceptions# (unsafePrimBase action))
+  --   _ -> action
   unsafeIOToPrim getMaskingStatePrim >>= \case
     GHC.Unmasked -> unsafePrim (maskAsyncExceptions# (unsafePrimBase action))
     _ -> action
+
 {-# INLINE mask_  #-}
 
 
@@ -225,16 +254,28 @@ mask_ action =
 -- in a concurrent setting.
 --
 -- @since 0.3.0
-uninterruptibleMask_ :: forall a m s. MonadPrimBase s m => m a -> m a
+uninterruptibleMask_ :: forall a m s. MonadUnliftPrim s m => m a -> m a
 uninterruptibleMask_ action =
-  unsafePrim (maskUninterruptible# (unsafePrimBase action))
+  -- runInPrimBase
+  -- action
+  -- (unsafeCoerce# maskUninterruptible# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #))
+  -- withPrimBase
+  --   (unsafeCoerce# maskUninterruptible# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #))
+  --   action
+  --unsafePrim (maskUninterruptible# (unsafePrimBase action))
+  runInPrimBase action mask# --action
+  --runInPrimBase1 (\f# -> mask# (f# ())) (\_ -> action)
+  where
+    mask# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
+    mask# = unsafeCoerce# maskUninterruptible#
 {-# INLINE uninterruptibleMask_ #-}
 
 
 -- | A direct wrapper around `maskAsyncExceptions#` primop. This is different and more
 -- dangerous than `mask_` because it can turn uninterrubtable state into interruptable.
 maskAsyncExceptions :: forall a m. MonadPrimBase RW m => m a -> m a
-maskAsyncExceptions action = prim (maskAsyncExceptions# (primBase action))
+maskAsyncExceptions action =
+  runInPrimBase1 (\f# -> maskAsyncExceptions# (f# ())) (\_ -> action)
 {-# INLINE maskAsyncExceptions  #-}
 
 
