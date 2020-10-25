@@ -336,7 +336,9 @@ modifyFetchNewRefM ref f = do
   a' <$ writeRef ref a'
 {-# INLINE modifyFetchNewRefM #-}
 
-
+-- | Same as `modifyRefM`, but do not evaluate the new value written into the `Ref`.
+--
+-- @since 0.3.0
 modifyLazyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
 modifyLazyRefM ref f = do
   a <- readRef ref
@@ -351,7 +353,8 @@ modifyLazyRefM ref f = do
 
 -- | Evaluate a value and write it atomically into a `Ref`. This is different from
 -- `writeRef` because [a memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)
--- will be issued.
+-- will be issued. Use this instead of `writeRef` in order to guarantee the ordering of
+-- operations in a concurrent environment.
 --
 -- @since 0.3.0
 atomicWriteRef :: MonadPrim s m => Ref e s -> e -> m ()
@@ -369,6 +372,12 @@ atomicWriteRef (Ref ref#) !x =
   --         (# s'', _prev, _cur #) -> s''
 {-# INLINE atomicWriteRef #-}
 
+-- | This will behave exactly the same as `readRef` when the `Ref` is accessed within a
+-- single thread only. However, despite being slower, it can help with with restricting
+-- order of operations in cases when multiple threads perform modifications to the `Ref`
+-- because it implies a memory barrier.
+--
+-- @since 0.3.0
 atomicReadRef :: MonadPrim s m => Ref e s -> m e
 atomicReadRef ref = fst <$> atomicModifyRef2_ ref id
 
@@ -379,7 +388,7 @@ atomicSwapRef :: MonadPrim s m => Ref e s -> e -> m e
 atomicSwapRef ref x = atomicModifyFetchOldRef ref (const x)
 {-# INLINE atomicSwapRef #-}
 
-
+-- | Appy a function to the value in mutable `Ref` atomically
 atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 atomicModifyRef (Ref ref#) f =
   let g a =

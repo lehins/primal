@@ -717,9 +717,28 @@ writeBMArray ::
   -> e
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
-writeBMArray ma i !x = writeLazyBMArray ma i x
+--writeBMArray ma i !x = writeLazyBMArray ma i x -- TODO: figure out why doctests fail sporadically
+writeBMArray ma i = evaluate >=> writeLazyBMArray ma i
 {-# INLINE writeBMArray #-}
 
+{-
+src/Data/Prim/Array.hs:697: failure in expression `freezeBMArray ma'
+expected: BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
+ but got: BArray [Nothing,Nothing,Just 2,Just 5282521669542503534]
+                                              ^
+Examples: 180  Tried: 63  Errors: 0  Failures: 1doctests: user error (Language.Haskell.GhciWrapper.close: Interpreter exited with an error (ExitFailure (-6)))
+primal> Test suite doctests failed
+Test suite failure for package primal-0.3.0.0
+    doctests:  exited with: ExitFailure 1
+Logs printed to console
+
+
+Examples: 180  Tried: 26  Errors: 0  Failures: 0doctests: user error (Language.Haskell.GhciWrapper.close: Interpreter exited with an error (ExitFailure (-11)))
+primal> Test suite doctests failed
+Test suite failure for package primal-0.3.0.0
+    doctests:  exited with: ExitFailure 1
+
+-}
 
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an
 -- evaluated element. Careful with memory leaks and thunks that evaluate to exceptions.

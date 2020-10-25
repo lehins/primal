@@ -18,17 +18,5 @@ extra-deps:
 - HUnit-1.6.0.0@sha256:8014b27c884becd8041214a1ab263fa92244ca62700a911aff604a1047869298,1570
 - quickcheck-io-0.2.0@sha256:7bf0b68fb90873825eb2e5e958c1b76126dcf984debb998e81673e6d837e0b2d,1133
 - primitive-0.7.0.1@sha256:a381571c36edc7dca28b77fe8159b43c14c640087ec5946adacf949feec64231,3433
-
-# - github: haskell/bytestring
-#   commit: 96c95391025c1ce2240f6dc7bcad06d4191e7793
-# - github: haskell/cabal
-#   commit: 5139d6e72d391bffa3cf06f08884277799eb0b45
-#   subdirs:
-#     - Cabal
-# - binary-0.8.8.0
-# - directory-1.3.6.0
-# - text-1.2.3.2
-# - unix-2.7.2.2
-# - parsec-3.1.14.0
-# - process-1.6.9.0
-# allow-newer: true
+- github: lehins/doctest
+  commit: 3630ebbacdb96394feee7f223fd68eb4154c3312
