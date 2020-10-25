@@ -40,7 +40,9 @@ library
                      , Data.Prim.Atom
                      , Data.Prim.Atomic
                      , Data.Prim.Class
+                     , Data.Prim.Ref
                      , Data.Prim.StableName
+                     --, Data.Prim.MVar
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr

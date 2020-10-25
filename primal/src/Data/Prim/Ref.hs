@@ -3,22 +3,24 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.MRef.Ref
+-- Module      : Data.Prim.Ref
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MRef.Ref
+module Data.Prim.Ref
   ( Ref(..)
   -- * Create
   , newRef
   , newLazyRef
+  , isSameRef
   -- * Read/write
   , readRef
   , swapRef
   , writeRef
+  , writeDeepRef
   , writeLazyRef
   -- * Modify
   -- ** Pure
@@ -66,57 +68,29 @@ module Data.Prim.MRef.Ref
 
 import Control.DeepSeq
 import Control.Prim.Monad
-import Data.Bits
-import Data.Prim.MRef.Atomic
-import Data.Prim.MRef.Internal
 import Foreign.Prim
 import GHC.IORef
 import GHC.STRef
-import Data.Prim.Array
 
--- | Mutable variable that can store any boxed value. Because it stores just a reference
--- to the value it is named "Ref". This is just like `Data.STRef.STRef`,
--- but with type arguments flipped and is generalized to work in `MonadPrim`
+-- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
+-- with type arguments flipped and is generalized to work in `MonadPrim`. It only stores a
+-- reference to the value which means it works on boxed values. If the type can be unboxed
+-- with `Data.Prim.Class.Prim` class, consider using
+-- [@PVar@](https://hackage.haskell.org/package/pvar) package instead.
 --
--- @since 0.1.0
+-- @since 0.3.0
 data Ref a s = Ref (MutVar# s a)
 
--- | Checks whether supplied `Ref`s refer to the exact same `Ref` or not.
+-- | Uses `isSameRef`
 instance Eq (Ref a s) where
-  Ref ref1# == Ref ref2# = isTrue# (sameMutVar# ref1# ref2#)
+  (==) = isSameRef
 
-instance NFData (Ref a s) where
-  rnf (Ref _ref#) = ()
-
-instance MRef (Ref a) where
-  type Elt (Ref a) = a
-  newMRef = newRef
-  {-# INLINE newMRef #-}
-  newRawMRef = newRef (uninitialized "Data.Prim.MRef.Ref" "newRawMRef")
-  {-# INLINE newRawMRef #-}
-  writeMRef = writeRef
-  {-# INLINE writeMRef #-}
-  readMRef = readRef
-  {-# INLINE readMRef #-}
-
-instance AtomicMRef (Ref a) where
-  atomicReadMRef = atomicReadRef
-  {-# INLINE atomicReadMRef #-}
-  atomicWriteMRef = atomicWriteRef
-  {-# INLINE atomicWriteMRef #-}
-  casMRef = casRef
-  {-# INLINE casMRef #-}
-  atomicModifyMRef = atomicModifyRef
-  {-# INLINE atomicModifyMRef #-}
-  atomicModifyFetchOldMRef = atomicModifyFetchOldRef
-  {-# INLINE atomicModifyFetchOldMRef #-}
-  atomicModifyFetchNewMRef = atomicModifyFetchNewRef
-  {-# INLINE atomicModifyFetchNewMRef #-}
-
-
-instance Num a => AtomicCountMRef (Ref a)
-
-instance Bits a => AtomicBitsMRef (Ref a)
+-- | Check whether supplied `Ref`s refer to the exact same one or not.
+--
+-- @since 0.3.0
+isSameRef :: Ref a s -> Ref a s -> Bool
+isSameRef (Ref ref1#) (Ref ref2#) = isTrue# (sameMutVar# ref1# ref2#)
+{-# INLINE isSameRef #-}
 
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
@@ -132,7 +106,7 @@ instance Bits a => AtomicBitsMRef (Ref a)
 -- >>> readRef ref
 -- 218
 --
--- @since 0.1.0
+-- @since 0.3.0
 newRef :: MonadPrim s m => a -> m (Ref a s)
 newRef a = a `seq` newLazyRef a
 {-# INLINE newRef #-}
@@ -150,7 +124,7 @@ newRef a = a `seq` newLazyRef a
 -- >>> modifyFetchNewRef ref succ
 -- 1025
 --
--- @since 0.1.0
+-- @since 0.3.0
 newLazyRef :: MonadPrim s m => a -> m (Ref a s)
 newLazyRef a =
   prim $ \s ->
@@ -171,7 +145,7 @@ newLazyRef a =
 -- >>> readRef ref
 -- "Hello World!"
 --
--- @since 0.1.0
+-- @since 0.3.0
 readRef :: MonadPrim s m => Ref a s -> m a
 readRef (Ref ref#) = prim (readMutVar# ref#)
 {-# INLINE readRef #-}
@@ -188,7 +162,7 @@ readRef (Ref ref#) = prim (readMutVar# ref#)
 -- >>> readRef ref
 -- Right "Last"
 --
--- @since 0.1.0
+-- @since 0.3.0
 swapRef :: MonadPrim s m => Ref a s -> a -> m a
 swapRef ref a = do
   a' <- readRef ref
@@ -211,11 +185,18 @@ swapRef ref a = do
 -- >>> readRef ref
 -- "New total value"
 --
--- @since 0.1.0
+-- @since 0.3.0
 writeRef :: MonadPrim s m => Ref a s -> a -> m ()
-writeRef ref a =
-  a `seq` writeLazyRef ref a
+writeRef ref !a = writeLazyRef ref a
 {-# INLINE writeRef #-}
+
+-- | Same as `writeRef`, but will evaluate the argument to Normal Form prior to writing it
+-- to the `Ref`
+--
+-- @since 0.3.0
+writeDeepRef :: (NFData a, MonadPrim s m) => Ref a s -> a -> m ()
+writeDeepRef ref a = a `deepseq` writeLazyRef ref a
+{-# INLINE writeDeepRef #-}
 
 -- | Write a value into a mutable variable lazily.
 --
@@ -231,7 +212,7 @@ writeRef ref a =
 -- 'New string' is evaluated
 -- New string
 --
--- @since 0.1.0
+-- @since 0.3.0
 writeLazyRef :: MonadPrim s m => Ref a s -> a -> m ()
 writeLazyRef (Ref ref#) a = prim_ (writeMutVar# ref# a)
 {-# INLINE writeLazyRef #-}
@@ -247,21 +228,21 @@ writeLazyRef (Ref ref#) a = prim_ (writeMutVar# ref# a)
 -- `atomicModifyRef`, without any atomicity guarantees. For lazy version checkout
 -- `modifyLazyRef`
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 modifyRef ref f = modifyRefM ref (pure . f)
 {-# INLINE modifyRef #-}
 
 -- | Apply a pure function to the contents of a mutable variable strictly.
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyRef_ :: MonadPrim s m => Ref a s -> (a -> a) -> m ()
 modifyRef_ ref f = modifyRefM_ ref (pure . f)
 {-# INLINE modifyRef_ #-}
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the new value.
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyFetchNewRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 modifyFetchNewRef ref f = modifyFetchNewRefM ref (pure . f)
 {-# INLINE modifyFetchNewRef #-}
@@ -278,7 +259,7 @@ modifyFetchNewRef ref f = modifyFetchNewRefM ref (pure . f)
 -- >>> readRef ref2
 -- 2010
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyFetchOldRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
 modifyFetchOldRef ref f = modifyFetchOldRefM ref (pure . f)
 {-# INLINE modifyFetchOldRef #-}
@@ -287,7 +268,7 @@ modifyFetchOldRef ref f = modifyFetchOldRefM ref (pure . f)
 -- | Apply a pure function to the contents of a mutable variable lazily. Returns the
 -- artifact produced by the modifying function.
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 modifyLazyRef ref f = modifyLazyRefM ref (pure . f)
 {-# INLINE modifyLazyRef #-}
@@ -318,7 +299,7 @@ modifyRefM ref f = do
 -- >>> readRef ref
 -- Nothing
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyRefM_ :: MonadPrim s m => Ref a s -> (a -> m a) -> m ()
 modifyRefM_ ref f = readRef ref >>= f >>= writeRef ref
 {-# INLINE modifyRefM_ #-}
@@ -337,7 +318,7 @@ modifyRefM_ ref f = readRef ref >>= f >>= writeRef ref
 -- >>> readRef refMyName >>= putStrLn
 -- Leo
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyFetchOldRefM :: MonadPrim s m => Ref a s -> (a -> m a) -> m a
 modifyFetchOldRefM ref f = do
   a <- readRef ref
@@ -347,7 +328,7 @@ modifyFetchOldRefM ref f = do
 
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the new value.
 --
--- @since 0.1.0
+-- @since 0.3.0
 modifyFetchNewRefM :: MonadPrim s m => Ref a s -> (a -> m a) -> m a
 modifyFetchNewRefM ref f = do
   a <- readRef ref
@@ -372,10 +353,9 @@ modifyLazyRefM ref f = do
 -- `writeRef` because [a memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)
 -- will be issued.
 --
--- @since 0.1.0
+-- @since 0.3.0
 atomicWriteRef :: MonadPrim s m => Ref e s -> e -> m ()
-atomicWriteRef (Ref ref#) x =
-  x `seq`
+atomicWriteRef (Ref ref#) !x =
   prim $ \s ->
     case atomicModifyMutVar2# ref# (\_ -> (x, ())) s of
       (# s', _prev, (_cur, ()) #) -> (# s', () #)
@@ -394,7 +374,7 @@ atomicReadRef ref = fst <$> atomicModifyRef2_ ref id
 
 -- | Same as `atomicWriteRef`, but also returns the old value.
 --
--- @since 0.1.0
+-- @since 0.3.0
 atomicSwapRef :: MonadPrim s m => Ref e s -> e -> m e
 atomicSwapRef ref x = atomicModifyFetchOldRef ref (const x)
 {-# INLINE atomicSwapRef #-}
@@ -517,19 +497,29 @@ atomicWriteLazyRef_ ref x = void $ atomicWriteLazyRef ref x
 
 
 -- | Convert `Ref` to `STRef`
+--
+-- @since 0.3.0
 toSTRef :: Ref a s -> STRef s a
 toSTRef (Ref ref#) = STRef ref#
 {-# INLINE toSTRef #-}
 
 -- | Convert `STRef` to `Ref`
+--
+-- @since 0.3.0
 fromSTRef :: STRef s a -> Ref a s
 fromSTRef (STRef ref#) = Ref ref#
 {-# INLINE fromSTRef #-}
 
 -- | Convert `Ref` to `IORef`
+--
+-- @since 0.3.0
 toIORef :: Ref a RW -> IORef a
 toIORef = coerce . toSTRef
+{-# INLINE toIORef #-}
 
 -- | Convert `IORef` to `Ref`
+--
+-- @since 0.3.0
 fromIORef :: IORef a -> Ref a RW
 fromIORef = fromSTRef . coerce
+{-# INLINE fromIORef #-}

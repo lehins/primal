@@ -9,10 +9,10 @@ module Test.Prim.MArraySpec
 import Data.Prim.MArray.Boxed
 import Data.Prim.MArray.Boxed.Small
 import Data.Prim.MArray.Unboxed
-import Data.Prim.MRef.Ref
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.Bytes
 import Data.Prim.Memory.PArray
+import Data.Prim.Ref
 import Test.Prim
 import Test.Prim.MArray
 import qualified Test.Prim.MRef as MRef

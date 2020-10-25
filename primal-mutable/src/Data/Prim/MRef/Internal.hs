@@ -19,12 +19,13 @@ module Data.Prim.MRef.Internal
   , modifyFetchNewMRefM
   ) where
 
-import Control.Exception (ArrayException(UndefinedElement), throw)
 import Control.Prim.Monad
+import Data.Prim.Array
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
-import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.PArray
+import Data.Prim.Ref
 
 class MRef mut where
   type Elt mut :: *
@@ -80,6 +81,18 @@ instance (Typeable p, Prim e) => MRef (PMArray p e) where
   readMRef mba = readPMArray mba 0
   {-# INLINE readMRef #-}
 
+
+
+instance MRef (Ref a) where
+  type Elt (Ref a) = a
+  newMRef = newRef
+  {-# INLINE newMRef #-}
+  newRawMRef = newRef (uninitialized "Data.Prim.MRef.Internal" "newRawMRef")
+  {-# INLINE newRawMRef #-}
+  writeMRef = writeRef
+  {-# INLINE writeMRef #-}
+  readMRef = readRef
+  {-# INLINE readMRef #-}
 
 
 -- modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b

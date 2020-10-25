@@ -26,6 +26,7 @@ import Data.Prim.MRef.Internal
 import Data.Prim.Memory.Addr
 import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Bytes
+import Data.Prim.Ref
 
 
 
@@ -162,6 +163,27 @@ class (Bits (Elt mut), AtomicMRef mut) => AtomicBitsMRef mut where
   atomicNotFetchNewMRef :: MonadPrim s m => mut s -> m (Elt mut)
   atomicNotFetchNewMRef mut = atomicModifyFetchNewMRef mut complement
   {-# INLINE atomicNotFetchNewMRef #-}
+
+
+
+instance AtomicMRef (Ref a) where
+  atomicReadMRef = atomicReadRef
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef = atomicWriteRef
+  {-# INLINE atomicWriteMRef #-}
+  casMRef = casRef
+  {-# INLINE casMRef #-}
+  atomicModifyMRef = atomicModifyRef
+  {-# INLINE atomicModifyMRef #-}
+  atomicModifyFetchOldMRef = atomicModifyFetchOldRef
+  {-# INLINE atomicModifyFetchOldMRef #-}
+  atomicModifyFetchNewMRef = atomicModifyFetchNewRef
+  {-# INLINE atomicModifyFetchNewMRef #-}
+
+
+instance Num a => AtomicCountMRef (Ref a)
+
+instance Bits a => AtomicBitsMRef (Ref a)
 
 
 

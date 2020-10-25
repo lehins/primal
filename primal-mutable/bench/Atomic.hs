@@ -17,7 +17,7 @@ import Data.Prim.Memory.PArray
 import Data.Prim.Memory.Addr
 import Data.Prim.MArray.Boxed.Small
 import Data.Prim.MRef
-import Data.Prim.MRef.Ref
+import Data.Prim.Ref
 import Prelude as P
 import UnliftIO.Async
 
@@ -76,7 +76,7 @@ main = do
                   [ bench "readMRef" $ nfIO (readMRef mb)
                   , bench "atomicReadMRef" $ nfIO (atomicReadMRef mb)
                   ]
-            , env (newRef e0) $ \ref ->
+            , env (BogusNF <$> newRef e0) $ \(BogusNF ref) ->
                 bgroup
                   "Ref"
                   [ bench "readRef" $ nfIO (readRef ref)
@@ -101,7 +101,7 @@ main = do
                   , bench "atomicWriteMBytes" $
                     nfIO (atomicWriteMBytes mb off0 (1 :: Int))
                   ]
-            , env (newRef e0) $ \ref ->
+            , env (BogusNF <$> newRef e0) $ \(BogusNF ref) ->
                 bgroup
                   "Ref"
                   [ bench "writeRef" $ nfIO (writeRef ref 1)
@@ -146,7 +146,7 @@ main = do
                     bench "atomicAddFetchOldMRef" $
                     nfIO $ atomicAddFetchOldMRef mb (fromIntegral k)
                 ]
-            , env (newRef 0) $ \ref ->
+            , env (BogusNF <$> newRef 0) $ \(BogusNF ref) ->
                 bgroup
                   "Ref"
                   [ bench "modifyFetchOldRef" $
@@ -183,7 +183,7 @@ main = do
                       [ bench "modifyFetchOldMutMem" $
                         nfIO $ modifyFetchOldMutMem mb off0' (fmap (+ k))
                       ]
-            , env (newRef (Just 0)) $ \ref ->
+            , env (BogusNF <$> newRef (Just 0)) $ \(BogusNF ref) ->
                 bgroup
                   "Ref"
                   [ bench "modifyFetchOldRef" $
