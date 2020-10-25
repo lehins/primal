@@ -20,6 +20,9 @@ module Data.Prim
   , MonadPrim
   , RW
   , RealWorld
+  , ST
+  , runST
+  , showsType
   -- * Prim type size
   , byteCount
   , byteCountType
@@ -82,6 +85,13 @@ import Data.Word
 import Foreign.ForeignPtr (ForeignPtr)
 import GHC.Base (quotInt, quotRemInt)
 import GHC.Exts
+
+
+-- | Helper function that converts a type into a string
+--
+-- @since 0.3.0
+showsType :: Typeable t => proxy t -> ShowS
+showsType = showsTypeRep . typeRep
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
 --

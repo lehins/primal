@@ -159,5 +159,5 @@ withNoHaltPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
 withNoHaltPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
   let addr# = addr'# `plusAddr#` o#
 #endif
-  withAliveUnliftPrim ptrContents $ f (Ptr addr#)
+  keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrByteString #-}

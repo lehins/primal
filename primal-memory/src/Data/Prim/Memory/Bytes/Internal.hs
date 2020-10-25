@@ -446,7 +446,7 @@ withPtrBytes b f = do
 
 -- | Same as `withPtrBytes`, but is suitable for actions that don't terminate
 withNoHaltPtrBytes :: MonadUnliftPrim s m => Bytes 'Pin -> (Ptr e -> m b) -> m b
-withNoHaltPtrBytes b f = withAliveUnliftPrim b $ f (toPtrBytes b)
+withNoHaltPtrBytes b f = keepAlive b $ f (toPtrBytes b)
 {-# INLINE withNoHaltPtrBytes #-}
 
 withPtrMBytes :: MonadPrim s m => MBytes 'Pin s -> (Ptr e -> m b) -> m b
@@ -456,7 +456,7 @@ withPtrMBytes mb f = do
 {-# INLINE withPtrMBytes #-}
 
 withNoHaltPtrMBytes :: MonadUnliftPrim s m => MBytes 'Pin s -> (Ptr e -> m b) -> m b
-withNoHaltPtrMBytes mb f = withAliveUnliftPrim mb $ f (toPtrMBytes mb)
+withNoHaltPtrMBytes mb f = keepAlive mb $ f (toPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
 
 toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e

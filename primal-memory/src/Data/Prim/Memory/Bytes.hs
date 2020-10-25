@@ -158,7 +158,6 @@ import Control.Monad.ST
 import Control.Prim.Monad
 import Data.Maybe (fromMaybe)
 import Data.Prim
-import Data.Prim.Array
 import Data.Prim.Atomic
 import Data.Prim.Memory.Internal
 import Foreign.Prim

@@ -40,7 +40,6 @@ module Control.Prim.Monad.Unsafe
 
 import System.IO.Unsafe
 import Control.Prim.Monad.Internal
-import Control.Monad.ST (ST)
 import GHC.IO
 import GHC.Exts
 

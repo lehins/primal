@@ -157,7 +157,7 @@ withForeignPtr (ForeignPtr addr# ptrContents) f = do
 withNoHaltForeignPtr ::
      MonadUnliftPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
-  withAliveUnliftPrim ptrContents $ f (Ptr addr#)
+  keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltForeignPtr #-}
 
 -- | Lifted version of `GHC.touchForeignPtr`.

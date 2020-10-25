@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,9 +17,12 @@ module Control.Prim.Eval
   ) where
 
 import Control.Prim.Monad.Internal
-import Control.Prim.Monad.Unsafe
-import GHC.Exts
+import qualified GHC.Exts as GHC
 
+-- | Same as `GHC.Exts.touch#`, except it is not restricted to `RealWorld` state token.
+touch# :: a -> GHC.State# s -> GHC.State# s
+touch# a = GHC.unsafeCoerce# (GHC.touch# a)
+{-# INLINE touch# #-}
 
 
 ------- Evaluation
@@ -30,24 +34,27 @@ import GHC.Exts
 -- Make sure not to use it after some computation that doesn't return, like after
 -- `forever` for example, otherwise touch will simply be removed by ghc and bad things
 -- will happen. If you have a case like that, make sure to use `withAlivePrimBase` or
--- `withAliveUnliftPrim` instead.
+-- `keepAlive` instead.
 --
 -- @since 0.1.0
 touch :: MonadPrim s m => a -> m ()
-touch x = unsafeIOToPrim $ prim_ (touch# x)
+touch x = prim_ (touch# x)
 {-# INLINE touch #-}
 
--- | An action that evaluates a value to weak head normal form. Same
--- as `Control.Exception.evaluate`, except it works in a `MonadPrim`
+-- | An action that evaluates a value to weak head normal form. Same as
+-- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This provides sightly
+-- better guarantees than `seq` with respect to ordering of operations, but it has higher
+-- overhead.
 --
--- @since 0.1.0
-seqPrim :: MonadPrim s m => a -> m a
-seqPrim a = prim (seq# a)
+-- @since 0.3.0
+evaluate :: MonadPrim s m => a -> m a
+evaluate a = prim (GHC.seq# a)
+{-# INLINE evaluate #-}
 
 
 -- | Forward compatible operator that might be introduced in some future ghc version.
 --
--- See: [!3131](https://gitlab.haskell.org/ghc/ghc/-/merge_requests/3131)
+-- See: [#17760](https://gitlab.haskell.org/ghc/ghc/-/issues/17760)
 --
 -- Current version is not as efficient as the version that will be introduced in the
 -- future, because it works around the ghc bug by simply preventing inlining and relying
@@ -57,35 +64,25 @@ seqPrim a = prim (seq# a)
 keepAlive# ::
      a
   -- ^ The value to preserve
-  -> (State# s -> (# State# s, r #))
+  -> (GHC.State# s -> (# GHC.State# s, r #))
   -- ^ The continuation in which the value will be preserved
-  -> State# s
-  -> (# State# s, r #)
+  -> GHC.State# s
+  -> (# GHC.State# s, r #)
 keepAlive# a m s =
   case m s of
-    (# s', r #) -> (# unsafeCoerce# (touch# a) s', r #)
+    (# s', r #) -> (# touch# a s', r #)
 {-# NOINLINE keepAlive# #-}
 
--- | Similar to `touch`. See `withAlive#` for more info.
---
--- @since 0.1.0
-withAlivePrimBase :: (MonadPrimBase s n, MonadPrim s m) => a
-  -- ^ The value to preserve
-  -> n b
-  -- ^ Action to run in which the value will be preserved
-  -> m b
-withAlivePrimBase a m = prim (keepAlive# a (primBase m))
-{-# INLINE withAlivePrimBase #-}
 
 -- | Similar to `touch`. See `withAlive#` for more info.
 --
--- @since 0.1.0
-withAliveUnliftPrim ::
+-- @since 0.3.0
+keepAlive ::
      MonadUnliftPrim s m
   => a
   -- ^ The value to preserve
   -> m b
   -- ^ Action to run in which the value will be preserved
   -> m b
-withAliveUnliftPrim a m = runInPrimBase m (keepAlive# a)
-{-# INLINE withAliveUnliftPrim #-}
+keepAlive a m = runInPrimBase m (keepAlive# a)
+{-# INLINE keepAlive #-}

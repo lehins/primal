@@ -8,9 +8,7 @@ module Test.Prim.Memory.PtrSpec
   , primPtrSpec
   ) where
 
-import Control.DeepSeq
 import Control.Monad
-import Control.Prim.Monad
 import Data.Prim.Memory.Ptr
 import Test.Prim
 import Test.Prim.Memory
@@ -18,7 +16,7 @@ import Test.Prim.Memory.BytesSpec hiding (spec)
 
 
 primPtrSpec ::
-     forall a. (NFData a, Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+     forall a. (Eq a, Show a, Prim a, Arbitrary a, Typeable a)
   => Spec
 primPtrSpec = do
   let ptrTypeName = ("Ptr " ++) . showsType (Proxy :: Proxy a) $ ""

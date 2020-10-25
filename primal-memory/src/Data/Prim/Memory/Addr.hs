@@ -327,7 +327,7 @@ withAddrAddr# (Addr addr# b) f = do
 {-# INLINE withAddrAddr# #-}
 
 withNoHaltPtrAddr :: MonadUnliftPrim s m => Addr e -> (Ptr e -> m b) -> m b
-withNoHaltPtrAddr (Addr addr# b) f = withAliveUnliftPrim b $ f (Ptr addr#)
+withNoHaltPtrAddr (Addr addr# b) f = keepAlive b $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrAddr #-}
 
 curOffMAddr :: forall e s . Prim e => MAddr e s -> Off e
@@ -391,7 +391,7 @@ withAddrMAddr# (MAddr addr# mb) f = do
 {-# INLINE withAddrMAddr# #-}
 
 withNoHaltPtrMAddr :: MonadUnliftPrim s m => MAddr e s -> (Ptr e -> m b) -> m b
-withNoHaltPtrMAddr (MAddr addr# mb) f = withAliveUnliftPrim mb $ f (Ptr addr#)
+withNoHaltPtrMAddr (MAddr addr# mb) f = keepAlive mb $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrMAddr #-}
 
 

@@ -9,10 +9,8 @@
 module Control.Prim.Monad
   ( module Control.Prim.Monad.Internal
   , touch
-  , seqPrim
-  , withAlivePrimBase
-  , withAliveUnliftPrim
-  , showsType
+  , evaluate
+  , keepAlive
   -- * Re-export
   , module Control.Monad
   ) where
@@ -20,9 +18,4 @@ module Control.Prim.Monad
 import GHC.Exts
 import Control.Prim.Eval
 import Control.Prim.Monad.Internal
-import Data.Typeable
 import Control.Monad
-
--- | Helper function that converts a type into a string
-showsType :: Typeable t => proxy t -> ShowS
-showsType = showsTypeRep . typeRep

@@ -16,10 +16,19 @@ module Foreign.Prim
   , unsafeThawArrayArray#
   , unInt#
   , unWord#
+  , touch#
+  , keepAlive#
     -- * Primitive
   , module Foreign.Prim.C
   , module Foreign.Prim.Cmm
     -- * Re-exports
+  , RW
+  , IO(..)
+  , unIO
+  , unIO_
+  , ST(..)
+  , unST
+  , unST_
   , module Foreign.C.Types
   , module System.Posix.Types
   , module GHC.Exts
@@ -30,13 +39,17 @@ module Foreign.Prim
   , module GHC.Word
   ) where
 
+import Control.Prim.Eval
+import Control.Prim.Monad.Internal
 import Foreign.Prim.C
 import Foreign.Prim.Cmm
 import Foreign.C.Types
 import System.Posix.Types
-import GHC.Exts
+import GHC.Exts hiding (touch#)
 import GHC.Int
 import GHC.Word
+import GHC.IO
+import GHC.ST
 #if __GLASGOW_HASKELL__ < 804
 import GHC.Prim
   ( addCFinalizerToWeak#
@@ -46,6 +59,7 @@ import GHC.Prim
   , mkWeakNoFinalizer#
   )
 #endif
+
 
 unsafeThawByteArray# :: ByteArray# -> State# s -> (# State# s, MutableByteArray# s #)
 unsafeThawByteArray# ba# s = (# s, unsafeCoerce# ba# #)
