@@ -684,7 +684,7 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- cell, so it will not overwrite the value of an array's cell if it evaluates to an
 -- exception:
 --
--- >>> import Control.Exception
+-- >>> import Control.Prim.Exception
 -- >>> writeBMArray ma 2 (throw DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeBMArray ma
@@ -717,8 +717,8 @@ writeBMArray ::
   -> e
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
---writeBMArray ma i !x = writeLazyBMArray ma i x -- TODO: figure out why doctests fail sporadically
-writeBMArray ma i = evaluate >=> writeLazyBMArray ma i
+writeBMArray ma i !x = writeLazyBMArray ma i x -- TODO: figure out why doctests fail sporadically
+--writeBMArray ma i = evaluate >=> writeLazyBMArray ma i
 {-# INLINE writeBMArray #-}
 
 {-
@@ -738,6 +738,11 @@ primal> Test suite doctests failed
 Test suite failure for package primal-0.3.0.0
     doctests:  exited with: ExitFailure 1
 
+https://travis-ci.com/github/lehins/primal/jobs/407895714
+[34/180] src/Data/Prim/Array.hs:699: failure in expression `readBMArray ma 3'
+expected: Just *** Exception: divide by zero
+ but got: Just 140663761379224
+               ^
 -}
 
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an
