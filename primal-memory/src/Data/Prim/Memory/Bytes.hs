@@ -66,8 +66,9 @@ module Data.Prim.Memory.Bytes
   , allocPinnedMBytes
   , allocAlignedMBytes
   , allocUnpinnedMBytes
-  , callocMBytes
-  , callocAlignedMBytes
+  , allocZeroMBytes
+  , allocZeroPinnedMBytes
+  , allocZeroAlignedMBytes
   , shrinkMBytes
   , resizeMBytes
   , reallocMBytes
@@ -263,9 +264,9 @@ createBytesST_ ::
 createBytesST_ n f =  runST $ createBytes_ n f
 {-# INLINE createBytesST_ #-}
 
-callocMBytes :: (MonadPrim s m, Prim e, Typeable p) => Count e -> m (MBytes p s)
-callocMBytes n = allocMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
-{-# INLINE callocMBytes #-}
+allocZeroMBytes :: (MonadPrim s m, Prim e, Typeable p) => Count e -> m (MBytes p s)
+allocZeroMBytes n = allocMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
+{-# INLINE allocZeroMBytes #-}
 
 
 

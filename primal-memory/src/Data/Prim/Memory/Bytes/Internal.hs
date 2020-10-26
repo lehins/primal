@@ -41,7 +41,8 @@ module Data.Prim.Memory.Bytes.Internal
   , allocPinnedMBytes
   , allocAlignedMBytes
   , allocUnpinnedMBytes
-  , callocAlignedMBytes
+  , allocZeroPinnedMBytes
+  , allocZeroAlignedMBytes
   , reallocMBytes
   , freezeMBytes
   , thawBytes
@@ -236,12 +237,22 @@ allocAlignedMBytes c =
       (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocAlignedMBytes #-}
 
-callocAlignedMBytes ::
+
+-- @since 0.3.0
+allocZeroPinnedMBytes ::
      (MonadPrim s m, Prim e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-callocAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
-{-# INLINE callocAlignedMBytes #-}
+allocZeroPinnedMBytes n = allocPinnedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
+{-# INLINE allocZeroPinnedMBytes #-}
+
+-- @since 0.3.0
+allocZeroAlignedMBytes ::
+     (MonadPrim s m, Prim e)
+  => Count e -- ^ Size in number of bytes
+  -> m (MBytes 'Pin s)
+allocZeroAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
+{-# INLINE allocZeroAlignedMBytes #-}
 
 
 getByteCountMBytes :: MonadPrim s m => MBytes p s -> m (Count Word8)

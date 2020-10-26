@@ -270,7 +270,7 @@ liftPrimBase m = prim (primBase m)
 {-# INLINE[0] liftPrimBase #-}
 {-# RULES
  "liftPrimBase/id" liftPrimBase = id
-#-}
+ #-}
 
 -- | Restrict a `MonadPrimBase` action that works with `RealWorld` to `IO`.
 primBaseToIO :: MonadPrimBase RealWorld m => m a -> IO a

@@ -21,3 +21,7 @@ extra-deps:
 - transformers-0.5.6.2@sha256:6c959d14430f4deffb99579ba019de07c3d852a2122b6f449344386c7d75ff1d,3172
 - contravariant-1.5.2
 - StateVar-1.2@sha256:9ab3e4a0e252d28bc2f799c83e0725c3e23e8d3b722cff0fdb9822e64b6c16ac,1413
+- github: lehins/pvar
+  commit: c0424cc1b82cdf4093d3f0cf55e01269217a2d8d
+  subdirs:
+    - pvar

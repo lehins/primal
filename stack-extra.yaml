@@ -23,3 +23,7 @@ extra-deps:
 - unliftio-0.2.13@sha256:14409c70eba13edfcca7564f7bccca298e49d6e21679a8894ac757f2f6008696,3325
 - github: lehins/doctest
   commit: 3630ebbacdb96394feee7f223fd68eb4154c3312
+- github: lehins/pvar
+  commit: c0424cc1b82cdf4093d3f0cf55e01269217a2d8d
+  subdirs:
+    - pvar

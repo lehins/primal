@@ -78,6 +78,28 @@ library
 --                       -threaded
 --                       -with-rtsopts=-N2
 
+benchmark mref
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      bench
+  main-is:             MRef.hs
+  ghc-options:         -Wall
+                       -threaded
+                       -O2
+                       -with-rtsopts=-N4
+  build-depends:       base
+                     , atomic-primops
+                     , criterion
+                     , mutable-containers
+                     , primal
+                     , primal-memory
+                     , primal-mutable
+                     , primitive
+                     , pvar
+                     , deepseq
+                     , vector
+                     , unliftio
+  default-language:    Haskell2010
+
 benchmark atomic
   type:                exitcode-stdio-1.0
   hs-source-dirs:      bench

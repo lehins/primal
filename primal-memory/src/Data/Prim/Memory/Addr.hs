@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -41,8 +42,11 @@ module Data.Prim.Memory.Addr
    -- * Mutable MAddr
   , MAddr(..)
   , castMAddr
+  , newMAddr
   , allocMAddr
-  , callocMAddr
+  , allocAlignedMAddr
+  , allocZeroMAddr
+  , allocZeroAlignedMAddr
   , reallocMAddr
   , shrinkMAddr
   , shrinkByteCountMAddr
@@ -151,14 +155,14 @@ import Unsafe.Coerce
 -- | Immutable read-only address
 data Addr e = Addr
   { addrAddr# :: Addr#
-  , addrBytes :: {-# UNPACK #-}!(Bytes 'Pin)
+  , addrBytes :: Bytes 'Pin
   }
 type role Addr nominal
 
 -- | Mutable address
 data MAddr e s = MAddr
   { mAddrAddr#  :: Addr#
-  , mAddrMBytes :: {-# UNPACK #-}!(MBytes 'Pin s)
+  , mAddrMBytes :: MBytes 'Pin s
   }
 type role MAddr nominal nominal
 
@@ -234,12 +238,27 @@ fromMBytesMAddr :: MBytes 'Pin s -> MAddr e s
 fromMBytesMAddr mb =
   case toPtrMBytes mb of
     Ptr addr# -> MAddr addr# mb
+{-# INLINE fromMBytesMAddr #-}
 
-allocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
-allocMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
+newMAddr :: forall e m s. (MonadPrim s m, Prim e) => e -> m (MAddr e s)
+newMAddr e = do
+  maddr <- fromMBytesMAddr <$> allocPinnedMBytes (1 :: Count e)
+  writeMAddr maddr e
+  pure $! maddr
+{-# INLINE newMAddr #-}
 
-callocMAddr :: (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
-callocMAddr c = fromMBytesMAddr <$> callocAlignedMBytes c
+allocMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocMAddr c = fromMBytesMAddr <$> allocPinnedMBytes c
+
+allocZeroMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocZeroMAddr c = fromMBytesMAddr <$> allocZeroPinnedMBytes c
+
+
+allocAlignedMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocAlignedMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
+
+allocZeroAlignedMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocZeroAlignedMAddr c = fromMBytesMAddr <$> allocZeroAlignedMBytes c
 
 
 -- | Shrink mutable address to new specified size in number of elements. The new count
@@ -497,7 +516,9 @@ freezeMAddr (MAddr addr# mb) = Addr addr# <$> freezeMBytes mb
 
 
 readAddr :: (MonadPrim s m, Prim e) => Addr e -> m e
-readAddr addr = readOffAddr addr 0
+readAddr (Addr addr# b) = do
+  a <- prim (readOffAddr# addr# 0#)
+  a <$ touch b
 {-# INLINE readAddr #-}
 
 readOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m e
@@ -512,9 +533,10 @@ readByteOffAddr (Addr addr# b) (Off (I# off#)) = do
   a <$ touch b
 {-# INLINE readByteOffAddr #-}
 
-
 readMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> m e
-readMAddr maddr = readOffMAddr maddr 0
+readMAddr (MAddr addr# mb) = do
+  a <- prim (readOffAddr# addr# 0#)
+  a <$ touch mb
 {-# INLINE readMAddr #-}
 
 readOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m e
@@ -530,17 +552,18 @@ readByteOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
 {-# INLINE readByteOffMAddr #-}
 
 writeMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> e -> m ()
-writeMAddr maddr = writeOffMAddr maddr 0
+writeMAddr (MAddr addr# mb) e =
+  prim_ $ \s -> touch# mb (writeOffAddr# addr# 0# e s)
 {-# INLINE writeMAddr #-}
 
 writeOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> e -> m ()
-writeOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
-  prim_ (writeOffAddr# addr# off# a) >> touch mb
+writeOffMAddr (MAddr addr# mb) (Off (I# off#)) e =
+  prim_ $ \s -> touch# mb (writeOffAddr# addr# off# e s)
 {-# INLINE writeOffMAddr #-}
 
 writeByteOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off Word8 -> e -> m ()
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
-  prim_ (writeOffAddr# (addr# `plusAddr#` off#) 0# a) >> touch mb
+  prim_ $ \s -> touch# mb (writeOffAddr# (addr# `plusAddr#` off#) 0# a s)
 {-# INLINE writeByteOffMAddr #-}
 
 
