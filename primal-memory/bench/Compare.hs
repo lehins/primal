@@ -20,8 +20,8 @@ main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
   -- Ensure that arrays are equal by filling them with zeros
-  bEq1 <- freezeMBytes =<< callocAlignedMBytes n64
-  bEq2 <- freezeMBytes =<< callocAlignedMBytes n64
+  bEq1 <- freezeMBytes =<< allocZeroAlignedMBytes n64
+  bEq2 <- freezeMBytes =<< allocZeroAlignedMBytes n64
   mbaEq1 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   mbaEq2 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)

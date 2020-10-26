@@ -142,7 +142,7 @@ primBinarySpec = do
   describe bytesTypeName $ do
     describe "calloc" $ do
       prop "callocMBytes" $ \(b :: Bytes p) -> do
-        mb0 <- callocMBytes (countBytes b :: Count Word8)
+        mb0 <- allocZeroMBytes (countBytes b :: Count Word8)
         mb <- thawBytes b
         zeroMBytes mb
         b0 <- freezeMBytes mb
@@ -248,7 +248,7 @@ spec = do
   describe "Allocation" $ do
     describe "Pinned Memory" $ do
       let mostThreshold = 3248 :: Count Word8
-          leastThreshold = 3277 :: Count Word8
+          leastThreshold = 3249 :: Count Word8
       -- Experimentally found the threshold to be 3249:
       --     mostThreshold = 3248
       --     leastThreshold = 3249
@@ -271,7 +271,7 @@ spec = do
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocAlignedMBytes n) True
       prop "callocAlignedMBytes" $ \(b :: Bytes 'Pin) -> do
-        mb0 <- callocAlignedMBytes (byteCountBytes b)
+        mb0 <- allocZeroAlignedMBytes (byteCountBytes b)
         mb <- thawBytes b
         zeroMBytes mb
         b0 <- freezeMBytes mb

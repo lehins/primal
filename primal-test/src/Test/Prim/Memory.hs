@@ -95,7 +95,7 @@ instance (Typeable p, Prim e, Arbitrary e) => Arbitrary (PArray p e) where
 
 getZeroElement :: forall e m s. (MonadPrim s m, Prim e) => m e
 getZeroElement = do
-  z :: MBytes 'Inc s <- callocMBytes (1 :: Count e)
+  z :: MBytes 'Inc s <- allocZeroMBytes (1 :: Count e)
   readOffMutMem z (0 :: Off e)
 
 prop_byteCountMem ::
