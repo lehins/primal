@@ -30,6 +30,7 @@ tested-with:         GHC == 7.10.2
 library
   hs-source-dirs:      src
   exposed-modules:     Control.Prim.Concurrent
+                     , Control.Prim.Concurrent.MVar
                      , Control.Prim.Eval
                      , Control.Prim.Exception
                      , Control.Prim.Monad
@@ -42,7 +43,6 @@ library
                      , Data.Prim.Class
                      , Data.Prim.Ref
                      , Data.Prim.StableName
-                     --, Data.Prim.MVar
                      , Foreign.Prim
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr

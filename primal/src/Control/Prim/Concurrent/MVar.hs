@@ -1,0 +1,424 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
+-- |
+-- Module      : Control.Prim.Concurrent.MVar
+-- Copyright   : (c) Alexey Kuleshevich 2020
+-- License     : BSD3
+-- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
+-- Stability   : experimental
+-- Portability : non-portable
+--
+module Control.Prim.Concurrent.MVar
+  ( -- * MVar
+    MVar(..)
+  , isEmptyMVar
+  , isSameMVar
+    -- ** Create
+  , newMVar
+  , newLazyMVar
+  , newDeepMVar
+  , newEmptyMVar
+    -- ** Write
+  , putMVar
+  , putLazyMVar
+  , putDeepMVar
+  , tryPutMVar
+  , tryPutLazyMVar
+  , tryPutDeepMVar
+    -- ** Read
+  , readMVar
+  , tryReadMVar
+  , takeMVar
+  , tryTakeMVar
+  , clearMVar
+  -- ** Modify
+  , swapMVar
+  , swapLazyMVar
+  , swapDeepMVar
+  , withMVar
+  , withMVarMasked
+  , modifyMVar_
+  -- , modifyMVarMasked_
+  , modifyFetchOldMVar
+  , modifyFetchNewMVar
+  , modifyMVar
+  -- , modifyMVarMasked
+  -- ** Weak Pointer
+  , mkWeakMVar
+  -- ** Conversion
+  , toBaseMVar
+  , fromBaseMVar
+  ) where
+
+import Control.DeepSeq
+import Control.Prim.Monad
+import Control.Prim.Exception
+import GHC.Exts
+import GHC.Weak
+import qualified Control.Concurrent.MVar as Base
+import qualified GHC.MVar as GHC
+
+-- | Mutable variable that can either be empty or full. Same as `Base.MVar`, but works with
+-- any state token, such it is also usable within `ST` monad.
+--
+-- @since 0.3.0
+data MVar a s = MVar (MVar# s a)
+
+-- | Calls `isSameMVar`
+instance Eq (MVar a s) where
+  (==) = isSameMVar
+  {-# INLINE (==) #-}
+
+
+-- | Checks whether supplied `MVar`s refer to the exact same one.
+--
+-- @since 0.3.0
+isSameMVar :: MVar a s -> MVar a s -> Bool
+isSameMVar (MVar mvar1#) (MVar mvar2#) = isTrue# (sameMVar# mvar1# mvar2#)
+{-# INLINE isSameMVar #-}
+
+-- | Checks whether supplied `MVar` is empty.
+--
+-- @since 0.3.0
+isEmptyMVar :: MonadPrim s m => MVar a s -> m Bool
+isEmptyMVar (MVar mvar#) =
+  prim $ \s ->
+    case isEmptyMVar# mvar# s of
+      (# s', isEmpty# #) -> (# s', isTrue# isEmpty# #)
+{-# INLINE isEmptyMVar #-}
+
+
+-- | Construct an `MVar` with initial value in it, which is evaluated to WHNF
+--
+-- @since 0.3.0
+newMVar :: MonadPrim s m => a -> m (MVar a s)
+newMVar a = newEmptyMVar >>= \mvar -> mvar <$ putMVar mvar a
+{-# INLINE newMVar #-}
+
+-- | Construct an `MVar` with initial value in it.
+--
+-- Same as `Base.newMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+newLazyMVar :: MonadPrim s m => a -> m (MVar a s)
+newLazyMVar a = newEmptyMVar >>= \mvar -> mvar <$ putLazyMVar mvar a
+{-# INLINE newLazyMVar #-}
+
+
+-- | Construct an `MVar` with initial value in it.
+--
+-- @since 0.3.0
+newDeepMVar :: (NFData a, MonadPrim s m) => a -> m (MVar a s)
+newDeepMVar a = newEmptyMVar >>= \mvar -> mvar <$ putDeepMVar mvar a
+{-# INLINE newDeepMVar #-}
+
+
+-- | Construct an empty `MVar`. Same as `Base.newEmptyMVar`.
+--
+-- Same as `Base.newEmptyMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+newEmptyMVar :: MonadPrim s m => m (MVar a s)
+newEmptyMVar =
+  prim $ \s ->
+    case newMVar# s of
+      (# s', mvar# #) -> (# s', MVar mvar# #)
+{-# INLINE newEmptyMVar #-}
+
+
+-- | Write a value into an `MVar`. Blocks the current thread if `MVar` is empty and waits
+-- until it gets filled by another thread. Evaluates the argument to WHNF prior to writing
+-- it.
+--
+-- @since 0.3.0
+putMVar :: MonadPrim s m => MVar a s -> a -> m ()
+putMVar mvar x = putLazyMVar (x `seq` mvar) x
+{-# INLINE putMVar #-}
+
+
+-- | Same as `putMVar`, but allows to write a thunk into an MVar.
+--
+-- Same as `Base.putMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+putLazyMVar :: MonadPrim s m => MVar a s -> a -> m ()
+putLazyMVar (MVar mvar#) x = prim_ (putMVar# mvar# x)
+{-# INLINE putLazyMVar #-}
+
+
+-- | Same as putMVar, but evaluates the argument to NF prior to writing it.
+--
+-- @since 0.3.0
+putDeepMVar :: (NFData a, MonadPrim s m) => MVar a s -> a -> m ()
+putDeepMVar mvar x = putLazyMVar (x `deepseq` mvar) x
+{-# INLINE putDeepMVar #-}
+
+
+-- | Attempt to write a value into `MVar`. Unlike `putMVar` this function never blocks. It
+-- also returns `True` if `MVar` was empty and placing the value in it turned out to be
+-- successfull and `False` otherwise. Evaluates the supplied argumetn to WHNF prior to
+-- attempting a write operation.
+--
+-- @since 0.3.0
+tryPutMVar :: MonadPrim s m => MVar a s -> a -> m Bool
+tryPutMVar mvar x = tryPutMVar (x `seq` mvar) x
+{-# INLINE tryPutMVar #-}
+
+-- | Same as `tryPutMVar`, but allows to put thunks into an `MVar`
+--
+-- Same as `Base.tryPutMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+tryPutLazyMVar :: MonadPrim s m => MVar a s -> a -> m Bool
+tryPutLazyMVar (MVar mvar#) x =
+  prim $ \s ->
+    case tryPutMVar# mvar# x s of
+      (# s', b# #) -> (# s', isTrue# b# #)
+{-# INLINE tryPutLazyMVar #-}
+
+
+-- | Same as `tryPutMVar`, but evaluates the argument to NF prior to attempting to write
+-- into the `MVar`
+--
+-- @since 0.3.0
+tryPutDeepMVar :: (NFData a, MonadPrim s m) => MVar a s -> a -> m Bool
+tryPutDeepMVar mvar x = tryPutMVar mvar $! force x
+{-# INLINE tryPutDeepMVar #-}
+
+-- | Replace current value in an `MVar` with a new one. Supplied value is evaluated to
+-- WHNF prior to current value being extracted from the `MVar`. If `MVar` is currently
+-- empty this operation will block the current thread until it gets filled in another
+-- thread. Furthermore it is possible for another thread to fill the `MVar` after the old
+-- value is extracted, but before the new one has a chance to placed inside the `MVar`,
+-- thus blocking current thread once more until another thread empties this `MVar`. In
+-- other words this operation is not atomic.
+--
+-- @since 0.3.0
+swapMVar :: forall a m s. MonadUnliftPrim s m => MVar a s -> a -> m a
+swapMVar mvar new =
+  mask_ $ do
+    old <- takeMVar (new `seq` mvar)
+    putLazyMVar mvar new
+    return old
+{-# INLINE swapMVar #-}
+
+-- | Same as `swapMVar`, but allows writing thunks into the `MVar`.
+--
+-- Same as `Base.swapMVar` from @base@, but works in any `MonadUnliftPrim`.
+--
+-- @since 0.3.0
+swapLazyMVar :: forall a m s. MonadUnliftPrim s m => MVar a s -> a -> m a
+swapLazyMVar mvar new =
+  mask_ $ do
+    old <- takeMVar mvar
+    putLazyMVar mvar new
+    return old
+{-# INLINE swapLazyMVar #-}
+
+
+-- | Same as `swapMVar`, but evaluates the argument value to NF.
+--
+-- @since 0.3.0
+swapDeepMVar :: forall a m s. (NFData a, MonadUnliftPrim s m) => MVar a s -> a -> m a
+swapDeepMVar mvar new =
+  mask_ $ do
+    old <- takeMVar (new `deepseq` mvar)
+    putLazyMVar mvar new
+    return old
+{-# INLINE swapDeepMVar #-}
+
+
+-- | Remove the value from `MVar` and return it. Blocks the cuurent thread if `MVar` is empty and
+-- waits until antoher thread fills it.
+--
+-- Same as `Base.takeMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+takeMVar :: MonadPrim s m => MVar a s -> m a
+takeMVar (MVar mvar#) = prim $ \ s# -> takeMVar# mvar# s#
+{-# INLINE takeMVar #-}
+
+
+
+-- | Remove the value from `MVar` and return it immediately without blocking. `Nothing` is
+-- returned if `MVar` was empty.
+--
+-- Same as `Base.tryTakeMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+tryTakeMVar :: MonadPrim s m => MVar a s -> m (Maybe a)
+tryTakeMVar (MVar mvar#) =
+  prim $ \s ->
+    case tryTakeMVar# mvar# s of
+      (# s', 0#, _ #) -> (# s', Nothing #)
+      (# s', _, a #)  -> (# s', Just a #)
+{-# INLINE tryTakeMVar #-}
+
+-- | Get the value from `MVar` atomically without affecting its contents. Blocks the
+-- current thread if the `MVar` is currently empty and waits until another thread fills
+-- it with a value.
+--
+-- Same as `Base.readMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+readMVar :: MonadPrim s m => MVar a s -> m a
+readMVar (MVar mvar#) = prim (readMVar# mvar#)
+{-# INLINE readMVar #-}
+
+
+-- | Get the value from `MVar` atomically without affecting its contents. It does not
+-- block and returns the immediately or `Nothing` if the supplied `MVar` was empty.
+--
+-- Same as `Base.tryReadMVar` from @base@, but works in any `MonadPrim`.
+--
+-- @since 0.3.0
+tryReadMVar :: MonadPrim s m => MVar a s -> m (Maybe a)
+tryReadMVar (MVar mvar#) =
+  prim $ \s ->
+    case tryReadMVar# mvar# s of
+      (# s', 0#, _ #) -> (# s', Nothing #)
+      (# s', _, a #) -> (# s', Just a #)
+{-# INLINE tryReadMVar #-}
+
+-- | Remove a value from an `MVar`, unless it was already empty. It effectively empties
+-- the `MVar` however note that by the time this action returns there is a possibility
+-- that another thread might have filled it with a different value.
+--
+-- @since 0.3.0
+clearMVar :: MonadPrim s m => MVar a s -> m ()
+clearMVar (MVar mvar#) =
+  prim $ \s ->
+    case tryReadMVar# mvar# s of
+      (# s', _, _ #) -> (# s', () #)
+{-# INLINE clearMVar #-}
+
+
+-- | Apply an action to the contents of an `MVar`. Current thread will be blocked if
+-- supplied MVar is empty and will wait until another thread fills it with a value. While
+-- the action is being appplied other threads should not put anything into the `MVar`
+-- otherwise current thread will get blocked again until another thread empties the
+-- `MVar`. In other words this is not an atomic operation, but it is exception safe, since
+-- the contents of `MVar` are restored regardless of the outcome of supplied action.
+--
+-- Same as `Base.withMVar` from @base@, but works in `MonadUnliftPrim` with `RealWorld`
+-- state token.
+--
+-- @since 0.3.0
+withMVar :: MonadUnliftPrim RW m => MVar a RW -> (a -> m b) -> m b
+withMVar !mvar !action =
+  mask $ \restore -> do
+    a <- takeMVar mvar
+    b <- restore (action a) `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    b <$ putLazyMVar mvar a
+{-# INLINE withMVar #-}
+
+
+-- | Same as `withMVar`, but with supplied action executed with async exceptions masked,
+-- but still interruptable.
+--
+-- Same as `Base.withMVarMasked` from @base@, but works in `MonadUnliftPrim` with `RealWorld`
+-- state token.
+--
+-- @since 0.3.0
+withMVarMasked :: MonadUnliftPrim RW m => MVar a RW -> (a -> m b) -> m b
+withMVarMasked !mvar !action =
+  mask_ $ do
+    a <- takeMVar mvar
+    b <- action a `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    b <$ putLazyMVar mvar a
+{-# INLINE withMVarMasked #-}
+
+-- | Apply a monadic action to the contents of supplied `MVar`. Provides the same
+-- guarantees as `withMVar`.
+--
+-- Same as `GHC.modifyMVar` from @base@, but works in `MonadUnliftPrim` with `RealWorld`
+-- state token.
+--
+-- @since 0.3.0
+modifyMVar_ :: MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m ()
+modifyMVar_ mvar = void . modifyFetchOldMVar mvar
+{-# INLINE modifyMVar_ #-}
+
+-- | Same as `modifyMVar_`, but also returns the original value that was stored in the `MVar`
+--
+-- @since 0.3.0
+modifyFetchOldMVar :: MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchOldMVar !mvar !action =
+  mask $ \restore -> do
+    a <- takeMVar mvar
+    a' <- restore (action a) `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    a <$ putMVar mvar a'
+{-# INLINE modifyFetchOldMVar #-}
+
+-- | Same as `modifyMVar_`, but also returns the result of running the supplied action,
+-- i.e. the new value that was stored in the `MVar`.
+--
+-- @since 0.3.0
+modifyFetchNewMVar :: MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchNewMVar !mvar !action =
+  mask $ \restore -> do
+    a <- takeMVar mvar
+    a' <- restore (action a) `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    a' <$ putMVar mvar a'
+{-# INLINE modifyFetchNewMVar #-}
+
+
+-- | Apply a monadic action to the contents of supplied `MVar`. Provides the same
+-- guarantees as `withMVar`.
+--
+-- Same as `GHC.modifyMVar` from @base@, but works in `MonadUnliftPrim` with `RealWorld`
+-- state token.
+--
+-- @since 0.3.0
+modifyMVar :: MonadUnliftPrim RW m => MVar a RW -> (a -> m (a, b)) -> m b
+modifyMVar mvar action =
+  mask $ \restore -> do
+    a <- takeMVar mvar
+    let run =
+          restore $ do
+            action a >>= \case
+              t@(!_, _) -> pure t -- test against `force a'`
+        recover exc = putLazyMVar mvar a >> throwPrim exc
+    (a', b) <- run `catchAny` recover
+    b <$ putMVar mvar a'
+{-# INLINE modifyMVar #-}
+
+-- | Create a `Weak` pointer associated with the supplied `MVar`.
+--
+-- Same as `Base.mkWeakMVar` from @base@, but works in any `MonadPrim` with `RealWorld`
+-- state token.
+--
+-- @since 0.3.0
+mkWeakMVar ::
+     MonadUnliftPrim RW m
+  => MVar a RW
+  -> m b -- ^ An action that will get executed whenever `MVar` gets garbage collected by
+         -- the runtime.
+  -> m (Weak (MVar a RW))
+mkWeakMVar mvar@(MVar mvar#) !finalizer =
+  runInPrimBase finalizer $ \f s ->
+    case mkWeak# mvar# mvar f s of
+      (# s', weak# #) -> (# s', Weak weak# #)
+{-# INLINE mkWeakMVar #-}
+
+
+
+-- | Cast `MVar` into and the `Base.MVar` from @base@
+--
+-- @since 0.3.0
+toBaseMVar :: MVar a RW -> GHC.MVar a
+toBaseMVar (MVar mvar#) = GHC.MVar mvar#
+{-# INLINE toBaseMVar #-}
+
+-- | Cast `Base.MVar` from @base@ into `MVar`.
+--
+-- @since 0.3.0
+fromBaseMVar :: GHC.MVar a -> MVar a RW
+fromBaseMVar (GHC.MVar mvar#) = MVar mvar#
+{-# INLINE fromBaseMVar #-}
