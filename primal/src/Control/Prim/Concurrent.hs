@@ -117,7 +117,7 @@ forkOS action = withRunInPrimBase $ \run -> GHC.forkOS (run action)
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
 killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
-killThread !tid = throwToPrim tid GHC.ThreadKilled
+killThread !tid = throwTo tid GHC.ThreadKilled
 
 
 -- | Just like `Control.Concurrent.yield` this is a Wrapper around `yield#` primop ,

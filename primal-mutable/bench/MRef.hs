@@ -4,7 +4,8 @@
 module Main where
 
 import Control.DeepSeq
---import Control.Concurrent
+--import qualified Control.Concurrent.MVar as M
+--import Control.Prim.Concurrent.MVar
 import Criterion.Main
 import Data.IORef
 --import Data.Atomics
