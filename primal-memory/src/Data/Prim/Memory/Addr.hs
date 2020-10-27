@@ -65,6 +65,18 @@ module Data.Prim.Memory.Addr
   , copyAddrToMAddr
   , moveMAddrToMAddr
 
+
+  , modifyMAddr
+  , modifyMAddr_
+  , modifyFetchOldMAddr
+  , modifyFetchNewMAddr
+  , modifyMAddrM
+  , modifyMAddrM_
+  , modifyFetchOldMAddrM
+  , modifyFetchNewMAddrM
+  , swapMAddrs_
+  , swapMAddrs
+
   , withPtrMAddr
   , withAddrMAddr#
   , withNoHaltPtrMAddr
@@ -587,6 +599,95 @@ setMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> Count e -> e -> m (
 setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
   prim_ (setOffAddr# addr# off# n# a) >> touch mb
 {-# INLINE setMAddr #-}
+
+
+
+-- | Apply a pure function to the contents of a mutable variable. Returns the artifact of
+-- computation.
+--
+-- @since 0.2.0
+modifyMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> (a, b)) -> m b
+modifyMAddr maddr f = modifyMAddrM maddr (return . f)
+{-# INLINE modifyMAddr #-}
+
+-- | Apply a pure function to the contents of a mutable variable.
+--
+-- @since 0.1.0
+modifyMAddr_ :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m ()
+modifyMAddr_ maddr f = modifyMAddrM_ maddr (return . f)
+{-# INLINE modifyMAddr_ #-}
+
+
+-- | Apply a pure function to the contents of a mutable variable. Returns the old value.
+--
+-- @since 2.0.0
+modifyFetchOldMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m a
+modifyFetchOldMAddr maddr f = modifyFetchOldMAddrM maddr (return . f)
+{-# INLINE modifyFetchOldMAddr #-}
+
+-- | Apply a pure function to the contents of a mutable variable. Returns the new value.
+--
+-- @since 2.0.0
+modifyFetchNewMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m a
+modifyFetchNewMAddr maddr f = modifyFetchNewMAddrM maddr (return . f)
+{-# INLINE modifyFetchNewMAddr #-}
+
+
+-- | Apply a monadic action to the contents of a mutable variable. Returns the artifact of
+-- computation.
+--
+-- @since 0.2.0
+modifyMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m (a, b)) -> m b
+modifyMAddrM maddr f = do
+  a <- readMAddr maddr
+  (a', b) <- f a
+  b <$ writeMAddr maddr a'
+{-# INLINE modifyMAddrM #-}
+
+-- | Apply a monadic action to the contents of a mutable variable. Returns the old value.
+--
+-- @since 2.0.0
+modifyFetchOldMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m a
+modifyFetchOldMAddrM maddr f = do
+  a <- readMAddr maddr
+  a <$ (writeMAddr maddr =<< f a)
+{-# INLINE modifyFetchOldMAddrM #-}
+
+
+-- | Apply a monadic action to the contents of a mutable variable. Returns the new value.
+--
+-- @since 2.0.0
+modifyFetchNewMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m a
+modifyFetchNewMAddrM maddr f = do
+  a <- readMAddr maddr
+  a' <- f a
+  a' <$ writeMAddr maddr a'
+{-# INLINE modifyFetchNewMAddrM #-}
+
+
+-- | Apply a monadic action to the contents of a mutable variable.
+--
+-- @since 0.1.0
+modifyMAddrM_ :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m ()
+modifyMAddrM_ maddr f = readMAddr maddr >>= f >>= writeMAddr maddr
+{-# INLINE modifyMAddrM_ #-}
+
+-- | Swap contents of two mutable variables. Returns their old values.
+--
+-- @since 0.1.0
+swapMAddrs :: (MonadPrim s m, Prim a) => MAddr a s -> MAddr a s -> m (a, a)
+swapMAddrs maddr1 maddr2 = do
+  a1 <- readMAddr maddr1
+  a2 <- modifyFetchOldMAddr maddr2 (const a1)
+  (a1, a2) <$ writeMAddr maddr1 a2
+{-# INLINE swapMAddrs #-}
+
+-- | Swap contents of two mutable variables.
+--
+-- @since 0.1.0
+swapMAddrs_ :: (MonadPrim s m, Prim a) => MAddr a s -> MAddr a s -> m ()
+swapMAddrs_ maddr1 maddr2 = void $ swapMAddrs maddr1 maddr2
+{-# INLINE swapMAddrs_ #-}
 
 
 

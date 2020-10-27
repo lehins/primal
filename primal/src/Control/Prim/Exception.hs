@@ -49,6 +49,7 @@ module Control.Prim.Exception
   , maskAsyncExceptions
   , unmaskAsyncExceptions
   , maskUninterruptible
+  , GHC.MaskingState(..)
   , getMaskingState
   -- * Exceptions
   , GHC.Exception(..)

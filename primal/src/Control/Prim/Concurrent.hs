@@ -22,6 +22,11 @@ module Control.Prim.Concurrent
   , forkOS
   , killThread
   , yield
+
+  , threadDelay
+  , timeout
+  , timeout_
+
   , myThreadId
   , threadIdToCInt
   , threadStatus
@@ -41,9 +46,10 @@ module Control.Prim.Concurrent
 import qualified Control.Exception as GHC
 import qualified Control.Concurrent as GHC
 import Control.Prim.Exception
-import Control.Prim.Monad.Internal
+import Control.Prim.Monad
 import Foreign.Prim
 import qualified GHC.Conc as GHC
+import qualified System.Timeout as GHC
 
 spark :: MonadPrim s m => a -> m a
 spark a = prim (spark# a)
@@ -118,6 +124,18 @@ forkOS action = withRunInPrimBase $ \run -> GHC.forkOS (run action)
 -- thread. Use `throwTo` if you want a different exception to be thrown.
 killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
 killThread !tid = throwTo tid GHC.ThreadKilled
+
+-- | Lifted version of `GHC.threadDelay`
+threadDelay :: MonadPrim RW m => Int -> m ()
+threadDelay = liftPrimIO . GHC.threadDelay
+
+-- @since 0.3.0
+timeout :: MonadUnliftPrim RW m => Int -> m a -> m (Maybe a)
+timeout !n !action = withRunInPrimBase $ \run -> GHC.timeout n (run action)
+
+timeout_ :: MonadUnliftPrim RW m => Int -> m a -> m ()
+timeout_ n = void . timeout n
+
 
 
 -- | Just like `Control.Concurrent.yield` this is a Wrapper around `yield#` primop ,

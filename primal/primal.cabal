@@ -96,6 +96,7 @@ test-suite tests
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Prim.ArraySpec
+                    , Test.Prim.MVarSpec
   build-depends:      base
                     , bytestring
                     , deepseq
