@@ -127,7 +127,7 @@ killThread !tid = throwTo tid GHC.ThreadKilled
 
 -- | Lifted version of `GHC.threadDelay`
 threadDelay :: MonadPrim RW m => Int -> m ()
-threadDelay = liftPrimIO . GHC.threadDelay
+threadDelay = liftIO . GHC.threadDelay
 
 -- @since 0.3.0
 timeout :: MonadUnliftPrim RW m => Int -> m a -> m (Maybe a)

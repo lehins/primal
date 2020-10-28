@@ -170,8 +170,8 @@ withLockMutableByteArray mba# i# f =
   let li0# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       li# = 1# +# li0#
    in bracket_
-        (liftPrimST (acquireLockByteOffMutableByteArray mba# li0#))
-        (liftPrimST (releaseLockByteOffMutableByteArray mba# li0#)) $ do
+        (acquireLockByteOffMutableByteArray mba# li0#)
+        (releaseLockByteOffMutableByteArray mba# li0#) $ do
       a <- prim (readByteOffMutableByteArray# mba# li#)
       (Atom a', b) <- f (Atom a)
       b <$ prim_ (writeByteOffMutableByteArray# mba# li# a')

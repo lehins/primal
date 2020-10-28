@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -18,8 +19,10 @@
 module Control.Prim.Monad.Internal
   ( RW
   , RealWorld
+  , MonadIO
   , MonadPrim(..)
   , MonadPrimBase(..)
+  , MonadUnliftIO
   , MonadUnliftPrim(..)
   , ST
   , unIO
@@ -32,16 +35,16 @@ module Control.Prim.Monad.Internal
   , withRunInIO
   , withRunInPrimBase
   , runInPrimBase
-  , liftPrimIO
-  , liftPrimST
+  , liftIO
+  , liftST
   , liftPrimBase
   , primBaseToIO
   , primBaseToST
   ) where
 
 import GHC.Exts
-import GHC.IO
-import GHC.ST
+import GHC.IO hiding (liftIO)
+import GHC.ST hiding (liftST)
 import Control.Prim.Monad.Throw
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
@@ -67,6 +70,10 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 
 -- | A shorter synonym for the magical `RealWorld`
 type RW = RealWorld
+
+type MonadIO m = MonadPrim RW m
+
+type MonadUnliftIO m = MonadUnliftPrim RW m
 
 class MonadThrow m => MonadPrim s m | m -> s where
   -- | Construct a primitive action
@@ -137,7 +144,7 @@ withRunInPrimBase ::
   => ((forall a. m a -> n a) -> n b)
   -> m b
 withRunInPrimBase inner =
-  withRunInST $ \run -> liftPrimBase (inner (liftPrimST . run))
+  withRunInST $ \run -> liftPrimBase (inner (liftST . run))
 {-# INLINE withRunInPrimBase #-}
 
 
@@ -263,15 +270,15 @@ prim_ f = prim $ \s -> (# f s, () #)
 
 -- | Lift an `IO` action to `MonadPrim` with the `RealWorld` state token. Type restricted
 -- synonym for `liftPrimBase`
-liftPrimIO :: MonadPrim RW m => IO a -> m a
-liftPrimIO (IO m) = prim m
-{-# INLINE liftPrimIO #-}
+liftIO :: MonadPrim RW m => IO a -> m a
+liftIO (IO m) = prim m
+{-# INLINE liftIO #-}
 
 -- | Lift an `ST` action to `MonadPrim` with the same state token. Type restricted synonym
 -- for `liftPrimBase`
-liftPrimST :: MonadPrim s m => ST s a -> m a
-liftPrimST (ST m) = prim m
-{-# INLINE liftPrimST #-}
+liftST :: MonadPrim s m => ST s a -> m a
+liftST (ST m) = prim m
+{-# INLINE liftST #-}
 
 -- | Lift an action from the `MonadPrimBase` to another `MonadPrim` with the same state
 -- token.

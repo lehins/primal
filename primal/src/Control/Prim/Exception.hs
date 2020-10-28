@@ -122,7 +122,7 @@ throwPrim e = unsafePrim (raiseIO# (GHC.toException e))
 -- from a regular synchronous exception
 throwTo :: (MonadPrim RW m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
 throwTo tid e =
-  liftPrimIO $
+  liftIO $
   GHC.throwTo tid $
   if isAsyncException e
     then GHC.toException e
@@ -397,7 +397,7 @@ unmaskAsyncExceptionsInternal# = unsafeCoerce# unmaskAsyncExceptions#
 --
 -- @since 0.3.0
 getMaskingState :: MonadPrim RW m => m GHC.MaskingState
-getMaskingState = liftPrimIO GHC.getMaskingState
+getMaskingState = liftIO GHC.getMaskingState
 {-# INLINE getMaskingState #-}
 
 

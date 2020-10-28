@@ -20,6 +20,6 @@ extra-deps:
 - github: lehins/doctest
   commit: 3630ebbacdb96394feee7f223fd68eb4154c3312
 - github: lehins/pvar
-  commit: c0424cc1b82cdf4093d3f0cf55e01269217a2d8d
+  commit: 7934cee022eafc5cb98a6731ac233a88c1f3cb28
   subdirs:
     - pvar
