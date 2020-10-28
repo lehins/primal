@@ -19,6 +19,7 @@ module Data.Prim.MRef.Internal
   , modifyFetchNewMRefM
   ) where
 
+import Control.Prim.Concurrent.MVar
 import Control.Prim.Monad
 import Data.Prim.Array
 import Data.Prim.Memory
@@ -40,6 +41,17 @@ class MRef mut where
 
   writeMRef :: MonadPrim s m => mut s -> Elt mut -> m ()
 
+-- | Not thread safe.
+instance MRef (MVar a) where
+  type Elt (MVar a) = a
+  newMRef = newMVar
+  {-# INLINE newMRef #-}
+  newRawMRef = newEmptyMVar
+  {-# INLINE newRawMRef #-}
+  writeMRef = writeMVar
+  {-# INLINE writeMRef #-}
+  readMRef = readMVar
+  {-# INLINE readMRef #-}
 
 instance Typeable p => MRef (MBytes p) where
   type Elt (MBytes p) = Word8

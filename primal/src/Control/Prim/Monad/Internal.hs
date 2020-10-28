@@ -29,6 +29,7 @@ module Control.Prim.Monad.Internal
   , runST
   , prim_
   , primBase_
+  , withRunInIO
   , withRunInPrimBase
   , runInPrimBase
   , liftPrimIO
@@ -119,8 +120,17 @@ runInPrimBase ::
   -> ((State# s -> (# State# s, a #)) -> State# s -> (# State# s, b #))
   -> m b
 runInPrimBase f g# = runInPrimBase1 (const f) (\f# -> g# (f# ()))
-  --withRunInST (\run -> prim (g (primBase (run f))))
 {-# INLINE runInPrimBase #-}
+
+
+
+withRunInIO ::
+     forall m b. MonadUnliftPrim RW m
+  => ((forall a. m a -> IO a) -> IO b)
+  -> m b
+withRunInIO f = withRunInST $ \run -> coerce (f (\m -> coerce (run m)))
+{-# INLINE withRunInIO #-}
+
 
 withRunInPrimBase ::
      (MonadUnliftPrim s m, MonadPrimBase s n)

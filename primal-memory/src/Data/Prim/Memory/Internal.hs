@@ -23,7 +23,7 @@ module Data.Prim.Memory.Internal
   , module Data.Prim.Memory.Bytes.Internal
   ) where
 
-import Control.Exception
+import Control.Prim.Exception
 import Control.Monad.ST
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
@@ -2814,7 +2814,5 @@ withScrubbedMutMem ::
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
   let _fptr = toForeignPtr mem :: IO (ForeignPtr e) -- Enforce the `PtrAccess` constraint.
-  f mem `finallyPrim` setMutMem mem 0 (toByteCount c) 0
-  where
-    finallyPrim m1 m2 = withRunInPrimBase $ \run -> run m1 `finally` run m2
+  f mem `ufinally` setMutMem mem 0 (toByteCount c) 0
 {-# INLINE withScrubbedMutMem #-}

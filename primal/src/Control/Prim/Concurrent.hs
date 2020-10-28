@@ -118,7 +118,7 @@ forkOnCatchAny cap action handler =
 
 
 forkOS :: MonadUnliftPrim RW m => m () -> m GHC.ThreadId
-forkOS action = withRunInPrimBase $ \run -> GHC.forkOS (run action)
+forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
@@ -131,7 +131,7 @@ threadDelay = liftPrimIO . GHC.threadDelay
 
 -- @since 0.3.0
 timeout :: MonadUnliftPrim RW m => Int -> m a -> m (Maybe a)
-timeout !n !action = withRunInPrimBase $ \run -> GHC.timeout n (run action)
+timeout !n !action = withRunInIO $ \run -> GHC.timeout n (run action)
 
 timeout_ :: MonadUnliftPrim RW m => Int -> m a -> m ()
 timeout_ n = void . timeout n

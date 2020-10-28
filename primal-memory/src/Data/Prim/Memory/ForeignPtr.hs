@@ -273,13 +273,13 @@ mallocByteCountPlainForeignPtrAligned (Count (I# c#)) (I# a#) =
 -- | Unlifted version of `GHC.newConcForeignPtr`
 newConcForeignPtr :: MonadUnliftPrim RW m => Ptr e -> m () -> m (ForeignPtr e)
 newConcForeignPtr ptr fin =
-  withRunInPrimBase $ \run -> liftPrimBase (GHC.newConcForeignPtr ptr (run fin))
+  withRunInIO $ \run -> liftPrimBase (GHC.newConcForeignPtr ptr (run fin))
 
 
 -- | Unlifted version of `GHC.addForeignPtrConcFinalizer`
 addForeignPtrConcFinalizer :: MonadUnliftPrim RW m => ForeignPtr a -> m () -> m ()
 addForeignPtrConcFinalizer fp fin =
-  withRunInPrimBase $ \run -> liftPrimBase (GHC.addForeignPtrConcFinalizer fp (run fin))
+  withRunInIO $ \run -> liftPrimBase (GHC.addForeignPtrConcFinalizer fp (run fin))
 
 -- | Lifted version of `GHC.finalizeForeignPtr`.
 finalizeForeignPtr :: MonadPrim RW m => ForeignPtr e -> m ()

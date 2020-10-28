@@ -36,8 +36,6 @@ library
                      , Data.Prim.MRef
                      , Data.Prim.MRef.Atomic
                      , Data.Prim.MRef.Internal
-                     -- , Data.Prim.MRef.PVar
-                     , Data.Prim.MRef.MVar
   other-modules:
   build-depends:       base >= 4.9 && < 5
                      , deepseq

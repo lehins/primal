@@ -44,8 +44,10 @@ module Control.Prim.Exception
   , ubracketOnError
   , mask
   , mask_
+  , maskPrimBase_
   , uninterruptibleMask
   , uninterruptibleMask_
+  , uninterruptibleMaskPrimBase_
   , maskAsyncExceptions
   , unmaskAsyncExceptions
   , maskUninterruptible
@@ -286,13 +288,17 @@ ufinally action cleanup =
 mask_ :: forall a m s. MonadUnliftPrim s m => m a -> m a
 mask_ action =
   unsafeIOToPrim getMaskingState >>= \case
-    GHC.Unmasked -> runInPrimBase action mask#
+    GHC.Unmasked -> runInPrimBase action maskAsyncExceptionsInternal#
     _ -> action
-  where
-    mask# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
-    mask# = unsafeCoerce# maskAsyncExceptions#
 {-# INLINE mask_  #-}
 
+
+maskPrimBase_ :: forall a n m s. (MonadPrim s m, MonadPrimBase s n) => n a -> m a
+maskPrimBase_ action =
+  unsafeIOToPrim getMaskingState >>= \case
+    GHC.Unmasked -> prim (maskAsyncExceptionsInternal# (primBase action))
+    _ -> liftPrimBase action
+{-# INLINE maskPrimBase_  #-}
 
 -- | Mask all asychronous exceptions, but keep it interruptible, unless the inherited state
 -- was uninterruptible already, in which case this action has no affect. Same as
@@ -307,14 +313,13 @@ mask ::
   -> m a
 mask action = do
   unsafeIOToPrim getMaskingState >>= \case
-    GHC.Unmasked -> runInPrimBase (action (\subAction -> runInPrimBase subAction unmask#)) mask#
-    GHC.MaskedInterruptible -> action (\subAction -> runInPrimBase subAction mask#)
+    GHC.Unmasked ->
+      runInPrimBase
+        (action (`runInPrimBase` unmaskAsyncExceptionsInternal#))
+        maskAsyncExceptionsInternal#
+    GHC.MaskedInterruptible ->
+      action (`runInPrimBase` maskAsyncExceptionsInternal#)
     GHC.MaskedUninterruptible -> action uninterruptibleMask_
-  where
-    mask# :: (State# s -> (# State# s, c #)) -> State# s -> (# State# s, c #)
-    mask# = unsafeCoerce# maskAsyncExceptions#
-    unmask# :: (State# s -> (# State# s, b #)) -> State# s -> (# State# s, b #)
-    unmask# = unsafeCoerce# unmaskAsyncExceptions#
 {-# INLINE mask #-}
 
 
@@ -330,14 +335,13 @@ uninterruptibleMask ::
   -> m a
 uninterruptibleMask action = do
   unsafeIOToPrim getMaskingState >>= \case
-    GHC.Unmasked -> runInPrimBase (action (\subAction -> runInPrimBase subAction unmask#)) mask#
-    GHC.MaskedInterruptible -> action (\subAction -> runInPrimBase subAction mask#)
+    GHC.Unmasked ->
+      runInPrimBase
+        (action (`runInPrimBase` unmaskAsyncExceptionsInternal#))
+        maskAsyncExceptionsInternal#
+    GHC.MaskedInterruptible ->
+      action (`runInPrimBase` maskAsyncExceptionsInternal#)
     GHC.MaskedUninterruptible -> action uninterruptibleMask_
-  where
-    mask# :: (State# s -> (# State# s, c #)) -> State# s -> (# State# s, c #)
-    mask# = unsafeCoerce# maskAsyncExceptions#
-    unmask# :: (State# s -> (# State# s, b #)) -> State# s -> (# State# s, b #)
-    unmask# = unsafeCoerce# unmaskAsyncExceptions#
 {-# INLINE uninterruptibleMask #-}
 
 
@@ -351,11 +355,12 @@ uninterruptibleMask action = do
 --
 -- @since 0.3.0
 uninterruptibleMask_ :: forall a m s. MonadUnliftPrim s m => m a -> m a
-uninterruptibleMask_ action = runInPrimBase action mask#
-  where
-    mask# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
-    mask# = unsafeCoerce# maskUninterruptible#
+uninterruptibleMask_ action = runInPrimBase action maskUninterruptibleInternal#
 {-# INLINE uninterruptibleMask_ #-}
+
+uninterruptibleMaskPrimBase_ :: forall a n m s. (MonadPrimBase s n, MonadPrim s m) => n a -> m a
+uninterruptibleMaskPrimBase_ action = prim (maskUninterruptibleInternal# (primBase action))
+{-# INLINE uninterruptibleMaskPrimBase_ #-}
 
 
 -- | A direct wrapper around `maskAsyncExceptions#` primop. This is different and more
@@ -375,6 +380,18 @@ unmaskAsyncExceptions action = runInPrimBase action unmaskAsyncExceptions#
 maskUninterruptible :: forall a m. MonadUnliftPrim RW m => m a -> m a
 maskUninterruptible action = runInPrimBase action maskUninterruptible#
 {-# INLINE maskUninterruptible #-}
+
+maskAsyncExceptionsInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
+maskAsyncExceptionsInternal# = unsafeCoerce# maskAsyncExceptions#
+{-# INLINE maskAsyncExceptionsInternal# #-}
+
+maskUninterruptibleInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
+maskUninterruptibleInternal# = unsafeCoerce# maskUninterruptible#
+{-# INLINE maskUninterruptibleInternal# #-}
+
+unmaskAsyncExceptionsInternal# :: (State# s -> (# State# s, b #)) -> State# s -> (# State# s, b #)
+unmaskAsyncExceptionsInternal# = unsafeCoerce# unmaskAsyncExceptions#
+{-# INLINE unmaskAsyncExceptionsInternal# #-}
 
 -- | Same as `GHC.getMaskingState`, but generalized to `MonadPrim`
 --
