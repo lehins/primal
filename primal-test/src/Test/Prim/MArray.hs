@@ -16,7 +16,6 @@
 module Test.Prim.MArray where
 
 import Control.Prim.Exception
-import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Array
 import Data.Prim.MArray

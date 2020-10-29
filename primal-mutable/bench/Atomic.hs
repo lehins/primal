@@ -8,7 +8,7 @@ import Control.Concurrent
 import Control.Monad
 import Criterion.Main
 import Data.Int
-import Data.IORef
+import Data.IORef as IO
 import Data.Atomics
 --import Data.Prim.Atomic
 import Data.Prim.Memory
@@ -46,7 +46,7 @@ main = do
       mkRef f = newMRef (f e0)
       mkSBMArray :: (Int -> e) -> IO (SBMArray e RW)
       mkSBMArray f = newMRef (f e0)
-      mkIORef :: (Int -> e) -> IO (IORef e)
+      mkIORef :: (Int -> e) -> IO (IO.IORef e)
       mkIORef f = newIORef (f e0)
       benchSeq mkEnv name f =
         env (BogusNF <$> mkEnv) $ \(BogusNF ref) -> bench name $ whnfIO $ forM_ [1 .. n] (f ref)

@@ -9,7 +9,7 @@ import qualified Control.Concurrent.MVar as Base
 import Control.Prim.Exception
 import Control.Prim.Concurrent.MVar
 import Criterion.Main
-import Data.IORef
+import Data.IORef as IO
 --import Data.Atomics
 --import Data.Prim.Atomic
 import Data.Prim.Memory
@@ -48,7 +48,7 @@ main = do
       envMAddr e g = e `deepseq` env (BNF <$> newMAddr e) $ \(BNF var) -> g var
       envRef :: NFData e => e -> (Ref e RW -> Benchmark) -> Benchmark
       envRef e g = e `deepseq` env (BNF <$> newRef e) $ \ref -> g (coerce ref)
-      envIORef :: NFData e => e -> (IORef e -> Benchmark) -> Benchmark
+      envIORef :: NFData e => e -> (IO.IORef e -> Benchmark) -> Benchmark
       envIORef e g =
         e `deepseq` env (BNF <$> newIORef e) $ \ref -> g (coerce ref)
       envPRef ::
