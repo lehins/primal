@@ -1717,7 +1717,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 -- cell, so it will not overwrite the value of an array's cell if it evaluates to an
 -- exception:
 --
--- >>> import Control.Exception
+-- >>> import Control.Prim.Exception
 -- >>> writeSBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeSBMArray ma

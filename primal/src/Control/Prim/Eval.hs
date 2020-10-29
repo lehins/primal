@@ -45,9 +45,9 @@ touch x = prim_ (touch# x)
 {-# INLINE touch #-}
 
 -- | An action that evaluates a value to weak head normal form. Same as
--- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This provides sightly
--- better guarantees than `seq` with respect to ordering of operations, but it has higher
--- overhead.
+-- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This function provides
+-- better guarantees than `seq` with respect to ordering of operations, but it does have a
+-- slightly higher overhead.
 --
 -- @since 0.3.0
 evaluate :: MonadPrim s m => a -> m a

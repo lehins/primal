@@ -59,11 +59,8 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 class Monad m => MonadThrow m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
-  -- "Control.Exception"'s 'ControlException.throwIO'.
+  -- "Control.Prim.Exception"'s 'Control.Prim.Exception.throw'.
   --
-  -- Should satisfy the law:
-  --
-  -- > throwM e >> f = throwM e
   throwM :: Exception e => e -> m a
 
 instance MonadThrow Maybe where

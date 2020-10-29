@@ -172,9 +172,7 @@ readRef (Ref ref#) = prim (readMutVar# ref#)
 --
 -- @since 0.3.0
 swapRef :: MonadPrim s m => Ref a s -> a -> m a
-swapRef ref a = do
-  a' <- readRef ref
-  a' <$ writeRef ref a
+swapRef ref a = readRef ref <* writeRef ref a
 {-# INLINE swapRef #-}
 
 
@@ -185,7 +183,7 @@ swapRef ref a = do
 -- ==== __Examples__
 --
 -- >>> ref <- newRef "Original value"
--- >>> import Control.Exception
+-- >>> import Control.Prim.Exception
 -- >>> _ <- try $ writeRef ref undefined :: IO (Either SomeException ())
 -- >>> readRef ref
 -- "Original value"

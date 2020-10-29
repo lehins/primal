@@ -24,8 +24,6 @@ module Data.Prim.Memory.Internal
   ) where
 
 import Control.Prim.Exception
-import Control.Monad.ST
-import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
