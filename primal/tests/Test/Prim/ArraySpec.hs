@@ -72,7 +72,7 @@ prop_writeBArrayException x = monadicIO $ run $ do
   a <- freezeBMArray ma
   a `shouldBe` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
-  writeBMArray ma 2 (throw DivideByZero) `shouldThrow` (== DivideByZero)
+  writeBMArray ma 2 (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
   freezeBMArray ma `shouldReturn` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
   writeBMArray ma 3 (Just (x `div` 0))

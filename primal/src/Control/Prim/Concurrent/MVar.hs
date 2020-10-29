@@ -329,7 +329,7 @@ withMVar :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m b) -> m b
 withMVar mvar !action =
   mask $ \restore -> do
     a <- takeMVar mvar
-    b <- restore (action a) `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    b <- restore (action a) `catchAny` \exc -> putLazyMVar mvar a >> throw exc
     b <$ putLazyMVar mvar a
 {-# INLINE withMVar #-}
 
@@ -345,7 +345,7 @@ withMVarMasked :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m b) 
 withMVarMasked mvar !action =
   mask_ $ do
     a <- takeMVar mvar
-    b <- action a `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    b <- action a `catchAny` \exc -> putLazyMVar mvar a >> throw exc
     b <$ putLazyMVar mvar a
 {-# INLINE withMVarMasked #-}
 
@@ -356,7 +356,7 @@ withMVarMasked mvar !action =
 modifyFetchLazyMVar :: MonadUnliftPrim RW m => (a -> a -> b) -> MVar a RW -> (a -> m a) -> m b
 modifyFetchLazyMVar select mvar action = do
   a <- takeMVar mvar
-  a' <- action a `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+  a' <- action a `catchAny` \exc -> putLazyMVar mvar a >> throw exc
   select a a' <$ putLazyMVar mvar a'
 {-# INLINE modifyFetchLazyMVar #-}
 
@@ -442,7 +442,7 @@ modifyMVar mvar action =
     a <- takeMVar mvar
     let run = restore (action a >>= \t@(!_, _) -> pure t)
     -- TODO: test against `force a'`
-    (a', b) <- run `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    (a', b) <- run `catchAny` \exc -> putLazyMVar mvar a >> throw exc
     b <$ putLazyMVar mvar a'
 {-# INLINE modifyMVar #-}
 
@@ -460,7 +460,7 @@ modifyMVarMasked mvar action =
     a <- takeMVar mvar
     let run = action a >>= \t@(!_, _) -> pure t
     -- TODO: test against `force a'`
-    (a', b) <- run `catchAny` \exc -> putLazyMVar mvar a >> throwPrim exc
+    (a', b) <- run `catchAny` \exc -> putLazyMVar mvar a >> throw exc
     b <$ putLazyMVar mvar a'
 {-# INLINE modifyMVarMasked #-}
 

@@ -15,7 +15,7 @@
 --
 module Test.Prim.MArray where
 
-import Control.Exception
+import Control.Prim.Exception
 import Control.Prim.Monad
 import Data.Prim
 import Data.Prim.Array
@@ -222,7 +222,7 @@ prop_writeReadException nea e' = propIO $ do
   ma@(NEMArrayIx i xs m) <- thawCopyArray nea 0 (sizeOfArray nea)
   e <- readMRef ma
   e `shouldBe` (xs !! i)
-  writeBMArray m i (throw DivideByZero) `shouldThrow` (== DivideByZero)
+  writeBMArray m i (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
   readBMArray m i `shouldReturn` e
   let i' = i + 1
   when (i' < length xs) $ do
@@ -232,25 +232,6 @@ prop_writeReadException nea e' = propIO $ do
       Just x -> do
         (pure $! x) `shouldThrow` (== DivideByZero)
       Nothing -> expectationFailure "Wrote Just got back Nothing"
-
--- BArray [Nothing,Nothing,Just 2,Nothing]
---
--- It is important to note that an element is evaluated prior to being written into a
--- cell, so it will not overwrite the value of an array's cell if it evaluates to an
--- exception:
---
--- >>> import Control.Exception
--- >>> writeBMArray ma 2 (throw DivideByZero)
--- *** Exception: divide by zero
--- >>> freezeBMArray ma
--- BArray [Nothing,Nothing,Just 2,Nothing]
---
--- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
--- to write something that eventually evaluates to bottom.
---
--- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
--- >>> freezeBMArray ma
--- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 
 
 

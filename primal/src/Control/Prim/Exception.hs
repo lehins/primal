@@ -22,9 +22,9 @@ module Control.Prim.Exception
   (
   -- * Throwing
     module Control.Prim.Monad.Throw
-  , GHC.throw
-  , throwPrim
+  , throw
   , throwTo
+  , impureThrow
   -- * Catching
   , catch
   , catchAny
@@ -112,8 +112,16 @@ isAsyncException exc =
 
 -- | This is the same as `throwIO`, but works with any `MonadPrim` without restriction on
 -- `RealWorld`.
-throwPrim :: (GHC.Exception e, MonadPrim s m) => e -> m a
-throwPrim e = unsafePrim (raiseIO# (GHC.toException e))
+throw :: (GHC.Exception e, MonadPrim s m) => e -> m a
+throw e = unsafePrim (raiseIO# (GHC.toException e))
+
+
+-- | Raise an impure exception from pure code. Returns a thunk, which will result in a
+-- supplied exceptionn being thrown when evaluated.
+--
+-- @since 0.3.0
+impureThrow :: GHC.Exception e => e -> a
+impureThrow e = raise# (GHC.toException e)
 
 
 -- | Similar to `throwTo`, except that it wraps any known non-async exception with
@@ -160,7 +168,7 @@ catchAnySync ::
   -> m a
 catchAnySync action handler =
   catchAny action $ \exc ->
-    when (isAsyncException exc) (throwPrim exc) >> handler exc
+    when (isAsyncException exc) (throw exc) >> handler exc
 
 catchAll ::
      forall a m. MonadUnliftPrim RW m
@@ -180,7 +188,7 @@ catchAllSync ::
   -> m a
 catchAllSync action handler =
   catchAll action $ \exc ->
-    when (isAsyncException exc) (throwPrim exc) >> handler exc
+    when (isAsyncException exc) (throw exc) >> handler exc
 
 
 -- | Run an action, while invoking an exception handler if that action fails for some
@@ -198,7 +206,7 @@ withException action handler =
   mask $ \restore -> do
     catch
       (restore action)
-      (\exc -> catchAnySync (void $ handler exc) (\_ -> pure ()) >> throwPrim exc)
+      (\exc -> catchAnySync (void $ handler exc) (\_ -> pure ()) >> throw exc)
 
 
 -- | Same as `withException`, but will invoke exception handling function on all
@@ -210,7 +218,7 @@ withAnyException thing after =
   mask $ \restore -> do
     catchAny
       (restore thing)
-      (\exc -> catchAnySync (void $ after exc) (\_ -> pure ()) >> throwPrim exc)
+      (\exc -> catchAnySync (void $ after exc) (\_ -> pure ()) >> throw exc)
 
 -- | Async safe version of 'EUnsafe.onException'.
 --
@@ -228,7 +236,7 @@ bracket acquire cleanup action =
     result <-
       catchAny (restore (action resource)) $ \exc -> do
         catchAnySync (void $ cleanup resource) $ \_ -> pure ()
-        throwPrim exc
+        throw exc
     result <$ cleanup resource
 
 bracketOnError :: MonadUnliftPrim RW m => m a -> (a -> m b) -> (a -> m c) -> m c
@@ -237,7 +245,7 @@ bracketOnError acquire cleanup action =
     resource <- acquire
     catchAny (restore (action resource)) $ \exc -> do
       catchAnySync (void $ cleanup resource) $ \_ -> pure ()
-      throwPrim exc
+      throw exc
 
 finally :: MonadUnliftPrim RW m => m a -> m b -> m a
 finally action cleanup =
@@ -245,7 +253,7 @@ finally action cleanup =
     result <-
       catchAny (restore action) $ \exc -> do
         catchAnySync (void cleanup) $ \_ -> pure ()
-        throwPrim exc
+        throw exc
     result <$ cleanup
 
 

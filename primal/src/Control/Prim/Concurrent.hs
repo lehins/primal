@@ -102,7 +102,7 @@ fork action =
 -- be passed to the supplied exception handler, which itself will be run in a masked state
 forkCatchAny :: MonadUnliftPrim RW m => m () -> (SomeException -> m ()) -> m GHC.ThreadId
 forkCatchAny action handler =
-  mask_ $ fork $ catchAny (unmaskAsyncExceptions action) handler
+  mask $ \restore -> fork $ catchAny (restore action) handler
 
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
@@ -114,11 +114,13 @@ forkOn (I# cap#) action =
 
 forkOnCatchAny :: MonadUnliftPrim RW m => Int -> m () -> (SomeException -> m ()) -> m GHC.ThreadId
 forkOnCatchAny cap action handler =
-  mask_ $ forkOn cap $ catchAny (unmaskAsyncExceptions action) handler
+  mask $ \restore -> forkOn cap $ catchAny (restore action) handler
 
 
 forkOS :: MonadUnliftPrim RW m => m () -> m GHC.ThreadId
 forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
+
+
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.

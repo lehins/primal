@@ -685,7 +685,7 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- exception:
 --
 -- >>> import Control.Prim.Exception
--- >>> writeBMArray ma 2 (throw DivideByZero)
+-- >>> writeBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeBMArray ma
 -- BArray [Nothing,Nothing,Just 2,Nothing]
@@ -839,7 +839,7 @@ newLazyBMArray (Size (I# n#)) a =
 -- as an alternative.
 --
 -- [Partial] All array cells are initialized with thunks that throw `UndefinedElement`
--- exception.
+-- exception when evaluated
 --
 -- [Unsafe] Same reasons as `newBMArray`
 --
@@ -1720,7 +1720,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 -- exception:
 --
 -- >>> import Control.Exception
--- >>> writeSBMArray ma 2 (throw DivideByZero)
+-- >>> writeSBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeSBMArray ma
 -- SBArray [Nothing,Nothing,Just 2,Nothing]
@@ -2839,7 +2839,7 @@ uninitialized ::
   -> String -- ^ Function name
   -> a
 uninitialized mname fname =
-  throw $
+  impureThrow $
   UndefinedElement $ mname ++ "." ++ fname ++ "\n" ++ prettyCallStack callStack
 {-# NOINLINE uninitialized #-}
 

@@ -53,22 +53,22 @@ spec = do
     wit "newMVar" $ do
       m <- newMVar 'h'
       readMVar m `shouldReturn` 'h'
-      newMVar (throw MVarException) `shouldThrow` (== MVarException)
-      n <- newMVar @(Maybe Integer) (Just (throw MVarException))
+      newMVar (impureThrow MVarException) `shouldThrow` (== MVarException)
+      n <- newMVar @(Maybe Integer) (Just (impureThrow MVarException))
       mRes <- takeMVar n
       mRes `shouldSatisfy` isJust
       evaluate (force mRes) `shouldThrow` (== MVarException)
     wit "newLazyMVar" $ do
       m <- newLazyMVar 'h'
       tryTakeMVar m `shouldReturn` Just 'h'
-      n <- newLazyMVar (throw MVarException)
+      n <- newLazyMVar (impureThrow MVarException)
       res <- takeMVar n
       evaluate res `shouldThrow` (== MVarException)
     wit "newDeepMVar" $ do
       m <- newDeepMVar 'h'
       takeMVar m `shouldReturn` 'h'
-      newDeepMVar @Int (throw MVarException) `shouldThrow` (== MVarException)
-      newDeepMVar @(Maybe Integer) (Just (throw MVarException)) `shouldThrow` (== MVarException)
+      newDeepMVar @Int (impureThrow MVarException) `shouldThrow` (== MVarException)
+      newDeepMVar @(Maybe Integer) (Just (impureThrow MVarException)) `shouldThrow` (== MVarException)
     wit "putMVar" $ do
       m <- newEmptyMVar
       void $ fork $ putMVar m "Hello"
@@ -76,11 +76,11 @@ spec = do
 
       n <- newMVar "World"
       timeout 50000 (putMVar n "Already full") `shouldReturn` Nothing
-      void $ fork $ putMVar n (throw MVarException)
-      putMVar n (throw MVarException) `shouldThrow` (== MVarException)
+      void $ fork $ putMVar n (impureThrow MVarException)
+      putMVar n (impureThrow MVarException) `shouldThrow` (== MVarException)
       takeMVar n `shouldReturn` "World"
 
-      putMVar n ('f':throw MVarException)
+      putMVar n ('f':impureThrow MVarException)
       res <- takeMVar n
       head res `shouldBe` 'f'
       evaluate (force res) `shouldThrow` (== MVarException)
@@ -91,7 +91,7 @@ spec = do
       timeout 50000 (putLazyMVar m "Already full") `shouldReturn` Nothing
 
       n <- newEmptyMVar
-      void $ fork $ putLazyMVar n (throw MVarException)
+      void $ fork $ putLazyMVar n (impureThrow MVarException)
       res <- takeMVar n
       evaluate res `shouldThrow` (== MVarException)
     wit "putDeepMVar" $ do
@@ -101,33 +101,33 @@ spec = do
       timeout 50000 (putDeepMVar m "Already full") `shouldReturn` Nothing
 
       n <- newMVar "World"
-      void $ fork $ putDeepMVar n ("Bar" ++ throw MVarException)
-      putDeepMVar n ("Foo" ++ throw MVarException) `shouldThrow` (== MVarException)
+      void $ fork $ putDeepMVar n ("Bar" ++ impureThrow MVarException)
+      putDeepMVar n ("Foo" ++ impureThrow MVarException) `shouldThrow` (== MVarException)
       threadDelay 10000
       takeMVar n `shouldReturn` "World"
     wit "tryPutMVar" $ do
       m <- newEmptyMVar
       tryPutMVar m "Hello" `shouldReturn` True
       tryPutMVar m "World" `shouldReturn` False
-      tryPutMVar m (throw MVarException) `shouldThrow` (== MVarException)
+      tryPutMVar m (impureThrow MVarException) `shouldThrow` (== MVarException)
       takeMVar m `shouldReturn` "Hello"
 
       n <- newEmptyMVar
-      void $ fork $ void $ tryPutMVar n (throw MVarException)
-      tryPutMVar n (throw MVarException) `shouldThrow` (== MVarException)
+      void $ fork $ void $ tryPutMVar n (impureThrow MVarException)
+      tryPutMVar n (impureThrow MVarException) `shouldThrow` (== MVarException)
       threadDelay 10000
       isEmptyMVar n `shouldReturn` True
     wit "tryPutLazyMVar" $ do
       m <- newEmptyMVar
       tryPutLazyMVar m "Hello" `shouldReturn` True
       tryPutLazyMVar m "World" `shouldReturn` False
-      tryPutLazyMVar m (throw MVarException) `shouldReturn` False
+      tryPutLazyMVar m (impureThrow MVarException) `shouldReturn` False
       takeMVar m `shouldReturn` "Hello"
 
       done <- newEmptyMVar
       n <- newEmptyMVar
       void $ fork $ do
-        res <- tryPutLazyMVar n (throw MVarException)
+        res <- tryPutLazyMVar n (impureThrow MVarException)
         void $ tryPutLazyMVar done res
       takeMVar done `shouldReturn` True
       isEmptyMVar n `shouldReturn` False
@@ -137,11 +137,11 @@ spec = do
       m <- newEmptyMVar
       tryPutMVar m "Hello" `shouldReturn` True
       tryPutMVar m "World" `shouldReturn` False
-      tryPutDeepMVar m ("Happy" ++ throw MVarException) `shouldThrow` (== MVarException)
+      tryPutDeepMVar m ("Happy" ++ impureThrow MVarException) `shouldThrow` (== MVarException)
       takeMVar m `shouldReturn` "Hello"
 
       n <- newEmptyMVar
-      tryPutDeepMVar n ("World" ++ throw MVarException) `shouldThrow` (== MVarException)
+      tryPutDeepMVar n ("World" ++ impureThrow MVarException) `shouldThrow` (== MVarException)
       isEmptyMVar n `shouldReturn` True
     wit "writeMVar" $ do
       m <- newEmptyMVar
@@ -152,19 +152,19 @@ spec = do
     wit "swapMVar" $ do
       m <- newMVar "Hello"
       swapMVar m "World" `shouldReturn` "Hello"
-      swapMVar m (throw MVarException) `shouldThrow` (== MVarException)
+      swapMVar m (impureThrow MVarException) `shouldThrow` (== MVarException)
       readMVar m `shouldReturn` "World"
     wit "swapLazyMVar" $ do
       m <- newMVar "Hello"
       swapLazyMVar m "World" `shouldReturn` "Hello"
       readMVar m `shouldReturn` "World"
-      swapLazyMVar m (throw MVarException) `shouldReturn` "World"
+      swapLazyMVar m (impureThrow MVarException) `shouldReturn` "World"
       res <- takeMVar m
       evaluate res `shouldThrow` (== MVarException)
     wit "swapDeepMVar" $ do
       m <- newMVar "Hello"
       swapDeepMVar m "World" `shouldReturn` "Hello"
-      swapDeepMVar m ("Booyah" ++ throw MVarException) `shouldThrow` (== MVarException)
+      swapDeepMVar m ("Booyah" ++ impureThrow MVarException) `shouldThrow` (== MVarException)
       readMVar m `shouldReturn` "World"
     wit "takeMVar" $ do
       m <- newMVar "Hello"
@@ -207,7 +207,7 @@ spec = do
       -- check restoration of value on exception
       withMVar m (\_ -> do
         isEmptyMVar m `shouldReturn` True
-        throwPrim MVarException)
+        throwM MVarException)
         `shouldThrow` (==MVarException)
       readMVar m `shouldReturn` "Hello"
 
@@ -219,7 +219,7 @@ spec = do
        -- overwritten
       timeout 50000 (withMVar m (\_ -> do
                                     putMVar m "Goodbye"
-                                    () <$ throwPrim MVarException
+                                    () <$ throwM MVarException
                                 )) `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
@@ -237,7 +237,7 @@ spec = do
       -- check restoration of value on exception
       withMVarMasked m (\_ -> do
         isEmptyMVar m `shouldReturn` True
-        throwPrim MVarException)
+        throw MVarException)
         `shouldThrow` (==MVarException)
       readMVar m `shouldReturn` "Hello"
 
@@ -249,7 +249,7 @@ spec = do
        -- overwritten
       timeout 50000 (withMVarMasked m (\_ -> do
                                     putMVar m "Goodbye"
-                                    () <$ throwPrim MVarException
+                                    () <$ throw MVarException
                                 )) `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
@@ -269,7 +269,7 @@ spec = do
       modifyMVar_ m (\x -> do
         isEmptyMVar m  `shouldReturn` True
         x `shouldBe` "Hello World"
-        pure $ throw MVarException)
+        pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       readMVar m `shouldReturn` "Hello World"
 
@@ -281,7 +281,7 @@ spec = do
        -- overwritten
       timeout 50000 (modifyMVar_ m (\_ -> do
                                     putMVar m "Goodbye"
-                                    "World" <$ throwPrim MVarException
+                                    "World" <$ throw MVarException
                                 )) `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
@@ -300,7 +300,7 @@ spec = do
       modifyMVarMasked_ m (\x -> do
         isEmptyMVar m  `shouldReturn` True
         x `shouldBe` "Hello World"
-        pure $ throw MVarException)
+        pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       readMVar m `shouldReturn` "Hello World"
 
@@ -313,7 +313,7 @@ spec = do
        -- overwritten
       timeout 50000 (modifyMVarMasked_ m (\_ -> do
                                     putMVar m "Goodbye"
-                                    "World" <$ throwPrim MVarException
+                                    "World" <$ throw MVarException
                                 )) `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
@@ -323,28 +323,28 @@ spec = do
       m <- newMVar "Hello"
       modifyFetchOldMVar m (pure . (++ " World")) `shouldReturn` "Hello"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchOldMVar m (\ _ -> pure $ throw MVarException)
+      modifyFetchOldMVar m (\ _ -> pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchOldMVarMasked" $ do
       m <- newMVar "Hello"
       modifyFetchOldMVarMasked m (pure . (++ " World")) `shouldReturn` "Hello"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchOldMVarMasked m (\ _ -> pure $ throw MVarException)
+      modifyFetchOldMVarMasked m (\ _ -> pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchNewMVar" $ do
       m <- newMVar "Hello"
       modifyFetchNewMVar m (pure . (++ " World")) `shouldReturn` "Hello World"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchNewMVar m (\ _ -> pure $ throw MVarException)
+      modifyFetchNewMVar m (\ _ -> pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchNewMVarMasked" $ do
       m <- newMVar "Hello"
       modifyFetchNewMVarMasked m (pure . (++ " World")) `shouldReturn` "Hello World"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchNewMVarMasked m (\ _ -> pure $ throw MVarException)
+      modifyFetchNewMVarMasked m (\ _ -> pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       takeMVar m `shouldReturn` "Hello World"
     xit "modifyMVar" (pure () :: IO ())

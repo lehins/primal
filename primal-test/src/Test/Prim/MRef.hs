@@ -19,7 +19,7 @@ module Test.Prim.MRef where
 
 import Data.Foldable as F
 import Control.Concurrent.Async
-import Control.Exception (throw)
+import Control.Prim.Exception (impureThrow)
 import Control.Prim.Monad
 import Data.Bits
 import Data.Prim
@@ -64,7 +64,7 @@ expectWriteReadMRef mut e' = do
   -- ensure roundtrip
   readMRef mut `shouldReturn` e'
   -- ensure argument is strict
-  shouldThrow (writeMRef mut (throw ExpectedException)) (ExpectedException ==)
+  shouldThrow (writeMRef mut (impureThrow ExpectedException)) (ExpectedException ==)
   -- ensure survival of previous value
   readMRef mut `shouldReturn` e'
 
@@ -89,7 +89,7 @@ expectWriteReadAtomicMRef mut e' = do
   -- ensure roundtrip
   atomicReadMRef mut `shouldReturn` e'
   -- ensure argument is strict
-  shouldThrow (atomicWriteMRef mut (throw ExpectedException)) (ExpectedException ==)
+  shouldThrow (atomicWriteMRef mut (impureThrow ExpectedException)) (ExpectedException ==)
   -- ensure survival of previous value
   readMRef mut `shouldReturn` e'
 
@@ -107,7 +107,7 @@ prop_opFetchOldMRef opMRef op x =
     x' `shouldBe` e
     readMRef ref `shouldReturn` y
     -- ensure argument is strict
-    shouldThrow (opMRef ref (throw ExpectedException)) (ExpectedException ==)
+    shouldThrow (opMRef ref (impureThrow ExpectedException)) (ExpectedException ==)
     -- ensure survival of previous value
     readMRef ref `shouldReturn` y
 
@@ -124,7 +124,7 @@ prop_opFetchNewMRef opMRef op x =
     x' `shouldBe` y
     readMRef ref `shouldReturn` y
     -- ensure argument is strict
-    shouldThrow (opMRef ref (throw ExpectedException)) (ExpectedException ==)
+    shouldThrow (opMRef ref (impureThrow ExpectedException)) (ExpectedException ==)
     -- ensure survival of previous value
     readMRef ref `shouldReturn` y
 
