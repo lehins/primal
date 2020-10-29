@@ -31,6 +31,9 @@ module Control.Prim.Exception
   , catchAnySync
   , catchAll
   , catchAllSync
+  , try
+  , tryAny
+  , tryAnySync
   , onException
   , withException
   , withAnyException
@@ -58,7 +61,7 @@ module Control.Prim.Exception
   , GHC.SomeException
   -- ** Async exceptions
   , GHC.AsyncException(..)
-  , GHC.SomeAsyncException
+  , GHC.SomeAsyncException(..)
   , isSyncException
   , isAsyncException
   , GHC.asyncExceptionToException
@@ -83,6 +86,7 @@ module Control.Prim.Exception
   , prettyCallStack
   , SrcLoc(..)
   , prettySrcLoc
+  , module Control.Prim.Monad
   ) where
 
 import qualified Control.Exception as GHC
@@ -189,6 +193,16 @@ catchAllSync ::
 catchAllSync action handler =
   catchAll action $ \exc ->
     when (isAsyncException exc) (throw exc) >> handler exc
+
+
+try :: (GHC.Exception e, MonadUnliftPrim RW m) => m a -> m (Either e a)
+try f = catch (fmap Right f) (pure . Left)
+
+tryAny :: MonadUnliftPrim RW m => m a -> m (Either GHC.SomeException a)
+tryAny f = catchAny (Right <$> f) (pure . Left)
+
+tryAnySync :: MonadUnliftPrim RW m => m a -> m (Either GHC.SomeException a)
+tryAnySync f = catchAnySync (Right <$> f) (pure . Left)
 
 
 -- | Run an action, while invoking an exception handler if that action fails for some

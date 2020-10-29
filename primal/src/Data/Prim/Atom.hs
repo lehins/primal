@@ -58,10 +58,8 @@ module Data.Prim.Atom
   ) where
 
 import Control.DeepSeq
-import Control.Monad
 import Control.Prim.Concurrent
 import Control.Prim.Exception
-import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.Bits
 import Data.Prim.Atomic

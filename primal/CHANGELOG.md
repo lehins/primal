@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+* Whole bunch of concurrency and exception functionality
+* Addition of `Ref` adnd `MVar`
 * Addition of basic array functionality:
   * Boxed array `BArray` and `BMArray`
   * Small boxed array `SBArray` and `SBMArray`

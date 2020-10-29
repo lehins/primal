@@ -133,9 +133,7 @@ module Data.Prim.Array
   ) where
 
 import Control.DeepSeq
-import Control.Monad.ST
 import Control.Prim.Exception
-import Control.Prim.Monad
 import qualified Data.Foldable as F
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)

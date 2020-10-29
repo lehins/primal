@@ -33,6 +33,8 @@ module Control.Prim.Concurrent
   , labelThread
   , isCurrentThreadBound
   , threadCapability
+  , getNumCapabilities
+  , setNumCapabilities
   -- * Sparks
   , spark
   , numSparks
@@ -41,6 +43,7 @@ module Control.Prim.Concurrent
   , delay
   , waitRead
   , waitWrite
+  , module Control.Prim.Monad
   ) where
 
 import qualified Control.Exception as GHC
@@ -174,6 +177,14 @@ threadStatus = liftPrimBase . GHC.threadStatus
 
 threadCapability :: MonadPrim RW m => GHC.ThreadId -> m (Int, Bool)
 threadCapability = liftPrimBase . GHC.threadCapability
+
+getNumCapabilities :: MonadPrim RW m => m Int
+getNumCapabilities = liftPrimBase GHC.getNumCapabilities
+
+setNumCapabilities :: MonadPrim RW m => Int -> m ()
+setNumCapabilities = liftPrimBase . GHC.setNumCapabilities
+
+
 
 -- | Something that is not exported from @base@: convert a `GHC.ThreadId` to a regular
 -- integral type.

@@ -14,10 +14,13 @@
 --
 module Control.Prim.Eval
   ( module Control.Prim.Eval
+  , module Control.DeepSeq
   ) where
 
+import Control.DeepSeq
 import Control.Prim.Monad.Internal
 import qualified GHC.Exts as GHC
+
 
 -- | Same as `GHC.Exts.touch#`, except it is not restricted to `RealWorld` state token.
 touch# :: a -> GHC.State# s -> GHC.State# s

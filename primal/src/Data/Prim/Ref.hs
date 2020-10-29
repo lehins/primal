@@ -12,6 +12,8 @@
 --
 module Data.Prim.Ref
   ( Ref(..)
+  , IORef
+  , STRef
   -- * Create
   , newRef
   , newLazyRef
@@ -69,8 +71,8 @@ module Data.Prim.Ref
 import Control.DeepSeq
 import Control.Prim.Monad
 import Foreign.Prim
-import GHC.IORef
-import GHC.STRef
+import qualified GHC.IORef as IO
+import qualified GHC.STRef as ST
 
 -- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
 -- with type arguments flipped and is generalized to work in `MonadPrim`. It only stores a
@@ -84,6 +86,12 @@ data Ref a s = Ref (MutVar# s a)
 -- | Uses `isSameRef`
 instance Eq (Ref a s) where
   (==) = isSameRef
+
+-- | Compatibility synonym
+type IORef a = Ref a RW
+
+-- | Compatibility synonym
+type STRef s a = Ref a s
 
 -- | Check whether supplied `Ref`s refer to the exact same one or not.
 --
@@ -508,27 +516,27 @@ atomicWriteLazyRef_ ref x = void $ atomicWriteLazyRef ref x
 -- | Convert `Ref` to `STRef`
 --
 -- @since 0.3.0
-toSTRef :: Ref a s -> STRef s a
-toSTRef (Ref ref#) = STRef ref#
+toSTRef :: Ref a s -> ST.STRef s a
+toSTRef (Ref ref#) = ST.STRef ref#
 {-# INLINE toSTRef #-}
 
 -- | Convert `STRef` to `Ref`
 --
 -- @since 0.3.0
-fromSTRef :: STRef s a -> Ref a s
-fromSTRef (STRef ref#) = Ref ref#
+fromSTRef :: ST.STRef s a -> Ref a s
+fromSTRef (ST.STRef ref#) = Ref ref#
 {-# INLINE fromSTRef #-}
 
 -- | Convert `Ref` to `IORef`
 --
 -- @since 0.3.0
-toIORef :: Ref a RW -> IORef a
+toIORef :: Ref a RW -> IO.IORef a
 toIORef = coerce . toSTRef
 {-# INLINE toIORef #-}
 
 -- | Convert `IORef` to `Ref`
 --
 -- @since 0.3.0
-fromIORef :: IORef a -> Ref a RW
+fromIORef :: IO.IORef a -> Ref a RW
 fromIORef = fromSTRef . coerce
 {-# INLINE fromIORef #-}
