@@ -13,7 +13,16 @@
 -- Portability : non-portable
 --
 module Control.Prim.Eval
-  ( module Control.Prim.Eval
+  ( -- * Liveness
+    touch
+  , touch#
+  , keepAlive
+  , keepAlive#
+    -- * Weak-Head Normal Form
+  , seq
+  , evaluate
+    -- * Normal Form
+  , BNF(..)
   , module Control.DeepSeq
   ) where
 
@@ -43,16 +52,6 @@ touch# a = GHC.unsafeCoerce# (GHC.touch# a)
 touch :: MonadPrim s m => a -> m ()
 touch x = prim_ (touch# x)
 {-# INLINE touch #-}
-
--- | An action that evaluates a value to weak head normal form. Same as
--- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This function provides
--- better guarantees than `seq` with respect to ordering of operations, but it does have a
--- slightly higher overhead.
---
--- @since 0.3.0
-evaluate :: MonadPrim s m => a -> m a
-evaluate a = prim (GHC.seq# a)
-{-# INLINE evaluate #-}
 
 
 -- | Forward compatible operator that might be introduced in some future ghc version.
@@ -89,3 +88,31 @@ keepAlive ::
   -> m b
 keepAlive a m = runInPrimBase m (keepAlive# a)
 {-# INLINE keepAlive #-}
+
+
+
+-- | An action that evaluates a value to weak head normal form. Same as
+-- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This function provides
+-- better guarantees than `seq` with respect to ordering of operations, but it does have a
+-- slightly higher overhead.
+--
+-- @since 0.3.0
+evaluate :: MonadPrim s m => a -> m a
+evaluate a = prim (GHC.seq# a)
+{-# INLINE evaluate #-}
+
+
+-- Normal Form
+
+-- | Bogus Normal Form. This is useful in places where `NFData` constraint is required,
+-- but an instance can't really be created in any meaningful way for the type at
+-- hand. Creating environment in benchmarks is one such place where it may come in handy.
+--
+-- @since 0.3.0
+newtype BNF a = BNF a
+
+-- | Unlawful instance that only evaluates its contents to WHNF
+--
+-- @since 0.3.0
+instance NFData (BNF a) where
+  rnf (BNF a) = a `seq` ()

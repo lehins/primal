@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
@@ -66,13 +68,18 @@ module Data.Prim.Ref
   -- ** IORef
   , toIORef
   , fromIORef
+  -- * Weak Pointer
+  , mkWeakRef
   ) where
 
 import Control.DeepSeq
 import Control.Prim.Monad
 import Foreign.Prim
+import Foreign.Prim.WeakPtr
 import qualified GHC.IORef as IO
 import qualified GHC.STRef as ST
+
+import Control.Prim.Monad.Unsafe
 
 -- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
 -- with type arguments flipped and is generalized to work in `MonadPrim`. It only stores a
@@ -385,7 +392,7 @@ atomicWriteRef (Ref ref#) !x =
 --
 -- @since 0.3.0
 atomicReadRef :: MonadPrim s m => Ref e s -> m e
-atomicReadRef ref = fst <$> atomicModifyRef2_ ref id
+atomicReadRef ref = fst <$> atomicModifyLazyRef2_ ref id
 
 -- | Same as `atomicWriteRef`, but also returns the old value.
 --
@@ -396,28 +403,32 @@ atomicSwapRef ref x = atomicModifyFetchOldRef ref (const x)
 
 -- | Appy a function to the value in mutable `Ref` atomically
 atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
-atomicModifyRef (Ref ref#) f =
-  let g a =
-        case f a of
-          t@(!_, _) -> t
-   in prim $ \s ->
-        case atomicModifyMutVar# ref# g s of
-          (# s', b #) -> seq# b s'
-  -- let g a =
-  --       case f a of
-  --         t@(a', _) -> a' `seq` t
-  --  in prim $ \s ->
-  --       case atomicModifyMutVar# ref# g s of
-  --         (# s', b #) -> seq# b s'
+atomicModifyRef ref f = readRef ref >>= loop (0 :: Int)
+  where
+    loop i old
+      | i < 35 = do
+        case f old of
+          (!new, result) -> do
+            (success, current) <- casRef ref old new
+            if success
+              then pure result
+              else loop (i + 1) current
+      | otherwise = do
+        (_old, (_new, res)) <-
+          atomicModifyRef2 ref $ \current ->
+            case f current of
+              r@(!_new, _res) -> r
+        pure res
 {-# INLINE atomicModifyRef #-}
 
 atomicModifyRef_ :: MonadPrim s m => Ref a s -> (a -> a) -> m ()
-atomicModifyRef_ (Ref ref#) f =
-  prim_ $ \s ->
-    case atomicModifyMutVar_# ref# f s of
-      (# s', _prev, cur #) ->
-        case seq# cur s' of
-          (# s'', _cur' #) -> s''
+atomicModifyRef_ ref f = readRef ref >>= loop (0 :: Int)
+  where
+    loop i old
+      | i < 35 = do
+        (success, current) <- casRef ref old $! f old
+        unless success $ loop (i + 1) current
+      | otherwise = atomicModifyRef2_ ref f
 {-# INLINE atomicModifyRef_ #-}
 
 -- TODO: Test this property
@@ -426,28 +437,38 @@ atomicModifyRef_ (Ref ref#) f =
 -- will increment the 'IORef' and then throw an exception in the calling
 -- thread.
 
-atomicModifyRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
-atomicModifyRef2 (Ref ref#) f =
-  let g a =
-        case f a of
-          t@(a', _) -> a' `seq` t
-   in prim $ \s ->
-        case atomicModifyMutVar2# ref# g s of
-          (# s', old, (new, b) #) ->
-            case seq# new s' of
-              (# s'', new' #) ->
-                case seq# b s'' of
-                  (# s''', b' #) -> (# s''', (old, new', b') #)
+atomicModifyRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, (a, b))
+atomicModifyRef2 ref f = do
+  r@(_old, (_new, _res)) <- atomicModifyRef2Lazy ref f
+  return r
+-- atomicModifyRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+-- (Ref ref#) f =
+--   let g a =
+--         case f a of
+--           t@(a', _) -> a' `seq` t
+--    in prim $ \s ->
+--         case atomicModifyMutVar2# ref# g s of
+--           (# s', old, (new, b) #) ->
+--             case seq# new s' of
+--               (# s'', new' #) ->
+--                 case seq# b s'' of
+--                   (# s''', b' #) -> (# s''', (old, new', b') #)
 {-# INLINE atomicModifyRef2 #-}
 
-atomicModifyRef2_ :: MonadPrim s m => Ref a s -> (a -> a) -> m (a, a)
+atomicModifyRef2_ :: MonadPrim s m => Ref a s -> (a -> a) -> m ()
 atomicModifyRef2_ (Ref ref#) f =
+  prim_ $ \s ->
+    case atomicModifyMutVar_# ref# f s of
+      (# s', _prev, !_cur #) -> s'
+{-# INLINE atomicModifyRef2_ #-}
+
+
+atomicModifyLazyRef2_ :: MonadPrim s m => Ref a s -> (a -> a) -> m (a, a)
+atomicModifyLazyRef2_ (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar_# ref# f s of
-      (# s', prev, cur #) ->
-        case seq# cur s' of
-          (# s'', cur' #) -> (# s'', (prev, cur') #)
-{-# INLINE atomicModifyRef2_ #-}
+      (# s', prev, cur #) -> (# s', (prev, cur) #)
+{-# INLINE atomicModifyLazyRef2_ #-}
 
 
 -- atomicModifyFetchOldRef :: MonadPrim s m => Ref a s -> (a -> a) -> m a
@@ -481,12 +502,17 @@ casRef (Ref ref#) expOld new =
 {-# INLINE casRef #-}
 
 
-
-atomicModifyRef2Lazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyRef2Lazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, (a, b))
 atomicModifyRef2Lazy (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar2# ref# f s of
-      (# s', old, ~(new, b) #) -> (# s', (old, new, b) #)
+      (# s', old, res #) -> (# s', (old, res) #)
+-- atomicModifyRef2Lazy :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+-- atomicModifyRef2Lazy (Ref ref#) f =
+--   prim $ \s ->
+--     case atomicModifyMutVar2# ref# f s of
+--       (# s', old, ~(new, b) #) -> (# s', (old, new, b) #)
+{-# INLINE atomicModifyRef2Lazy #-}
 
 
 atomicModifyLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
@@ -538,3 +564,25 @@ toIORef = coerce . toSTRef
 fromIORef :: IO.IORef a -> Ref a RW
 fromIORef = fromSTRef . coerce
 {-# INLINE fromIORef #-}
+
+
+
+
+-- | Create a `Weak` pointer associated with the supplied `Ref`.
+--
+-- Same as `Data.IORef.mkWeakRef` from @base@, but works in any `MonadPrim` with
+-- `RealWorld` state token.
+--
+-- @since 0.3.0
+mkWeakRef ::
+     forall a b m. MonadUnliftPrim RW m
+  => Ref a RW
+  -> m b -- ^ An action that will get executed whenever `Ref` gets garbage collected by
+         -- the runtime.
+  -> m (Weak (Ref a RW))
+mkWeakRef ref@(Ref ref#) !finalizer =
+  runInPrimBase finalizer $ \f# s ->
+    case mkWeak# ref# ref f# s of
+      (# s', weak# #) -> (# s', Weak weak# #)
+{-# INLINE mkWeakRef #-}
+

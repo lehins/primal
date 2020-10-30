@@ -7,6 +7,7 @@ import Control.DeepSeq
 import qualified Control.Exception as Base
 import qualified Control.Concurrent.MVar as Base
 import Control.Prim.Exception
+import Control.Prim.Eval
 import Control.Prim.Concurrent.MVar
 import Criterion.Main
 import Data.IORef as IO
@@ -24,12 +25,6 @@ import qualified Data.Mutable as M
 import qualified Data.Primitive.Types as P
 import qualified Data.Vector.Unboxed as U
 import qualified Foreign.Storable as S
-
--- | Bogus Normal Form
-newtype BNF a = BNF a
-
-instance NFData (BNF a) where
-  rnf (BNF a) = a `seq` ()
 
 main :: IO ()
 main = do
