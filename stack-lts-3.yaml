@@ -22,6 +22,6 @@ extra-deps:
 - contravariant-1.5.2
 - StateVar-1.2@sha256:9ab3e4a0e252d28bc2f799c83e0725c3e23e8d3b722cff0fdb9822e64b6c16ac,1413
 - github: lehins/pvar
-  commit: c0424cc1b82cdf4093d3f0cf55e01269217a2d8d
+  commit: ffc33d71213cda42f17205ebf05e53c20280f02f
   subdirs:
     - pvar

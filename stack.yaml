@@ -19,8 +19,8 @@ extra-deps:
 - primitive-0.7.0.1@sha256:a381571c36edc7dca28b77fe8159b43c14c640087ec5946adacf949feec64231,3433
 - github: lehins/doctest
   commit: 3630ebbacdb96394feee7f223fd68eb4154c3312
-- ../pvar/pvar
-# - github: lehins/pvar
-#   commit: 7934cee022eafc5cb98a6731ac233a88c1f3cb28
-#   subdirs:
-#     - pvar
+#- ../pvar/pvar
+- github: lehins/pvar
+  commit: ffc33d71213cda42f17205ebf05e53c20280f02f
+  subdirs:
+    - pvar

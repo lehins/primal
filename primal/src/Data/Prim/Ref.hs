@@ -420,7 +420,7 @@ atomicModifyRef2 (Ref ref#) f =
     let g prev =
           case f prev of
             r@(!_new, _result) -> r
-     in prim (atomicModifyMutVar2# ref# f s
+     in prim (atomicModifyMutVar2# ref# f s)
 #else
   prim $ \s ->
     case atomicModifyMutVar2# ref# f s of
