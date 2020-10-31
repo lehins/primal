@@ -159,7 +159,7 @@ catch action handler =
             Nothing -> raiseIO# someExc
      in catch# (action# ()) handler'#
 -- {-# INLINEABLE catch #-}
-{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
+--{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
 
 catchAny ::
      forall a m. MonadUnliftPrim RW m
@@ -170,7 +170,7 @@ catchAny action handler =
   runInPrimBase2 (const action) handler $ \action# handler# ->
     catch# (action# ()) handler#
 -- {-# INLINEABLE catchAny #-}
-{-# SPECIALIZE catchAny :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
+--{-# SPECIALIZE catchAny :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
 
 
 catchAnySync ::
@@ -209,7 +209,7 @@ catchAllSync action handler =
 try :: (GHC.Exception e, MonadUnliftPrim RW m) => m a -> m (Either e a)
 try f = catch (fmap Right f) (pure . Left)
 -- {-# INLINEABLE try #-}
-{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
+--{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
 
 tryAny :: MonadUnliftPrim RW m => m a -> m (Either GHC.SomeException a)
 tryAny f = catchAny (Right <$> f) (pure . Left)
@@ -358,7 +358,7 @@ mask action = do
       action (`runInPrimBase` maskAsyncExceptionsInternal#)
     GHC.MaskedUninterruptible -> action uninterruptibleMask_
 {-# INLINEABLE mask #-}
-{-# SPECIALIZE mask :: ((forall a. IO a -> IO a) -> IO b) -> IO b #-}
+--{-# SPECIALIZE mask :: ((forall a. IO a -> IO a) -> IO b) -> IO b #-}
 
 -- | Mask all asychronous exceptions and mark it uninterruptible. Same as
 -- `Control.Exception.uninterruptibleMask`, except that it is polymorphic in state

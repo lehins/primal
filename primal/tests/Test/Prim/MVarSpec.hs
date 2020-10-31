@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 module Test.Prim.MVarSpec (spec) where
 
 import qualified Control.Concurrent as Base
@@ -37,23 +36,23 @@ spec :: Spec
 spec = do
   describe "MVar" $ do
     wit "isEmptyMVar" $ do
-      m <- newEmptyMVar @Int
+      m :: MVar Int RW <- newEmptyMVar
       isEmptyMVar m `shouldReturn` True
       putMVar m 0
       isEmptyMVar m `shouldReturn` False
       (newMVar 'H' >>= isEmptyMVar) `shouldReturn` False
     wit "isSameMVar" $ do
-      m1 <- newEmptyMVar @Int
+      m1 :: MVar Int RW <- newEmptyMVar
       isSameMVar m1 m1 `shouldBe` True
       m1 `shouldBe` m1
-      m2 <- newEmptyMVar @Int
+      m2 :: MVar Int RW <- newEmptyMVar
       isSameMVar m1 m2 `shouldBe` False
       m1 `shouldSatisfy` (/= m2)
     wit "newMVar" $ do
       m <- newMVar 'h'
       readMVar m `shouldReturn` 'h'
       newMVar (impureThrow MVarException) `shouldThrow` (== MVarException)
-      n <- newMVar @(Maybe Integer) (Just (impureThrow MVarException))
+      n :: MVar (Maybe Integer) RW <- newMVar (Just (impureThrow MVarException))
       mRes <- takeMVar n
       mRes `shouldSatisfy` isJust
       deepeval mRes `shouldThrow` (== MVarException)
@@ -65,8 +64,8 @@ spec = do
     wit "newDeepMVar" $ do
       m <- newDeepMVar 'h'
       takeMVar m `shouldReturn` 'h'
-      newDeepMVar @Int (impureThrow MVarException) `shouldThrow` (== MVarException)
-      newDeepMVar @(Maybe Integer) (Just (impureThrow MVarException)) `shouldThrow` (== MVarException)
+      newDeepMVar (impureThrow MVarException :: Int) `shouldThrow` (== MVarException)
+      newDeepMVar (Just (impureThrow MVarException :: Integer)) `shouldThrow` (== MVarException)
     wit "putMVar" $ do
       m <- newEmptyMVar
       void $ fork $ putMVar m "Hello"
@@ -345,8 +344,8 @@ spec = do
       modifyFetchNewMVarMasked m (\ _ -> pure $ impureThrow MVarException)
         `shouldThrow` (==MVarException)
       takeMVar m `shouldReturn` "Hello World"
-    xit "modifyMVar" (pure () :: IO ())
-    xit "modifyMVarMasked" (pure () :: IO ())
+    -- xit "modifyMVar" (pure () :: IO ())
+    -- xit "modifyMVarMasked" (pure () :: IO ())
     it "toBaseMVar" $ do
       m <- newMVar ()
       Base.takeMVar (toBaseMVar m) `shouldReturn` ()

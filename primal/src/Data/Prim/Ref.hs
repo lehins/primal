@@ -416,11 +416,10 @@ atomicModifyRef ref f = readRef ref >>= loop (0 :: Int)
 atomicModifyRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 atomicModifyRef2 (Ref ref#) f =
 #if __GLASGOW_HASKELL__ <= 806
-  prim $ \s ->
-    let g prev =
-          case f prev of
-            r@(!_new, _result) -> r
-     in prim (atomicModifyMutVar2# ref# f s)
+  let g prev =
+        case f prev of
+          r@(!_new, _result) -> r
+   in prim (atomicModifyMutVar# ref# g)
 #else
   prim $ \s ->
     case atomicModifyMutVar2# ref# f s of
