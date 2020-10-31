@@ -76,10 +76,8 @@ prop_writeBArrayException x = monadicIO $ run $ do
   freezeBMArray ma `shouldReturn` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
   writeBMArray ma 3 (Just (x `div` 0))
-  e <- readBMArray ma 3
-  evaluate (force e) `shouldThrow` (== DivideByZero)
-  es <- freezeBMArray ma
-  evaluate (force es) `shouldThrow` (== DivideByZero)
+  deepevalM (readBMArray ma 3) `shouldThrow` (== DivideByZero)
+  deepevalM (freezeBMArray ma) `shouldThrow` (== DivideByZero)
 
 
 spec :: Spec

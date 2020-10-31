@@ -6,11 +6,9 @@
 module Test.Prim.MVarSpec (spec) where
 
 import qualified Control.Concurrent as Base
-import Control.DeepSeq
 import Control.Prim.Concurrent
 import Control.Prim.Concurrent.MVar
 import Control.Prim.Exception
-import Control.Prim.Monad
 import Data.Maybe
 import Data.Prim
 import Foreign.Prim.WeakPtr
@@ -25,6 +23,7 @@ data MVarException =
   deriving (Show, Eq)
 instance Exception MVarException
 
+-- | Turn a deadlock into a failing test.
 failAfter :: Int -> Expectation -> Expectation
 failAfter n test =
   timeout n test >>= \case
@@ -57,13 +56,12 @@ spec = do
       n <- newMVar @(Maybe Integer) (Just (impureThrow MVarException))
       mRes <- takeMVar n
       mRes `shouldSatisfy` isJust
-      evaluate (force mRes) `shouldThrow` (== MVarException)
+      deepeval mRes `shouldThrow` (== MVarException)
     wit "newLazyMVar" $ do
       m <- newLazyMVar 'h'
       tryTakeMVar m `shouldReturn` Just 'h'
       n <- newLazyMVar (impureThrow MVarException)
-      res <- takeMVar n
-      evaluate res `shouldThrow` (== MVarException)
+      evalM (takeMVar n) `shouldThrow` (== MVarException)
     wit "newDeepMVar" $ do
       m <- newDeepMVar 'h'
       takeMVar m `shouldReturn` 'h'
@@ -83,7 +81,7 @@ spec = do
       putMVar n ('f':impureThrow MVarException)
       res <- takeMVar n
       head res `shouldBe` 'f'
-      evaluate (force res) `shouldThrow` (== MVarException)
+      deepeval res `shouldThrow` (== MVarException)
     wit "putLazyMVar" $ do
       m <- newEmptyMVar
       void $ fork $ putLazyMVar m "Hello"
@@ -93,7 +91,7 @@ spec = do
       n <- newEmptyMVar
       void $ fork $ putLazyMVar n (impureThrow MVarException)
       res <- takeMVar n
-      evaluate res `shouldThrow` (== MVarException)
+      eval res `shouldThrow` (== MVarException)
     wit "putDeepMVar" $ do
       m <- newEmptyMVar
       void $ fork $ putDeepMVar m "Hello"
@@ -132,7 +130,7 @@ spec = do
       takeMVar done `shouldReturn` True
       isEmptyMVar n `shouldReturn` False
       res <- takeMVar n
-      evaluate res `shouldThrow` (== MVarException)
+      eval res `shouldThrow` (== MVarException)
     wit "tryPutDeepMVar" $ do
       m <- newEmptyMVar
       tryPutMVar m "Hello" `shouldReturn` True
@@ -160,7 +158,7 @@ spec = do
       readMVar m `shouldReturn` "World"
       swapLazyMVar m (impureThrow MVarException) `shouldReturn` "World"
       res <- takeMVar m
-      evaluate res `shouldThrow` (== MVarException)
+      eval res `shouldThrow` (== MVarException)
     wit "swapDeepMVar" $ do
       m <- newMVar "Hello"
       swapDeepMVar m "World" `shouldReturn` "Hello"

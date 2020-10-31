@@ -716,7 +716,7 @@ writeBMArray ::
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
 writeBMArray ma i !x = writeLazyBMArray ma i x -- TODO: figure out why doctests fail sporadically
---writeBMArray ma i = evaluate >=> writeLazyBMArray ma i
+--writeBMArray ma i = eval >=> writeLazyBMArray ma i
 {-# INLINE writeBMArray #-}
 
 {-

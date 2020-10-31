@@ -20,10 +20,13 @@ module Control.Prim.Eval
   , keepAlive#
     -- * Weak-Head Normal Form
   , seq
-  , evaluate
+  , eval
+  , evalM
     -- * Normal Form
-  , BNF(..)
+  , deepeval
+  , deepevalM
   , module Control.DeepSeq
+  , BNF(..)
   ) where
 
 import Control.DeepSeq
@@ -91,18 +94,44 @@ keepAlive a m = runInPrimBase m (keepAlive# a)
 
 
 
--- | An action that evaluates a value to weak head normal form. Same as
--- `Control.Exception.evaluate`, except it works in a `MonadPrim`. This function provides
--- better guarantees than `seq` with respect to ordering of operations, but it does have a
+-- | An action that evaluates a value to Weak Head Normal Form (WHNF). Same as
+-- `Control.Exception.evaluate`, except it works in `MonadPrim`. This function provides
+-- stronger guarantees than `seq` with respect to ordering of operations, but it does have a
 -- slightly higher overhead.
 --
 -- @since 0.3.0
-evaluate :: MonadPrim s m => a -> m a
-evaluate a = prim (GHC.seq# a)
-{-# INLINE evaluate #-}
+eval :: MonadPrim s m => a -> m a
+eval a = prim (GHC.seq# a)
+{-# INLINE eval #-}
+
+-- | Run the action and then use `eval` to ensure its result is evaluated to Weak Head
+-- Normal Form (WHNF)
+--
+-- @since 0.3.0
+evalM :: MonadPrim s m => m a -> m a
+evalM m = eval =<< m
+{-# INLINE evalM #-}
 
 
 -- Normal Form
+
+
+-- | An action that evaluates a value to Normal Form (NF). This function provides stronger
+-- guarantees than `deepseq` with respect to ordering of operations.
+--
+-- @since 0.3.0
+deepeval :: (MonadPrim s m, NFData a) => a -> m a
+deepeval = eval . force
+{-# INLINE deepeval #-}
+
+-- | Run the action and the using `deepeval` ensure its result is evaluated to Normal Form
+-- (NF)
+--
+-- @since 0.3.0
+deepevalM :: (MonadPrim s m, NFData a) => m a -> m a
+deepevalM m = eval . force =<< m
+{-# INLINE deepevalM #-}
+
 
 -- | Bogus Normal Form. This is useful in places where `NFData` constraint is required,
 -- but an instance can't really be created in any meaningful way for the type at
