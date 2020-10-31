@@ -82,6 +82,7 @@ module Data.Prim.Memory.Bytes.Internal
 import Control.DeepSeq
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
+import Control.Prim.Eval
 import Data.Prim
 import Data.Prim.Array
 import Data.Prim.Class

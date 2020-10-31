@@ -143,6 +143,7 @@ module Data.Prim.Memory.Addr
 
 import Control.Arrow (first)
 import Control.DeepSeq
+import Control.Prim.Eval
 import Control.Prim.Monad
 import Control.Prim.Monad.Unsafe
 import Data.ByteString.Internal

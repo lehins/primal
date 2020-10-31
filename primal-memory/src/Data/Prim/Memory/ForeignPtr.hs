@@ -61,6 +61,7 @@ module Data.Prim.Memory.ForeignPtr
   ) where
 
 import Control.Prim.Monad
+import Control.Prim.Eval
 import Data.Prim
 import Data.Prim.Class
 import Data.Prim.Memory.Bytes.Internal (Bytes, MBytes(..), Pinned(..),

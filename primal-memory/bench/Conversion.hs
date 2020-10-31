@@ -5,15 +5,16 @@
 
 module Main (main) where
 
-import GHC.Exts
+import Control.Prim.Eval
+import Control.Prim.Monad
 import Criterion.Main
 import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.ForeignPtr
 import Data.Prim.Memory.Ptr
-import Control.Prim.Monad
+import qualified Data.Primitive.ByteArray as BA
 import qualified Foreign.ForeignPtr as GHC
 import Foreign.Storable
-import Data.Prim.Memory.ForeignPtr
-import qualified Data.Primitive.ByteArray as BA
+import Foreign.Prim
 
 main :: IO ()
 main = do

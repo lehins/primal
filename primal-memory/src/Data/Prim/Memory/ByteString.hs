@@ -40,6 +40,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.Prim
 import Foreign.Prim
 import Control.Prim.Monad
+import Control.Prim.Eval
 import GHC.ForeignPtr
 import Data.Prim.Memory.Ptr
 import Data.Prim.Memory.Bytes.Internal

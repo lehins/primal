@@ -5,14 +5,12 @@ module Test.Prim.ArraySpec (spec) where
 import Data.Prim
 import Foreign.Prim (IsList(..))
 import Control.Prim.Exception
-import Control.Prim.Eval
 import Data.Prim.Array
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Test.QuickCheck.Classes.Base
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Control.DeepSeq
 
 lawsSpec :: Laws -> Spec
 lawsSpec Laws {..} =

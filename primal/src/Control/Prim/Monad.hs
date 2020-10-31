@@ -8,8 +8,6 @@
 --
 module Control.Prim.Monad
   ( module Control.Prim.Monad.Internal
-  , touch
-  , keepAlive
   , eval
   , evalM
   , NFData
