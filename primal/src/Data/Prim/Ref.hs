@@ -42,6 +42,7 @@ module Data.Prim.Ref
   , atomicWriteRef
   , atomicModifyRef
   , atomicModifyRef_
+  , atomicModifyFetchRef
   , atomicModifyFetchNewRef
   , atomicModifyFetchOldRef
   , atomicModifyFetchBothRef
@@ -52,7 +53,7 @@ module Data.Prim.Ref
   , atomicModifyFetchNewRef2
   , atomicModifyFetchOldRef2
   , atomicModifyFetchBothRef2
-  , atomicModifyFetchAllRef2
+  , atomicModifyFetchRef2
   -- * Lazy
   -- It is recommended to refrain from usage of lazy functions because they are a memory
   -- leak waiting to happen
@@ -65,7 +66,7 @@ module Data.Prim.Ref
   , atomicModifyFetchNewLazyRef
   , atomicModifyFetchOldLazyRef
   , atomicModifyFetchBothLazyRef
-  , atomicModifyFetchAllLazyRef
+  , atomicModifyFetchLazyRef
   -- * Conversion
   -- ** STRef
   , toSTRef
@@ -397,6 +398,8 @@ numTriesCAS :: Int
 numTriesCAS = 35
 
 -- | Appy a function to the value in mutable `Ref` atomically
+--
+-- @since 0.3.0
 atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 atomicModifyRef ref f = readRef ref >>= loop (0 :: Int)
   where
@@ -506,6 +509,23 @@ atomicModifyFetchBothRef2 (Ref ref#) f =
       (# s', prev, !cur #) -> (# s', (prev, cur) #)
 {-# INLINE atomicModifyFetchBothRef2 #-}
 
+-- | Appy a function to the value in mutable `Ref` atomically
+--
+-- @since 0.3.0
+atomicModifyFetchRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchRef ref f = readRef ref >>= loop (0 :: Int)
+  where
+    loop i old
+      | i < numTriesCAS = do
+        case f old of
+          (!new, result) -> do
+            (success, current) <- casRef ref old new
+            if success
+              then pure (old, new, result)
+              else loop (i + 1) current
+      | otherwise = atomicModifyFetchRef2 ref f
+{-# INLINE atomicModifyRef #-}
+
 
 -- TODO: Test this property
 -- @atomicModifyIORef' ref (\x -> (x+1, undefined))@
@@ -513,12 +533,12 @@ atomicModifyFetchBothRef2 (Ref ref#) f =
 -- will increment the 'IORef' and then throw an exception in the calling
 -- thread.
 
-atomicModifyFetchAllRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
-atomicModifyFetchAllRef2 ref f =
-  atomicModifyFetchAllLazyRef ref $ \current ->
+atomicModifyFetchRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchRef2 ref f =
+  atomicModifyFetchLazyRef ref $ \current ->
     case f current of
       r@(!_new, _res) -> r
-{-# INLINE atomicModifyFetchAllRef2 #-}
+{-# INLINE atomicModifyFetchRef2 #-}
 
 
 -- atomicModifyRef2 :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
@@ -562,12 +582,12 @@ casRef (Ref ref#) expOld new =
         (# s', (isTrue# (failed# ==# 0#), actualOld) #)
 {-# INLINE casRef #-}
 
-atomicModifyFetchAllLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
-atomicModifyFetchAllLazyRef (Ref ref#) f =
+atomicModifyFetchLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchLazyRef (Ref ref#) f =
   prim $ \s ->
     case atomicModifyMutVar2# ref# f s of
       (# s', old, ~(new, res) #) -> (# s', (old, new, res) #)
-{-# INLINE atomicModifyFetchAllLazyRef #-}
+{-# INLINE atomicModifyFetchLazyRef #-}
 
 
 atomicModifyLazyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
