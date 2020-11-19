@@ -524,7 +524,7 @@ atomicModifyFetchRef ref f = readRef ref >>= loop (0 :: Int)
               then pure (old, new, result)
               else loop (i + 1) current
       | otherwise = atomicModifyFetchRef2 ref f
-{-# INLINE atomicModifyRef #-}
+{-# INLINE atomicModifyFetchRef #-}
 
 
 -- TODO: Test this property

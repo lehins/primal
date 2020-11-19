@@ -67,6 +67,7 @@ module Data.Prim
   , Proxy(..)
   , module Data.Coerce
   , (#.)
+  , (.#)
   , module Data.Semigroup
   , module Data.Monoid
   ) where
@@ -404,6 +405,13 @@ prefetchValue3 a = prim_ (prefetchValue3# a)
 -- | Coerce result of a function (it is also a hidden function in Data.Functor.Utils)
 --
 -- @since 0.3.0
-(#.) :: Coercible b c => proxy b c -> (a -> b) -> (a -> c)
-(#.) _f = coerce
+(#.) :: forall a b c proxy. Coercible b c => proxy b c -> (a -> b) -> (a -> c)
+(#.) _px = coerce
 {-# INLINE (#.) #-}
+
+-- | Coerce result of a function. Flipped version of `(#.)`
+--
+-- @since 0.3.0
+(.#) :: forall a b c proxy. Coercible b c => (a -> b) -> proxy b c -> (a -> c)
+(.#) f _px = coerce f
+{-# INLINE (.#) #-}
