@@ -23,8 +23,9 @@ tested-with:         GHC == 7.10.2
                    , GHC == 8.6.3
                    , GHC == 8.6.4
                    , GHC == 8.6.5
-                   , GHC == 8.8.1
                    , GHC == 8.8.2
+                   , GHC == 8.8.3
+                   , GHC == 8.8.4
                    , GHC == 8.10.1
 
 library
@@ -55,6 +56,7 @@ library
                      , Foreign.Prim.C.LtGHC806
                      , Foreign.Prim.Cmm
   build-depends:       base >= 4.8.1 && < 5
+                     , array >= 0.1
                      , deepseq
                      , transformers >= 0.4.2.0
 

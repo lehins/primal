@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 -- |
 -- Module      : Data.Prim.Array
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -35,6 +36,8 @@ module Data.Prim.Array
     , toListBArray
     , fromListBArray
     , fromListBArrayN
+    , fromBaseBArray
+    , toBaseBArray
     -- ** Mutable
     , BMArray(..)
     , getSizeOfBMArray
@@ -99,6 +102,8 @@ module Data.Prim.Array
     , toListUArray
     , fromListUArray
     , fromListUArrayN
+    , fromBaseUArray
+    , toBaseUArray
     -- ** Mutable
     , UMArray(..)
     , isSameUMArray
@@ -140,6 +145,8 @@ import qualified Data.List.NonEmpty as NE (toList)
 import Data.Prim
 import Data.Prim.Class
 import Foreign.Prim
+import qualified Data.Array.Base as A
+import qualified GHC.Arr as A
 
 -- $arrays
 --
@@ -585,6 +592,36 @@ fromListBArrayN sz xs =
 fromListBArray :: forall e. [e] -> BArray e
 fromListBArray xs = fromListBArrayN (coerce (length xs)) xs
 {-# INLINE fromListBArray #-}
+
+
+
+-- | /O(1)/ - cast a boxed immutable `A.Array` that is wired with GHC to `BArray` from primal.
+--
+-- >>> import Data.Array.IArray as IA
+-- >>> let arr = IA.listArray (10, 15) [30 .. 35] :: IA.Array Int Integer
+-- >>> arr
+-- array (10,15) [(10,30),(11,31),(12,32),(13,33),(14,34),(15,35)]
+-- >>> fromBaseBArray arr
+-- BArray [30,31,32,33,34,35]
+--
+-- @since 0.3.0
+fromBaseBArray :: A.Array ix e -> BArray e
+fromBaseBArray (A.Array _ _ _ a#) = BArray a#
+
+-- | /O(1)/ - cast a boxed `BArray` from primal into `A.Array`, which is wired with
+-- GHC. Resulting array range starts at 0, like any sane array would.
+--
+-- >>> a = fromListBArray [1, 2, 3 :: Integer]
+-- >>> a
+-- BArray [1,2,3]
+-- >>> toBaseBArray a
+-- array (0,2) [(0,1),(1,2),(2,3)]
+--
+-- @since 0.3.0
+toBaseBArray :: BArray e -> A.Array Int e
+toBaseBArray a@(BArray a#) =
+  let Size n = sizeOfBArray a
+  in A.Array 0 (max 0 (n - 1)) n a#
 
 
 -- Mutable Boxed Array --
@@ -2334,6 +2371,34 @@ fromListUArray ::
 fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
 {-# INLINE fromListUArray #-}
 
+-- | /O(1)/ - cast an unboxed `A.UArray` that is wired with GHC to `UArray` from primal.
+--
+-- >>> import Data.Array.IArray as IA
+-- >>> import Data.Array.Unboxed as UA
+-- >>> let uarr = IA.listArray (10, 15) [30 .. 35] :: UA.UArray Int Word
+-- >>> uarr
+-- array (10,15) [(10,30),(11,31),(12,32),(13,33),(14,34),(15,35)]
+-- >>> fromBaseUArray uarr
+-- UArray [30,31,32,33,34,35]
+--
+-- @since 0.3.0
+fromBaseUArray :: (Prim e, A.IArray A.UArray e) => A.UArray ix e -> UArray e
+fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
+
+-- | /O(1)/ - cast an unboxed `UArray` from primal into `A.UArray`, which is wired with
+-- GHC. Resulting array range starts at 0, like any sane array would.
+--
+-- >>> uarr = fromListUArray [1, 2, 3 :: Int]
+-- >>> uarr
+-- UArray [1,2,3]
+-- >>> toBaseUArray uarr
+-- array (0,2) [(0,1),(1,2),(2,3)]
+--
+-- @since 0.3.0
+toBaseUArray :: (Prim e, A.IArray A.UArray e) => UArray e -> A.UArray Int e
+toBaseUArray a@(UArray ba#) =
+  let Size n = sizeOfUArray a
+  in A.UArray 0 (max 0 (n - 1)) n ba#
 
 -- Mutable Unboxed Array --
 ---------------------------

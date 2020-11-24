@@ -16,9 +16,9 @@
 module Control.Prim.Concurrent
   ( GHC.ThreadId(..)
   , fork
-  , forkCatchAny
+  , forkFinally
   , forkOn
-  , forkOnCatchAny
+  , forkOnFinally
   , forkOS
   , killThread
   , yield
@@ -103,9 +103,9 @@ fork action =
 
 -- | Spawn a thread and run an action in it. Any exception raised by the new thread will
 -- be passed to the supplied exception handler, which itself will be run in a masked state
-forkCatchAny :: MonadUnliftPrim RW m => m () -> (SomeException -> m ()) -> m GHC.ThreadId
-forkCatchAny action handler =
-  mask $ \restore -> fork $ catchAny (restore action) handler
+forkFinally :: MonadUnliftPrim RW m => m a -> (Either SomeException a -> m ()) -> m GHC.ThreadId
+forkFinally action handler =
+  mask $ \restore -> fork $ tryAny (restore action) >>= handler
 
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
@@ -115,9 +115,14 @@ forkOn (I# cap#) action =
     case forkOn# cap# (IO action#) s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
-forkOnCatchAny :: MonadUnliftPrim RW m => Int -> m () -> (SomeException -> m ()) -> m GHC.ThreadId
-forkOnCatchAny cap action handler =
-  mask $ \restore -> forkOn cap $ catchAny (restore action) handler
+forkOnFinally ::
+     MonadUnliftPrim RW m
+  => Int
+  -> m a
+  -> (Either SomeException a -> m ())
+  -> m GHC.ThreadId
+forkOnFinally cap action handler =
+  mask $ \restore -> forkOn cap $ tryAny (restore action) >>= handler
 
 
 forkOS :: MonadUnliftPrim RW m => m () -> m GHC.ThreadId
