@@ -611,10 +611,10 @@ fromBaseBArray (A.Array _ _ _ a#) = BArray a#
 -- | /O(1)/ - cast a boxed `BArray` from primal into `A.Array`, which is wired with
 -- GHC. Resulting array range starts at 0, like any sane array would.
 --
--- >>> a = fromListBArray [1, 2, 3 :: Integer]
--- >>> a
+-- >>> let arr = fromListBArray [1, 2, 3 :: Integer]
+-- >>> arr
 -- BArray [1,2,3]
--- >>> toBaseBArray a
+-- >>> toBaseBArray arr
 -- array (0,2) [(0,1),(1,2),(2,3)]
 --
 -- @since 0.3.0
@@ -2388,7 +2388,7 @@ fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
 -- | /O(1)/ - cast an unboxed `UArray` from primal into `A.UArray`, which is wired with
 -- GHC. Resulting array range starts at 0, like any sane array would.
 --
--- >>> uarr = fromListUArray [1, 2, 3 :: Int]
+-- >>> let uarr = fromListUArray [1, 2, 3 :: Int]
 -- >>> uarr
 -- UArray [1,2,3]
 -- >>> toBaseUArray uarr
