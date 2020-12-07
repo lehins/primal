@@ -35,8 +35,12 @@ module Control.Prim.Exception
   , tryAny
   , tryAnySync
   , onException
+  -- TODO: Implement:
+  -- , onAsyncException
   , withException
   , withAnyException
+  -- TODO: Implement:
+  -- , withAsyncException
   , finally
   , bracket
   , bracket_
@@ -135,9 +139,9 @@ impureThrow e = raise# (GHC.toException e)
 -- `SomeAsyncException`. This is necessary, because receiving thread will get the exception in
 -- an asynchronous manner and without proper wrapping it will not be able to distinguish it
 -- from a regular synchronous exception
-throwTo :: (MonadPrim RW m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
+throwTo :: (MonadPrim s m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
 throwTo tid e =
-  liftIO $
+  unsafeIOToPrim $
   GHC.throwTo tid $
   if isAsyncException e
     then GHC.toException e

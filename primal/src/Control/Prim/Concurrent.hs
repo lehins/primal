@@ -139,10 +139,15 @@ killThread !tid = throwTo tid GHC.ThreadKilled
 threadDelay :: MonadPrim RW m => Int -> m ()
 threadDelay = liftIO . GHC.threadDelay
 
+-- | Lifted version of `GHC.timeout`
+--
 -- @since 0.3.0
 timeout :: MonadUnliftPrim RW m => Int -> m a -> m (Maybe a)
 timeout !n !action = withRunInIO $ \run -> GHC.timeout n (run action)
 
+-- | Same as `timeout`, but ignores the outcome
+--
+-- @since 0.3.0
 timeout_ :: MonadUnliftPrim RW m => Int -> m a -> m ()
 timeout_ n = void . timeout n
 
