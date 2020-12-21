@@ -99,6 +99,7 @@ test-suite tests
   other-modules:      Spec
                     , Test.Prim.ArraySpec
                     , Test.Prim.MVarSpec
+                    , Test.Prim.RefSpec
   build-depends:      base
                     , bytestring
                     , deepseq

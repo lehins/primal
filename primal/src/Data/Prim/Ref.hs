@@ -19,20 +19,24 @@ module Data.Prim.Ref
   , STRef
   -- * Create
   , newRef
+  , newDeepRef
   , isSameRef
   -- * Read/write
   , readRef
   , swapRef
+  , swapDeepRef
   , writeRef
   , writeDeepRef
   -- * Modify
   -- ** Pure
   , modifyRef
+  , modifyDeepRef
   , modifyRef_
   , modifyFetchNewRef
   , modifyFetchOldRef
   -- ** Monadic
   , modifyRefM
+  , modifyDeepRefM
   , modifyRefM_
   , modifyFetchNewRefM
   , modifyFetchOldRefM
@@ -59,6 +63,7 @@ module Data.Prim.Ref
   -- leak waiting to happen
   , newLazyRef
   , writeLazyRef
+  , swapLazyRef
   , modifyLazyRef
   , modifyLazyRefM
   , atomicWriteLazyRef
@@ -130,6 +135,24 @@ newRef :: MonadPrim s m => a -> m (Ref a s)
 newRef a = a `seq` newLazyRef a
 {-# INLINE newRef #-}
 
+
+-- | Create a new mutable variable. Same as `newRef`, but ensures that value is evaluated
+-- to normal form.
+--
+-- ==== __Examples__
+--
+-- >>> import Debug.Trace
+-- >>> import Data.Prim.Ref
+-- >>> ref <- newDeepRef (Just (trace "Initial value is evaluated" (217 :: Int)))
+-- Initial value is evaluated
+-- >>> readRef ref
+-- Just 217
+--
+-- @since 0.3.0
+newDeepRef :: (NFData a, MonadPrim s m) => a -> m (Ref a s)
+newDeepRef a = a `deepseq` newLazyRef a
+{-# INLINE newDeepRef #-}
+
 -- | Create a new mutable variable. Initial value stays unevaluated.
 --
 -- ==== __Examples__
@@ -187,6 +210,41 @@ swapRef ref a = readRef ref <* writeRef ref a
 {-# INLINE swapRef #-}
 
 
+-- | Swap a value of a mutable variable with a new one lazily, while retrieving the old
+-- one. New value is __not__ evaluated prior to it being written to the variable.
+--
+-- ==== __Examples__
+--
+-- >>> ref <- newRef "Initial"
+-- >>> swapLazyRef ref undefined
+-- "Initial"
+-- >>> _ <- swapLazyRef ref "Different"
+-- >>> readRef ref
+-- "Different"
+--
+-- @since 0.3.0
+swapLazyRef :: MonadPrim s m => Ref a s -> a -> m a
+swapLazyRef ref a = readRef ref <* writeLazyRef ref a
+{-# INLINE swapLazyRef #-}
+
+
+-- | Swap a value of a mutable variable with a new one, while retrieving the old one. New
+-- value is evaluated to __normal__ form prior to it being written to the variable.
+--
+-- ==== __Examples__
+--
+-- >>> ref <- newRef (Just "Initial")
+-- >>> swapDeepRef ref (Just (errorWithoutStackTrace "foo"))
+-- *** Exception: foo
+-- >>> readRef ref
+-- Just "Initial"
+--
+-- @since 0.3.0
+swapDeepRef :: (NFData a, MonadPrim s m) => Ref a s -> a -> m a
+swapDeepRef ref a = readRef ref <* writeDeepRef ref a
+{-# INLINE swapDeepRef #-}
+
+
 -- | Write a value into a mutable variable strictly. If evaluating a value results in
 -- exception, original value in the mutable variable will not be affected. Another great
 -- benfit of this over `writeLazyRef` is that it helps avoiding memory leaks.
@@ -206,6 +264,7 @@ swapRef ref a = readRef ref <* writeRef ref a
 writeRef :: MonadPrim s m => Ref a s -> a -> m ()
 writeRef ref !a = writeLazyRef ref a
 {-# INLINE writeRef #-}
+
 
 -- | Same as `writeRef`, but will evaluate the argument to Normal Form prior to writing it
 -- to the `Ref`
@@ -241,14 +300,23 @@ writeLazyRef (Ref ref#) a = prim_ (writeMutVar# ref# a)
 
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the
--- artifact produced by the modifying function. This function is a faster alternative to
--- `atomicModifyRef`, without any atomicity guarantees. For lazy version checkout
--- `modifyLazyRef`
+-- artifact produced by the modifying function. Artifact is not forced, therfore it cannot
+-- affect the outcome of modification. This function is a faster alternative to
+-- `atomicModifyRef`, except without any guarantees of atomicity and ordering of mutable
+-- operations during concurrent modification of the same `Ref`. For lazy version see
+-- `modifyLazyRef` and for strict evaluation to normal form see `modifyDeepRef`.
 --
 -- @since 0.3.0
 modifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
 modifyRef ref f = modifyRefM ref (pure . f)
 {-# INLINE modifyRef #-}
+
+-- | Same as `modifyRef`, except it will evaluate result of computation to normal form.
+--
+-- @since 0.3.0
+modifyDeepRef :: (NFData a, MonadPrim s m) => Ref a s -> (a -> (a, b)) -> m b
+modifyDeepRef ref f = modifyDeepRefM ref (pure . f)
+{-# INLINE modifyDeepRef #-}
 
 -- | Apply a pure function to the contents of a mutable variable strictly.
 --
@@ -300,10 +368,18 @@ modifyLazyRef ref f = modifyLazyRefM ref (pure . f)
 --
 modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
 modifyRefM ref f = do
-  a <- readRef ref
-  (a', b) <- f a
+  (a', b) <- f =<< readRef ref
   b <$ writeRef ref a'
 {-# INLINE modifyRefM #-}
+
+
+-- | Same as `modifyRefM`, except evaluates new value to normal form prior ot it being
+-- written to the mutable ref.
+modifyDeepRefM :: (NFData a, MonadPrim s m) => Ref a s -> (a -> m (a, b)) -> m b
+modifyDeepRefM ref f = do
+  (a', b) <- f =<< readRef ref
+  b <$ writeDeepRef ref a'
+{-# INLINE modifyDeepRefM #-}
 
 
 -- | Modify value of a mutable variable with a monadic action. Result is written strictly.
@@ -397,7 +473,14 @@ atomicSwapRef ref x = atomicModifyFetchOldRef ref (const x)
 numTriesCAS :: Int
 numTriesCAS = 35
 
--- | Appy a function to the value in mutable `Ref` atomically
+-- | Apply a function to the value stored in a mutable `Ref` atomically. Function is
+-- applied strictly with respect to the newly returned value, which matches the semantics
+-- of `atomicModifyIORef'`, however the difference is that the artifact returned by the
+-- action is not evaluated.
+--
+-- ====__Example__
+--
+-- >>> 
 --
 -- @since 0.3.0
 atomicModifyRef :: MonadPrim s m => Ref a s -> (a -> (a, b)) -> m b
