@@ -20,9 +20,9 @@ import GHC.Conc.Sync (STM(..))
 import GHC.Exts
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
-import Control.Monad.Trans.Except (ExceptT)
+import Control.Monad.Trans.Except (ExceptT(..))
 import Control.Monad.Trans.Identity (IdentityT)
-import Control.Monad.Trans.Maybe (MaybeT)
+import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Trans.Reader (ReaderT(..))
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
@@ -53,9 +53,10 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 --
 -- This is an identical class to
 -- [MonadThrow](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:MonadThrow)
--- from @exceptions@ package. The reason why it was copied, instead of a direct depency on
--- the aforementioned package is because @MonadCatch@ and @MonadMask@ are not right
--- abstractions for exception handling in presence of concurrency.
+-- from @exceptions@ package. The reason why it was copied, instead of a direct dependency
+-- on the aforementioned package is because @MonadCatch@ and @MonadMask@ are not right
+-- abstractions for exception handling in presence of concurrency and also because
+-- instances for such transformers as `MaybeT` and `ExceptT` are flawed.
 class Monad m => MonadThrow m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
@@ -82,14 +83,14 @@ instance MonadThrow STM where
 instance MonadThrow m => MonadThrow (ContT r m) where
   throwM = lift . throwM
 
-instance MonadThrow m => MonadThrow (ExceptT e m) where
-  throwM = lift . throwM
+instance (e ~ SomeException, Monad m) => MonadThrow (ExceptT e m) where
+  throwM e = ExceptT (pure (Left (toException e)))
 
 instance MonadThrow m => MonadThrow (IdentityT m) where
   throwM = lift . throwM
 
-instance MonadThrow m => MonadThrow (MaybeT m) where
-  throwM = lift . throwM
+instance Monad m => MonadThrow (MaybeT m) where
+  throwM _ = MaybeT (pure Nothing)
 
 instance MonadThrow m => MonadThrow (ReaderT r m) where
   throwM = lift . throwM

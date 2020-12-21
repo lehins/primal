@@ -6,6 +6,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
@@ -45,6 +46,7 @@ module Control.Prim.Monad.Internal
 import GHC.Exts
 import GHC.IO hiding (liftIO)
 import GHC.ST hiding (liftST)
+import Control.Exception (SomeException)
 import Control.Prim.Monad.Throw
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
@@ -198,7 +200,7 @@ instance MonadPrim s m => MonadPrim s (ContT r m) where
   prim = lift . prim
   {-# INLINE prim #-}
 
-instance MonadPrim s m => MonadPrim s (ExceptT e m) where
+instance (e ~ SomeException, MonadPrim s m) => MonadPrim s (ExceptT e m) where
   prim = lift . prim
   {-# INLINE prim #-}
 
