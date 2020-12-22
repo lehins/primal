@@ -2,17 +2,17 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |
--- Module      : Data.Prim.Memory.Fold
+-- Module      : Primal.Memory.Fold
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Fold where
+module Primal.Memory.Fold where
 
-import Data.Prim
-import Data.Prim.Memory.Internal
+import Primal.Prim
+import Primal.Memory.Internal
 
 
 foldlMem ::

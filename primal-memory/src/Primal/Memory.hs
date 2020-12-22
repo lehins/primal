@@ -1,15 +1,13 @@
 -- |
--- Module      : Data.Prim.Memory
+-- Module      : Primal.Memory
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-{-# LANGUAGE BangPatterns #-}
-
-module Data.Prim.Memory
-  ( module Data.Prim
+module Primal.Memory
+  ( module Primal.Prim
   , Pinned(..)
   -- * Immutable
   , Bytes
@@ -112,6 +110,6 @@ module Data.Prim.Memory
   , loadListByteOffMutMemN       -- DOC: [x], DOCTEST [x], TEST: [ ]
   ) where
 
-import Data.Prim
-import Data.Prim.Memory.Internal
-import Data.Prim.Memory.Fold
+import Primal.Prim
+import Primal.Memory.Internal
+import Primal.Memory.Fold

@@ -10,14 +10,14 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Memory.Bytes.Internal
+-- Module      : Primal.Memory.Bytes.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Bytes.Internal
+module Primal.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)
@@ -80,15 +80,15 @@ module Data.Prim.Memory.Bytes.Internal
   ) where
 
 import Control.DeepSeq
-import Control.Prim.Monad
-import Control.Prim.Monad.Unsafe
-import Control.Prim.Eval
-import Data.Prim
-import Data.Prim.Array
-import Data.Prim.Class
 import Data.Typeable
-import Foreign.Prim
 import GHC.ForeignPtr
+import Primal.Data.Array
+import Primal.Eval
+import Primal.Foreign
+import Primal.Monad
+import Primal.Monad.Unsafe
+import Primal.Prim
+import Primal.Prim.Class
 import Unsafe.Coerce
 #if MIN_VERSION_base(4,14,0)
 import Data.IORef

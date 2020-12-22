@@ -7,15 +7,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Memory.Ptr
+-- Module      : Primal.Memory.Ptr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Ptr
+module Primal.Memory.Ptr
   ( module GHC.Ptr
   , plusOffPtr
   , plusByteOffPtr
@@ -87,35 +88,22 @@ module Data.Prim.Memory.Ptr
   , moveByteOffMBytesToPtr
   , compareByteOffBytesToPtr
   , compareByteOffPtrToBytes
-  , module Data.Prim
+  , module Primal.Prim
   ) where
 
 
-import Control.Prim.Monad
-import Control.Prim.Monad.Unsafe
-import Data.Prim
-import Data.Prim.Memory.Bytes.Internal (Bytes(..), MBytes(..))
-import Data.Prim.Class
-import Foreign.Prim
-import Foreign.Prim.Ptr
+import Foreign.Marshal.Utils (copyBytes)
+import Foreign.Ptr as X hiding (IntPtr, WordPtr, freeHaskellFunPtr, intPtrToPtr,
+                         ptrToIntPtr, ptrToWordPtr, wordPtrToPtr)
+import qualified Foreign.Ptr as GHC (freeHaskellFunPtr)
+import GHC.Ptr
+import Primal.Foreign
+import Primal.Memory.Bytes.Internal (Bytes(..), MBytes(..))
 import Primal.Monad
 import Primal.Monad.Unsafe
-import Data.Prim
-import Data.Prim.Atomic
-import Data.Prim.Class
-import Foreign.Marshal.Utils (copyBytes)
-import Primal.Foreign
-import qualified Foreign.Ptr as GHC (freeHaskellFunPtr)
-import Foreign.Ptr as X hiding
-  ( IntPtr
-  , WordPtr
-  , freeHaskellFunPtr
-  , intPtrToPtr
-  , ptrToIntPtr
-  , ptrToWordPtr
-  , wordPtrToPtr
-  )
-import GHC.Ptr
+import Primal.Prim
+import Primal.Prim.Atomic
+import Primal.Prim.Class
 
 
 

@@ -1,5 +1,5 @@
 name:                primal-memory
-version:             0.3.0.0
+version:             1.0.0.0
 synopsis:            Unified interface for memory managemenet.
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
 homepage:            https://github.com/lehins/primal
@@ -26,17 +26,17 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Memory
-                     , Data.Prim.Memory.Addr
-                     , Data.Prim.Memory.ByteString
-                     , Data.Prim.Memory.Bytes
-                     , Data.Prim.Memory.ForeignPtr
-                     , Data.Prim.Memory.Fold
-                     , Data.Prim.Memory.PArray
-                     , Data.Prim.Memory.Ptr
-                     , Data.Prim.Memory.Text
-                     , Data.Prim.Memory.Internal
-  other-modules:       Data.Prim.Memory.Bytes.Internal
+  exposed-modules:     Primal.Memory
+                     , Primal.Memory.Addr
+                     , Primal.Memory.ByteString
+                     , Primal.Memory.Bytes
+                     , Primal.Memory.ForeignPtr
+                     , Primal.Memory.Fold
+                     , Primal.Memory.PArray
+                     , Primal.Memory.Ptr
+                     , Primal.Memory.Text
+                     , Primal.Memory.Internal
+  other-modules:       Primal.Memory.Bytes.Internal
   build-depends:       base >= 4.9 && < 5
                      , bytestring >= 0.10.4
                      , deepseq

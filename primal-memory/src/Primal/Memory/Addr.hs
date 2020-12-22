@@ -10,14 +10,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Memory.Addr
+-- Module      : Primal.Memory.Addr
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Addr
+module Primal.Memory.Addr
   ( -- * Immutable Addr
     Addr(..)
   , castAddr
@@ -138,30 +138,29 @@ module Data.Prim.Memory.Addr
   , prefetchOffAddr3
   , prefetchOffMAddr3
   -- * Re-export
-  , module Data.Prim
+  , module Primal.Prim
   ) where
 
 import Control.Arrow (first)
-import Control.DeepSeq
-import Control.Prim.Eval
-import Control.Prim.Monad
-import Control.Prim.Monad.Unsafe
+import Primal.Eval
+import Primal.Monad
+import Primal.Monad.Unsafe
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
-import Data.Prim
-import Data.Prim.Atomic
-import Data.Prim.Class
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Bytes.Internal
-import Data.Prim.Memory.ByteString
-import Data.Prim.Memory.Fold
-import Data.Prim.Memory.ForeignPtr
-import Data.Prim.Memory.Internal
-import Data.Prim.Memory.Ptr
+import Primal.Prim
+import Primal.Prim.Atomic
+import Primal.Prim.Class
+import Primal.Memory.Bytes
+import Primal.Memory.Bytes.Internal
+import Primal.Memory.ByteString
+import Primal.Memory.Fold
+import Primal.Memory.ForeignPtr
+import Primal.Memory.Internal
+import Primal.Memory.Ptr
 import qualified Data.Semigroup as Semigroup
-import Foreign.Prim
+import Primal.Foreign
 import Unsafe.Coerce
 
 

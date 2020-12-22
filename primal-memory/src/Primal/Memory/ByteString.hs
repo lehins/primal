@@ -2,14 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
 -- |
--- Module      : Data.Prim.Memory.ByteString
+-- Module      : Primal.Memory.ByteString
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.ByteString
+module Primal.Memory.ByteString
   (
     MByteString(..)
   -- * Conversion
@@ -37,13 +37,13 @@ import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import Data.Prim
-import Foreign.Prim
-import Control.Prim.Monad
-import Control.Prim.Eval
+import Primal.Prim
+import Primal.Foreign
+import Primal.Monad
+import Primal.Eval
 import GHC.ForeignPtr
-import Data.Prim.Memory.Ptr
-import Data.Prim.Memory.Bytes.Internal
+import Primal.Memory.Ptr
+import Primal.Memory.Bytes.Internal
   ( Bytes(..)
   , Pinned(..)
   , allocMBytes

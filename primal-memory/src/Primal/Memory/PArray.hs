@@ -10,14 +10,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
--- Module      : Data.Prim.Memory.PArray
+-- Module      : Primal.Memory.PArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.PArray
+module Primal.Memory.PArray
   ( PArray(..)
   , PMArray(..)
   , Pinned(..)
@@ -54,14 +54,14 @@ module Data.Prim.Memory.PArray
   ) where
 
 import Control.DeepSeq
-import Control.Prim.Monad
-import Data.Prim
-import Data.Prim.Array (Size(..), UArray(..), UMArray(..))
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Fold
-import Data.Prim.Memory.ForeignPtr
-import Data.Prim.Memory.Internal
-import Foreign.Prim
+import Primal.Monad
+import Primal.Prim
+import Primal.Data.Array (Size(..), UArray(..), UMArray(..))
+import Primal.Memory.Bytes
+import Primal.Memory.Fold
+import Primal.Memory.ForeignPtr
+import Primal.Memory.Internal
+import Primal.Foreign
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)

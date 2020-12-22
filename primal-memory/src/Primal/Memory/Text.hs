@@ -2,14 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
 -- |
--- Module      : Data.Prim.Memory.Text
+-- Module      : Primal.Memory.Text
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Text
+module Primal.Memory.Text
   ( Text(..)
   , MText(..)
   , Array(..)
@@ -22,7 +22,7 @@ module Data.Prim.Memory.Text
 
 import Data.Text.Array
 import Data.Text.Internal
-import Data.Prim.Memory.Bytes.Internal
+import Primal.Memory.Bytes.Internal
   ( Bytes(..)
   , MBytes(..)
   , Pinned(..)

@@ -11,36 +11,35 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_HADDOCK hide, not-home #-}
 -- |
--- Module      : Data.Prim.Memory.Internal
+-- Module      : Primal.Memory.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Internal
-  ( module Data.Prim.Memory.Internal
-  , module Data.Prim.Memory.Bytes.Internal
+module Primal.Memory.Internal
+  ( module Primal.Memory.Internal
+  , module Primal.Memory.Bytes.Internal
   ) where
 
-import Control.Prim.Exception
-import Control.Prim.Monad.Unsafe
+import Primal.Exception
+import Primal.Monad.Unsafe
 import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
 import Data.Kind
 import Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
-import Data.Prim
-import Data.Prim.Array
-import Data.Prim.Memory.Bytes.Internal
-import Data.Prim.Memory.ByteString
-import Data.Prim.Memory.ForeignPtr
-import Data.Prim.Memory.Ptr
-import qualified Data.Prim.Memory.Text as T
 import qualified Data.Semigroup as Semigroup
-import Foreign.Prim
 import Numeric (showHex)
+import Primal.Data.Array
+import Primal.Foreign
+import Primal.Memory.ByteString
+import Primal.Memory.Bytes.Internal
+import Primal.Memory.ForeignPtr
+import Primal.Memory.Ptr
+import qualified Primal.Memory.Text as T
 
 -- | Type class that can be implemented for an immutable data type that provides
 -- read-only direct access to memory

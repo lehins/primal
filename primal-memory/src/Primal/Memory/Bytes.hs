@@ -8,15 +8,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.Memory.Bytes
+-- Module      : Primal.Memory.Bytes
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Memory.Bytes
-  ( module Data.Prim
+module Primal.Memory.Bytes
+  ( module Primal.Prim
     -- * Mutable
   , Bytes
   , toByteArray#
@@ -155,13 +155,12 @@ module Data.Prim.Memory.Bytes
   -- * Helpers
   ) where
 
-import Control.Monad.ST
-import Control.Prim.Monad
 import Data.Maybe (fromMaybe)
-import Data.Prim
-import Data.Prim.Atomic
-import Data.Prim.Memory.Internal
-import Foreign.Prim
+import Primal.Foreign
+import Primal.Memory.Internal
+import Primal.Monad
+import Primal.Prim
+import Primal.Prim.Atomic
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2

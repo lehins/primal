@@ -10,8 +10,8 @@ import GHC.Exts
 import Data.Proxy
 import Data.Typeable
 import Criterion.Main
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Ptr
+import Primal.Memory.Bytes
+import Primal.Memory.Ptr
 import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
 import Foreign.Storable as S
