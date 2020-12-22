@@ -4,13 +4,13 @@
 module Main where
 
 import qualified Control.Concurrent.MVar as Base
-import Control.Prim.Concurrent.MVar
-import Control.Prim.Eval
-import Control.Prim.Monad
+import Primal.Concurrent.MVar
+import Primal.Eval
+import Primal.Monad
 import Criterion.Main
 import Data.Coerce
 import qualified Data.IORef as Base
-import Data.Prim.Ref
+import Primal.Data.Ref
 import qualified UnliftIO.MVar as Unlift
 import Data.Atomics (atomicModifyIORefCAS, atomicModifyIORefCAS_)
 
