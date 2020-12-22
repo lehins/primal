@@ -4,6 +4,10 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+
+
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 -- |
 -- Module      : Control.Prim.Eval
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -145,3 +149,12 @@ newtype BNF a = BNF a
 -- @since 0.3.0
 instance NFData (BNF a) where
   rnf (BNF a) = a `seq` ()
+
+
+class NFDataMut f where
+  rnfMut :: MonadPrim s m => f s -> m ()
+
+-- class Container (f :: * -> *) e | f -> e
+
+-- class Container f e => FoldableMut (f :: * -> * -> *) e where
+--   foldlMutM :: MonadPrim s m => (e -> a -> m a) -> a -> f e s -> m a

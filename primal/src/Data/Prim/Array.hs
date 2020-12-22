@@ -9,7 +9,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+#if __GLASGOW_HASKELL__ >= 800
+  {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+#endif
 -- |
 -- Module      : Data.Prim.Array
 -- Copyright   : (c) Alexey Kuleshevich 2020

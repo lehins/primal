@@ -48,6 +48,28 @@ library
                      , Foreign.Prim.Ptr
                      , Foreign.Prim.StablePtr
                      , Foreign.Prim.WeakPtr
+                     -- , Primal.Pure.Functor
+                     , Primal.Mutable.Foldable
+                     , Primal.Mutable.Eq
+                     -- , Primal.Mutable.Foldable
+                     , Primal.Mutable.Ord
+                     -- , Primal.Mutable.Prim
+                     -- , Primal.Mutable.Atomic
+                     -- , Primal.Mutable.DeepSeq
+                     -- , Primal.Mutable.MArray
+                     -- , Primal.Mutable.MArray.Deep
+                     -- , Primal.Mutable.MArray.Lazy
+                     -- , Primal.Mutable.MArray.Unsafe
+                     -- , Primal.Mutable.MRef
+                     -- , Primal.Mutable.MRef.Deep
+                     -- , Primal.Mutable.MRef.Lazy
+                     -- , Primal.Mutable.MVar
+                     -- , Primal.Mutable.MVar.Deep
+                     -- , Primal.Mutable.MVar.Lazy
+                     -- , Primal.Foreign
+                     -- , Primal.Foreign.Ptr
+                     -- , Primal.Foreign.StablePtr
+                     -- , Primal.Foreign.WeakPtr
 
   other-modules:       Control.Prim.Monad.Internal
                      , Foreign.Prim.C
