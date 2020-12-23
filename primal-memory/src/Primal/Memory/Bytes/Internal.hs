@@ -109,8 +109,8 @@ import Data.IORef
 -- that fact through out the "primal" universe there is a distinction between memory that
 -- is either @`Pin`ned@ or @`Inc`onclusive@.
 --
--- It is possible to use one of `Data.Prim.Memory.Bytes.toPinnedBytes` or
--- `Data.Prim.Memory.Bytes.toPinnedMBytes` to get a conclusive type.
+-- It is possible to use one of `Primal.Memory.Bytes.toPinnedBytes` or
+-- `Primal.Memory.Bytes.toPinnedMBytes` to get a conclusive type.
 --
 -- @since 0.1.0
 data Pinned
@@ -120,18 +120,18 @@ data Pinned
 -- | An immutable region of memory which was allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
--- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromByteArray#` and unwrapper
--- `Data.Prim.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
--- the actual constructor is available from @Data.Prim.Memory.Internal@
+-- dangerous. Type safe constructor `Primal.Memory.Bytes.fromByteArray#` and unwrapper
+-- `Primal.Memory.Bytes.toByteArray#` should be used instead. As a backdoor, of course,
+-- the actual constructor is available from @Primal.Memory.Internal@
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes nominal
 
 -- | Mutable region of memory which was allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
--- dangerous. Type safe constructor `Data.Prim.Memory.Bytes.fromMutableByteArray#` and
--- unwrapper `Data.Prim.Memory.Bytes.toMutableByteArray#` should be used instead. As a
--- backdoor, of course, the actual constructor is available in "Data.Prim.Memory.Internal"
+-- dangerous. Type safe constructor `Primal.Memory.Bytes.fromMutableByteArray#` and
+-- unwrapper `Primal.Memory.Bytes.toMutableByteArray#` should be used instead. As a
+-- backdoor, of course, the actual constructor is available in "Primal.Memory.Internal"
 -- module and specially unsafe function `castPinnedMBytes` was crafted.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes nominal nominal

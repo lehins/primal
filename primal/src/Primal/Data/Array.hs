@@ -310,7 +310,7 @@ sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim.Array
+-- >>> import Primal.Data.Array
 -- >>> let a = fromListBArray [[0 .. i] | i <- [0 .. 10 :: Int]]
 -- >>> indexBArray a 1
 -- [0,1]
@@ -721,7 +721,7 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- cell, so it will not overwrite the value of an array's cell if it evaluates to an
 -- exception:
 --
--- >>> import Control.Prim.Exception
+-- >>> import Primal.Exception
 -- >>> writeBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeBMArray ma
@@ -882,7 +882,7 @@ newLazyBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeBMArray ma i x) (zip [0..] xs)
@@ -894,7 +894,7 @@ newRawBMArray ::
      forall e m s. (HasCallStack, MonadPrim s m)
   => Size
   -> m (BMArray e s)
-newRawBMArray sz = newLazyBMArray sz (uninitialized "Data.Prim.Aray" "newRawBMArray")
+newRawBMArray sz = newLazyBMArray sz (uninitialized "Primal.Data.Array" "newRawBMArray")
 {-# INLINE newRawBMArray #-}
 
 
@@ -1114,7 +1114,7 @@ resizeRawBMArray ::
   -- Should be below some upper limit that is dictated by the operating system and the total
   -- amount of available memory
   -> m (BMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
-resizeRawBMArray ma sz = resizeBMArray ma sz (uninitialized "Data.Prim.Aray" "resizeRawBMArray")
+resizeRawBMArray ma sz = resizeBMArray ma sz (uninitialized "Primal.Data.Array" "resizeRawBMArray")
 {-# INLINE resizeRawBMArray #-}
 
 
@@ -1300,7 +1300,7 @@ sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim.Array
+-- >>> import Primal.Data.Array
 -- >>> let a = fromListSBArray [[0 .. i] | i <- [0 .. 10 :: Int]]
 -- >>> indexSBArray a 1
 -- [0,1]
@@ -1456,7 +1456,7 @@ resizeRawSBMArray ::
   -- Should be below some upper limit that is dictated by the operating system and the total
   -- amount of available memory
   -> m (SBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
-resizeRawSBMArray ma sz = resizeSBMArray ma sz (uninitialized "Data.Prim.Aray" "resizeRawSBMArray")
+resizeRawSBMArray ma sz = resizeSBMArray ma sz (uninitialized "Primal.Data.Array" "resizeRawSBMArray")
 {-# INLINE resizeRawSBMArray #-}
 
 
@@ -1756,7 +1756,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 -- cell, so it will not overwrite the value of an array's cell if it evaluates to an
 -- exception:
 --
--- >>> import Control.Prim.Exception
+-- >>> import Primal.Exception
 -- >>> writeSBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeSBMArray ma
@@ -1891,7 +1891,7 @@ newLazySBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawSBMArray (Size (length xs)) :: IO (SBMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeSBMArray ma i x) (zip [0..] xs)
@@ -1903,7 +1903,7 @@ newRawSBMArray ::
      forall e m s. (HasCallStack, MonadPrim s m)
   => Size
   -> m (SBMArray e s)
-newRawSBMArray sz = newLazySBMArray sz (uninitialized "Data.Prim.Aray" "newRawSBMArray")
+newRawSBMArray sz = newLazySBMArray sz (uninitialized "Primal.Data.Array" "newRawSBMArray")
 {-# INLINE newRawSBMArray #-}
 
 
@@ -2501,7 +2501,7 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> ma <- newRawUMArray 4 :: IO (UMArray (Maybe Int) RW)
 -- >>> mapM_ (\i -> writeUMArray ma i Nothing) [0, 1, 3]
 -- >>> writeUMArray ma 2 (Just 2)
@@ -2529,7 +2529,7 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> let xs = "Hello"
 -- >>> ma <- newUMArray (Size (length xs) + 8) '!' :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
@@ -2654,7 +2654,7 @@ makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)

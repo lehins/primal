@@ -44,28 +44,23 @@ library
 
                      , Primal.Data.Array
                      , Primal.Data.Ref
-                     -- , Primal.Data.Mutable.MRef
-                     -- , Primal.Data.Mutable.MArray
-                     -- , Primal.Data.Mutable.Eq
-                     -- , Primal.Data.Mutable.Ord
-                     -- , Primal.Data.Mutable.NFData
+                     , Primal.Data.Mutable.Eq
+                     , Primal.Data.Mutable.Ord
+                     , Primal.Data.Mutable.Foldable
+                       -- fix ^
 
                      , Primal.Mem
                      , Primal.Mem.Weak
                      , Primal.Mem.StableName
                      , Primal.Foreign
                      , Primal.Foreign.StablePtr
-                       
+
                      -- , Primal.Container.Singleton
                      -- , Primal.Container.Reduce
                      -- , Primal.Container.Lift
                      -- , Primal.Container.Mutable.Singleton
                      -- , Primal.Container.Mutable.Reduce
-                     -- , Primal.Container.Mutable.Eq
-                     -- -- , Primal.Mutable.Foldable
-                     -- , Primal.Container.Mutable.Ord
                      -- , Primal.Container.Mutable.Lift
-                     -- , Primal.Container.Mutable.NFData
 
                      -- , Primal.Mutable.Prim
                      -- , Primal.Mutable.Atomic
@@ -80,10 +75,6 @@ library
                      -- , Primal.Mutable.MVar
                      -- , Primal.Mutable.MVar.Deep
                      -- , Primal.Mutable.MVar.Lazy
-                     -- , Primal.Foreign
-                     -- , Primal.Foreign.Ptr
-                     -- , Primal.Foreign.StablePtr
-                     -- , Primal.Foreign.WeakPtr
 
   other-modules:       Primal.Monad.Internal
                      , Primal.Foreign.C
@@ -116,17 +107,17 @@ library
   if arch(i386) || arch(x86_64)
       cc-options: -msse2
 
--- test-suite doctests
---   type:             exitcode-stdio-1.0
---   hs-source-dirs:   tests
---   main-is:          doctests.hs
---   build-depends: base
---                , doctest >=0.15
---                , primal
---                , template-haskell
---   default-language:    Haskell2010
---   ghc-options:        -Wall
---                       -threaded
+test-suite doctests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  main-is:          doctests.hs
+  build-depends: base
+               , doctest >=0.15
+               , primal
+               , template-haskell
+  default-language:    Haskell2010
+  ghc-options:        -Wall
+                      -threaded
 
 test-suite tests
   type:               exitcode-stdio-1.0

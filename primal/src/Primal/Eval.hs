@@ -147,6 +147,6 @@ newtype BNF a = BNF a
 instance NFData (BNF a) where
   rnf (BNF a) = a `seq` ()
 
-
+-- | Same
 class MNFData f where
   mrnf :: MonadPrim s m => f s -> m ()

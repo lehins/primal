@@ -24,7 +24,7 @@ import GHC.Exts
 #if MIN_VERSION_base(4,12,0)
 import GHC.StableName (StableName(..), eqStableName, hashStableName)
 
--- | Orphan instance defined in "Data.Prim.StableName"
+-- | Orphan instance defined in "Primal.Mem.StableName"
 instance Show (StableName a) where
   showsPrec = showPrecStableName
 

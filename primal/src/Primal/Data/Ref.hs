@@ -93,7 +93,7 @@ import qualified GHC.STRef as ST
 -- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
 -- with type arguments flipped and is generalized to work in `MonadPrim`. It only stores a
 -- reference to the value which means it works on boxed values. If the type can be unboxed
--- with `Data.Prim.Class.Prim` class, consider using
+-- with `Primal.Prim.Class` class, consider using
 -- [@PVar@](https://hackage.haskell.org/package/pvar) package instead.
 --
 -- @since 0.3.0
@@ -122,7 +122,7 @@ isSameRef (Ref ref1#) (Ref ref2#) = isTrue# (sameMutVar# ref1# ref2#)
 -- ==== __Examples__
 --
 -- >>> import Debug.Trace
--- >>> import Data.Prim.Ref
+-- >>> import Primal.Data.Ref
 -- >>> ref <- newRef (trace "Initial value is evaluated" (217 :: Int))
 -- Initial value is evaluated
 -- >>> modifyFetchOldRef ref succ
@@ -142,7 +142,7 @@ newRef a = a `seq` newLazyRef a
 -- ==== __Examples__
 --
 -- >>> import Debug.Trace
--- >>> import Data.Prim.Ref
+-- >>> import Primal.Data.Ref
 -- >>> ref <- newDeepRef (Just (trace "Initial value is evaluated" (217 :: Int)))
 -- Initial value is evaluated
 -- >>> readRef ref
@@ -160,7 +160,7 @@ newDeepRef a = a `deepseq` newLazyRef a
 -- In below example you will see that initial value is never evaluated.
 --
 -- >>> import Debug.Trace
--- >>> import Data.Prim.Ref
+-- >>> import Primal.Data.Ref
 -- >>> ref <- newLazyRef (trace "Initial value is evaluated" (undefined :: Int))
 -- >>> writeRef ref 1024
 -- >>> modifyFetchNewRef ref succ
@@ -182,7 +182,7 @@ newLazyRef a =
 --
 -- ==== __Examples__
 --
--- >>> import Data.Prim.Ref
+-- >>> import Primal.Data.Ref
 -- >>> ref <- newRef "Hello World!"
 -- >>> readRef ref
 -- "Hello World!"
@@ -252,7 +252,7 @@ swapDeepRef ref a = readRef ref <* writeDeepRef ref a
 -- ==== __Examples__
 --
 -- >>> ref <- newRef "Original value"
--- >>> import Control.Prim.Exception
+-- >>> import Primal.Exception
 -- >>> _ <- try $ writeRef ref undefined :: IO (Either SomeException ())
 -- >>> readRef ref
 -- "Original value"

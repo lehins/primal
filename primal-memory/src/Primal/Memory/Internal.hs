@@ -55,7 +55,7 @@ class MemRead mr where
   -- ====__Example__
   --
   -- >>> :set -XDataKinds
-  -- >>> import Data.Prim.Memory
+  -- >>> import Primal.Memory
   -- >>> byteCountMem (fromByteListMem [1,2,3] :: Bytes 'Inc)
   -- Count {unCount = 3}
   --
@@ -1136,7 +1136,7 @@ defaultReallocMutMem mem c = do
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> let b = fromListMem @Word8 @(MBytes 'Inc) [0xde, 0xad, 0xbe, 0xef]
 -- >>> cycleMemN @(MBytes 'Inc) 2 b
 -- [0xde,0xad,0xbe,0xef,0xde,0xad,0xbe,0xef]
@@ -1167,7 +1167,7 @@ cycleMemN n r
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> toListMem (emptyMem @(MBytes 'Inc)) :: [Int]
 -- []
 --
@@ -1184,7 +1184,7 @@ emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> toListMem (singletonMem @Word16 @(MBytes 'Inc) 0xffff) :: [Word8]
 -- [255,255]
 --
@@ -1207,7 +1207,7 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> mb <- allocZeroMutMem @Int @(MBytes 'Inc) 10
 -- >>> b <- freezeMutMem mb
 -- >>> toListMem b :: [Int]
@@ -1331,7 +1331,7 @@ createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freeze
 -- Note that this example will work correctly only on little-endian machines:
 --
 -- >>> :set -XTypeApplications
--- >>> import Data.Prim
+-- >>> import Primal.Prim
 -- >>> import Control.Monad
 -- >>> let ibs = zip [0, 4 ..] [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: [(Off Word8, Word8)]
 -- >>> let c = Count (length ibs) :: Count Char
@@ -1371,8 +1371,8 @@ createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
 -- ====__Examples__
 --
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
--- >>> import Data.Prim.Memory.Bytes
+-- >>> import Primal.Memory
+-- >>> import Primal.Memory.Bytes
 -- >>> let xs = fromByteListMem @(MBytes 'Pin) [0..15] :: Bytes 'Pin
 -- >>> let ys = cloneMem xs
 -- >>> let report bEq pEq = print $ "Bytes equal: " ++ show bEq ++ ", their pointers equal: " ++ show pEq
@@ -1502,7 +1502,7 @@ concatMem xs = do
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> let fm = fromListMem @Word8 @(MBytes 'Inc) [1,2,3,4]
 -- >>> mm <- thawCloneMem fm
 -- >>> writeOffMutMem mm 1 (0xadde :: Word16)
@@ -1531,7 +1531,7 @@ thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> let fm = fromListMem @Word8 @(MBytes 'Inc) [1,2,3,4,5]
 -- >>> mm <- thawCopyMem fm 1 (3 :: Count Word8)
 -- >>> writeOffMutMem mm 1 (0 :: Word8)
@@ -1588,7 +1588,7 @@ freezeCopyMutMem mem off c = freezeMutMem mem >>= \r -> thawCopyMem r off c >>= 
 --
 -- >>> :set -XTypeApplications
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> mb <- allocZeroMutMem @Word8 @(MBytes 'Pin) 4
 -- >>> writeOffMutMem mb 2 (0xff :: Word8)
 -- >>> b <- freezeCloneMutMem mb
@@ -1793,7 +1793,7 @@ compareByteMem b1 b2 = compare n (byteCountMem b2) <> compareByteOffMem b1 0 b2 
 --
 -- ====__Examples__
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> import Numeric (showHex)
 -- >>> let b = fromByteListMem [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: Bytes 'Inc
 -- >>> toListMem b :: [Int8]
@@ -1874,7 +1874,7 @@ foldrCountMem (Count k) c nil bs = go 0
 --
 -- ====__Examples__
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> :set -XDataKinds
 -- >>> fromListMem "Hi" :: Bytes 'Inc
 -- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00]
@@ -1973,7 +1973,7 @@ fromListMemN count xs =
 --
 -- ====__Examples__
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> :set -XTypeApplications
 -- >>> fromListZeroMemN @Char @(MBytes 'Inc) 3 "Hi"
 -- (Right (Count {unCount = 2}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
@@ -2000,7 +2000,7 @@ fromListZeroMemN count xs =
 --
 -- ====__Examples__
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> fromListZeroMemN_ 3 "Hi" :: Bytes 'Inc
 -- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 --
@@ -2111,7 +2111,7 @@ loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff
 -- ====__Examples__
 --
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> ma <- allocZeroMutMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
 -- >>> freezeMutMem ma
 -- [0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
@@ -2299,7 +2299,7 @@ loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c 
 --
 -- ====__Examples__
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> ma <- allocMutMem (5 :: Count Char) :: IO (MBytes 'Inc RW)
 -- >>> loadListMutMem "HelloWorld" ma
 -- ("World",Count {unCount = 5})
@@ -2367,7 +2367,7 @@ mapByteMem f = imapByteOffMem (const f)
 
 -- Map an index aware function over memory region
 --
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> a = fromListMem [1 .. 10 :: Word8] :: Bytes 'Inc
 -- >>> a
 -- [0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
@@ -2782,7 +2782,7 @@ instance Typeable p => Monoid.Monoid (Bytes p) where
 -- ====__Example__
 --
 -- >>> :set -XDataKinds
--- >>> import Data.Prim.Memory
+-- >>> import Primal.Memory
 -- >>> concatMap ($ " ") $ showsHexMem (fromListMem [1 :: Int16 .. 15] :: Bytes 'Inc)
 -- "01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0a 00 0b 00 0c 00 0d 00 0e 00 0f 00 "
 --
