@@ -26,13 +26,13 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Test.Prim
-                     , Test.Prim.MArray
-                     , Test.Prim.MRef
-                     , Test.Prim.Memory
-                     --, Test.Prim.Memory.Bytes
+  exposed-modules:     Test.Primal
+                     , Test.Primal.MArray
+                     , Test.Primal.MRef
+                     , Test.Primal.Memory
+                     --, Test.Primal.Memory.Bytes
 
-  other-modules:       Test.Prim.Common
+  other-modules:       Test.Primal.Common
   build-depends:       base >= 4.9 && < 5
                      , async
                      , deepseq
@@ -54,9 +54,9 @@ test-suite memory-tests-O1
   hs-source-dirs:     memory-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.BytesSpec
-                    , Test.Prim.Memory.BytesExtraSpec
-                    , Test.Prim.Memory.PtrSpec
+                    , Test.Primal.Memory.BytesSpec
+                    , Test.Primal.Memory.BytesExtraSpec
+                    , Test.Primal.Memory.PtrSpec
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -77,9 +77,9 @@ test-suite memory-tests-O0
   hs-source-dirs:     memory-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.BytesSpec
-                    , Test.Prim.Memory.BytesExtraSpec
-                    , Test.Prim.Memory.PtrSpec
+                    , Test.Primal.Memory.BytesSpec
+                    , Test.Primal.Memory.BytesExtraSpec
+                    , Test.Primal.Memory.PtrSpec
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -101,7 +101,7 @@ test-suite mutable-tests-O1
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.MArraySpec
+                    , Test.Primal.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -123,7 +123,7 @@ test-suite mutable-tests-O0
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.MArraySpec
+                    , Test.Primal.MArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq

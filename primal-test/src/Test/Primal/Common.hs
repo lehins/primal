@@ -12,13 +12,13 @@ module Test.Prim.Common
   ) where
 
 import Control.DeepSeq
-import Control.Prim.Monad as X
+import Primal.Monad as X
 import Data.Foldable as Foldable
 import Data.List as List
-import Data.Prim as X
-import Data.Prim.Array
-import Data.Prim.Memory.Internal
-import qualified Data.Prim.Memory.Text as T
+import Primal.Prim as X
+import Primal.Data.Array
+import Primal.Memory.Internal
+import qualified Primal.Memory.Text as T
 import Data.Proxy as X
 import Data.Typeable as X
 import Test.Hspec as X hiding (Arg(..))
