@@ -1,10 +1,10 @@
 resolver: lts-16.15 # nightly-2020-09-16
 packages:
 - primal
-- primal-adaptive
-- primal-mutable
+#- primal-adaptive
+- primal-container
 - primal-memory
-- primal-test
+#- primal-test
 
 extra-deps:
 - QuickCheck-2.13.2@sha256:ad4e5adbd1c9dc0221a44307b992cb040c515f31095182e47aa7e974bc461df1,6952

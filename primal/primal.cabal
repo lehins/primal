@@ -38,12 +38,15 @@ library
                      , Primal.Monad.Throw
                      , Primal.Monad.Unsafe
                      , Primal.Prim
+                       -- ^ consider Unpack name instead
                      , Primal.Prim.Atom
                      , Primal.Prim.Atomic
                      , Primal.Prim.Class
 
                      , Primal.Data.Array
                      , Primal.Data.Ref
+                     -- , Primal.Data.Ref.Lazy
+                     -- , Primal.Data.Ref.Deep
                      , Primal.Data.Mutable.Eq
                      , Primal.Data.Mutable.Ord
                      , Primal.Data.Mutable.Foldable

@@ -9,44 +9,50 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE Unsafe #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Data.Prim.MArray.Internal
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Container.Mutable.Array.Internal
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MArray.Internal
-  ( Elt
-  , Size(..)
-  , module Data.Prim.MArray.Internal
+module Primal.Container.Mutable.Array.Internal
+  ( Size(..)
+  , module Primal.Container.Mutable.Array.Internal
   ) where
 
 import Control.Monad.ST
-import Control.Prim.Monad
-import Data.Prim.Memory
-import Data.Prim.Memory.Addr
-import Data.Prim.Memory.PArray
-import Data.Prim.Memory.Bytes
-import Data.Prim.MRef
-import Foreign.Prim
-import Data.Prim.Array (Size(..))
+import Primal.Container.Mutable.Ref.Internal
+import Primal.Data.Array (Size(..))
+import Primal.Foreign
+import Primal.Memory
+import Primal.Memory.Addr
+import Primal.Memory.PArray
+import Primal.Monad
 
-class MRef mut => MArray mut where
-  type Array mut = (frozen :: *) | frozen -> mut
+type family Frozen (mc :: k -> *) = (c :: k) | c -> mc
+
+
+type family Array (c :: * -> * -> *) = (frozen :: * -> *) | frozen -> c
+
+class MRef c e => MArray c e where
 
   -- | Access the size of an immutable array
   --
   -- @since 0.1.0
-  sizeOfArray :: Array mut -> Size
+  sizeOfArray :: Array c e -> Size
 
   -- | Read an element from an immutable array
   --
   -- ====__Examples__
   --
   -- >>> :set -XOverloadedStrings
-  -- >>> import Data.Prim.Memory.Addr
+  -- >>> import Primal.Memory.Addr
   -- >>> a = "Haskell arrays" :: Addr Char
   -- >>> a
   -- "Haskell arrays"
@@ -55,18 +61,18 @@ class MRef mut => MArray mut where
   --
   -- @since 0.1.0
   indexArray ::
-       Array mut -- ^ Array to be indexed
+       Array c e -- ^ Array to be indexed
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `sizeOfArray` mut@
-    -> Elt mut
+    -> e
 
   -- | Get the size of a mutable array. Unlike `sizeOfArray` it is a monadic operation
-  -- because some mutable arrays support in place resizing.
+  -- because mutable arrays support in place resizing.
   --
   -- @since 0.1.0
-  getSizeOfMArray :: MonadPrim s m => mut s -> m Size
+  getSizeOfMArray :: MonadPrim s m => c e s -> m Size
 
   -- | Convert an immutable array into the matching mutable array.
   --
@@ -76,7 +82,7 @@ class MRef mut => MArray mut where
   -- afterwards because we do not keep around the reference to it.
   --
   -- >>> :set -XOverloadedStrings
-  -- >>> import Data.Prim.Memory.Addr
+  -- >>> import Primal.Memory.Addr
   -- >>> ma <- thawArray ("A whole bread" :: Addr Char)
   -- >>> writeMArray ma 4 'a'
   -- >>> writeMArray ma 11 'e'
@@ -85,8 +91,8 @@ class MRef mut => MArray mut where
   --
   -- @since 0.1.0
   thawArray :: MonadPrim s m =>
-       Array mut -- ^ Immutable array to thaw
-    -> m (mut s)
+       Array c e -- ^ Immutable array to thaw
+    -> m (c e s)
     -- ^ Thawed mutable array. Any mutation will also affect the source immutable array
     --
     -- [Unsafe /mutable array/] Allows to break referential transparency.
@@ -95,20 +101,20 @@ class MRef mut => MArray mut where
   --
   -- @since 0.1.0
   freezeMArray :: MonadPrim s m =>
-       mut s
+       c e s
     -- ^ Mutable array to freeze. Any further mutation will also affect the immutable
     -- array
     --
     -- [Unsafe /mutable array/] Allows to break referential transparency.
-    -> m (Array mut)
+    -> m (Array c e)
 
-  newRawMArray :: MonadPrim s m => Size -> m (mut s)
+  newRawMArray :: MonadPrim s m => Size -> m (c e s)
 
   -- | Read an element from a mutable array
   --
   -- ====__Examples__
   --
-  -- >>> import Data.Prim.Memory.Addr
+  -- >>> import Primal.Memory.Addr
   -- >>> callocMAddr (Count 5 :: Count Int)
   -- >>> ma <- callocMAddr (Count 5 :: Count Int)
   -- >>> readMArray ma 2
@@ -119,23 +125,23 @@ class MRef mut => MArray mut where
   --
   -- @since 0.1.0
   readMArray :: MonadPrim s m =>
-       mut s -- ^ Array to read element from
+       c e s -- ^ Array to read element from
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
-    -> m (Elt mut)
+    -> m e
 
   -- | Write an element into a mutable array
   --
   -- @since 0.1.0
   writeMArray :: MonadPrim s m =>
-       mut s -- ^ Array to write an element into
+       c e s -- ^ Array to write an element into
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
-    -> Elt mut -- ^ Element to be written
+    -> e -- ^ Element to be written
     -> m ()
 
   -- | Copy a subsection of an immutable array into a subsection of another mutable array.
@@ -151,9 +157,9 @@ class MRef mut => MArray mut where
   -- @since 0.1.0
   copyArray ::
        MonadPrim s m
-    => Array mut -- ^ Source immutable array
+    => Array c e -- ^ Source immutable array
     -> Int -- ^ Offset into the source immutable array
-    -> mut s -- ^ Destination mutable array
+    -> c e s -- ^ Destination mutable array
     -> Int -- ^ Offset into the destination mutable array
     -> Size -- ^ Number of elements to copy over
     -> m ()
@@ -171,45 +177,45 @@ class MRef mut => MArray mut where
   -- @since 0.1.0
   moveMArray ::
        MonadPrim s m
-    => mut s -- ^ Source mutable array
+    => c e s -- ^ Source mutable array
     -> Int -- ^ Offset into the source mutable array
-    -> mut s -- ^ Destination mutable array
+    -> c e s -- ^ Destination mutable array
     -> Int -- ^ Offset into the destination mutable array
     -> Size -- ^ Number of elements to copy over
     -> m ()
 
-  cloneArray :: Array mut -> Int -> Size -> Array mut
+  cloneArray :: Array c e -> Int -> Size -> Array c e
   cloneArray arr i n = runST $ thawCopyArray arr i n >>= freezeMArray
   {-# INLINE cloneArray #-}
 
-  cloneMArray :: MonadPrim s m => mut s -> Int -> Size -> m (mut s)
+  cloneMArray :: MonadPrim s m => c e s -> Int -> Size -> m (c e s)
   cloneMArray ma i n = newRawMArray n >>= \mad -> mad <$ moveMArray ma i mad 0 n
   {-# INLINE cloneMArray #-}
 
-  newMArray :: MonadPrim s m => Size -> Elt mut -> m (mut s)
+  newMArray :: MonadPrim s m => Size -> e -> m (c e s)
   newMArray n a = newRawMArray n >>= \ma -> ma <$ setMArray ma 0 n a
   {-# INLINE newMArray #-}
 
-  thawCopyArray :: MonadPrim s m => Array mut -> Int -> Size -> m (mut s)
+  thawCopyArray :: MonadPrim s m => Array c e -> Int -> Size -> m (c e s)
   thawCopyArray a i n = newRawMArray n >>= \ma -> ma <$ copyArray a i ma 0 n
   {-# INLINE thawCopyArray #-}
 
-  freezeCopyMArray :: MonadPrim s m => mut s -> Int -> Size -> m (Array mut)
+  freezeCopyMArray :: MonadPrim s m => c e s -> Int -> Size -> m (Array c e)
   freezeCopyMArray ma i n = newRawMArray n >>= \mad -> moveMArray ma i mad 0 n >> freezeMArray mad
   {-# INLINE freezeCopyMArray #-}
 
-  setMArray :: MonadPrim s m => mut s -> Int -> Size -> Elt mut -> m ()
+  setMArray :: MonadPrim s m => c e s -> Int -> Size -> e -> m ()
   setMArray ma i0 (Size n0) x =
     let n = n0 + i0
         go i = when (i < n) $ writeMArray ma i x >> go (i + 1)
     in go i0
   {-# INLINE setMArray #-}
 
-  shrinkMArray :: MonadPrim s m => mut s -> Size -> m (mut s)
+  shrinkMArray :: MonadPrim s m => c e s -> Size -> m (c e s)
   shrinkMArray ma sz = cloneMArray ma 0 sz
   {-# INLINE shrinkMArray #-}
 
-  resizeMArray :: MonadPrim s m => mut s -> Size -> m (mut s)
+  resizeMArray :: MonadPrim s m => c e s -> Size -> m (c e s)
   resizeMArray ma sz = do
     a <- freezeMArray ma
     ma' <- newRawMArray sz
@@ -217,53 +223,9 @@ class MRef mut => MArray mut where
   {-# INLINE resizeMArray #-}
 
 
-instance Typeable p => MArray (MBytes p) where
-  type Array (MBytes p) = Bytes p
+type instance Array MAddr = Addr
 
-  sizeOfArray = coerce . byteCountBytes
-  {-# INLINE sizeOfArray #-}
-
-  indexArray a i = indexOffBytes a (coerce i)
-  {-# INLINE indexArray #-}
-
-  getSizeOfMArray = fmap coerce . getByteCountMBytes
-  {-# INLINE getSizeOfMArray #-}
-
-  thawArray = thawBytes
-  {-# INLINE thawArray #-}
-
-  freezeMArray = freezeMBytes
-  {-# INLINE freezeMArray #-}
-
-  newRawMArray n = allocMutMem (coerce n :: Count Word8)
-  {-# INLINE newRawMArray #-}
-
-  writeMArray mb i = writeOffMBytes mb (coerce i)
-  {-# INLINE writeMArray #-}
-
-  readMArray mb i = readOffMBytes mb (coerce i)
-  {-# INLINE readMArray #-}
-
-  copyArray as os mbd od n =
-    copyBytesToMBytes as (coerce os) mbd (coerce od) (coerce n :: Count Word8)
-  {-# INLINE copyArray #-}
-
-  moveMArray mbs os mbd od n =
-    moveMBytesToMBytes mbs (coerce os) mbd (coerce od) (coerce n :: Count Word8)
-  {-# INLINE moveMArray #-}
-
-  setMArray mb i sz = setMBytes mb (coerce i) (coerce sz)
-  {-# INLINE setMArray #-}
-
-  shrinkMArray mb sz = mb <$ shrinkMBytes mb (coerce sz :: Count Word8)
-  {-# INLINE shrinkMArray #-}
-
-  resizeMArray mb sz = reallocMBytes mb (coerce sz :: Count Word8)
-  {-# INLINE resizeMArray #-}
-
-
-instance Prim e => MArray (MAddr e) where
-  type Array (MAddr e) = Addr e
+instance Prim e => MArray MAddr e where
 
   sizeOfArray = coerce . countAddr
   {-# INLINE sizeOfArray #-}
@@ -305,9 +267,9 @@ instance Prim e => MArray (MAddr e) where
   {-# INLINE resizeMArray #-}
 
 
+type instance Array (PMArray p) = PArray p
 
-instance (Typeable p, Prim e) => MArray (PMArray p e) where
-  type Array (PMArray p e) = PArray p e
+instance (Typeable p, Prim e) => MArray (PMArray p) e where
 
   sizeOfArray = sizePArray
   {-# INLINE sizeOfArray #-}
@@ -356,7 +318,7 @@ instance (Typeable p, Prim e) => MArray (PMArray p e) where
 -- optimization.
 --
 -- @since 0.1.0
-fromListArray :: MArray mut => [Elt mut] -> Array mut
+fromListArray :: MArray c e => [e] -> Array c e
 fromListArray xs = fromListArrayN (Size (length xs)) xs
 {-# INLINE fromListArray #-}
 
@@ -380,13 +342,13 @@ fromListArray xs = fromListArrayN (Size (length xs)) xs
 --
 -- @since 0.1.0
 fromListArrayN ::
-     forall mut. MArray mut
+     forall c e. MArray c e
   => Size -- ^ Expected @n@ size of a list
-  -> [Elt mut]
-  -> Array mut
+  -> [e]
+  -> Array c e
 fromListArrayN sz@(Size n) ls =
   runST $ do
-    ma :: mut s <- newRawMArray sz
+    ma :: c e s <- newRawMArray sz
     let go i =
           \case
             x:xs
@@ -399,12 +361,12 @@ fromListArrayN sz@(Size n) ls =
 -- fusion.
 --
 -- @since 0.1.0
-toListArray :: MArray mut => Array mut -> [Elt mut]
+toListArray :: MArray c e => Array c e -> [e]
 toListArray ba = build (\ c n -> foldrArray c n ba)
 {-# INLINE toListArray #-}
 
 -- | Strict right fold
-foldrArray :: MArray mut => (Elt mut -> b -> b) -> b -> Array mut -> b
+foldrArray :: MArray c e => (e -> b -> b) -> b -> Array c e -> b
 foldrArray c nil a = go 0
   where
     Size k = sizeOfArray a
@@ -415,12 +377,12 @@ foldrArray c nil a = go 0
          in v `c` go (i + 1)
 {-# INLINE[0] foldrArray #-}
 
-makeArray :: MArray mut => Size -> (Int -> Elt mut) -> Array mut
+makeArray :: MArray c e => Size -> (Int -> e) -> Array c e
 makeArray sz f = runST $ makeArrayM sz (pure . f)
 {-# INLINE makeArray #-}
 
 makeArrayM ::
-     (MArray mut, MonadPrim s m) => Size -> (Int -> m (Elt mut)) -> m (Array mut)
+     (MArray c e, MonadPrim s m) => Size -> (Int -> m e) -> m (Array c e)
 makeArrayM sz@(Size n) f =
   createArrayM_ sz $ \ma ->
     let go i
@@ -430,29 +392,29 @@ makeArrayM sz@(Size n) f =
 {-# INLINE makeArrayM #-}
 
 createArrayM ::
-     (MArray mut, MonadPrim s m)
+     (MArray c e, MonadPrim s m)
   => Size
-  -> (mut s -> m b)
-  -> m (b, Array mut)
+  -> (c e s -> m b)
+  -> m (b, Array c e)
 createArrayM sz f =
   newRawMArray sz >>= \ma -> f ma >>= \b -> (,) b <$> freezeMArray ma
 {-# INLINE createArrayM #-}
 
 createArrayM_ ::
-     (MArray mut, MonadPrim s m)
+     (MArray c e, MonadPrim s m)
   => Size
-  -> (mut s -> m b)
-  -> m (Array mut)
+  -> (c e s -> m b)
+  -> m (Array c e)
 createArrayM_ sz f =
   newRawMArray sz >>= \ma -> f ma >> freezeMArray ma
 {-# INLINE createArrayM_ #-}
 
 
-createArrayST :: MArray mut => Size -> (forall s. mut s -> ST s b) -> (b, Array mut)
+createArrayST :: MArray c e => Size -> (forall s. c e s -> ST s b) -> (b, Array c e)
 createArrayST sz f = runST $ createArrayM sz f
 {-# INLINE createArrayST #-}
 
-createArrayST_ :: MArray mut => Size -> (forall s. mut s -> ST s b) -> Array mut
+createArrayST_ :: MArray c e => Size -> (forall s. c e s -> ST s b) -> Array c e
 createArrayST_ sz f = runST $ createArrayM_ sz f
 {-# INLINE createArrayST_ #-}
 
@@ -477,7 +439,7 @@ createArrayST_ sz f = runST $ createArrayM_ sz f
 -- Numbers: 0,1,2,3,4,
 --
 -- @since 0.1.0
-makeMArray :: (MArray mut, MonadPrim s m) => Size -> (Int -> m (Elt mut)) -> m (mut s)
+makeMArray :: (MArray c e, MonadPrim s m) => Size -> (Int -> m e) -> m (c e s)
 makeMArray sz@(Size n) f = do
   ma <- newRawMArray sz
   let go i = when (i < n) $ f i >>= writeMArray ma i >> go (i + 1)
@@ -490,10 +452,10 @@ makeMArray sz@(Size n) f = do
 --
 -- @since 0.1.0
 traverseArray ::
-     (MArray mut, MArray mut', MonadPrim s m)
-  => (Elt mut -> m (Elt mut'))
-  -> Array mut
-  -> m (Array mut')
+     (MArray c e, MArray c' e', MonadPrim s m)
+  => (e -> m e')
+  -> Array c e
+  -> m (Array c' e')
 traverseArray f a = makeArrayM (sizeOfArray a) (f . indexArray a)
 {-# INLINE traverseArray #-}
 

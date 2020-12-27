@@ -1,4 +1,4 @@
-name:                primal-mutable
+name:                primal-container
 version:             0.1.0.0
 synopsis:            Short description
 description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
@@ -26,17 +26,27 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.MArray
-                     , Data.Prim.MArray.Atomic
-                     , Data.Prim.MArray.Boxed
-                     , Data.Prim.MArray.Boxed.Small
-                     , Data.Prim.MArray.Internal
-                     , Data.Prim.MArray.Unboxed
-                     , Data.Prim.MArray.Unboxed.Ragged
-                     , Data.Prim.MRef
-                     , Data.Prim.MRef.Atomic
-                     , Data.Prim.MRef.Internal
-  other-modules:
+  exposed-modules:
+                   --  Primal.Container.Array
+                     -- , Primal.Container.Singleton
+                     -- , Primal.Container.Reduce
+                     -- , Primal.Container.Lift
+                     -- , Primal.Container.Mutable.Singleton
+                     -- , Primal.Container.Mutable.Reduce
+                     -- , Primal.Container.Mutable.Lift
+                   --  , Primal.Container.Mutable.Array
+                   --  , Primal.Container.Mutable.Array.Atomic
+                     --, Primal.Container.Mutable.Ref
+                     --, Primal.Container.Mutable.Ref.Atomic
+                     -- ,
+                     --  Primal.Data.Array.Boxed
+                     --, Primal.Data.Array.Boxed.Small
+                     --, Primal.Data.Array.Unboxed
+                     --, Primal.Data.Array.Unboxed.Pinned
+                     --, Primal.Data.Array.Unboxed.Ragged
+  other-modules:       Primal.Container.Internal
+                     , Primal.Container.Mutable.Ref.Internal
+                     , Primal.Container.Mutable.Array.Internal
   build-depends:       base >= 4.9 && < 5
                      , deepseq
                      , primal
@@ -76,45 +86,45 @@ library
 --                       -threaded
 --                       -with-rtsopts=-N2
 
-benchmark mref
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      bench
-  main-is:             MRef.hs
-  ghc-options:         -Wall
-                       -threaded
-                       -O2
-                       -with-rtsopts=-N4
-  build-depends:       base
-                     , atomic-primops
-                     , criterion
-                     , mutable-containers
-                     , primal
-                     , primal-memory
-                     , primal-mutable
-                     , primitive
-                     , pvar
-                     , deepseq
-                     , vector
-                     , unliftio
-  default-language:    Haskell2010
+-- benchmark mref
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             MRef.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N4
+--   build-depends:       base
+--                      , atomic-primops
+--                      , criterion
+--                      , mutable-containers
+--                      , primal
+--                      , primal-memory
+--                      , primal-container
+--                      , primitive
+--                      , pvar
+--                      , deepseq
+--                      , vector
+--                      , unliftio
+--   default-language:    Haskell2010
 
-benchmark atomic
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      bench
-  main-is:             Atomic.hs
-  ghc-options:         -Wall
-                       -threaded
-                       -O2
-                       -with-rtsopts=-N4
-  build-depends:       base
-                     , atomic-primops
-                     , criterion
-                     , primal
-                     , primal-memory
-                     , primal-mutable
-                     , deepseq
-                     , unliftio
-  default-language:    Haskell2010
+-- benchmark atomic
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             Atomic.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N4
+--   build-depends:       base
+--                      , atomic-primops
+--                      , criterion
+--                      , primal
+--                      , primal-memory
+--                      , primal-container
+--                      , deepseq
+--                      , unliftio
+--   default-language:    Haskell2010
 
 
 -- benchmark bench

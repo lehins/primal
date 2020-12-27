@@ -1,13 +1,16 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Data.Prim.MRef.Internal
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Container.Mutable.Ref.Internal
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MRef.Internal
+module Primal.Container.Mutable.Ref.Internal
   ( MRef(..)
   , modifyMRef
   , modifyMRef_
@@ -19,31 +22,29 @@ module Data.Prim.MRef.Internal
   , modifyFetchNewMRefM
   ) where
 
-import Control.Prim.Concurrent.MVar
-import Control.Prim.Monad
-import Data.Prim.Array
-import Data.Prim.Memory
-import Data.Prim.Memory.Addr
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.PArray
-import Data.Prim.Ref
+import Primal.Concurrent.MVar
+import Primal.Container.Internal
+import Primal.Data.Array
+import Primal.Data.Ref
+import Primal.Memory
+import Primal.Memory.Addr
+import Primal.Memory.PArray
 
-class MRef mut where
-  type Elt mut :: *
+-- TODO: make MSingleton superclass
+class Elt c e => MRef c e where
 
-  newMRef :: MonadPrim s m => Elt mut -> m (mut s)
+  newMRef :: MonadPrim s m => e -> m (c e s)
   newMRef a = newRawMRef >>= \mut -> mut <$ writeMRef mut a
   {-# INLINE newMRef #-}
 
-  newRawMRef :: MonadPrim s m => m (mut s)
+  newRawMRef :: MonadPrim s m => m (c e s)
 
-  readMRef :: MonadPrim s m => mut s -> m (Elt mut)
+  readMRef :: MonadPrim s m => c e s -> m e
 
-  writeMRef :: MonadPrim s m => mut s -> Elt mut -> m ()
+  writeMRef :: MonadPrim s m => c e s -> e -> m ()
 
--- | Not thread safe.
-instance MRef (MVar a) where
-  type Elt (MVar a) = a
+-- | Read/write aren't atomic - /not/ thread safe.
+instance MRef MVar a where
   newMRef = newMVar
   {-# INLINE newMRef #-}
   newRawMRef = newEmptyMVar
@@ -53,53 +54,30 @@ instance MRef (MVar a) where
   readMRef = readMVar
   {-# INLINE readMRef #-}
 
-instance Typeable p => MRef (MBytes p) where
-  type Elt (MBytes p) = Word8
 
-  newRawMRef = allocMutMem (1 :: Count Word8)
-  {-# INLINE newRawMRef #-}
-
-  writeMRef mb = writeOffMBytes mb 0
-  {-# INLINE writeMRef #-}
-
-  readMRef mb = readOffMBytes mb 0
-  {-# INLINE readMRef #-}
-
-
-
-instance Prim e => MRef (MAddr e) where
-  type Elt (MAddr e) = e
-
+instance Prim e => MRef MAddr e where
   newRawMRef = allocMAddr 1
   {-# INLINE newRawMRef #-}
-
   writeMRef = writeMAddr
   {-# INLINE writeMRef #-}
-
   readMRef = readMAddr
   {-# INLINE readMRef #-}
 
 
-
-instance (Typeable p, Prim e) => MRef (PMArray p e) where
-  type Elt (PMArray p e) = e
-
+instance (Typeable p, Prim e) => MRef (PMArray p) e where
   newRawMRef = allocPMArray 1
   {-# INLINE newRawMRef #-}
-
   writeMRef mba = writePMArray mba 0
   {-# INLINE writeMRef #-}
-
   readMRef mba = readPMArray mba 0
   {-# INLINE readMRef #-}
 
 
 
-instance MRef (Ref a) where
-  type Elt (Ref a) = a
+instance MRef Ref a where
   newMRef = newRef
   {-# INLINE newMRef #-}
-  newRawMRef = newRef (uninitialized "Data.Prim.MRef.Internal" "newRawMRef")
+  newRawMRef = newRef (uninitialized "Primal.Container.Mutable.Ref.Internal" "newRawMRef")
   {-# INLINE newRawMRef #-}
   writeMRef = writeRef
   {-# INLINE writeMRef #-}
@@ -107,30 +85,23 @@ instance MRef (Ref a) where
   {-# INLINE readMRef #-}
 
 
--- modifyRefM :: MonadPrim s m => Ref a s -> (a -> m (a, b)) -> m b
--- modifyRefM ref f = do
---   a <- readRef ref
---   (a', b) <- f a
---   b <$ writeRef ref a'
--- {-# INLINE modifyRefM #-}
-
 modifyMRef ::
-     (MRef mut, MonadPrim s m) => mut s -> (Elt mut -> (Elt mut, a)) -> m a
+     (MRef c e, MonadPrim s m) => c e s -> (e -> (e, a)) -> m a
 modifyMRef ref f = modifyMRefM ref (pure . f)
 {-# INLINE modifyMRef #-}
 
 
-modifyMRef_ :: (MRef mut, MonadPrim s m) => mut s -> (Elt mut -> Elt mut) -> m ()
+modifyMRef_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> e) -> m ()
 modifyMRef_ ref f = modifyMRefM_ ref (pure . f)
 {-# INLINE modifyMRef_ #-}
 
 
 
 modifyFetchOldMRef ::
-     (MRef mut, MonadPrim s m)
-  => mut s
-  -> (Elt mut -> Elt mut)
-  -> m (Elt mut)
+     (MRef c e, MonadPrim s m)
+  => c e s
+  -> (e -> e)
+  -> m (e)
 modifyFetchOldMRef ref f = modifyFetchOldMRefM ref (pure . f)
 {-# INLINE modifyFetchOldMRef #-}
 
@@ -139,10 +110,10 @@ modifyFetchOldMRef ref f = modifyFetchOldMRefM ref (pure . f)
 --
 -- @since 0.1.0
 modifyFetchNewMRef ::
-     (MRef mut, MonadPrim s m)
-  => mut s
-  -> (Elt mut -> Elt mut)
-  -> m (Elt mut)
+     (MRef c e, MonadPrim s m)
+  => c e s
+  -> (e -> e)
+  -> m (e)
 modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
 {-# INLINE modifyFetchNewMRef #-}
 
@@ -160,7 +131,7 @@ modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
 -- Nothing
 --
 -- @since 0.1.0
-modifyMRefM_ :: (MRef mut, MonadPrim s m) => mut s -> (Elt mut -> m (Elt mut)) -> m ()
+modifyMRefM_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> m (e)) -> m ()
 modifyMRefM_ ref f = readMRef ref >>= f >>= writeMRef ref
 {-# INLINE modifyMRefM_ #-}
 
@@ -174,7 +145,7 @@ modifyMRefM_ ref f = readMRef ref >>= f >>= writeMRef ref
 -- ==== __Examples__
 --
 modifyMRefM ::
-     (MRef mut, MonadPrim s m) => mut s -> (Elt mut -> m (Elt mut, a)) -> m a
+     (MRef c e, MonadPrim s m) => c e s -> (e -> m (e, a)) -> m a
 modifyMRefM ref f = do
   a <- readMRef ref
   (a', b) <- f a
@@ -198,10 +169,10 @@ modifyMRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchOldMRefM ::
-     (MRef mut, MonadPrim s m)
-  => mut s
-  -> (Elt mut -> m (Elt mut))
-  -> m (Elt mut)
+     (MRef c e, MonadPrim s m)
+  => c e s
+  -> (e -> m (e))
+  -> m (e)
 modifyFetchOldMRefM ref f = do
   a <- readMRef ref
   a <$ (writeMRef ref =<< f a)
@@ -212,10 +183,10 @@ modifyFetchOldMRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchNewMRefM ::
-     (MRef mut, MonadPrim s m)
-  => mut s
-  -> (Elt mut -> m (Elt mut))
-  -> m (Elt mut)
+     (MRef c e, MonadPrim s m)
+  => c e s
+  -> (e -> m (e))
+  -> m (e)
 modifyFetchNewMRefM ref f = do
   a <- readMRef ref
   a' <- f a
