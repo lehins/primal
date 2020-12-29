@@ -43,7 +43,7 @@ library
                      --, Primal.Data.Array.Boxed.Small
                      --, Primal.Data.Array.Unboxed
                      --, Primal.Data.Array.Unboxed.Pinned
-                     --, Primal.Data.Array.Unboxed.Ragged
+                    , Primal.Data.Array.Unboxed.Ragged
   other-modules:       Primal.Container.Internal
                      , Primal.Container.Mutable.Ref.Internal
                      , Primal.Container.Mutable.Array.Internal

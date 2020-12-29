@@ -25,12 +25,12 @@ import Data.Functor.Compose
 import Data.Functor.Const
 import Data.Functor.Identity
 import Data.Kind
-import Data.Prim
-import Data.Prim.Class
-import Data.Prim.MArray.Unboxed
+import Primal.Prim
+import Primal.Prim.Class
+import Primal.Data.Array
 import Data.Prim.MArray.Unboxed.Ragged
-import Data.Prim.Memory.PArray
-import Data.Prim.Memory.Bytes
+import Primal.Memory.PArray
+import Primal.Memory.Bytes
 import Data.Prim.Unbox
 import Data.Semigroup
 import Data.Type.Equality

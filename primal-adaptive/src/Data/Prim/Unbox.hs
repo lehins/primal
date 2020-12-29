@@ -14,11 +14,27 @@ module Data.Prim.Unbox
 
 import Control.DeepSeq
 import Data.Bits
-import Data.Prim.Atomic
-import Data.Prim.Class
+import Primal.Prim.Atomic
+import Primal.Prim.Class
 
-newtype Unbox e = Unbox { unUnbox :: e }
-  deriving (Show, Eq, Ord, Num, Enum, Integral, Real, RealFrac, Fractional, Floating, RealFloat, Bits, NFData)
+newtype Unbox e =
+  Unbox
+    { unUnbox :: e
+    }
+  deriving ( Show
+           , Eq
+           , Ord
+           , Num
+           , Enum
+           , Integral
+           , Real
+           , RealFrac
+           , Fractional
+           , Floating
+           , RealFloat
+           , Bits
+           , NFData
+           )
 
 
 instance Prim e => Prim (Unbox e) where
