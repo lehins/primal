@@ -37,6 +37,8 @@ class Elt f a => Singleton (f :: * -> *) a where
 
 -- | Corresponds to a Functor
 class Elt f a => Lift (f :: * -> *) a where
+  -- app :: Lift f b => [a -> b] -> f a -> f b
+
   lift :: Lift f b => (a -> b) -> f a -> f b
 
   lift2 :: (Lift f b, Lift f c) => (a -> b -> c) -> f a -> f b -> f c

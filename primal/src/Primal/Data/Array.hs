@@ -59,7 +59,7 @@ module Primal.Data.Array
     , resizeRawBMArray
     , freezeBMArray
     , freezeCopyBMArray
-
+    , casBMArray
     -- * Small Boxed Array
     -- ** Immutable
     , SBArray(..)
@@ -92,6 +92,7 @@ module Primal.Data.Array
     , resizeRawSBMArray
     , freezeSBMArray
     , freezeCopySBMArray
+    , casSBMArray
     -- * Unboxed Array
     -- ** Immutable
     , UArray(..)
@@ -128,6 +129,7 @@ module Primal.Data.Array
     , shrinkUMArray
     , resizeUMArray
     , freezeUMArray
+    , casUMArray
     -- * Helper functions
     , uninitialized
     , makeMutWith
@@ -145,6 +147,7 @@ import qualified Data.Foldable as F
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Prim
+import Primal.Prim.Atomic
 import Primal.Prim.Class
 import Primal.Foreign
 import qualified Data.Array.Base as A
@@ -1170,6 +1173,75 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 {-# INLINE moveBMArray #-}
 
 
+-- | /O(1)/ - Compare-and-swap operation that can be used as a concurrency primitive for
+-- implementing atomic operations on mutable boxed arrays. Returns a boolean value, which
+-- indicates `True` for success and `False` otherwise for the update, as well as the current
+-- value at the supplied index. In case of success current value returned will be the newly
+-- supplied one, otherwise it will still be the old one. Note that there is no `Eq`
+-- constraint on the element, that is because compare operation is done on a reference,
+-- rather than on the value itself, in other words the expected value must be the exact same
+-- one.
+--
+-- Documentation for utilized primop: `casArray#`.
+--
+-- [Unsafe] Violation of @ix@ preconditions can result in heap corruption or a failure
+-- with a segfault
+--
+-- ====__Examples__
+--
+-- >>> ma <- makeBMArray 5 (pure . (*10))
+-- >>> freezeBMArray ma
+-- Array [0,10,20,30,40]
+--
+-- A possible mistake is to try and pass the expected value, instead of an actual element:
+--
+-- >>> casBMArray ma 2 20 1000
+-- (False,20)
+-- >>> freezeBMArray ma
+-- Array [0,10,20,30,40]
+--
+-- But this will get us nowhere, since what we really need is the actual reference to the
+-- value currently in the array cell
+--
+-- >>> expected <- readBMArray ma 2
+-- >>> r@(_, currentValue) <- casBMArray ma 2 expected 1000
+-- >>> freezeBMArray ma
+-- Array [0,10,1000,30,40]
+-- >>> r
+-- (True,1000)
+--
+-- In a concurrent setting current value can potentially be modified by some other
+-- thread, therefore returned value can be immediately used as the expected one to the
+-- next call, if we want to retry the atomic swap:
+--
+-- >>> casBMArray ma 2 currentValue 2000
+-- (True,2000)
+-- >>> freezeBMArray ma
+-- Array [0,10,2000,30,40]
+--
+-- @since 1.0.0
+casBMArray ::
+     MonadPrim s m
+  => BMArray e s
+  -- ^ /dstMutArray/ - Mutable array that will have an atomic swap operation applied to
+  -> Int
+  -- ^ /ix/ - Index of a cell which should be set to the new value
+  --
+  -- /__Precoditions:__/
+  --
+  -- > 0 <= ix
+  --
+  -- > ix < unSize (sizeOfMBArray dstMutArray)
+  -> e -- ^ /expElt/ - Reference to the expected boxed value
+  -> e -- ^ /elt/ - New value to update the cell with
+  -> m (Bool, e)
+casBMArray (BMArray ma#) (I# i#) expected new =
+  prim $ \s ->
+    case casArray# ma# i# expected new s of
+      (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
+{-# INLINE casBMArray #-}
+
+
 -----------------------
 -- Small Boxed Array --
 -- ================= --
@@ -2091,6 +2163,64 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 
 
 
+-- | Compare-and-swap operation that can be used as a concurrency primitive for
+-- implementing atomic operations on the mutable array. Returns a boolean value, which
+-- indicates `True` for success and `False` otherwise for the update, as well as the
+-- current value at the supplied index. In case of success current value returned will
+-- be the newly supplied one, otherwise it will still be the old one. Note that there is
+-- no `Eq` constraint on the element, that is because compare operation is done on a
+-- thunk reference reference, not the value itself, in other words the expected value
+-- must be the exact same one.
+--
+-- [Unsafe index] Negative or larger than array size can fail with unchecked exception
+--
+-- ====__Examples__
+--
+-- >>> ma <- makeSBMArray 5 (pure . (*10))
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,20,30,40]
+--
+-- A possible mistake is to try and pass the expected value, instead of an actual element:
+--
+-- >>> casSBMArray ma 2 20 1000
+-- (False,20)
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,20,30,40]
+--
+-- But this will get us nowhere, since what we really need is the actual reference to the
+-- value currently in the array cell
+--
+-- >>> expected <- readSBMArray ma 2
+-- >>> r@(_, currentValue) <- casSBMArray ma 2 expected 1000
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,1000,30,40]
+-- >>> r
+-- (True,1000)
+--
+-- In a concurrent setting current value can potentially be modified by some other
+-- thread, therefore returned value can be immedieately used as the expected one to the
+-- next call, if we don want to retry the atomic modification:
+--
+-- >>> casSBMArray ma 2 currentValue 2000
+-- (True,2000)
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,2000,30,40]
+--
+-- @since 1.0.0
+casSBMArray ::
+     MonadPrim s m
+  => SBMArray e s -- ^ Mutable array to mutate
+  -> Int -- ^ Index at which the cell should be set to the new value
+  -> e -- ^ Reference to the expected boxed value
+  -> e -- ^ New value to update the cell with
+  -> m (Bool, e)
+casSBMArray (SBMArray ma#) (I# i#) expected new =
+  prim $ \s ->
+    case casSmallArray# ma# i# expected new s of
+      (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
+{-# INLINE casSBMArray #-}
+
+
 -------------------
 -- Unboxed Array --
 -- ============= --
@@ -2892,6 +3022,68 @@ freezeUMArray (UMArray ma#) = prim $ \s ->
   case unsafeFreezeByteArray# ma# s of
     (# s', a# #) -> (# s', UArray a# #)
 {-# INLINE freezeUMArray #-}
+
+
+
+-- | Compare-and-swap operation. Returns a boolean value, which indicates `True` for
+-- success and `False` otherwise for the update, as well as the current value at the
+-- supplied index. In case of success current value returned will be the newly supplied
+-- one, otherwise it will still be the old one. Note that there is no `Eq` constraint on
+-- the element, that is because compare operation is done on the memory contents itself
+-- according to the `Atomic` class for the datatype
+--
+-- [Unsafe index] Negative or larger than array size can fail with unchecked exception
+--
+-- ====__Examples__
+--
+-- >>> ma <- makeSBMArray 5 (pure . (*10))
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,20,30,40]
+--
+-- A possible mistake is to try and pass the expected value, instead of an actual element:
+--
+-- >>> casSBMArray ma 2 20 1000
+-- (False,20)
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,20,30,40]
+--
+-- But this will get us nowhere, since what we really need is the actual reference to the
+-- value currently in the array cell
+--
+-- >>> expected <- readSBMArray ma 2
+-- >>> r@(_, currentValue) <- casSBMArray ma 2 expected 1000
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,1000,30,40]
+-- >>> r
+-- (True,1000)
+--
+-- In a concurrent setting current value can potentially be modified by some other
+-- thread, therefore returned value can be immedieately used as the expected one to the
+-- next call, if we don want to retry the atomic modification:
+--
+-- >>> casSBMArray ma 2 currentValue 2000
+-- (True,2000)
+-- >>> freezeSBMArray ma
+-- SBArray [0,10,2000,30,40]
+--
+-- @since 1.0.0
+casUMArray ::
+     (Atomic e, MonadPrim s m)
+  => UMArray e s -- ^ Mutable array to mutate
+  -> Int -- ^ Index at which the cell should be set to the new value
+  -> e -- ^ Reference to the expected boxed value
+  -> e -- ^ New value to update the cell with
+  -> m (Bool, e)
+casUMArray (UMArray mba#) (I# i#) expected new =
+  prim $ \s ->
+    case casBoolMutableByteArray# mba# i# expected new s of
+      (# s', True #) -> (# s', (True, new) #)
+      (# s', False #) ->
+        case readMutableByteArray# mba# i# s' of
+          (# s'', old #) -> (# s'', (False, old) #)
+{-# INLINE casUMArray #-}
+
+
 
 -------------
 -- Helpers --

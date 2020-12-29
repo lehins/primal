@@ -1,37 +1,38 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Data.Prim.MArray.Atomic
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Container.Mutable.Array.Atomic
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MArray.Atomic
+module Primal.Container.Mutable.Array.Atomic
   ( AtomicMArray(..)
   , AtomicCountMArray(..)
   , AtomicBitsMArray(..)
   ) where
 
-import Control.Prim.Monad
+import Primal.Monad
 import Data.Bits
-import qualified Data.Prim.MArray.Boxed as B
-import qualified Data.Prim.MArray.Boxed.Small as SB
-import Data.Prim.MArray.Internal
-import qualified Data.Prim.MArray.Unboxed as U
-import Data.Prim.Memory.Addr
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.PArray
+import Primal.Container.Mutable.Array.Internal
+import Primal.Data.Array
+import Primal.Memory.Addr
+import Primal.Memory.Bytes
+import Primal.Memory.PArray
 
 
 
-class MArray mut => AtomicMArray mut where
+class MArray ma e => AtomicMArray ma e where
 
   -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
   -- elements, an old expected value and a new value, swap the actual old value for the
@@ -47,14 +48,14 @@ class MArray mut => AtomicMArray mut where
   -- @since 0.1.0
   casMArray ::
        MonadPrim s m
-    => mut s -- ^ Array to be mutated
+    => ma e s -- ^ Array to be mutated
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
-    -> Elt mut -- ^ Expected old value
-    -> Elt mut -- ^ New value to write
-    -> m (Bool, Elt mut) -- ^ Was compare and swap successfull and the actual value
+    -> e -- ^ Expected old value
+    -> e -- ^ New value to write
+    -> m (Bool, e) -- ^ Was compare and swap successfull and the actual value
 
   -- | Read an element from an array atomically. It is different from a regular
   -- `readMArray`, because it might perform steps to guaranty atomicity. Default
@@ -63,12 +64,12 @@ class MArray mut => AtomicMArray mut where
   -- @since 0.1.0
   atomicReadMArray ::
     MonadPrim s m
-    => mut s -- ^ Mutable array to read an element from
+    => ma e s -- ^ Mutable array to read an element from
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
-    -> m (Elt mut)
+    -> m e
   atomicReadMArray mut i = atomicModifyMArray mut i (\x -> (x, x))
   {-# INLINE atomicReadMArray #-}
 
@@ -79,12 +80,12 @@ class MArray mut => AtomicMArray mut where
   -- @since 0.1.0
   atomicWriteMArray ::
        MonadPrim s m
-    => mut s -- ^ Mutable array to write an element into
+    => ma e s -- ^ Mutable array to write an element into
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
-    -> Elt mut -- ^ Element to write
+    -> e -- ^ Element to write
     -> m ()
   atomicWriteMArray mut i !y = atomicModifyMArray mut i (const (y, ()))
   {-# INLINE atomicWriteMArray #-}
@@ -94,9 +95,9 @@ class MArray mut => AtomicMArray mut where
   -- @since 0.1.0
   atomicModifyMArray ::
        MonadPrim s m
-    => mut s -- ^ Array to be mutated
+    => ma e s -- ^ Array to be mutated
     -> Int -- ^ Offset into the array
-    -> (Elt mut -> (Elt mut, b)) -- ^ Function to be applied atomically to the element
+    -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
     -> m b
   atomicModifyMArray mut i f =
     let go expected =
@@ -114,115 +115,69 @@ class MArray mut => AtomicMArray mut where
 
 
 
-class (Num (Elt mut), AtomicMArray mut) => AtomicCountMArray mut where
-  atomicAddFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+class (Num e, AtomicMArray ma e) => AtomicCountMArray ma e where
+  atomicAddFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicAddFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x))
   {-# INLINE atomicAddFetchOldMArray #-}
 
-  atomicAddFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicAddFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicAddFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x + y in (x', x'))
   {-# INLINE atomicAddFetchNewMArray #-}
 
-  atomicSubFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicSubFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicSubFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x))
   {-# INLINE atomicSubFetchOldMArray #-}
 
-  atomicSubFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicSubFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicSubFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x - y in (x', x'))
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-class (Bits (Elt mut), AtomicMArray mut) => AtomicBitsMArray mut where
-  atomicAndFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+class (Bits e, AtomicMArray ma e) => AtomicBitsMArray ma e where
+  atomicAndFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicAndFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x))
   {-# INLINE atomicAndFetchOldMArray #-}
 
-  atomicAndFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicAndFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicAndFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .&. y in (x', x'))
   {-# INLINE atomicAndFetchNewMArray #-}
 
-  atomicNandFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicNandFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicNandFetchOldMArray mut i !y =
     atomicModifyMArray mut i (\x -> let x' = complement (x .&. y) in (x', x))
   {-# INLINE atomicNandFetchOldMArray #-}
 
-  atomicNandFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicNandFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicNandFetchNewMArray mut i !y =
     atomicModifyMArray mut i (\x -> let x' = complement (x .&. y) in (x', x'))
   {-# INLINE atomicNandFetchNewMArray #-}
 
-  atomicOrFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicOrFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicOrFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x))
   {-# INLINE atomicOrFetchOldMArray #-}
 
-  atomicOrFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicOrFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicOrFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x .|. y in (x', x'))
   {-# INLINE atomicOrFetchNewMArray #-}
 
-  atomicXorFetchOldMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicXorFetchOldMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicXorFetchOldMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x))
   {-# INLINE atomicXorFetchOldMArray #-}
 
-  atomicXorFetchNewMArray :: MonadPrim s m => mut s -> Int -> Elt mut -> m (Elt mut)
+  atomicXorFetchNewMArray :: MonadPrim s m => ma e s -> Int -> e -> m e
   atomicXorFetchNewMArray mut i !y = atomicModifyMArray mut i (\x -> let x' = x `xor` y in (x', x'))
   {-# INLINE atomicXorFetchNewMArray #-}
 
-  atomicNotFetchOldMArray :: MonadPrim s m => mut s -> Int -> m (Elt mut)
+  atomicNotFetchOldMArray :: MonadPrim s m => ma e s -> Int -> m e
   atomicNotFetchOldMArray mut i = atomicModifyMArray mut i (\x -> let x' = complement x in (x', x))
   {-# INLINE atomicNotFetchOldMArray #-}
 
-  atomicNotFetchNewMArray :: MonadPrim s m => mut s -> Int -> m (Elt mut)
+  atomicNotFetchNewMArray :: MonadPrim s m => ma e s -> Int -> m e
   atomicNotFetchNewMArray mut i = atomicModifyMArray mut i (\x -> let x' = complement x in (x', x'))
   {-# INLINE atomicNotFetchNewMArray #-}
 
 
-instance Typeable p => AtomicMArray (MBytes p) where
-  atomicReadMArray mb i = atomicReadMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicReadMArray #-}
-  atomicWriteMArray mb i = atomicWriteMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicWriteMArray #-}
-  casMArray mb i = casBoolFetchMBytes mb (coerce i :: Off Word8)
-  {-# INLINE casMArray #-}
-  atomicModifyMArray mb i = atomicModifyMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicModifyMArray #-}
-
-
-instance Typeable p => AtomicCountMArray (MBytes p) where
-  atomicAddFetchOldMArray mb i = atomicAddFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicAddFetchOldMArray #-}
-  atomicAddFetchNewMArray mb i = atomicAddFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicAddFetchNewMArray #-}
-  atomicSubFetchOldMArray mb i = atomicSubFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicSubFetchOldMArray #-}
-  atomicSubFetchNewMArray mb i = atomicSubFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicSubFetchNewMArray #-}
-
-
-instance Typeable p => AtomicBitsMArray (MBytes p) where
-  atomicAndFetchOldMArray mb i = atomicAndFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicAndFetchOldMArray #-}
-  atomicAndFetchNewMArray mb i = atomicAndFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicAndFetchNewMArray #-}
-  atomicNandFetchOldMArray mb i = atomicNandFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicNandFetchOldMArray #-}
-  atomicNandFetchNewMArray mb i = atomicNandFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicNandFetchNewMArray #-}
-  atomicOrFetchOldMArray mb i = atomicOrFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicOrFetchOldMArray #-}
-  atomicOrFetchNewMArray mb i = atomicOrFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicOrFetchNewMArray #-}
-  atomicXorFetchOldMArray mb i = atomicXorFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicXorFetchOldMArray #-}
-  atomicXorFetchNewMArray mb i = atomicXorFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicXorFetchNewMArray #-}
-  atomicNotFetchOldMArray mb i = atomicNotFetchOldMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicNotFetchOldMArray #-}
-  atomicNotFetchNewMArray mb i = atomicNotFetchNewMBytes mb (coerce i :: Off Word8)
-  {-# INLINE atomicNotFetchNewMArray #-}
-
-
-
-instance (Typeable p, Atomic e) => AtomicMArray (PMArray p e) where
+instance (Typeable p, Atomic e) => AtomicMArray (PMArray p) e where
   atomicReadMArray mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (coerce mba) (coerce i :: Off e)
@@ -233,7 +188,7 @@ instance (Typeable p, Atomic e) => AtomicMArray (PMArray p e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (PMArray p e) where
+instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (PMArray p) e where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -244,7 +199,7 @@ instance (Typeable p, Num e, AtomicCount e) => AtomicCountMArray (PMArray p e) w
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (PMArray p e) where
+instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (PMArray p) e where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -269,7 +224,7 @@ instance (Typeable p, Bits e, AtomicBits e) => AtomicBitsMArray (PMArray p e) wh
 
 
 
-instance Atomic e => AtomicMArray (MAddr e) where
+instance Atomic e => AtomicMArray MAddr e where
   atomicReadMArray maddr i = atomicReadOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray maddr i = atomicWriteOffMAddr maddr (coerce i :: Off e)
@@ -280,7 +235,7 @@ instance Atomic e => AtomicMArray (MAddr e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Num e, AtomicCount e) => AtomicCountMArray (MAddr e) where
+instance (Num e, AtomicCount e) => AtomicCountMArray MAddr e where
   atomicAddFetchOldMArray maddr i = atomicAddFetchOldOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray maddr i = atomicAddFetchNewOffMAddr maddr (coerce i :: Off e)
@@ -291,7 +246,7 @@ instance (Num e, AtomicCount e) => AtomicCountMArray (MAddr e) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Bits e, AtomicBits e) => AtomicBitsMArray (MAddr e) where
+instance (Bits e, AtomicBits e) => AtomicBitsMArray MAddr e where
   atomicAndFetchOldMArray maddr i = atomicAndFetchOldOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray maddr i = atomicAndFetchNewOffMAddr maddr (coerce i :: Off e)
@@ -314,7 +269,7 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (MAddr e) where
   {-# INLINE atomicNotFetchNewMArray #-}
 
 
-instance Atomic e => AtomicMArray (U.UMArray e) where
+instance Atomic e => AtomicMArray UMArray e where
   atomicReadMArray mba i = atomicReadMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicReadMArray #-}
   atomicWriteMArray mba i = atomicWriteMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
@@ -325,7 +280,7 @@ instance Atomic e => AtomicMArray (U.UMArray e) where
   {-# INLINE atomicModifyMArray #-}
 
 
-instance (Num e, AtomicCount e) => AtomicCountMArray (U.UMArray e) where
+instance (Num e, AtomicCount e) => AtomicCountMArray UMArray e where
   atomicAddFetchOldMArray mba i = atomicAddFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMArray #-}
   atomicAddFetchNewMArray mba i = atomicAddFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
@@ -336,7 +291,7 @@ instance (Num e, AtomicCount e) => AtomicCountMArray (U.UMArray e) where
   {-# INLINE atomicSubFetchNewMArray #-}
 
 
-instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.UMArray e) where
+instance (Bits e, AtomicBits e) => AtomicBitsMArray UMArray e where
   atomicAndFetchOldMArray mba i = atomicAndFetchOldMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMArray #-}
   atomicAndFetchNewMArray mba i = atomicAndFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
@@ -358,17 +313,17 @@ instance (Bits e, AtomicBits e) => AtomicBitsMArray (U.UMArray e) where
   atomicNotFetchNewMArray mba i = atomicNotFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicNotFetchNewMArray #-}
 
-instance AtomicMArray (B.BMArray e) where
-  casMArray = B.casBMArray
+instance AtomicMArray BMArray e where
+  casMArray = casBMArray
   {-# INLINE casMArray #-}
 
-instance Num e => AtomicCountMArray (B.BMArray e)
-instance Bits e => AtomicBitsMArray (B.BMArray e)
+instance Num e => AtomicCountMArray BMArray e
+instance Bits e => AtomicBitsMArray BMArray e
 
 
-instance AtomicMArray (SB.SBMArray e) where
-  casMArray = SB.casSBMArray
+instance AtomicMArray SBMArray e where
+  casMArray = casSBMArray
   {-# INLINE casMArray #-}
 
-instance Num e => AtomicCountMArray (SB.SBMArray e)
-instance Bits e => AtomicBitsMArray (SB.SBMArray e)
+instance Num e => AtomicCountMArray SBMArray e
+instance Bits e => AtomicBitsMArray SBMArray e

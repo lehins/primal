@@ -20,6 +20,7 @@ module Primal.Container.Mutable.Ref.Atomic
 
 import Data.Bits
 import Primal.Data.Ref
+import Primal.Data.Array
 import Primal.Container.Mutable.Ref.Internal
 import Primal.Memory.Addr
 import Primal.Memory.Bytes
@@ -271,6 +272,67 @@ instance (Bits e, AtomicBits e) => AtomicBitsMRef MAddr e where
   {-# INLINE atomicNotFetchOldMRef #-}
   atomicNotFetchNewMRef maddr = atomicNotFetchNewOffMAddr maddr (0 :: Off e)
   {-# INLINE atomicNotFetchNewMRef #-}
+
+
+instance Atomic e => AtomicMRef UMArray e where
+  atomicReadMRef ma = atomicReadMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicReadMRef #-}
+  atomicWriteMRef ma = atomicWriteMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicWriteMRef #-}
+  casMRef ma = casBoolFetchMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE casMRef #-}
+  atomicModifyMRef ma = atomicModifyMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicModifyMRef #-}
+
+
+instance (Num e, AtomicCount e) => AtomicCountMRef UMArray e where
+  atomicAddFetchOldMRef ma = atomicAddFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicAddFetchOldMRef #-}
+  atomicAddFetchNewMRef ma = atomicAddFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicAddFetchNewMRef #-}
+  atomicSubFetchOldMRef ma = atomicSubFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicSubFetchOldMRef #-}
+  atomicSubFetchNewMRef ma = atomicSubFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicSubFetchNewMRef #-}
+
+
+instance (Bits e, AtomicBits e) => AtomicBitsMRef UMArray e where
+  atomicAndFetchOldMRef ma = atomicAndFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicAndFetchOldMRef #-}
+  atomicAndFetchNewMRef ma = atomicAndFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicAndFetchNewMRef #-}
+  atomicNandFetchOldMRef ma = atomicNandFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicNandFetchOldMRef #-}
+  atomicNandFetchNewMRef ma = atomicNandFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicNandFetchNewMRef #-}
+  atomicOrFetchOldMRef ma = atomicOrFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicOrFetchOldMRef #-}
+  atomicOrFetchNewMRef ma = atomicOrFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicOrFetchNewMRef #-}
+  atomicXorFetchOldMRef ma = atomicXorFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicXorFetchOldMRef #-}
+  atomicXorFetchNewMRef ma = atomicXorFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicXorFetchNewMRef #-}
+  atomicNotFetchOldMRef ma = atomicNotFetchOldMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicNotFetchOldMRef #-}
+  atomicNotFetchNewMRef ma = atomicNotFetchNewMBytes (fromUMArrayMBytes ma) (0 :: Off e)
+  {-# INLINE atomicNotFetchNewMRef #-}
+
+
+instance AtomicMRef BMArray e where
+  casMRef mba = casBMArray mba 0
+  {-# INLINE casMRef #-}
+
+instance Num e => AtomicCountMRef BMArray e
+instance Bits e => AtomicBitsMRef BMArray e
+
+
+instance AtomicMRef SBMArray e where
+  casMRef mba = casSBMArray mba 0
+  {-# INLINE casMRef #-}
+
+instance Num e => AtomicCountMRef SBMArray e
+instance Bits e => AtomicBitsMRef SBMArray e
 
 
 atomicModifyMRef_ :: (AtomicMRef c e, MonadPrim s m) => c e s -> (e -> e) -> m ()

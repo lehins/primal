@@ -27,17 +27,17 @@ tested-with:         GHC == 8.0.2
 library
   hs-source-dirs:      src
   exposed-modules:
-                   --  Primal.Container.Array
+                     -- Primal.Container.Array
                      -- , Primal.Container.Singleton
                      -- , Primal.Container.Reduce
                      -- , Primal.Container.Lift
                      -- , Primal.Container.Mutable.Singleton
                      -- , Primal.Container.Mutable.Reduce
                      -- , Primal.Container.Mutable.Lift
-                   --  , Primal.Container.Mutable.Array
-                   --  , Primal.Container.Mutable.Array.Atomic
-                     --, Primal.Container.Mutable.Ref
-                     --, Primal.Container.Mutable.Ref.Atomic
+                      Primal.Container.Mutable.Array
+                    , Primal.Container.Mutable.Array.Atomic
+                    , Primal.Container.Mutable.Ref
+                    , Primal.Container.Mutable.Ref.Atomic
                      -- ,
                      --  Primal.Data.Array.Boxed
                      --, Primal.Data.Array.Boxed.Small

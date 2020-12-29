@@ -85,6 +85,41 @@ instance MRef Ref a where
   {-# INLINE readMRef #-}
 
 
+
+instance MRef BMArray e where
+  newRawMRef = newRawBMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef mba = readBMArray mba 0
+  {-# INLINE readMRef #-}
+  writeMRef mba = writeBMArray mba 0
+  {-# INLINE writeMRef #-}
+  newMRef = newBMArray 1
+  {-# INLINE newMRef #-}
+
+
+instance MRef SBMArray e where
+  newRawMRef = newRawSBMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef mba = readSBMArray mba 0
+  {-# INLINE readMRef #-}
+  writeMRef mba = writeSBMArray mba 0
+  {-# INLINE writeMRef #-}
+  newMRef = newSBMArray 1
+  {-# INLINE newMRef #-}
+
+
+instance Prim e => MRef UMArray e where
+  newRawMRef = newRawUMArray 1
+  {-# INLINE newRawMRef #-}
+  readMRef mba = readUMArray mba 0
+  {-# INLINE readMRef #-}
+  writeMRef mba = writeUMArray mba 0
+  {-# INLINE writeMRef #-}
+  newMRef = newUMArray 1
+  {-# INLINE newMRef #-}
+
+
+
 modifyMRef ::
      (MRef c e, MonadPrim s m) => c e s -> (e -> (e, a)) -> m a
 modifyMRef ref f = modifyMRefM ref (pure . f)
@@ -101,7 +136,7 @@ modifyFetchOldMRef ::
      (MRef c e, MonadPrim s m)
   => c e s
   -> (e -> e)
-  -> m (e)
+  -> m e
 modifyFetchOldMRef ref f = modifyFetchOldMRefM ref (pure . f)
 {-# INLINE modifyFetchOldMRef #-}
 
@@ -113,7 +148,7 @@ modifyFetchNewMRef ::
      (MRef c e, MonadPrim s m)
   => c e s
   -> (e -> e)
-  -> m (e)
+  -> m e
 modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
 {-# INLINE modifyFetchNewMRef #-}
 
@@ -131,7 +166,7 @@ modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
 -- Nothing
 --
 -- @since 0.1.0
-modifyMRefM_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> m (e)) -> m ()
+modifyMRefM_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> m e) -> m ()
 modifyMRefM_ ref f = readMRef ref >>= f >>= writeMRef ref
 {-# INLINE modifyMRefM_ #-}
 
@@ -171,8 +206,8 @@ modifyMRefM ref f = do
 modifyFetchOldMRefM ::
      (MRef c e, MonadPrim s m)
   => c e s
-  -> (e -> m (e))
-  -> m (e)
+  -> (e -> m e)
+  -> m e
 modifyFetchOldMRefM ref f = do
   a <- readMRef ref
   a <$ (writeMRef ref =<< f a)
@@ -185,8 +220,8 @@ modifyFetchOldMRefM ref f = do
 modifyFetchNewMRefM ::
      (MRef c e, MonadPrim s m)
   => c e s
-  -> (e -> m (e))
-  -> m (e)
+  -> (e -> m e)
+  -> m e
 modifyFetchNewMRefM ref f = do
   a <- readMRef ref
   a' <- f a

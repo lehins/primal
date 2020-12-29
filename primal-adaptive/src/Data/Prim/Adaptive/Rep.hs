@@ -35,8 +35,8 @@ import Data.Prim.Unbox
 import Data.Semigroup
 import Data.Type.Equality
 import Foreign.C.Error (Errno(..))
-import Foreign.Prim hiding (Any)
-import Foreign.Prim.StablePtr
+import Primal.Foreign hiding (Any)
+import Primal.Foreign.StablePtr
 import GHC.Conc
 import GHC.Fingerprint.Type
 import GHC.IO.Device

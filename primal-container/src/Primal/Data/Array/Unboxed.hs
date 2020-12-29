@@ -7,14 +7,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Data.Prim.MArray.Unboxed
+-- Module      : Primal.Data.Array.Unboxed
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.MArray.Unboxed
+module Primal.Data.Array.Unboxed
   ( UArray(..)
   , UMArray(..)
   , Size(..)

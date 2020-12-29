@@ -16,9 +16,7 @@ import Primal.Concurrent.MVar
 import Primal.Data.Array
 import Primal.Data.Ref
 import Primal.Memory.Addr
-import Primal.Memory.Bytes
 import Primal.Memory.PArray
-import Primal.Prim
 import qualified Data.STRef as ST
 
 -- | Container element constraint.
