@@ -43,6 +43,43 @@ class Elt c e => MRef c e where
 
   writeMRef :: MonadPrim s m => c e s -> e -> m ()
 
+
+-- Experiment with mutable ref containing other effectful
+-- newtype BMRefMut mc s = BMRefMut (Ref (mc s) s)
+
+-- newtype RefMut ref mc s = RefMut (ref (mc s) s)
+
+-- class MRefMut c e where
+
+--   newMRefMut :: MonadPrim s m => e s -> m (c e s)
+--   newMRefMut a = newRawMRefMut >>= \mut -> mut <$ writeMRefMut mut a
+--   {-# INLINE newMRefMut #-}
+
+--   newRawMRefMut :: MonadPrim s m => m (c e s)
+
+--   readMRefMut :: MonadPrim s m => c e s -> m (e s)
+
+--   writeMRefMut :: MonadPrim s m => c e s -> e s -> m ()
+
+-- instance MRefMut BMRefMut me where
+--   newMRefMut me = BMRefMut <$> newMRef me
+
+--   newRawMRefMut = BMRefMut <$> newRawMRef
+
+--   readMRefMut (BMRefMut ref) = readMRef ref
+
+--   writeMRefMut (BMRefMut ref) me = writeMRef ref me
+
+-- instance MRefMut (RefMut Ref) me where
+--   newMRefMut me = RefMut <$> newMRef me
+
+--   newRawMRefMut = RefMut <$> newRawMRef
+
+--   readMRefMut (RefMut ref) = readMRef ref
+
+--   writeMRefMut (RefMut ref) me = writeMRef ref me
+
+
 -- | Read/write aren't atomic - /not/ thread safe.
 instance MRef MVar a where
   newMRef = newMVar
@@ -117,8 +154,6 @@ instance Prim e => MRef UMArray e where
   {-# INLINE writeMRef #-}
   newMRef = newUMArray 1
   {-# INLINE newMRef #-}
-
-
 
 modifyMRef ::
      (MRef c e, MonadPrim s m) => c e s -> (e -> (e, a)) -> m a

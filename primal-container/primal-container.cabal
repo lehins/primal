@@ -34,18 +34,18 @@ library
                      -- , Primal.Container.Mutable.Singleton
                      -- , Primal.Container.Mutable.Reduce
                      -- , Primal.Container.Mutable.Lift
-                      Primal.Container.Mutable.Array
-                    , Primal.Container.Mutable.Array.Atomic
-                    , Primal.Container.Mutable.Ref
-                    , Primal.Container.Mutable.Ref.Atomic
+                       Primal.Container.Mutable.Array
+                     , Primal.Container.Mutable.Array.Atomic
+                     , Primal.Container.Mutable.Ref
+                     , Primal.Container.Mutable.Ref.Atomic
                      -- ,
                      --  Primal.Data.Array.Boxed
                      --, Primal.Data.Array.Boxed.Small
                      --, Primal.Data.Array.Unboxed
                      --, Primal.Data.Array.Unboxed.Pinned
-                    , Primal.Data.Array.Unboxed.Ragged
-  other-modules:       Primal.Container.Internal
-                     , Primal.Container.Mutable.Ref.Internal
+                     , Primal.Container.Internal
+                     , Primal.Data.Array.Unboxed.Ragged
+  other-modules:       Primal.Container.Mutable.Ref.Internal
                      , Primal.Container.Mutable.Array.Internal
   build-depends:       base >= 4.9 && < 5
                      , deepseq

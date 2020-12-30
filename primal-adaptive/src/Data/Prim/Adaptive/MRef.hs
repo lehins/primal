@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 -- |
 -- Module      : Data.Prim.Adaptive.MRef
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -18,37 +20,54 @@ module Data.Prim.Adaptive.MRef
   , module Data.Prim.Adaptive.MRef
   ) where
 
-import Control.Prim.Monad
-import Data.Prim
-import Data.Prim.MArray.Internal
-import Data.Prim.MRef
-import Data.Prim.MRef.Atomic
-import Data.Prim.MRef.Ref
+import Primal.Monad
+import Primal.Prim
+import Primal.Prim.Class
+import Primal.Container.Mutable.Ref
+import Primal.Container.Mutable.Ref.Atomic
+import Primal.Data.Ref
 import Data.Prim.Adaptive.Rep
+import Primal.Container.Internal
 
 
-type ABWrap e = AWrap (AdaptRep Ref e) (IsAtomic e) e
+newtype ABWrap mc e = ABWrap (AWrap (AdaptRep (DefaultRep mc) e) (IsAtomic e) e)
 
-type ABRep e = AdaptRep Ref e (ABWrap e)
+instance Prim (AWrap (AdaptRep (DefaultRep mc) e) (IsAtomic e) e) => Prim (ABWrap mc e) where
+  type PrimBase (ABWrap mc e) = AWrap (AdaptRep (DefaultRep mc) e) (IsAtomic e) e
 
-newtype ARef e s = ARef (ABRep e s)
+type ABRep mc e s = AdaptRep (DefaultRep mc) e (ABWrap mc e) s
+
+type family DefaultRep (mc :: * -> * -> *) :: * -> * -> *
+
+type instance DefaultRep ARef = Ref
+
+newtype ARef e s = ARef (ABRep ARef e s)
 
 
-class (Coercible e (Elt (ABRep e)), MRef (ABRep e)) => Adapt e where
-  wrap :: e -> Elt (ABRep e)
-  unwrap :: Elt (ABRep e) -> e
-
-instance (Coercible e (Elt (ABRep e)), MRef (ABRep e)) => Adapt e where
+class (Coercible e (ABWrap mc e), MRef (AdaptRep (DefaultRep mc) e) (ABWrap mc e)) => Adapt mc e where
+  wrap :: e -> ABWrap mc e
   wrap = coerce
+  {-# INLINE wrap #-}
+  unwrap :: ABWrap mc e -> e
   unwrap = coerce
+  {-# INLINE unwrap #-}
 
-class (Adapt e, AtomicMRef (ABRep e)) => AdaptAtomic e
+instance ( Coercible e (ABWrap ARef e)
+         , MRef (AdaptRep (DefaultRep ARef) e) (ABWrap ARef e)
+         ) =>
+         Adapt ARef e where
 
-instance (Adapt e, AtomicMRef (ABRep e)) => AdaptAtomic e
 
+class (Adapt mc e, AtomicMRef (AdaptRep (DefaultRep mc) e) (ABWrap mc e)) => AdaptAtomic mc e
 
-instance Adapt e => MRef (ARef e) where
-  type Elt (ARef e) = e
+instance ( Adapt ARef e
+         , AtomicMRef (AdaptRep (DefaultRep ARef) e) (ABWrap ARef e)
+         ) =>
+         AdaptAtomic ARef e
+
+type instance Elt ARef e = ()
+
+instance Adapt ARef e => MRef ARef e where
   newRawMRef = ARef <$> newRawMRef
   {-# INLINE newRawMRef #-}
   newMRef e = ARef <$> newMRef (wrap e)
@@ -58,17 +77,20 @@ instance Adapt e => MRef (ARef e) where
   writeMRef (ARef ma) e = writeMRef ma (wrap e)
   {-# INLINE writeMRef #-}
 
-instance AdaptAtomic e => AtomicMRef (ARef e) where
+instance AdaptAtomic ARef e => AtomicMRef ARef e where
   atomicReadMRef (ARef mut) = unwrap <$> atomicReadMRef mut
   {-# INLINE atomicReadMRef #-}
   atomicWriteMRef (ARef mut) = atomicWriteMRef mut . wrap
   {-# INLINE atomicWriteMRef #-}
+  -- casMRef (ARef mut) f = casMRef mut f
+  -- {-# INLINE casMRef #-}
 
-
-newARef :: (MonadPrim s m, Adapt e) => e -> m (ARef e s)
+newARef :: (MonadPrim s m, Adapt ARef e) => e -> m (ARef e s)
 newARef = newMRef
 
-foo :: (MonadPrim s m, AdaptAtomic b) => b -> m b
-foo i = do
-  ref <- newARef i
-  atomicReadMRef ref
+
+inc :: (MonadPrim s m, Enum e, Adapt ARef e) => e -> m (ARef e s)
+inc e = do
+  ref <- newARef e
+  readMRef ref >>= writeMRef ref . succ
+  pure ref

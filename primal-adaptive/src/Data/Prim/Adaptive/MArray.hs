@@ -20,18 +20,17 @@ module Data.Prim.Adaptive.MArray
   , Atom(..)
   ) where
 
-import Control.Prim.Monad
 import Data.Coerce
-import Data.Prim
 import Data.Prim.Adaptive.Rep
-import Data.Prim.Array (Size(..))
-import qualified Data.Prim.MArray as M
-import qualified Data.Prim.MArray.Boxed as B
-import Data.Prim.MRef
+import Primal.Container.Mutable.Array
+import Primal.Data.Array
+import Primal.Data.Ref
+import Primal.Monad
+import Primal.Prim
 
-type ABWrap e = AWrap (AdaptRep B.BMArray e) (IsAtomic e) e
+type ABWrap e = AWrap (AdaptRep BMArray e) (IsAtomic e) e
 
-type ABRep e = AdaptRep B.BMArray e (ABWrap e)
+type ABRep e = AdaptRep BMArray e (ABWrap e)
 
 newtype AArray e = AArray (M.Array (ABRep e))
 

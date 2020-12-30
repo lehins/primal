@@ -28,7 +28,7 @@ import Data.Kind
 import Primal.Prim
 import Primal.Prim.Class
 import Primal.Data.Array
-import Data.Prim.MArray.Unboxed.Ragged
+import Primal.Data.Array.Unboxed.Ragged
 import Primal.Memory.PArray
 import Primal.Memory.Bytes
 import Data.Prim.Unbox
