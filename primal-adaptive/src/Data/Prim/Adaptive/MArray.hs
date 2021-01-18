@@ -92,3 +92,4 @@ createArrayM ::
   -> (AMArray e s -> m b)
   -> m (b, AArray e)
 createArrayM = M.createArrayM
+
