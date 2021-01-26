@@ -6,14 +6,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Primal.Data.Ref
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Ref
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Data.Ref
+module Primal.Ref
   ( Ref(..)
   , IORef
   , STRef
@@ -122,7 +122,7 @@ isSameRef (Ref ref1#) (Ref ref2#) = isTrue# (sameMutVar# ref1# ref2#)
 -- ==== __Examples__
 --
 -- >>> import Debug.Trace
--- >>> import Primal.Data.Ref
+-- >>> import Primal.Ref
 -- >>> ref <- newRef (trace "Initial value is evaluated" (217 :: Int))
 -- Initial value is evaluated
 -- >>> modifyFetchOldRef ref succ
@@ -142,7 +142,7 @@ newRef a = a `seq` newLazyRef a
 -- ==== __Examples__
 --
 -- >>> import Debug.Trace
--- >>> import Primal.Data.Ref
+-- >>> import Primal.Ref
 -- >>> ref <- newDeepRef (Just (trace "Initial value is evaluated" (217 :: Int)))
 -- Initial value is evaluated
 -- >>> readRef ref
@@ -160,7 +160,7 @@ newDeepRef a = a `deepseq` newLazyRef a
 -- In below example you will see that initial value is never evaluated.
 --
 -- >>> import Debug.Trace
--- >>> import Primal.Data.Ref
+-- >>> import Primal.Ref
 -- >>> ref <- newLazyRef (trace "Initial value is evaluated" (undefined :: Int))
 -- >>> writeRef ref 1024
 -- >>> modifyFetchNewRef ref succ
@@ -182,7 +182,7 @@ newLazyRef a =
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Data.Ref
+-- >>> import Primal.Ref
 -- >>> ref <- newRef "Hello World!"
 -- >>> readRef ref
 -- "Hello World!"

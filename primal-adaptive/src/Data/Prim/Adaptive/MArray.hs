@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 -- |
 -- Module      : Data.Prim.Adaptive.MArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -11,42 +13,44 @@
 -- Portability : non-portable
 --
 module Data.Prim.Adaptive.MArray
-  (
-    AArray(..)
+  ( AArray(..)
   , AMArray(..)
-  , Adaptive
-  , newMArray
-  , createArrayM
+  , newAMArray
+  , createAArrayM
   , Atom(..)
   ) where
 
 import Data.Coerce
 import Data.Prim.Adaptive.Rep
+import Primal.Container.Internal
+import Primal.Container.Mutable.Ref
 import Primal.Container.Mutable.Array
 import Primal.Data.Array
-import Primal.Data.Ref
 import Primal.Monad
 import Primal.Prim
 
 type ABWrap e = AWrap (AdaptRep BMArray e) (IsAtomic e) e
 
-type ABRep e = AdaptRep BMArray e (ABWrap e)
+newtype AArray e = AArray (Frozen (AdaptRep BMArray e) (ABWrap e))
 
-newtype AArray e = AArray (M.Array (ABRep e))
-
-newtype AMArray e s = AMArray (ABRep e s)
+newtype AMArray e s = AMArray (AdaptRep BMArray e (ABWrap e) s)
 
 
-class (Coercible e (Elt (ABRep e)), M.MArray (ABRep e)) => Adaptive e where
-  wrap :: e -> Elt (ABRep e)
-  unwrap :: Elt (ABRep e) -> e
+class (Coercible e (ABWrap e), MArray (AdaptRep BMArray e) (ABWrap e)) => AdaptMArray e where
+  wrap :: e -> ABWrap e
+  unwrap :: ABWrap e -> e
 
-instance (Coercible e (Elt (ABRep e)), M.MArray (ABRep e)) => Adaptive e where
+instance (Coercible e (ABWrap e), MArray (AdaptRep BMArray e) (ABWrap e)) => AdaptMArray e where
   wrap = coerce
+  {-# INLINE wrap #-}
   unwrap = coerce
+  {-# INLINE unwrap #-}
 
-instance Adaptive e => MRef (AMArray e) where
-  type Elt (AMArray e) = e
+type instance Elt AArray e = (AdaptMArray e)
+type instance Elt AMArray e = (AdaptMArray e)
+
+
+instance AdaptMArray e => MRef AMArray e where
   newRawMRef = AMArray <$> newRawMRef
   {-# INLINE newRawMRef #-}
   newMRef e = AMArray <$> newMRef (wrap e)
@@ -56,40 +60,40 @@ instance Adaptive e => MRef (AMArray e) where
   writeMRef (AMArray ma) e = writeMRef ma (wrap e)
   {-# INLINE writeMRef #-}
 
+type instance Frozen AMArray = AArray
 
-instance Adaptive e => M.MArray (AMArray e) where
-  type Array (AMArray e) = AArray e
-  sizeOfArray (AArray a) = M.sizeOfArray a
+instance AdaptMArray e => MArray AMArray e where
+  sizeOfArray (AArray a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
-  indexArray (AArray a) i = unwrap (M.indexArray a i)
+  indexArray (AArray a) i = unwrap (indexArray a i)
   {-# INLINE indexArray #-}
-  getSizeOfMArray (AMArray ma) = M.getSizeOfMArray ma
+  getSizeOfMArray (AMArray ma) = getSizeOfMArray ma
   {-# INLINE getSizeOfMArray #-}
-  thawArray (AArray a) = AMArray <$> M.thawArray a
+  thawArray (AArray a) = AMArray <$> thawArray a
   {-# INLINE thawArray #-}
-  freezeMArray (AMArray ma) = AArray <$> M.freezeMArray ma
+  freezeMArray (AMArray ma) = AArray <$> freezeMArray ma
   {-# INLINE freezeMArray #-}
-  newRawMArray = fmap AMArray . M.newRawMArray
+  newRawMArray = fmap AMArray . newRawMArray
   {-# INLINE newRawMArray #-}
-  readMArray (AMArray ma) i = unwrap <$> M.readMArray ma i
+  readMArray (AMArray ma) i = unwrap <$> readMArray ma i
   {-# INLINE readMArray #-}
-  writeMArray (AMArray ma) i e = M.writeMArray ma i (wrap e)
+  writeMArray (AMArray ma) i e = writeMArray ma i (wrap e)
   {-# INLINE writeMArray #-}
-  copyArray (AArray as) os (AMArray mad) = M.copyArray as os mad
+  copyArray (AArray as) os (AMArray mad) = copyArray as os mad
   {-# INLINE copyArray #-}
-  moveMArray (AMArray mas) os (AMArray mad) = M.moveMArray mas os mad
+  moveMArray (AMArray mas) os (AMArray mad) = moveMArray mas os mad
   {-# INLINE moveMArray #-}
-  setMArray (AMArray ma) i sz e = M.setMArray ma i sz (wrap e)
+  setMArray (AMArray ma) i sz e = setMArray ma i sz (wrap e)
   {-# INLINE setMArray #-}
 
 
-newMArray :: (MonadPrim s m, Adaptive e) => Size -> e -> m (AMArray e s)
-newMArray = M.newMArray
+newAMArray :: (MonadPrim s m, AdaptMArray e) => Size -> e -> m (AMArray e s)
+newAMArray = newMArray
 
-createArrayM ::
-     (MonadPrim s m, Adaptive e)
+createAArrayM ::
+     (MonadPrim s m, AdaptMArray e)
   => Size
   -> (AMArray e s -> m b)
   -> m (b, AArray e)
-createArrayM = M.createArrayM
+createAArrayM = createArrayM
 

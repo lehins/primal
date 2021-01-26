@@ -13,10 +13,10 @@
 -- Portability : non-portable
 --
 module Data.Prim.Adaptive.MRef
-  ( ARef(..)
+  ( AMRef(..)
   , AdaptMRef(..)
   , AdaptAtomicMRef
-  , module Data.Prim.Adaptive.MRef
+  , newAMRef
   ) where
 
 import Primal.Monad
@@ -29,9 +29,7 @@ import Primal.Container.Internal
 
 type ABWrap e = AWrap (AdaptRep Ref e) (IsAtomic e) e
 
-type ABRep e = AdaptRep Ref e (ABWrap e)
-
-newtype ARef e s = ARef (ABRep e s)
+newtype AMRef e s = AMRef (AdaptRep Ref e (ABWrap e) s)
 
 
 class (Coercible e (ABWrap e), MRef (AdaptRep Ref e) (ABWrap e)) => AdaptMRef e where
@@ -48,30 +46,31 @@ class (AdaptMRef e, AtomicMRef (AdaptRep Ref e) (ABWrap e)) => AdaptAtomicMRef e
 
 instance (AdaptMRef e, AtomicMRef (AdaptRep Ref e) (ABWrap e)) => AdaptAtomicMRef e
 
-type instance Elt ARef e = ()
+type instance Elt AMRef e = ()
 
-instance AdaptMRef e => MRef ARef e where
-  newRawMRef = ARef <$> newRawMRef
+instance AdaptMRef e => MRef AMRef e where
+  newRawMRef = AMRef <$> newRawMRef
   {-# INLINE newRawMRef #-}
-  newMRef e = ARef <$> newMRef (wrap e)
+  newMRef e = AMRef <$> newMRef (wrap e)
   {-# INLINE newMRef #-}
-  readMRef (ARef ma) = unwrap <$> readMRef ma
+  readMRef (AMRef ma) = unwrap <$> readMRef ma
   {-# INLINE readMRef #-}
-  writeMRef (ARef ma) e = writeMRef ma (wrap e)
+  writeMRef (AMRef ma) e = writeMRef ma (wrap e)
   {-# INLINE writeMRef #-}
 
-instance AdaptAtomicMRef e => AtomicMRef ARef e where
-  atomicReadMRef (ARef mut) = unwrap <$> atomicReadMRef mut
+instance AdaptAtomicMRef e => AtomicMRef AMRef e where
+  atomicReadMRef (AMRef mut) = unwrap <$> atomicReadMRef mut
   {-# INLINE atomicReadMRef #-}
-  atomicWriteMRef (ARef mut) = atomicWriteMRef mut . wrap
+  atomicWriteMRef (AMRef mut) = atomicWriteMRef mut . wrap
   {-# INLINE atomicWriteMRef #-}
-  casMRef (ARef mut) old new = coerce <$> casMRef mut (wrap old) (wrap new)
+  casMRef (AMRef mut) old new = coerce <$> casMRef mut (wrap old) (wrap new)
   {-# INLINE casMRef #-}
 
-newARef :: (MonadPrim s m, AdaptMRef e) => e -> m (ARef e s)
-newARef = newMRef
+newAMRef :: (MonadPrim s m, AdaptMRef e) => e -> m (AMRef e s)
+newAMRef = newMRef
+
 
 foo :: (MonadPrim s m, AdaptAtomicMRef b) => b -> m b
 foo i = do
-  ref <- newARef i
+  ref <- newAMRef i
   atomicReadMRef ref

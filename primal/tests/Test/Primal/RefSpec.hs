@@ -6,7 +6,7 @@ module Test.Primal.RefSpec (spec) where
 
 import qualified Control.Concurrent as Base
 import Primal.Concurrent
-import Primal.Data.Ref
+import Primal.Ref
 import Primal.Exception
 import Data.Maybe
 import Primal.Prim

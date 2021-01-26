@@ -21,10 +21,10 @@ module Primal.Data.Mutable.Foldable where
 
 import Primal.Monad
 import Primal.Monad.Throw
-import Primal.Data.Ref
+import Primal.Ref
 import Primal.Foreign
 import Primal.Prim
-import Primal.Data.Array
+import Primal.Array
 
 
 
@@ -99,11 +99,11 @@ class Elt f a => MLift (f :: * -> * -> *) a where
   mlift3M :: (MonadPrim s m, MLift f b, MLift f c, MLift f d)
          => (a -> b -> c -> m d) -> f a s -> f b s -> f c s -> m (f d s)
 
-class Elt f e => ReduceInhabited (f :: * -> *) e where
-  reduceInhabited :: Semigroup e => f e -> e
-  mapReduceInhabited :: Semigroup a => (e -> a) -> f e -> a
-  reducelInhabited :: (e -> e -> e) -> f e -> e
-  reducerInhabited :: (e -> e -> e) -> f e -> e
+class Elt f e => ReduceInhab (f :: * -> *) e where
+  reduceInhab :: Semigroup e => f e -> e
+  mapReduceInhab :: Semigroup a => (e -> a) -> f e -> a
+  reducelInhab :: (e -> e -> e) -> f e -> e
+  reducerInhab :: (e -> e -> e) -> f e -> e
 
 
 class Elt f e => Reduce (f :: * -> *) e where
@@ -112,6 +112,13 @@ class Elt f e => Reduce (f :: * -> *) e where
   reducel :: (a -> e -> a) -> a -> f e -> a
   reducer :: (e -> a -> a) -> a -> f e -> a
   reducel2 :: MonadThrow m => (a -> e -> c -> a) -> a -> f e -> f c -> m a
+
+class Elt f e => MutReduce (f :: * -> * -> *) e where
+  reduceMut :: Monoid e => f e s -> m e
+  mapReduceMut :: Monoid a => (e -> a) -> f e s -> m a
+  mapReduceMutM :: Monoid a => (e -> m a) -> f e s -> m a
+  reducelMutM :: MonadPrim s m => (a -> e -> m a) -> a -> f e s -> m a
+  reducerMutM :: MonadPrim s m => (e -> a -> m a) -> a -> f e s -> m a
 
 
 class Elt f e => MReduce (f :: * -> * -> *) e where

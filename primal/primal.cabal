@@ -30,26 +30,39 @@ tested-with:         GHC == 7.10.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Primal.Concurrent
+  exposed-modules:     Primal.Array
+                     , Primal.Array.Boxed
+                     , Primal.Array.SmallBoxed
+                     , Primal.Array.Unboxed
+
+                     , Primal.Concurrent
                      , Primal.Concurrent.MVar
                      , Primal.Eval
                      , Primal.Exception
                      , Primal.Monad
                      , Primal.Monad.Throw
                      , Primal.Monad.Unsafe
+                     , Primal.Mutable.Freeze
+                     , Primal.Mutable.Eq
+                     , Primal.Mutable.Ord
+
                      , Primal.Prim
                        -- ^ consider Unpack name instead
                      , Primal.Prim.Atom
                      , Primal.Prim.Atomic
                      , Primal.Prim.Class
 
-                     , Primal.Data.Array
-                     , Primal.Data.Ref
-                     -- , Primal.Data.Ref.Lazy
-                     -- , Primal.Data.Ref.Deep
-                     , Primal.Data.Mutable.Eq
-                     , Primal.Data.Mutable.Ord
+                     -- , Primal.Mutable.Foldable
+
+
+
+                     , Primal.Ref
+                     -- , Primal.Data.Ref.Boxed
+                     -- , Primal.Data.Ref.Unboxed
                      , Primal.Data.Mutable.Foldable
+                     -- , primal.Mutable.Eq
+                     -- , Primal.Mutable.Ord
+                     -- , Primal.Mutable.Foldable
                        -- fix ^
 
                      , Primal.Mem
@@ -79,7 +92,8 @@ library
                      -- , Primal.Mutable.MVar.Deep
                      -- , Primal.Mutable.MVar.Lazy
 
-  other-modules:       Primal.Monad.Internal
+  other-modules:       Primal.Array.Internal
+                     , Primal.Monad.Internal
                      , Primal.Foreign.C
                      , Primal.Foreign.C.Atomic
                      , Primal.Foreign.C.LtGHC802

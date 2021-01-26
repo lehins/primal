@@ -34,13 +34,21 @@ library
                      -- , Primal.Container.Mutable.Singleton
                      -- , Primal.Container.Mutable.Reduce
                      -- , Primal.Container.Mutable.Lift
+
+                       Primal.Container.Array
+                     , Primal.Container.Array.Atomic
+                     , Primal.Container.Ref
+                     , Primal.Container.Ref.Atomic
+
+                     , Primal.Container.Atomic.Array
+                     , Primal.Container.Atomic.Ref
+
                        Primal.Container.Mutable.Array
                      , Primal.Container.Mutable.Array.Atomic
                      , Primal.Container.Mutable.Ref
                      , Primal.Container.Mutable.Ref.Atomic
-                     -- ,
-                     --  Primal.Data.Array.Boxed
-                     --, Primal.Data.Array.Boxed.Small
+                     , Primal.Data.Array.Boxed
+                     , Primal.Data.Array.Boxed.Small
                      --, Primal.Data.Array.Unboxed
                      --, Primal.Data.Array.Unboxed.Pinned
                      , Primal.Container.Internal

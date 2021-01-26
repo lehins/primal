@@ -5,7 +5,7 @@ module Test.Primal.ArraySpec (spec) where
 import Primal.Prim
 import Primal.Foreign (IsList(..))
 import Primal.Exception
-import Primal.Data.Array
+import Primal.Array
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Test.QuickCheck.Classes.Base
