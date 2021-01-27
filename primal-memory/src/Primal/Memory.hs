@@ -62,7 +62,9 @@ module Primal.Memory
   -- * Mutable
   , MBytes
   , MemWrite
-  , MemAlloc(FrozenMem)
+  , MemAlloc
+  , Frozen
+  , MutFreeze(..)
   , MemState(..)
   -- ** Size
   , getCountMutMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
@@ -113,3 +115,4 @@ module Primal.Memory
 import Primal.Prim
 import Primal.Memory.Internal
 import Primal.Memory.Fold
+import Primal.Mutable.Freeze

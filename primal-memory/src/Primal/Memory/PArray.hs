@@ -55,8 +55,11 @@ module Primal.Memory.PArray
 
 import Control.DeepSeq
 import Primal.Monad
+import Primal.Mutable.Eq
+import Primal.Mutable.Freeze
+import Primal.Mutable.Ord
 import Primal.Prim
-import Primal.Data.Array (Size(..), UArray(..), UMArray(..))
+import Primal.Array.Unboxed (Size(..), UArray(..), UMArray(..))
 import Primal.Memory.Bytes
 import Primal.Memory.Fold
 import Primal.Memory.ForeignPtr
@@ -100,7 +103,6 @@ instance PtrAccess s (PMArray 'Pin e s) where
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance Typeable p => MemAlloc (PMArray p e) where
-  type FrozenMem (PMArray p e) = PArray p e
   getByteCountMutMem = getByteCountMutMem . toMBytesPMArray
   {-# INLINE getByteCountMutMem #-}
   allocMutMem = fmap fromMBytesPMArray . allocMBytes
@@ -123,6 +125,16 @@ instance Typeable p => IsString (PArray p Char) where
 
 instance (Show e, Prim e) => Show (PArray p e) where
   show = show . toListPArray
+
+type instance Frozen (PMArray p e) = PArray p e
+
+instance  Typeable p => MutFreeze (PMArray p e) where
+  thaw = thawPArray
+  {-# INLINE thaw #-}
+  clone = cloneMem
+  {-# INLINE clone #-}
+  freezeMut = freezePMArray
+  {-# INLINE freezeMut #-}
 
 
 toListPArray :: Prim e => PArray p e -> [e]

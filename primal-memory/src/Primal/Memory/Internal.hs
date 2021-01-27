@@ -23,8 +23,6 @@ module Primal.Memory.Internal
   , module Primal.Memory.Bytes.Internal
   ) where
 
-import Primal.Exception
-import Primal.Monad.Unsafe
 import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
 import Data.Kind
@@ -33,13 +31,16 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
 import qualified Data.Semigroup as Semigroup
 import Numeric (showHex)
-import Primal.Data.Array
+import Primal.Array
+import Primal.Exception
 import Primal.Foreign
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 import qualified Primal.Memory.Text as T
+import Primal.Monad.Unsafe
+import Primal.Mutable.Freeze
 
 -- | Type class that can be implemented for an immutable data type that provides
 -- read-only direct access to memory
@@ -693,12 +694,7 @@ class MemWrite mw where
     -> m ()
 
 -- | Generalized memory allocation and pure/mutable state conversion.
-class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
-  -- | Memory region in the immutable state. Types for frozen and thawed states of
-  -- memory region are in one-to-one correspondence, therefore @ma <-> FrozeMem ma@ will
-  -- always uniquely identify each other, which is an extremely useful property when it
-  -- comes to type inference.
-  type FrozenMem ma = (fm :: Type) | fm -> ma
+class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
 
   -- | Extract the number of bytes a mutable memory region can hold, i.e. what is the
   -- total allocated size for this region. The size of a region can be changes and in some
@@ -750,7 +746,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- reflected in the frozen immutable type as well.
   --
   -- @since 0.1.0
-  thawMem :: MonadPrim s m => FrozenMem ma -> m (ma s)
+  thawMem :: MonadPrim s m => Frozen ma -> m (ma s)
 
   -- | Convert the state of a mutable memory region to the immutable one. This is a no
   -- copy operation, as such it is fast, but dangerous. See `freezeCopyMem` for a safe alternative.
@@ -760,7 +756,7 @@ class (MemRead (FrozenMem ma), MemWrite ma) => MemAlloc ma where
   -- reflected in the frozen immutable type as well.
   --
   -- @since 0.3.0
-  freezeMutMem :: MonadPrim s m => ma s -> m (FrozenMem ma)
+  freezeMutMem :: MonadPrim s m => ma s -> m (Frozen ma)
 
   -- | Either grow or shrink currently allocated mutable region of memory. For some
   -- implementations it might be possible to change the size of the allocated region
@@ -834,8 +830,8 @@ instance MemWrite (UMArray e) where
   setMutMem ma = setMutMem (fromUMArrayMBytes ma)
   {-# INLINE setMutMem #-}
 
+
 instance MemAlloc (UMArray e) where
-  type FrozenMem (UMArray e) = UArray e
   getByteCountMutMem = getByteCountMutMem . fromUMArrayMBytes
   {-# INLINE getByteCountMutMem #-}
   allocMutMem = fmap toUMArrayMBytes . allocUnpinnedMBytes
@@ -909,8 +905,19 @@ instance MemWrite MByteString where
   setMutMem (MByteString mbs) off c a = withPtrAccess mbs $ \ptr -> setOffPtr ptr off c a
   {-# INLINE setMutMem #-}
 
+
+type instance Frozen MByteString = ByteString
+
+instance MutFreeze MByteString where
+  thaw bs = pure $! MByteString bs
+  {-# INLINE thaw #-}
+  clone = cloneMem
+  {-# INLINE clone #-}
+  freezeMut (MByteString bs) = pure bs
+  {-# INLINE freezeMut #-}
+
+
 instance MemAlloc MByteString where
-  type FrozenMem MByteString = ByteString
   getByteCountMutMem (MByteString bs) = pure $! Count (BS.length bs)
   {-# INLINE getByteCountMutMem #-}
   allocMutMem c = do
@@ -950,8 +957,18 @@ instance MemRead T.Array where
   compareByteOffMem mem off1 a = compareByteOffMem mem off1 (T.fromArrayBytes a)
   {-# INLINE compareByteOffMem #-}
 
+type instance Frozen T.MArray = T.Array
+
+instance MutFreeze T.MArray where
+  thaw = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
+  {-# INLINE thaw #-}
+  thawClone = fmap T.toMArrayMBytes . thawClone . T.fromArrayBytes
+  {-# INLINE thawClone #-}
+  freezeMut = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
+  {-# INLINE freezeMut #-}
+
+
 instance MemAlloc T.MArray where
-  type FrozenMem T.MArray = T.Array
   getByteCountMutMem = getByteCountMBytes . T.fromMArrayMBytes
   {-# INLINE getByteCountMutMem #-}
   allocMutMem = fmap T.toMArrayMBytes . allocUnpinnedMBytes
@@ -1130,7 +1147,7 @@ defaultReallocMutMem mem c = do
 
 -- | Place @n@ copies of supplied region of memory one after another in a newly allocated
 -- contiguous chunk of memory. Similar to `stimes`, but the source memory @memRead@ does
--- not have to match the type of `FrozenMem` ma.
+-- not have to match the type of `Frozen` ma.
 --
 -- ====__Example__
 --
@@ -1146,7 +1163,7 @@ cycleMemN ::
      forall ma mr. (MemAlloc ma, MemRead mr)
   => Int
   -> mr
-  -> FrozenMem ma
+  -> Frozen ma
 cycleMemN n r
   | n <= 0 = emptyMem
   | otherwise =
@@ -1161,7 +1178,7 @@ cycleMemN n r
 
 
 -- | Construct an immutable memory region that can't hold any data. Same as @`mempty` ::
--- `FrozenMem` ma@
+-- `Frozen` ma@
 --
 -- ====__Example__
 --
@@ -1174,7 +1191,7 @@ cycleMemN n r
 -- @since 0.1.0
 emptyMem ::
      forall ma. MemAlloc ma
-  => FrozenMem ma
+  => Frozen ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
 
@@ -1192,7 +1209,7 @@ emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 singletonMem ::
      forall e ma. (MemAlloc ma, Prim e)
   => e -- ^ The single element that will be stored in the newly allocated region of memory
-  -> FrozenMem ma
+  -> Frozen ma
 singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 {-# INLINE singletonMem #-}
 
@@ -1262,7 +1279,7 @@ createMemST ::
   -- ^ /memFillAction/ - This action will be used to modify the contents of newly
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
-  -> (b, FrozenMem ma)
+  -> (b, Frozen ma)
 createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
 {-# INLINE createMemST #-}
 
@@ -1286,7 +1303,7 @@ createMemST_ ::
   -- ^ /memFillAction/ - This action will be used to modify the contents of newly
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
-  -> FrozenMem ma
+  -> Frozen ma
 createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMutMem m)
 {-# INLINE createMemST_ #-}
 
@@ -1316,7 +1333,7 @@ createZeroMemST ::
   -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
-  -> (b, FrozenMem ma)
+  -> (b, Frozen ma)
 createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
 {-# INLINE createZeroMemST #-}
 
@@ -1361,7 +1378,7 @@ createZeroMemST_ ::
   -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
-  -> FrozenMem ma
+  -> Frozen ma
 createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
 {-# INLINE createZeroMemST_ #-}
 
@@ -1384,8 +1401,8 @@ createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
 -- @since 0.2.0
 cloneMem ::
      forall ma. MemAlloc ma
-  => FrozenMem ma -- ^ /memSource/ - immutable source memory.
-  -> FrozenMem ma
+  => Frozen ma -- ^ /memSource/ - immutable source memory.
+  -> Frozen ma
 cloneMem fm =
   runST $ do
     let n = byteCountMem fm
@@ -1470,7 +1487,7 @@ appendMem ::
      forall mr1 mr2 ma. (MemRead mr1, MemRead mr2, MemAlloc ma)
   => mr1
   -> mr2
-  -> FrozenMem ma
+  -> Frozen ma
 appendMem r1 r2 =
   createMemST_ (n1 + n2) $ \mem -> do
     copyMem r1 0 mem 0 n1
@@ -1483,7 +1500,7 @@ appendMem r1 r2 =
 concatMem ::
      forall mr ma. (MemRead mr, MemAlloc ma)
   => [mr]
-  -> FrozenMem ma
+  -> Frozen ma
 concatMem xs = do
   let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
   createMemST_ c $ \mb -> do
@@ -1514,7 +1531,7 @@ concatMem xs = do
 -- @since 0.1.0
 thawCloneMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
-  => FrozenMem ma
+  => Frozen ma
   -> m (ma s)
 thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 {-# INLINE thawCloneMem #-}
@@ -1543,7 +1560,7 @@ thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 -- @since 0.1.0
 thawCopyMem ::
      forall e ma m s. (Prim e, MemAlloc ma, MonadPrim s m)
-  => FrozenMem ma -- ^ /memSource/ - Read-only source memory region from which the data
+  => Frozen ma -- ^ /memSource/ - Read-only source memory region from which the data
                   -- will copied and thawed
   -> Off e
   -- ^ /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
@@ -1576,7 +1593,7 @@ freezeCopyMutMem ::
   => ma s
   -> Off e
   -> Count e
-  -> m (FrozenMem ma)
+  -> m (Frozen ma)
 freezeCopyMutMem mem off c = freezeMutMem mem >>= \r -> thawCopyMem r off c >>= freezeMutMem
 {-# INLINE freezeCopyMutMem #-}
 
@@ -1602,7 +1619,7 @@ freezeCopyMutMem mem off c = freezeMutMem mem >>= \r -> thawCopyMem r off c >>= 
 freezeCloneMutMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
-  -> m (FrozenMem ma)
+  -> m (Frozen ma)
 freezeCloneMutMem = freezeMutMem >=> thawCloneMem >=> freezeMutMem
 {-# INLINE freezeCloneMutMem #-}
 
@@ -1617,7 +1634,7 @@ freezeCloneMutMem = freezeMutMem >=> thawCloneMem >=> freezeMutMem
 -- [0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20]
 --
 -- @since 0.1.0
-convertMem :: (MemRead mr, MemAlloc ma) => mr -> FrozenMem ma
+convertMem :: (MemRead mr, MemAlloc ma) => mr -> Frozen ma
 convertMem m =
   let c = byteCountMem m
    in createMemST_ c (\mm -> copyMem m 0 mm 0 c)
@@ -1883,7 +1900,7 @@ foldrCountMem (Count k) c nil bs = go 0
 fromListMem ::
      forall e ma. (Prim e, MemAlloc ma)
   => [e]
-  -> FrozenMem ma
+  -> Frozen ma
 fromListMem xs =
   let count = coerce (length xs) `countForProxyTypeOf` xs
    in createMemST_ count (loadListMutMemN_ count xs)
@@ -1903,7 +1920,7 @@ fromListMem xs =
 fromByteListMem ::
      forall ma. MemAlloc ma
   => [Word8]
-  -> FrozenMem ma
+  -> Frozen ma
 fromByteListMem = fromListMem
 {-# INLINE fromByteListMem #-}
 
@@ -1957,7 +1974,7 @@ fromListMemN ::
   -- > unCount memCount <= length list
   -> [e]
   -- ^ /list/ - A list of elements to load into the newly allocated memory region.
-  -> (Either [e] (Count e), FrozenMem ma)
+  -> (Either [e] (Count e), Frozen ma)
 fromListMemN count xs =
   createMemST count $ \mm -> do
     (ys, loadedCount) <- loadListOffMutMemN count xs mm 0
@@ -1983,7 +2000,7 @@ fromListZeroMemN ::
      forall e ma. (Prim e, MemAlloc ma)
   => Count e -- ^ /memCount/ - Number of elements to load from the list.
   -> [e]
-  -> (Either [e] (Count e), FrozenMem ma)
+  -> (Either [e] (Count e), Frozen ma)
 fromListZeroMemN count xs =
   createMemST (max 0 count) $ \mm -> do
     (ys, loadedCount) <- loadListOffMutMemN count xs mm 0
@@ -2009,7 +2026,7 @@ fromListZeroMemN_ ::
      forall e ma. (Prim e, MemAlloc ma)
   => Count e
   -> [e]
-  -> FrozenMem ma
+  -> Frozen ma
 fromListZeroMemN_ !n = snd . fromListZeroMemN n
 {-# INLINE fromListZeroMemN_ #-}
 
@@ -2345,7 +2362,7 @@ loadListMutMem_ ys mb = getCountMutMem mb >>= \c -> loadListMutMemN_ (c `countFo
 -- @since 0.1.0
 toByteListMem ::
      forall ma. MemAlloc ma
-  => FrozenMem ma
+  => Frozen ma
   -> [Word8]
 toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
@@ -2354,7 +2371,7 @@ toByteListMem = toListMem
 --      forall e e' mr ma. (MemRead mr, MemAlloc ma, Prim e, Prim e')
 --   => (e -> e')
 --   -> mr
---   -> (FrozenMem ma, [Word8])
+--   -> (Frozen ma, [Word8])
 -- mapMem f = undefined
 
 
@@ -2362,7 +2379,7 @@ mapByteMem ::
      forall e mr ma. (MemRead mr, MemAlloc ma, Prim e)
   => (Word8 -> e)
   -> mr
-  -> FrozenMem ma
+  -> Frozen ma
 mapByteMem f = imapByteOffMem (const f)
 
 -- Map an index aware function over memory region
@@ -2376,7 +2393,7 @@ mapByteMem f = imapByteOffMem (const f)
 --
 -- @since 0.1.0
 imapByteOffMem ::
-     (MemRead mr, MemAlloc ma, Prim e) => (Off Word8 -> Word8 -> e) -> mr -> FrozenMem ma
+     (MemRead mr, MemAlloc ma, Prim e) => (Off Word8 -> Word8 -> e) -> mr -> Frozen ma
 imapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
@@ -2384,7 +2401,7 @@ mapByteMemM ::
      (MemRead mr, MemAlloc ma, MonadPrim s m, Prim e)
   => (Word8 -> m e)
   -> mr
-  -> m (FrozenMem ma)
+  -> m (Frozen ma)
 mapByteMemM f = mapByteOffMemM (const f)
 
 
@@ -2393,7 +2410,7 @@ mapByteOffMemM ::
      forall e mr ma m s. (MemRead mr, MemAlloc ma, MonadPrim s m, Prim e)
   => (Off Word8 -> Word8 -> m e)
   -> mr
-  -> m (FrozenMem ma)
+  -> m (Frozen ma)
 mapByteOffMemM f r = do
   let bc@(Count n) = byteCountMem r
       c = Count n `countForProxyTypeOf` f 0 0
@@ -2699,7 +2716,6 @@ instance MemRead (Bytes p) where
   {-# INLINE compareByteOffMem #-}
 
 instance Typeable p => MemAlloc (MBytes p) where
-  type FrozenMem (MBytes p) = Bytes p
   getByteCountMutMem = getByteCountMBytes
   {-# INLINE getByteCountMutMem #-}
   allocMutMem = allocMBytes
@@ -2751,6 +2767,7 @@ instance Typeable p => IsList (Bytes p) where
 instance Eq (Bytes p) where
   b1 == b2 = isSameBytes b1 b2 || eqByteMem b1 b2
   {-# INLINE (==) #-}
+
 
 instance Ord (Bytes p) where
   compare b1 b2 =

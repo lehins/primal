@@ -1,5 +1,7 @@
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Mutable.Freeze
 -- Copyright   : (c) Alexey Kuleshevich 2021
@@ -12,6 +14,7 @@ module Primal.Mutable.Freeze where
 
 import Primal.Monad
 import Primal.Array
+import Primal.Foreign
 
 type family Frozen (mut :: k -> *) = (frozen :: k) | frozen -> mut
 
@@ -105,16 +108,14 @@ instance MutFreeze (SBMArray e) where
 
 type instance Frozen (UMArray e) = UArray e
 
-instance Prim e => MutFreeze (UMArray e) where
+instance MutFreeze (UMArray e) where
   thaw = thawUArray
   {-# INLINE thaw #-}
-  -- clone arr = cloneSliceUArray arr 0 (sizeOfUArray arr)
-  -- {-# INLINE clone #-}
-  thawClone arr = thawCopyUArray arr 0 (sizeOfUArray arr)
+  thawClone (UArray arr#) = do
+    let n# = sizeofByteArray# arr#
+    prim $ \s ->
+      case newByteArray# n# s of
+        (# s', marr# #) -> (# copyByteArray# arr# 0# marr# 0# n# s', UMArray marr# #)
   {-# INLINE thawClone #-}
   freezeMut = freezeUMArray
   {-# INLINE freezeMut #-}
-  -- cloneMut marr = getSizeOfUMArray marr >>= cloneSliceUMArray marr 0
-  -- {-# INLINE cloneMut #-}
-  -- freezeCloneMut marr = getSizeOfUMArray marr >>= freezeCopyUMArray marr 0
-  -- {-# INLINE freezeCloneMut #-}

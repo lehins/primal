@@ -26,10 +26,14 @@ module Primal.Foreign.C
   , isSameMutableByteArray#
   , toOrdering#
   , fromOrdering#
+  , toOrdering
+  , fromOrdering
   , memcmpAddr#
   , memcmpAddrByteArray#
   , memcmpByteArray#
   , memcmpByteArrayAddr#
+  , memcmpMutableByteArray#
+  , memcmpMutableByteArrayAddr#
   -- ** Setting memory
   , memsetWord8MutableByteArray#
   , memsetWord8Addr#
@@ -72,6 +76,14 @@ foreign import ccall unsafe "primal.c primal_ptreq"
 foreign import ccall unsafe "primal.c primal_ptreq"
   isSameMutableByteArray# :: MutableByteArray# s -> MutableByteArray# s -> Int#
 
+toOrdering :: Int -> Ordering
+toOrdering (I# i#) = toOrdering# i#
+{-# INLINE toOrdering #-}
+
+fromOrdering :: Ordering -> Int
+fromOrdering o = I# (fromOrdering# o)
+{-# INLINE fromOrdering #-}
+
 -- | Convert memcmp result into an ordering
 toOrdering# :: Int# -> Ordering
 toOrdering# =
@@ -81,6 +93,7 @@ toOrdering# =
       if isTrue# (n# <# 0#)
         then LT
         else GT
+{-# INLINE toOrdering# #-}
 
 fromOrdering# :: Ordering -> Int#
 fromOrdering# =
@@ -88,6 +101,7 @@ fromOrdering# =
     EQ -> 0#
     LT -> -1#
     GT -> 1#
+{-# INLINE fromOrdering# #-}
 
 foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpAddr# :: Addr# -> Int# -> Addr# -> Int# -> Int# -> Int#
@@ -97,6 +111,10 @@ foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpByteArray# :: ByteArray# -> Int# -> ByteArray# -> Int# -> Int# -> Int#
 foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpByteArrayAddr# :: ByteArray# -> Int# -> Addr# -> Int# -> Int# -> Int#
+foreign import ccall unsafe "primal.c primal_memcmp"
+  memcmpMutableByteArray# :: MutableByteArray# s -> Int# -> MutableByteArray# s -> Int# -> Int# -> IO Int
+foreign import ccall unsafe "primal.c primal_memcmp"
+  memcmpMutableByteArrayAddr# :: MutableByteArray# s -> Int# -> Addr# -> Int# -> Int# -> IO Int
 
 foreign import ccall unsafe "primal.c primal_memset8"
   memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()

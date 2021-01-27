@@ -10,7 +10,7 @@ import Primal.Monad
 import Criterion.Main
 import Data.Coerce
 import qualified Data.IORef as Base
-import Primal.Data.Ref
+import Primal.Ref
 import qualified UnliftIO.MVar as Unlift
 import Data.Atomics (atomicModifyIORefCAS, atomicModifyIORefCAS_)
 

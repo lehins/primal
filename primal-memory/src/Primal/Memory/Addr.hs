@@ -145,6 +145,9 @@ import Control.Arrow (first)
 import Primal.Eval
 import Primal.Monad
 import Primal.Monad.Unsafe
+import Primal.Mutable.Eq
+import Primal.Mutable.Ord
+import Primal.Mutable.Freeze
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.List.NonEmpty (NonEmpty(..))
@@ -216,6 +219,15 @@ instance Monoid.Monoid (Addr e) where
   mempty = emptyMem
   {-# INLINE mempty #-}
 
+type instance Frozen (MAddr e) = Addr e
+
+instance MutFreeze (MAddr e) where
+  thaw = thawAddr
+  {-# INLINE thaw #-}
+  clone = cloneMem
+  {-# INLINE clone #-}
+  freezeMut = freezeMAddr
+  {-# INLINE freezeMut #-}
 
 castAddr :: Addr e -> Addr b
 castAddr (Addr a b) = Addr a b
@@ -447,7 +459,6 @@ instance PtrAccess s (MAddr e s) where
 
 
 instance MemAlloc (MAddr e) where
-  type FrozenMem (MAddr e) = Addr e
   getByteCountMutMem = getByteCountMAddr
   {-# INLINE getByteCountMutMem #-}
   allocMutMem = fmap castMAddr . allocMAddr

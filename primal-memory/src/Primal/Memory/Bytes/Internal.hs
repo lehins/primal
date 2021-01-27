@@ -50,6 +50,7 @@ module Primal.Memory.Bytes.Internal
   , indexOffBytes
   , indexByteOffBytes
   , compareByteOffBytes
+  , compareByteOffMBytes
   , byteCountBytes
   , countBytes
   , getCountMBytes
@@ -81,10 +82,13 @@ module Primal.Memory.Bytes.Internal
 import Control.DeepSeq
 import Data.Typeable
 import GHC.ForeignPtr
-import Primal.Data.Array
+import Primal.Array.Unboxed
 import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
+import Primal.Mutable.Eq
+import Primal.Mutable.Ord
+import Primal.Mutable.Freeze
 import Primal.Monad.Unsafe
 import Primal.Prim
 import Primal.Prim.Class
@@ -142,6 +146,34 @@ instance NFData (Bytes p) where
 instance NFData (MBytes p s) where
   rnf (MBytes _) = ()
 
+type instance Frozen (MBytes p) = Bytes p
+
+instance Typeable p => MutFreeze (MBytes p) where
+  thaw = thawBytes
+  {-# INLINE thaw #-}
+  thawClone bs = do
+    let bytes = byteCountBytes bs
+    mbs <- allocMBytes bytes
+    mbs <$ copyByteOffBytesToMBytes bs 0 mbs 0 bytes
+  {-# INLINE thawClone #-}
+  freezeMut = freezeMBytes
+  {-# INLINE freezeMut #-}
+
+instance MutEq (MBytes p) where
+  eqMut mbs1 mbs2 = (EQ ==) <$> compareMut mbs1 mbs2
+  {-# INLINE eqMut #-}
+
+instance MutOrd (MBytes p) where
+  compareMut mbs1 mbs2
+    | isSameMBytes mbs1 mbs2 = pure EQ
+    | otherwise = do
+      sz1 <- getByteCountMBytes mbs1
+      sz2 <- getByteCountMBytes mbs2
+      case compare sz1 sz2 of
+        EQ -> compareByteOffMBytes mbs1 0 mbs2 0 sz1
+        cmp -> pure cmp
+  {-# INLINE compareMut #-}
+
 
 -- | Unwrap `Bytes` to get the underlying `ByteArray#`.
 --
@@ -176,6 +208,18 @@ compareByteOffBytes :: Prim e => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 
 compareByteOffBytes (Bytes b1#) (Off (I# off1#)) (Bytes b2#) (Off (I# off2#)) c =
   toOrdering# (compareByteArrays# b1# off1# b2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffBytes #-}
+
+compareByteOffMBytes ::
+     (Prim e, MonadPrim s m)
+  => MBytes p1 s
+  -> Off Word8
+  -> MBytes p2 s
+  -> Off Word8
+  -> Count e
+  -> m Ordering
+compareByteOffMBytes (MBytes mb1#) (Off (I# off1#)) (MBytes mb2#) (Off (I# off2#)) c =
+  toOrdering <$> unsafeIOToPrim (memcmpMutableByteArray# mb1# off1# mb2# off2# (unCountBytes# c))
+{-# INLINE compareByteOffMBytes #-}
 
 indexOffBytes :: Prim e => Bytes p -> Off e -> e
 indexOffBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#

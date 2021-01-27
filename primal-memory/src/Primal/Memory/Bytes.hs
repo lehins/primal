@@ -17,7 +17,7 @@
 --
 module Primal.Memory.Bytes
   ( module Primal.Prim
-    -- * Mutable
+    -- * Immutable
   , Bytes
   , toByteArray#
   , fromByteArray#
@@ -56,6 +56,7 @@ module Primal.Memory.Bytes
   , countRemBytes
   , compareBytes
   , compareByteOffBytes
+  , compareByteOffMBytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
@@ -172,6 +173,18 @@ compareBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> O
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (unOffBytes# off1) b2# (unOffBytes# off2) (unCountBytes# c))
 {-# INLINE compareBytes #-}
+
+-- compareMBytes ::
+--      (Prim e, MonadPrim s m)
+--   => MBytes p1 s
+--   -> Off e
+--   -> MBytes p2 s
+--   -> Off e
+--   -> Count e
+--   -> m Ordering
+-- compareMBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
+--   toOrdering# (compareByteArrays# b1# (unOffBytes# off1) b2# (unOffBytes# off2) (unCountBytes# c))
+-- {-# INLINE compareBytes #-}
 
 
 -- | This function allows the change of state token. Use with care, because it can allow
