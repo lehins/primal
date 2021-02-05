@@ -8,10 +8,10 @@
 --
 module Primal.Array
   ( -- $arrays
-    Size(..)
-  , module Primal.Array.Boxed
+    module Primal.Array.Boxed
   , module Primal.Array.SmallBoxed
   , module Primal.Array.Unboxed
+  , Size(..)
     -- * Helper functions
   , uninitialized
   , makeMutWith

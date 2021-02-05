@@ -40,19 +40,16 @@ library
                      , Primal.Container.Ref
                      , Primal.Container.Ref.Atomic
 
-                     , Primal.Container.Atomic.Array
-                     , Primal.Container.Atomic.Ref
-
-                       Primal.Container.Mutable.Array
-                     , Primal.Container.Mutable.Array.Atomic
-                     , Primal.Container.Mutable.Ref
-                     , Primal.Container.Mutable.Ref.Atomic
-                     , Primal.Data.Array.Boxed
-                     , Primal.Data.Array.Boxed.Small
+                     --   Primal.Container.Mutable.Array
+                     -- , Primal.Container.Mutable.Array.Atomic
+                     -- , Primal.Container.Mutable.Ref
+                     -- , Primal.Container.Mutable.Ref.Atomic
+                     -- , Primal.Data.Array.Boxed
+                     -- , Primal.Data.Array.Boxed.Small
                      --, Primal.Data.Array.Unboxed
                      --, Primal.Data.Array.Unboxed.Pinned
                      , Primal.Container.Internal
-                     , Primal.Data.Array.Unboxed.Ragged
+                     , Primal.Array.Ragged.Unboxed
   other-modules:       Primal.Container.Mutable.Ref.Internal
                      , Primal.Container.Mutable.Array.Internal
   build-depends:       base >= 4.9 && < 5

@@ -45,6 +45,7 @@ library
                      , Primal.Mutable.Freeze
                      , Primal.Mutable.Eq
                      , Primal.Mutable.Ord
+                     --, Primal.Mutable.Show
 
                      , Primal.Prim
                        -- ^ consider Unpack name instead
@@ -57,13 +58,11 @@ library
 
 
                      , Primal.Ref
-                     -- , Primal.Data.Ref.Boxed
-                     -- , Primal.Data.Ref.Unboxed
+                     -- , Primal.Ref.Boxed
+                     -- , Primal.Ref.Boxed.Atomic
+                     -- , Primal.Ref.Unboxed
+                     -- , Primal.Ref.Unboxed.Atomic
                      , Primal.Data.Mutable.Foldable
-                     -- , primal.Mutable.Eq
-                     -- , Primal.Mutable.Ord
-                     -- , Primal.Mutable.Foldable
-                       -- fix ^
 
                      , Primal.Mem
                      , Primal.Mem.Weak
