@@ -149,8 +149,8 @@ class Elt f e => MFilter (f :: * -> * -> *) e where
   mfilterM :: MonadPrim s m => (e -> m Bool) -> f e s -> m (f e s)
   mfilterM f = mliftMaybeM (\x -> (\y -> if y then Just x else Nothing) <$> f x)
 
--- instance FoldMut Ref e where
---   foldlMutM f acc ref = readRef ref >>= f acc
+-- instance FoldMut BRef e where
+--   foldlMutM f acc ref = readBRef ref >>= f acc
 
 
 -- instance KeyPFunctor [] Int a b where
@@ -204,8 +204,8 @@ class FoldMut (f :: * -> * -> *) e where
   foldlMutM :: MonadPrim s m => (a -> e -> m a) -> a -> f e s -> m a
 
 
-instance FoldMut Ref e where
-  foldlMutM f acc ref = readRef ref >>= f acc
+instance FoldMut BRef e where
+  foldlMutM f acc ref = readBRef ref >>= f acc
 
 
 instance Prim e => FoldMut UMArray e where

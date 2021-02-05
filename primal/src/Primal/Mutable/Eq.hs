@@ -22,8 +22,8 @@ class MutEq mut where
   eqMut ma mb = (==) <$> freezeMut ma <*> freezeMut mb
   {-# INLINE eqMut #-}
 
-instance Eq e => MutEq (Ref e) where
-  eqMut m1 m2 = (==) <$> readRef m1 <*> readRef m2
+instance Eq e => MutEq (BRef e) where
+  eqMut m1 m2 = (==) <$> readBRef m1 <*> readBRef m2
   {-# INLINE eqMut #-}
 
 

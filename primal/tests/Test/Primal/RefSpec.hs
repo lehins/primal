@@ -14,199 +14,199 @@ import Primal.Mem.Weak
 import Test.Hspec
 import System.Mem (performGC)
 
-instance Typeable a => Show (Ref a RW) where
-  show _ = "Ref " ++ showsType (Proxy :: Proxy a) " RW"
+instance Typeable a => Show (BRef a RW) where
+  show _ = "BRef " ++ showsType (Proxy :: Proxy a) " RW"
 
-data RefException =
-  RefException
+data BRefException =
+  BRefException
   deriving (Show, Eq)
-instance Exception RefException
+instance Exception BRefException
 
 
 spec :: Spec
 spec = do
-  describe "Ref" $ do
-    it "isSameRef" $ do
-      ref1 <- newRef ()
-      isSameRef ref1 ref1 `shouldBe` True
+  describe "BRef" $ do
+    it "isSameBRef" $ do
+      ref1 <- newBRef ()
+      isSameBRef ref1 ref1 `shouldBe` True
       ref1 `shouldBe` ref1
-      ref2 <- newRef ()
-      isSameRef ref1 ref2 `shouldBe` False
+      ref2 <- newBRef ()
+      isSameBRef ref1 ref2 `shouldBe` False
       ref1 `shouldSatisfy` (/= ref2)
-    it "newRef" $ do
-      ref <- newRef 'h'
-      readRef ref `shouldReturn` 'h'
-      newRef (impureThrow RefException) `shouldThrow` (== RefException)
-      n :: Ref (Maybe Integer) RW <- newRef (Just (impureThrow RefException))
-      mRes <- readRef n
+    it "newBRef" $ do
+      ref <- newBRef 'h'
+      readBRef ref `shouldReturn` 'h'
+      newBRef (impureThrow BRefException) `shouldThrow` (== BRefException)
+      n :: BRef (Maybe Integer) RW <- newBRef (Just (impureThrow BRefException))
+      mRes <- readBRef n
       mRes `shouldSatisfy` isJust
-      deepeval mRes `shouldThrow` (== RefException)
-    it "newLazyRef" $ do
-      ref <- newLazyRef 'h'
-      readRef ref `shouldReturn` 'h'
-      n <- newLazyRef (impureThrow RefException)
-      evalM (readRef n) `shouldThrow` (== RefException)
-    it "newDeepRef" $ do
-      ref <- newDeepRef 'h'
-      readRef ref `shouldReturn` 'h'
-      newDeepRef (impureThrow RefException :: Int) `shouldThrow` (== RefException)
-      newDeepRef (Just (impureThrow RefException :: Integer)) `shouldThrow` (== RefException)
-    it "readRef" $ do
-      ref <- newRef "Hello"
-      readRef ref `shouldReturn` "Hello"
-    it "writeRef" $ do
-      ref <- newRef "Hello"
-      readRef ref `shouldReturn` "Hello"
-      writeRef ref "World"
-      readRef ref `shouldReturn` "World"
-    it "swapRef" $ do
-      ref <- newRef "Hello"
-      swapRef ref "World" `shouldReturn` "Hello"
-      swapRef ref (impureThrow RefException) `shouldThrow` (== RefException)
-      readRef ref `shouldReturn` "World"
-    it "swapLazyRef" $ do
-      ref <- newRef "Hello"
-      swapLazyRef ref "World" `shouldReturn` "Hello"
-      readRef ref `shouldReturn` "World"
-      swapLazyRef ref (impureThrow RefException) `shouldReturn` "World"
-      res <- readRef ref
-      eval res `shouldThrow` (== RefException)
-    it "swapDeepRef" $ do
-      ref <- newRef "Hello"
-      swapDeepRef ref "World" `shouldReturn` "Hello"
-      swapDeepRef ref ("Booyah" ++ impureThrow RefException) `shouldThrow` (== RefException)
-      readRef ref `shouldReturn` "World"
-    it "modifyRef" $ do
-      ref <- newRef "Hello"
-      modifyRef ref (\x -> (x ++ " World", length x)) `shouldReturn` 5
-      flip shouldThrow (== RefException) $ modifyRef ref $ \x -> (impureThrow RefException, x)
-      readRef ref `shouldReturn` "Hello World"
-      _ <- modifyRef ref $ \x -> (x ++ "!!!", impureThrow RefException)
-      readRef ref `shouldReturn` "Hello World!!!"
-    -- it "modifyFetchOldRef" $ do
-    --   ref <- newRef "Hello"
-    --   modifyRef ref (++ " World") `shouldReturn` "Hello"
-    --   flip shouldThrow (== RefException) $ modifyRef ref $ \_ -> impureThrow RefException
-    --   readRef ref `shouldReturn` "Hello World"
-    it "modifyRefM_" $ do
-      ref <- newRef "Hello"
-      modifyRefM_ ref $ \x -> do
+      deepeval mRes `shouldThrow` (== BRefException)
+    it "newLazyBRef" $ do
+      ref <- newLazyBRef 'h'
+      readBRef ref `shouldReturn` 'h'
+      n <- newLazyBRef (impureThrow BRefException)
+      evalM (readBRef n) `shouldThrow` (== BRefException)
+    it "newDeepBRef" $ do
+      ref <- newDeepBRef 'h'
+      readBRef ref `shouldReturn` 'h'
+      newDeepBRef (impureThrow BRefException :: Int) `shouldThrow` (== BRefException)
+      newDeepBRef (Just (impureThrow BRefException :: Integer)) `shouldThrow` (== BRefException)
+    it "readBRef" $ do
+      ref <- newBRef "Hello"
+      readBRef ref `shouldReturn` "Hello"
+    it "writeBRef" $ do
+      ref <- newBRef "Hello"
+      readBRef ref `shouldReturn` "Hello"
+      writeBRef ref "World"
+      readBRef ref `shouldReturn` "World"
+    it "swapBRef" $ do
+      ref <- newBRef "Hello"
+      swapBRef ref "World" `shouldReturn` "Hello"
+      swapBRef ref (impureThrow BRefException) `shouldThrow` (== BRefException)
+      readBRef ref `shouldReturn` "World"
+    it "swapLazyBRef" $ do
+      ref <- newBRef "Hello"
+      swapLazyBRef ref "World" `shouldReturn` "Hello"
+      readBRef ref `shouldReturn` "World"
+      swapLazyBRef ref (impureThrow BRefException) `shouldReturn` "World"
+      res <- readBRef ref
+      eval res `shouldThrow` (== BRefException)
+    it "swapDeepBRef" $ do
+      ref <- newBRef "Hello"
+      swapDeepBRef ref "World" `shouldReturn` "Hello"
+      swapDeepBRef ref ("Booyah" ++ impureThrow BRefException) `shouldThrow` (== BRefException)
+      readBRef ref `shouldReturn` "World"
+    it "modifyBRef" $ do
+      ref <- newBRef "Hello"
+      modifyBRef ref (\x -> (x ++ " World", length x)) `shouldReturn` 5
+      flip shouldThrow (== BRefException) $ modifyBRef ref $ \x -> (impureThrow BRefException, x)
+      readBRef ref `shouldReturn` "Hello World"
+      _ <- modifyBRef ref $ \x -> (x ++ "!!!", impureThrow BRefException)
+      readBRef ref `shouldReturn` "Hello World!!!"
+    -- it "modifyFetchOldBRef" $ do
+    --   ref <- newBRef "Hello"
+    --   modifyBRef ref (++ " World") `shouldReturn` "Hello"
+    --   flip shouldThrow (== BRefException) $ modifyBRef ref $ \_ -> impureThrow BRefException
+    --   readBRef ref `shouldReturn` "Hello World"
+    it "modifyBRefM_" $ do
+      ref <- newBRef "Hello"
+      modifyBRefM_ ref $ \x -> do
         x `shouldBe` "Hello"
         pure $ x ++ " World"
-      flip shouldThrow (== RefException) $ modifyRefM_ ref $ \x -> do
+      flip shouldThrow (== BRefException) $ modifyBRefM_ ref $ \x -> do
         x `shouldBe` "Hello World"
-        pure $ impureThrow RefException
-      readRef ref `shouldReturn` "Hello World"
+        pure $ impureThrow BRefException
+      readBRef ref `shouldReturn` "Hello World"
 
     --   -- Verify value restoration on WHNF evaluation error
-    --   modifyRef_ ref (\x -> do
-    --     isEmptyRef ref  `shouldReturn` True
+    --   modifyBRef_ ref (\x -> do
+    --     isEmptyBRef ref  `shouldReturn` True
     --     x `shouldBe` "Hello World"
-    --     pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   readRef ref `shouldReturn` "Hello World"
+    --     pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   readBRef ref `shouldReturn` "Hello World"
 
     --   -- check that it is interruptible and that the value is overwritten
-    --   timeout 50000 (modifyRef_ ref (\_ -> putRef ref "Foo" >> pure "Bar")) `shouldReturn` Nothing
-    --   readRef ref `shouldReturn` "Foo"
+    --   timeout 50000 (modifyBRef_ ref (\_ -> putBRef ref "Foo" >> pure "Bar")) `shouldReturn` Nothing
+    --   readBRef ref `shouldReturn` "Foo"
 
     --    -- check that it is interruptible in the exception handler and that the value is
     --    -- overwritten
-    --   timeout 50000 (modifyRef_ ref (\_ -> do
-    --                                 putRef ref "Goodbye"
-    --                                 "World" <$ throw RefException
+    --   timeout 50000 (modifyBRef_ ref (\_ -> do
+    --                                 putBRef ref "Goodbye"
+    --                                 "World" <$ throw BRefException
     --                             )) `shouldReturn` Nothing
-    --   takeRef ref `shouldReturn` "Goodbye"
+    --   takeBRef ref `shouldReturn` "Goodbye"
 
     --   -- check that it is interruptible on empty
-    --   timeout 50000 (modifyRef_ ref pure) `shouldReturn` Nothing
-    -- it "modifyRefMasked_" $ do
-    --   ref <- newRef "Hello"
+    --   timeout 50000 (modifyBRef_ ref pure) `shouldReturn` Nothing
+    -- it "modifyBRefMasked_" $ do
+    --   ref <- newBRef "Hello"
 
     --   -- check masking state and actual modification
-    --   modifyRefMasked_ ref $ \x -> do
+    --   modifyBRefMasked_ ref $ \x -> do
     --     x `shouldBe` "Hello"
     --     getMaskingState `shouldReturn` MaskedInterruptible
     --     pure $ x ++ " World"
 
     --   -- Verify value restoration on WHNF evaluation error
-    --   modifyRefMasked_ ref (\x -> do
-    --     isEmptyRef ref  `shouldReturn` True
+    --   modifyBRefMasked_ ref (\x -> do
+    --     isEmptyBRef ref  `shouldReturn` True
     --     x `shouldBe` "Hello World"
-    --     pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   readRef ref `shouldReturn` "Hello World"
+    --     pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   readBRef ref `shouldReturn` "Hello World"
 
     --   -- check that it is interruptible and that the value is overwritten
-    --   timeout 50000 (modifyRefMasked_ ref (\_ -> putRef ref "Foo" >> pure "Bar"))
+    --   timeout 50000 (modifyBRefMasked_ ref (\_ -> putBRef ref "Foo" >> pure "Bar"))
     --     `shouldReturn` Nothing
-    --   readRef ref `shouldReturn` "Foo"
+    --   readBRef ref `shouldReturn` "Foo"
 
     --    -- check that it is interruptible in the exception handler and that the value is
     --    -- overwritten
-    --   timeout 50000 (modifyRefMasked_ ref (\_ -> do
-    --                                 putRef ref "Goodbye"
-    --                                 "World" <$ throw RefException
+    --   timeout 50000 (modifyBRefMasked_ ref (\_ -> do
+    --                                 putBRef ref "Goodbye"
+    --                                 "World" <$ throw BRefException
     --                             )) `shouldReturn` Nothing
-    --   takeRef ref `shouldReturn` "Goodbye"
+    --   takeBRef ref `shouldReturn` "Goodbye"
 
     --   -- check that it is interruptible on empty
-    --   timeout 50000 (modifyRefMasked_ ref pure) `shouldReturn` Nothing
-    -- it "modifyFetchOldRef" $ do
-    --   ref <- newRef "Hello"
-    --   modifyFetchOldRef ref (pure . (++ " World")) `shouldReturn` "Hello"
-    --   readRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldRef ref (\ _ -> pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   takeRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchOldRefMasked" $ do
-    --   ref <- newRef "Hello"
-    --   modifyFetchOldRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello"
-    --   readRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldRefMasked ref (\ _ -> pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   takeRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchNewRef" $ do
-    --   ref <- newRef "Hello"
-    --   modifyFetchNewRef ref (pure . (++ " World")) `shouldReturn` "Hello World"
-    --   readRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewRef ref (\ _ -> pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   takeRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchNewRefMasked" $ do
-    --   ref <- newRef "Hello"
-    --   modifyFetchNewRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello World"
-    --   readRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewRefMasked ref (\ _ -> pure $ impureThrow RefException)
-    --     `shouldThrow` (==RefException)
-    --   takeRef ref `shouldReturn` "Hello World"
-    -- -- xit "modifyRef" (pure () :: IO ())
-    -- -- xit "modifyRefMasked" (pure () :: IO ())
-    -- it "toBaseRef" $ do
-    --   ref <- newRef ()
-    --   Base.takeRef (toBaseRef ref) `shouldReturn` ()
-    --   isEmptyRef ref `shouldReturn` True
-    -- it "fromBaseRef" $ do
-    --   ref <- Base.newRef ()
-    --   takeRef (fromBaseRef ref) `shouldReturn` ()
-    --   Base.isEmptyRef ref `shouldReturn` True
-    -- describe "mkWeakRef" $ do
+    --   timeout 50000 (modifyBRefMasked_ ref pure) `shouldReturn` Nothing
+    -- it "modifyFetchOldBRef" $ do
+    --   ref <- newBRef "Hello"
+    --   modifyFetchOldBRef ref (pure . (++ " World")) `shouldReturn` "Hello"
+    --   readBRef ref `shouldReturn` "Hello World"
+    --   modifyFetchOldBRef ref (\ _ -> pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   takeBRef ref `shouldReturn` "Hello World"
+    -- it "modifyFetchOldBRefMasked" $ do
+    --   ref <- newBRef "Hello"
+    --   modifyFetchOldBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello"
+    --   readBRef ref `shouldReturn` "Hello World"
+    --   modifyFetchOldBRefMasked ref (\ _ -> pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   takeBRef ref `shouldReturn` "Hello World"
+    -- it "modifyFetchNewBRef" $ do
+    --   ref <- newBRef "Hello"
+    --   modifyFetchNewBRef ref (pure . (++ " World")) `shouldReturn` "Hello World"
+    --   readBRef ref `shouldReturn` "Hello World"
+    --   modifyFetchNewBRef ref (\ _ -> pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   takeBRef ref `shouldReturn` "Hello World"
+    -- it "modifyFetchNewBRefMasked" $ do
+    --   ref <- newBRef "Hello"
+    --   modifyFetchNewBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello World"
+    --   readBRef ref `shouldReturn` "Hello World"
+    --   modifyFetchNewBRefMasked ref (\ _ -> pure $ impureThrow BRefException)
+    --     `shouldThrow` (==BRefException)
+    --   takeBRef ref `shouldReturn` "Hello World"
+    -- -- xit "modifyBRef" (pure () :: IO ())
+    -- -- xit "modifyBRefMasked" (pure () :: IO ())
+    -- it "toBaseBRef" $ do
+    --   ref <- newBRef ()
+    --   Base.takeBRef (toBaseBRef ref) `shouldReturn` ()
+    --   isEmptyBRef ref `shouldReturn` True
+    -- it "fromBaseBRef" $ do
+    --   ref <- Base.newBRef ()
+    --   takeBRef (fromBaseBRef ref) `shouldReturn` ()
+    --   Base.isEmptyBRef ref `shouldReturn` True
+    -- describe "mkWeakBRef" $ do
     --   it "performGC" $ do
-    --     seref <- newEmptyRef
+    --     seref <- newEmptyBRef
     --     void $ fork $ do
-    --       ref <- newEmptyRef
-    --       _weak <- mkWeakRef ref $ putRef seref ()
+    --       ref <- newEmptyBRef
+    --       _weak <- mkWeakBRef ref $ putBRef seref ()
     --       performGC
-    --     takeRef seref `shouldReturn` ()
+    --     takeBRef seref `shouldReturn` ()
     --   it "finalizeWeak" $ do
-    --     seref <- newEmptyRef
-    --     ref <- newRef "Hello"
-    --     weak <- mkWeakRef ref $ putRef seref ()
-    --     deRefWeak weak >>= \case
+    --     seref <- newEmptyBRef
+    --     ref <- newBRef "Hello"
+    --     weak <- mkWeakBRef ref $ putBRef seref ()
+    --     deBRefWeak weak >>= \case
     --       Nothing -> expectationFailure "Empty weak ref"
     --       Just ref' -> do
     --         ref' `shouldBe` ref
-    --         readRef ref' `shouldReturn` "Hello"
+    --         readBRef ref' `shouldReturn` "Hello"
     --     finalizeWeak weak
-    --     takeRef sem `shouldReturn` ()
+    --     takeBRef sem `shouldReturn` ()
 

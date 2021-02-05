@@ -1097,10 +1097,10 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 --
 -- >>> expected <- readBMArray ma 2
 -- >>> r@(_, currentValue) <- casBMArray ma 2 expected 1000
--- >>> freezeBMArray ma
--- BArray [0,10,1000,30,40]
 -- >>> r
 -- (True,1000)
+-- >>> freezeBMArray ma
+-- BArray [0,10,1000,30,40]
 --
 -- In a concurrent setting current value can potentially be modified by some other
 -- thread, therefore returned value can be immediately used as the expected one to the

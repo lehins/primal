@@ -18,8 +18,8 @@ main :: IO ()
 main = do
   let !i0 = 16 :: Integer
       !i1 = 17 :: Integer
-      envRef :: NFData e => e -> (Ref e RW -> Benchmark) -> Benchmark
-      envRef e g = e `deepseq` env (BNF <$> newRef e) $ \ref -> g (coerce ref)
+      envBRef :: NFData e => e -> (BRef e RW -> Benchmark) -> Benchmark
+      envBRef e g = e `deepseq` env (BNF <$> newBRef e) $ \ref -> g (coerce ref)
       envIORef :: NFData e => e -> (Base.IORef e -> Benchmark) -> Benchmark
       envIORef e g =
         e `deepseq` env (BNF <$> Base.newIORef e) $ \ref -> g (coerce ref)
@@ -33,7 +33,7 @@ main = do
         "Int"
         [ bgroup
             "new"
-            [ bench "newRef" $ whnfIO $ newRef i0
+            [ bench "newBRef" $ whnfIO $ newBRef i0
             , bench "newIORef (base)" $ whnfIO $ Base.newIORef i0
             , bench "newEmptyMVar" $ whnfIO newEmptyMVar
             , bench "newEmptyMVar (base)" $ whnfIO Base.newEmptyMVar
@@ -44,7 +44,7 @@ main = do
             ]
         , bgroup
             "read"
-            [ envRef i0 $ \ref -> bench "readRef" $ whnfIO $ readRef ref
+            [ envBRef i0 $ \ref -> bench "readBRef" $ whnfIO $ readBRef ref
             , envIORef i0 $ \ref ->
                 bench "readIORef (base)" $ whnfIO $ Base.readIORef ref
             , envMVar i0 $ \ref -> bench "readMVar" $ whnfIO $ readMVar ref
@@ -55,15 +55,15 @@ main = do
             ]
         , bgroup
             "write"
-            [ envRef i0 $ \ref -> bench "writeRef" $ whnfIO $ writeRef ref i1
+            [ envBRef i0 $ \ref -> bench "writeBRef" $ whnfIO $ writeBRef ref i1
             , envIORef i0 $ \ref ->
                 bench "writeIORef" $ whnfIO $ Base.writeIORef ref i1
             , envMVar i0 $ \ref -> bench "writeMVar" $ whnfIO $ writeMVar ref i1
             ]
         , bgroup
             "modify"
-            [ envRef i0 $ \ref ->
-                bench "modifyRef_" $ whnfIO $ modifyRef_ ref (+ i1)
+            [ envBRef i0 $ \ref ->
+                bench "modifyBRef_" $ whnfIO $ modifyBRef_ ref (+ i1)
             , envIORef i0 $ \ref ->
                 bench "modifyIORef' (base)" $
                 whnfIO $ Base.modifyIORef' ref (+ i1)
@@ -91,16 +91,16 @@ main = do
         ]
     , bgroup
         "atomicWrite"
-        [ envRef i0 $ \ref ->
-            bench "atomicWriteRef" $ whnfIO $ atomicWriteRef ref i1
+        [ envBRef i0 $ \ref ->
+            bench "atomicWriteBRef" $ whnfIO $ atomicWriteBRef ref i1
         , envIORef i0 $ \ref ->
             bench "atomicWriteIORef" $ whnfIO $ Base.atomicWriteIORef ref i1
         ]
     , bgroup
         "atomicModify"
-        [ envRef i0 $ \ref ->
-            bench "atomicModifyRef" $
-            whnfIO $ atomicModifyRef ref $ \x -> (x + i1, x)
+        [ envBRef i0 $ \ref ->
+            bench "atomicModifyBRef" $
+            whnfIO $ atomicModifyBRef ref $ \x -> (x + i1, x)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORefCAS" $
             whnfIO $ atomicModifyIORefCAS ref $ \x -> (x + i1, x)
@@ -110,8 +110,8 @@ main = do
         ]
     , bgroup
         "atomicModify_"
-        [ envRef i0 $ \ref ->
-            bench "atomicModifyRef_" $ whnfIO $ atomicModifyRef_ ref (+ i1)
+        [ envBRef i0 $ \ref ->
+            bench "atomicModifyBRef_" $ whnfIO $ atomicModifyBRef_ ref (+ i1)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORefCAS_" $
             whnfIO $ atomicModifyIORefCAS_ ref (+ i1)

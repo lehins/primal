@@ -58,8 +58,8 @@ library
 
 
                      , Primal.Ref
-                     -- , Primal.Ref.Boxed
-                     -- , Primal.Ref.Boxed.Atomic
+                     , Primal.Ref.Boxed
+                     , Primal.Ref.Boxed.Atomic
                      -- , Primal.Ref.Unboxed
                      -- , Primal.Ref.Unboxed.Atomic
                      , Primal.Data.Mutable.Foldable
