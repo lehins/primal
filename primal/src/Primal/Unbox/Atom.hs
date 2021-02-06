@@ -9,14 +9,14 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Primal.Prim.Atom
+-- Module      : Primal.Unbox.Atom
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Prim.Atom
+module Primal.Unbox.Atom
   ( Atom(..)
   -- * SpinLocks
   , acquireLockByteOffMutableByteArray
@@ -62,14 +62,14 @@ import Primal.Concurrent
 import Primal.Exception
 import Primal.Monad.Unsafe
 import Data.Bits
-import Primal.Prim.Atomic
-import Primal.Prim.Class
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 import Primal.Foreign hiding (Any)
 import GHC.TypeLits
 
-newtype Atom a =
+newtype Atom e =
   Atom
-    { unAtom :: a
+    { unAtom :: e
     }
   deriving ( Show
            , Eq
@@ -87,44 +87,44 @@ newtype Atom a =
            )
 
 
-instance Prim a => Prim (Atom a) where
-  type PrimBase (Atom a) = Atom a
-  type SizeOf (Atom a) = 1 + SizeOf a
-  type Alignment (Atom a) = 1 + Alignment a
-  sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# a)
+instance Unbox e => Unbox (Atom e) where
+  type PrimBase (Atom e) = Atom e
+  type SizeOf (Atom e) = 1 + SizeOf e
+  type Alignment (Atom e) = 1 + Alignment e
+  sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# e)
   {-# INLINE sizeOf# #-}
-  alignment# _ = 1# +# alignment# (proxy# :: Proxy# a)
+  alignment# _ = 1# +# alignment# (proxy# :: Proxy# e)
   {-# INLINE alignment# #-}
   indexByteOffByteArray# ba# i# = Atom (indexByteOffByteArray# ba# (1# +# i#))
   {-# INLINE indexByteOffByteArray# #-}
-  indexByteArray# ba# i# = indexByteOffByteArray# ba# (i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
+  indexByteArray# ba# i# = indexByteOffByteArray# ba# (i# *# sizeOf# (proxy# :: Proxy# (Atom e)))
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# =
-    Atom (indexOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0#)
+    Atom (indexOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom e)))) 0#)
   {-# INLINE indexOffAddr# #-}
   readByteOffMutableByteArray# mba# i# s =
     case readByteOffMutableByteArray# mba# (1# +# i#) s of
-      (# s', a #) -> (# s', Atom a #)
+      (# s', e #) -> (# s', Atom e #)
   {-# INLINE readByteOffMutableByteArray# #-}
   readMutableByteArray# mba# i# =
-    readByteOffMutableByteArray# mba# (i# *# sizeOf# (proxy# :: Proxy# (Atom a)))
+    readByteOffMutableByteArray# mba# (i# *# sizeOf# (proxy# :: Proxy# (Atom e)))
   {-# INLINE readMutableByteArray# #-}
   readOffAddr# addr# i# s =
-    case readOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom a)))) 0# s of
-      (# s', a #) -> (# s', Atom a #)
+    case readOffAddr# (addr# `plusAddr#` (1# +# i# *# sizeOf# (proxy# :: Proxy# (Atom e)))) 0# s of
+      (# s', e #) -> (# s', Atom e #)
   {-# INLINE readOffAddr# #-}
-  writeByteOffMutableByteArray# mba# i# (Atom a) s =
+  writeByteOffMutableByteArray# mba# i# (Atom e) s =
     writeByteOffMutableByteArray# mba# i# (0 :: Word8)
-      (writeByteOffMutableByteArray# mba# (1# +# i#) a s)
+      (writeByteOffMutableByteArray# mba# (1# +# i#) e s)
   {-# INLINE writeByteOffMutableByteArray# #-}
-  writeMutableByteArray# mba# i# (Atom a) s =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom a))
+  writeMutableByteArray# mba# i# (Atom e) s =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
     in writeByteOffMutableByteArray# mba# i0# (0 :: Word8)
-         (writeByteOffMutableByteArray# mba# (1# +# i0#) a s)
+         (writeByteOffMutableByteArray# mba# (1# +# i0#) e s)
   {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# addr# i# (Atom a) s =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom a))
-    in writeOffAddr# addr# i0# (0 :: Word8) (writeOffAddr# (addr# `plusAddr#` (1# +# i0#)) 0# a s)
+  writeOffAddr# addr# i# (Atom e) s =
+    let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
+    in writeOffAddr# addr# i0# (0 :: Word8) (writeOffAddr# (addr# `plusAddr#` (1# +# i0#)) 0# e s)
   {-# INLINE writeOffAddr# #-}
   setMutableByteArray# = setMutableByteArrayLoop#
   {-# INLINE setMutableByteArray# #-}
@@ -159,7 +159,7 @@ releaseLockByteOffAddr addr# i# = unsafeIOToPrim $ syncLockReleaseInt8AddrIO add
 {-# INLINE releaseLockByteOffAddr #-}
 
 withLockMutableByteArray ::
-     forall e a m. (Prim e, MonadUnliftPrim RW m)
+     forall e a m. (Unbox e, MonadUnliftPrim RW m)
   => MutableByteArray# RealWorld
   -> Int#
   -> (Atom e -> m (Atom e, a))
@@ -180,7 +180,7 @@ withLockMutableByteArray mba# i# f =
 -- overwrite the contnts in the midst of reading, resulting in a value with contents
 -- from both values part before and part after the write.
 atomicReadAtomMutableByteArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => MutableByteArray# s
   -> Int#
   -> m (Atom e)
@@ -195,7 +195,7 @@ atomicReadAtomMutableByteArray mba# i# =
 -- | Values are no longer guaranteed to be one word in size, as such in order for writes
 -- to be atomic we require locking.
 atomicWriteAtomMutableByteArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => MutableByteArray# s
   -> Int#
   -> Atom e
@@ -212,7 +212,7 @@ atomicWriteAtomMutableByteArray mba# i# (Atom a) =
 
 -- | Same as `atomicReadAtomMutableByteArray`, but for `Addr#` with offset
 atomicReadAtomOffAddr ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Addr#
   -> Int#
   -> m (Atom e)
@@ -226,7 +226,7 @@ atomicReadAtomOffAddr mba# i# =
 
 -- | Same as `atomicWriteAtomMutableByteArray`, but for `Addr#` with offset
 atomicWriteAtomOffAddr ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Addr#
   -> Int#
   -> Atom e
@@ -244,7 +244,7 @@ atomicWriteAtomOffAddr addr# i# (Atom a) =
 
 
 withLockOffAddr ::
-     forall e b. Prim e
+     forall e b. Unbox e
   => Addr#
   -> Int#
   -> (Atom e -> IO (Atom e, b))
@@ -262,7 +262,7 @@ withLockOffAddr addr# i# f =
 
 
 atomicModifyAtomMutableByteArray ::
-     forall e a m s. (Prim e, MonadPrim s m)
+     forall e a m s. (Unbox e, MonadPrim s m)
   => MutableByteArray# s
   -> Int#
   -> (Atom e -> (# Atom e, a #))
@@ -281,7 +281,7 @@ atomicModifyAtomMutableByteArray mba# i# f =
 {-# INLINE atomicModifyAtomMutableByteArray  #-}
 
 atomicModifyAtomOffAddr ::
-     forall e a m s. (Prim e, MonadPrim s m)
+     forall e a m s. (Unbox e, MonadPrim s m)
   => Addr#
   -> Int#
   -> (Atom e -> (# Atom e, a #))
@@ -313,7 +313,7 @@ swapIfEqualBool expected new actual
   | otherwise = (# actual, False #)
 {-# INLINE swapIfEqualBool #-}
 
-instance (Eq a, Prim a) => Atomic (Atom a) where
+instance (Eq e, Unbox e) => Atomic (Atom e) where
   atomicReadMutableByteArray# mba# i# =
     unST (atomicReadAtomMutableByteArray (unsafeCoerce# mba#) i#)
   {-# INLINABLE atomicReadMutableByteArray# #-}
@@ -374,12 +374,12 @@ atomicAddFetchOldOffAddrNum#
   , atomicAddFetchNewOffAddrNum#
   , atomicSubFetchOldOffAddrNum#
   , atomicSubFetchNewOffAddrNum# ::
-     (Num a, Atomic a)
+     (Num e, Atomic e)
   => Addr#
   -> Int#
-  -> a
+  -> e
   -> State# s
-  -> (# State# s, a #)
+  -> (# State# s, e #)
 atomicAddFetchOldOffAddrNum# addr# i# y =
   atomicModifyOffAddr# addr# i# (\x -> (# x + y, x #))
 {-# INLINE atomicAddFetchOldOffAddrNum# #-}
@@ -394,7 +394,7 @@ atomicSubFetchNewOffAddrNum# addr# i# y =
 {-# INLINE atomicSubFetchNewOffAddrNum# #-}
 
 
-instance (Num a, Eq a, Prim a) => AtomicCount (Atom a) where
+instance (Num e, Eq e, Unbox e) => AtomicCount (Atom e) where
   atomicAddFetchOldMutableByteArray# = atomicAddFetchOldMutableByteArrayNum#
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
   atomicAddFetchNewMutableByteArray# = atomicAddFetchNewMutableByteArrayNum#
@@ -420,12 +420,12 @@ atomicAndFetchOldMutableByteArrayBits#
   , atomicOrFetchNewMutableByteArrayBits#
   , atomicXorFetchOldMutableByteArrayBits#
   , atomicXorFetchNewMutableByteArrayBits# ::
-     (Bits a, Atomic a)
+     (Bits e, Atomic e)
   => MutableByteArray# s
   -> Int#
-  -> a
+  -> e
   -> State# s
-  -> (# State# s, a #)
+  -> (# State# s, e #)
 atomicAndFetchOldMutableByteArrayBits# mba# i# y =
   atomicModifyMutableByteArray# mba# i# (\x -> (# x .&. y, x #))
 {-# INLINE atomicAndFetchOldMutableByteArrayBits# #-}
@@ -491,7 +491,7 @@ atomicXorFetchNewOffAddrBits# addr# i# y =
 {-# INLINE atomicXorFetchNewOffAddrBits# #-}
 
 
-instance (Bits a, Eq a, Prim a) => AtomicBits (Atom a) where
+instance (Bits e, Eq e, Unbox e) => AtomicBits (Atom e) where
   atomicAndFetchOldMutableByteArray# = atomicAndFetchOldMutableByteArrayBits#
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
   atomicAndFetchNewMutableByteArray# = atomicAndFetchNewMutableByteArrayBits#

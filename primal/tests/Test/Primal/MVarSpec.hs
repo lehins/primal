@@ -5,14 +5,14 @@
 module Test.Primal.MVarSpec (spec) where
 
 import qualified Control.Concurrent as Base
+import Data.Maybe
 import Primal.Concurrent
 import Primal.Concurrent.MVar
 import Primal.Exception
-import Data.Maybe
-import Primal.Prim
-import Primal.Mem.Weak
-import Test.Hspec
 import Primal.Mem (performGC)
+import Primal.Mem.Weak
+import Primal.Unbox
+import Test.Hspec
 
 instance Typeable a => Show (MVar a RW) where
   show _ = "MVar " ++ showsType (Proxy :: Proxy a) " RW"

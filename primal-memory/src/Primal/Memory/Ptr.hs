@@ -88,7 +88,7 @@ module Primal.Memory.Ptr
   , moveByteOffMBytesToPtr
   , compareByteOffBytesToPtr
   , compareByteOffPtrToBytes
-  , module Primal.Prim
+  , module Primal.Unbox
   ) where
 
 
@@ -101,14 +101,14 @@ import Primal.Foreign
 import Primal.Memory.Bytes.Internal (Bytes(..), MBytes(..))
 import Primal.Monad
 import Primal.Monad.Unsafe
-import Primal.Prim
-import Primal.Prim.Atomic
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 
 
 
 copyPtrToMBytes ::
-     (MonadPrim s m, Prim e) => Ptr e -> Off e -> MBytes p s -> Off e -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => Ptr e -> Off e -> MBytes p s -> Off e -> Count e -> m ()
 copyPtrToMBytes src srcOff dst dstOff =
   copyByteOffPtrToMBytes src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyPtrToMBytes #-}
@@ -116,20 +116,20 @@ copyPtrToMBytes src srcOff dst dstOff =
 
 
 copyByteOffPtrToMBytes ::
-     (MonadPrim s m, Prim e) => Ptr e -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => Ptr e -> Off Word8 -> MBytes p s -> Off Word8 -> Count e -> m ()
 copyByteOffPtrToMBytes (Ptr srcAddr#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
   prim_ $ copyAddrToByteArray# (srcAddr# `plusAddr#` srcOff#) dst# dstOff# (unCountBytes# c)
 {-# INLINE copyByteOffPtrToMBytes #-}
 
 
-copyBytesToPtr :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> Ptr e -> Off e -> Count e -> m ()
+copyBytesToPtr :: (MonadPrim s m, Unbox e) => Bytes p -> Off e -> Ptr e -> Off e -> Count e -> m ()
 copyBytesToPtr src srcOff dst dstOff =
   copyByteOffBytesToPtr src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyBytesToPtr #-}
 
 
 copyByteOffBytesToPtr ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Bytes p
   -> Off Word8
   -> Ptr e
@@ -146,14 +146,14 @@ copyByteOffBytesToPtr (Bytes src#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# ds
 {-# INLINE copyByteOffBytesToPtr #-}
 
 
-copyMBytesToPtr :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> Ptr e -> Off e -> Count e -> m ()
+copyMBytesToPtr :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> Ptr e -> Off e -> Count e -> m ()
 copyMBytesToPtr src srcOff dst dstOff =
   copyByteOffMBytesToPtr src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyMBytesToPtr #-}
 
 
 copyByteOffMBytesToPtr ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => MBytes p s
   -> Off Word8
   -> Ptr e
@@ -170,13 +170,13 @@ copyByteOffMBytesToPtr (MBytes src#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# 
 {-# INLINE copyByteOffMBytesToPtr #-}
 
 
-movePtrToMBytes :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> MBytes p s -> Off e -> Count e -> m ()
+movePtrToMBytes :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> MBytes p s -> Off e -> Count e -> m ()
 movePtrToMBytes src srcOff dst dstOff =
   moveByteOffPtrToMBytes src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE movePtrToMBytes #-}
 
 moveByteOffPtrToMBytes ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Ptr e
   -> Off Word8
   -> MBytes p s
@@ -188,14 +188,14 @@ moveByteOffPtrToMBytes (Ptr srcAddr#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# 
   memmoveMutableByteArrayFromAddr# srcAddr# srcOff# dst# dstOff# (unCountBytes# c)
 {-# INLINE moveByteOffPtrToMBytes #-}
 
-moveMBytesToPtr :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> Ptr e -> Off e -> Count e -> m ()
+moveMBytesToPtr :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> Ptr e -> Off e -> Count e -> m ()
 moveMBytesToPtr src srcOff dst dstOff =
   moveByteOffMBytesToPtr src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE moveMBytesToPtr #-}
 
 
 moveByteOffMBytesToPtr ::
-  (MonadPrim s m, Prim e) => MBytes p s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
+  (MonadPrim s m, Unbox e) => MBytes p s -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> m ()
 moveByteOffMBytesToPtr (MBytes src#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# dstOff#)) c =
   unsafeIOToPrim $
   memmoveMutableByteArrayToAddr# src# srcOff# dstAddr# dstOff# (unCountBytes# c)
@@ -203,13 +203,13 @@ moveByteOffMBytesToPtr (MBytes src#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# 
 
 
 compareByteOffBytesToPtr ::
-     Prim e => Bytes p -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
+     Unbox e => Bytes p -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
 compareByteOffBytesToPtr (Bytes b#) (Off (I# off1#)) (Ptr addr#) (Off (I# off2#)) c =
   toOrdering# (memcmpByteArrayAddr# b# off1# addr# off2# (unCountBytes# c))
 {-# INLINE compareByteOffBytesToPtr #-}
 
 compareByteOffPtrToBytes ::
-     Prim e => Ptr e -> Off Word8 -> Bytes p -> Off Word8 -> Count e -> Ordering
+     Unbox e => Ptr e -> Off Word8 -> Bytes p -> Off Word8 -> Count e -> Ordering
 compareByteOffPtrToBytes (Ptr addr#) (Off (I# off1#)) (Bytes b#) (Off (I# off2#)) c =
   toOrdering# (memcmpAddrByteArray# addr# off1# b# off2# (unCountBytes# c))
 {-# INLINE compareByteOffPtrToBytes #-}
@@ -218,7 +218,7 @@ compareByteOffPtrToBytes (Ptr addr#) (Off (I# off1#)) (Bytes b#) (Off (I# off2#)
 
 
 setOffPtr ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Ptr e -- ^ Chunk of memory to fill
   -> Off e -- ^ Offset in number of elements
   -> Count e -- ^ Number of cells to fill
@@ -228,32 +228,32 @@ setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setOffAddr# addr#
 {-# INLINE setOffPtr #-}
 
 
-readOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m e
+readOffPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m e
 readOffPtr (Ptr addr#) (Off (I# i#)) = prim (readOffAddr# addr# i#)
 {-# INLINE readOffPtr #-}
 
 
-readByteOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off Word8 -> m e
+readByteOffPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off Word8 -> m e
 readByteOffPtr ptr (Off i) =
   case ptr `plusPtr` i of
     Ptr addr# -> prim (readOffAddr# addr# 0#)
 {-# INLINE readByteOffPtr #-}
 
-writeOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> e -> m ()
+writeOffPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> e -> m ()
 writeOffPtr (Ptr addr#) (Off (I# i#)) a = prim_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
 
-writeByteOffPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off Word8 -> e -> m ()
+writeByteOffPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off Word8 -> e -> m ()
 writeByteOffPtr ptr (Off i) a =
   case ptr `plusPtr` i of
     Ptr addr# -> prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writeByteOffPtr #-}
 
-readPtr :: (MonadPrim s m, Prim e) => Ptr e -> m e
+readPtr :: (MonadPrim s m, Unbox e) => Ptr e -> m e
 readPtr (Ptr addr#) = prim (readOffAddr# addr# 0#)
 {-# INLINE readPtr #-}
 
-writePtr :: (MonadPrim s m, Prim e) => Ptr e -> e -> m ()
+writePtr :: (MonadPrim s m, Unbox e) => Ptr e -> e -> m ()
 writePtr (Ptr addr#) a = prim_ (writeOffAddr# addr# 0# a)
 {-# INLINE writePtr #-}
 
@@ -262,7 +262,7 @@ plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteOffPtr #-}
 
 
-plusOffPtr :: Prim e => Ptr e -> Off e -> Ptr e
+plusOffPtr :: Unbox e => Ptr e -> Off e -> Ptr e
 plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unOffBytes# off)
 {-# INLINE plusOffPtr #-}
 
@@ -278,7 +278,7 @@ minusByteOffPtr (Ptr xaddr#) (Ptr yaddr#) = Off (I# (xaddr# `minusAddr#` yaddr#)
 -- one address from another and dividing the result by the size of an element.
 --
 -- @since 0.1.0
-minusOffPtr :: Prim e => Ptr e -> Ptr e -> Off e
+minusOffPtr :: Unbox e => Ptr e -> Ptr e -> Off e
 minusOffPtr (Ptr xaddr#) (Ptr yaddr#) =
   fromByteOff (Off (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusOffPtr #-}
@@ -286,12 +286,12 @@ minusOffPtr (Ptr xaddr#) (Ptr yaddr#) =
 -- | Same as `minusOffPtr`, but will also return the remainder in bytes that is left over.
 --
 -- @since 0.1.0
-minusOffRemPtr :: Prim e => Ptr e -> Ptr e -> (Off e, Off Word8)
+minusOffRemPtr :: Unbox e => Ptr e -> Ptr e -> (Off e, Off Word8)
 minusOffRemPtr (Ptr xaddr#) (Ptr yaddr#) =
   fromByteOffRem (Off (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusOffRemPtr #-}
 
-copyPtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
+copyPtrToPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
 copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
   unsafeIOToPrim $
   copyBytes
@@ -301,7 +301,7 @@ copyPtrToPtr srcPtr srcOff dstPtr dstOff c =
 {-# INLINE copyPtrToPtr #-}
 
 copyByteOffPtrToPtr ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Ptr e
   -> Off Word8
   -> Ptr e
@@ -316,13 +316,13 @@ copyByteOffPtrToPtr srcPtr (Off srcOff) dstPtr (Off dstOff) c =
     (unCountBytes c)
 {-# INLINE copyByteOffPtrToPtr #-}
 
-movePtrToPtr :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
+movePtrToPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> m ()
 movePtrToPtr src srcOff dst dstOff =
   moveByteOffPtrToPtr src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE movePtrToPtr #-}
 
 moveByteOffPtrToPtr ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Ptr e
   -> Off Word8
   -> Ptr e
@@ -335,14 +335,14 @@ moveByteOffPtrToPtr (Ptr srcAddr#) (Off (I# srcOff#)) (Ptr dstAddr#) (Off (I# ds
 
 -- | Compare memory between two pointers. Offsets and count is in number of elements,
 -- instead of byte count. Use `compareByteOffPtrToPtr` when offset in bytes is required.
-comparePtrToPtr :: Prim e => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> Ordering
+comparePtrToPtr :: Unbox e => Ptr e -> Off e -> Ptr e -> Off e -> Count e -> Ordering
 comparePtrToPtr (Ptr addr1#) off1 (Ptr addr2#) off2 c =
   toOrdering# (memcmpAddr# addr1# (unOffBytes# off1) addr2# (unOffBytes# off2) (unCountBytes# c))
 {-# INLINE comparePtrToPtr #-}
 
 -- | Same as `comparePtrToPtr`, except offset is in bytes instead of number of elements.
 compareByteOffPtrToPtr ::
-     Prim e => Ptr e -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
+     Unbox e => Ptr e -> Off Word8 -> Ptr e -> Off Word8 -> Count e -> Ordering
 compareByteOffPtrToPtr (Ptr addr1#) (Off (I# off1#)) (Ptr addr2#) (Off (I# off2#)) c =
   toOrdering# (memcmpAddr# addr1# off1# addr2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffPtrToPtr #-}
@@ -716,19 +716,19 @@ prefetchPtr3 :: MonadPrim s m => Ptr e -> m ()
 prefetchPtr3 (Ptr b#) = prim_ (prefetchAddr3# b# 0#)
 {-# INLINE prefetchPtr3 #-}
 
-prefetchOffPtr0 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
+prefetchOffPtr0 :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m ()
 prefetchOffPtr0 (Ptr b#) off = prim_ (prefetchAddr0# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr0 #-}
 
-prefetchOffPtr1 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
+prefetchOffPtr1 :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m ()
 prefetchOffPtr1 (Ptr b#) off = prim_ (prefetchAddr1# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr1 #-}
 
-prefetchOffPtr2 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
+prefetchOffPtr2 :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m ()
 prefetchOffPtr2 (Ptr b#) off = prim_ (prefetchAddr2# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr2 #-}
 
-prefetchOffPtr3 :: (MonadPrim s m, Prim e) => Ptr e -> Off e -> m ()
+prefetchOffPtr3 :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m ()
 prefetchOffPtr3 (Ptr b#) off = prim_ (prefetchAddr3# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr3 #-}
 

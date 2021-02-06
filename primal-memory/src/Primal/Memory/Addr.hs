@@ -138,7 +138,7 @@ module Primal.Memory.Addr
   , prefetchOffAddr3
   , prefetchOffMAddr3
   -- * Re-export
-  , module Primal.Prim
+  , module Primal.Unbox
   ) where
 
 import Control.Arrow (first)
@@ -152,9 +152,9 @@ import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
-import Primal.Prim
-import Primal.Prim.Atomic
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 import Primal.Memory.Bytes
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ByteString
@@ -182,22 +182,22 @@ data MAddr e s = MAddr
 type role MAddr nominal nominal
 
 
-instance (Eq e, Prim e) => Eq (Addr e) where
+instance (Eq e, Unbox e) => Eq (Addr e) where
   (==) = eqMem @e
   {-# INLINE (==) #-}
 
-instance (Prim e, Ord e) => Ord (Addr e) where
+instance (Unbox e, Ord e) => Ord (Addr e) where
   compare = compareMem @e
   {-# INLINE compare #-}
 
 
-instance (Show e, Prim e) => Show (Addr e) where
+instance (Show e, Unbox e) => Show (Addr e) where
   show a = show (toListMem a :: [e])
 
 instance IsString (Addr Char) where
   fromString = fromListMem
 
-instance Prim e => IsList (Addr e) where
+instance Unbox e => IsList (Addr e) where
   type Item (Addr e) = e
   fromList = fromListMem
   fromListN n = fromListZeroMemN_ (Count n)
@@ -264,30 +264,30 @@ fromMBytesMAddr mb =
     Ptr addr# -> MAddr addr# mb
 {-# INLINE fromMBytesMAddr #-}
 
-newMAddr :: forall e m s. (MonadPrim s m, Prim e) => e -> m (MAddr e s)
+newMAddr :: forall e m s. (MonadPrim s m, Unbox e) => e -> m (MAddr e s)
 newMAddr e = do
   maddr <- fromMBytesMAddr <$> allocPinnedMBytes (1 :: Count e)
   writeMAddr maddr e
   pure $! maddr
 {-# INLINE newMAddr #-}
 
-allocMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocMAddr :: forall e m s. (MonadPrim s m, Unbox e) => Count e -> m (MAddr e s)
 allocMAddr c = fromMBytesMAddr <$> allocPinnedMBytes c
 
-allocZeroMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocZeroMAddr :: forall e m s. (MonadPrim s m, Unbox e) => Count e -> m (MAddr e s)
 allocZeroMAddr c = fromMBytesMAddr <$> allocZeroPinnedMBytes c
 
 
-allocAlignedMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocAlignedMAddr :: forall e m s. (MonadPrim s m, Unbox e) => Count e -> m (MAddr e s)
 allocAlignedMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
 
-allocZeroAlignedMAddr :: forall e m s. (MonadPrim s m, Prim e) => Count e -> m (MAddr e s)
+allocZeroAlignedMAddr :: forall e m s. (MonadPrim s m, Unbox e) => Count e -> m (MAddr e s)
 allocZeroAlignedMAddr c = fromMBytesMAddr <$> allocZeroAlignedMBytes c
 
 
 -- | Shrink mutable address to new specified size in number of elements. The new count
 -- must be less than or equal to the current as reported by `getCountMAddr`.
-shrinkMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Count e -> m ()
+shrinkMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Count e -> m ()
 shrinkMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (toByteCount c + coerce (curByteOffMAddr maddr))
 {-# INLINE shrinkMAddr #-}
 
@@ -298,7 +298,7 @@ shrinkByteCountMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (c + coerce (curByte
 {-# INLINE shrinkByteCountMAddr #-}
 
 
-reallocMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Count e -> m (MAddr e s)
+reallocMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Count e -> m (MAddr e s)
 reallocMAddr maddr c = do
   oldByteCount <- getByteCountMAddr maddr
   let newByteCount = toByteCount c
@@ -313,26 +313,26 @@ reallocMAddr maddr c = do
 {-# INLINABLE reallocMAddr #-}
 
 
-plusOffAddr :: Prim e => Addr e -> Off e -> Addr e
+plusOffAddr :: Unbox e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
 
 plusByteOffAddr :: Addr e -> Off Word8 -> Addr e
 plusByteOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
 
-plusOffMAddr :: Prim e => MAddr e s -> Off e -> MAddr e s
+plusOffMAddr :: Unbox e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
 
 plusByteOffMAddr :: MAddr e s -> Off Word8 -> MAddr e s
 plusByteOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
 
-curOffAddr :: Prim e => Addr e -> Off e
+curOffAddr :: Unbox e => Addr e -> Off e
 curOffAddr a@(Addr addr# b) = (Ptr addr# `minusOffPtr` toPtrBytes b) `offForProxyTypeOf` a
 
 curByteOffAddr :: Addr e -> Off Word8
 curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b
 
 countAddr ::
-     forall e. Prim e
+     forall e. Unbox e
   => Addr e
   -> Count e
 countAddr addr@(Addr _ b) = countBytes b - coerce (curOffAddr addr)
@@ -340,23 +340,23 @@ countAddr addr@(Addr _ b) = countBytes b - coerce (curOffAddr addr)
 byteCountAddr :: Addr e -> Count Word8
 byteCountAddr = countAddr . castAddr
 
-getCountMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> m (Count e)
+getCountMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> m (Count e)
 getCountMAddr maddr@(MAddr _ mb) =
   subtract (coerce (curOffMAddr maddr)) <$> getCountMBytes mb
 
 getByteCountMAddr :: MonadPrim s m => MAddr e s -> m (Count Word8)
 getByteCountMAddr = getCountMAddr . castMAddr
 
-indexAddr :: Prim e => Addr e -> e
+indexAddr :: Unbox e => Addr e -> e
 indexAddr addr = indexOffAddr addr 0
 {-# INLINE indexAddr #-}
 
-indexOffAddr :: Prim e => Addr e -> Off e -> e
+indexOffAddr :: Unbox e => Addr e -> Off e -> e
 indexOffAddr addr (Off (I# off#)) =
   unsafeInlineIO $ withAddrAddr# addr $ \addr# -> pure $ indexOffAddr# addr# off#
 {-# INLINE indexOffAddr #-}
 
-indexByteOffAddr :: Prim e => Addr e -> Off Word8 -> e
+indexByteOffAddr :: Unbox e => Addr e -> Off Word8 -> e
 indexByteOffAddr addr off = unsafeInlineIO $ readByteOffAddr addr off
 
 withPtrAddr :: MonadPrim s m => Addr e -> (Ptr e -> m b) -> m b
@@ -373,7 +373,7 @@ withNoHaltPtrAddr :: MonadUnliftPrim s m => Addr e -> (Ptr e -> m b) -> m b
 withNoHaltPtrAddr (Addr addr# b) f = keepAlive b $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrAddr #-}
 
-curOffMAddr :: forall e s . Prim e => MAddr e s -> Off e
+curOffMAddr :: forall e s . Unbox e => MAddr e s -> Off e
 curOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusOffPtr` toPtrMBytes mb
 
 curByteOffMAddr :: forall e s . MAddr e s -> Off Word8
@@ -538,60 +538,60 @@ freezeMAddr (MAddr addr# mb) = Addr addr# <$> freezeMBytes mb
 {-# INLINE freezeMAddr #-}
 
 
-readAddr :: (MonadPrim s m, Prim e) => Addr e -> m e
+readAddr :: (MonadPrim s m, Unbox e) => Addr e -> m e
 readAddr (Addr addr# b) = do
   a <- prim (readOffAddr# addr# 0#)
   a <$ touch b
 {-# INLINE readAddr #-}
 
-readOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m e
+readOffAddr :: (MonadPrim s m, Unbox e) => Addr e -> Off e -> m e
 readOffAddr (Addr addr# b) (Off (I# off#)) = do
   a <- prim (readOffAddr# addr# off#)
   a <$ touch b
 {-# INLINE readOffAddr #-}
 
-readByteOffAddr :: (MonadPrim s m, Prim e) => Addr e -> Off Word8 -> m e
+readByteOffAddr :: (MonadPrim s m, Unbox e) => Addr e -> Off Word8 -> m e
 readByteOffAddr (Addr addr# b) (Off (I# off#)) = do
   a <- prim (readOffAddr# (addr# `plusAddr#` off#) 0#)
   a <$ touch b
 {-# INLINE readByteOffAddr #-}
 
-readMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> m e
+readMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> m e
 readMAddr (MAddr addr# mb) = do
   a <- prim (readOffAddr# addr# 0#)
   a <$ touch mb
 {-# INLINE readMAddr #-}
 
-readOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m e
+readOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> m e
 readOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
   a <- prim (readOffAddr# addr# off#)
   a <$ touch mb
 {-# INLINE readOffMAddr #-}
 
-readByteOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off Word8 -> m e
+readByteOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off Word8 -> m e
 readByteOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
   a <- prim (readOffAddr# (addr# `plusAddr#` off#) 0#)
   a <$ touch mb
 {-# INLINE readByteOffMAddr #-}
 
-writeMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> e -> m ()
+writeMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> e -> m ()
 writeMAddr (MAddr addr# mb) e =
   prim_ $ \s -> touch# mb (writeOffAddr# addr# 0# e s)
 {-# INLINE writeMAddr #-}
 
-writeOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> e -> m ()
+writeOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> e -> m ()
 writeOffMAddr (MAddr addr# mb) (Off (I# off#)) e =
   prim_ $ \s -> touch# mb (writeOffAddr# addr# off# e s)
 {-# INLINE writeOffMAddr #-}
 
-writeByteOffMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off Word8 -> e -> m ()
+writeByteOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off Word8 -> e -> m ()
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
   prim_ $ \s -> touch# mb (writeOffAddr# (addr# `plusAddr#` off#) 0# a s)
 {-# INLINE writeByteOffMAddr #-}
 
 
 copyAddrToMAddr ::
-     (MonadPrim s m, Prim e) => Addr e -> Off e -> MAddr e s -> Off e -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => Addr e -> Off e -> MAddr e s -> Off e -> Count e -> m ()
 copyAddrToMAddr src srcOff dst dstOff c =
   withPtrAddr src $ \ srcPtr ->
     withPtrMAddr dst $ \ dstPtr ->
@@ -599,14 +599,14 @@ copyAddrToMAddr src srcOff dst dstOff c =
 {-# INLINE copyAddrToMAddr #-}
 
 moveMAddrToMAddr ::
-     (MonadPrim s m, Prim e) => MAddr e s -> Off e -> MAddr e s -> Off e -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> MAddr e s -> Off e -> Count e -> m ()
 moveMAddrToMAddr src srcOff dst dstOff c =
   withPtrMAddr src $ \ srcPtr ->
     withPtrMAddr dst $ \ dstPtr ->
       movePtrToPtr srcPtr srcOff dstPtr dstOff c
 {-# INLINE moveMAddrToMAddr #-}
 
-setMAddr :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> Count e -> e -> m ()
+setMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> Count e -> e -> m ()
 setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
   prim_ (setOffAddr# addr# off# n# a) >> touch mb
 {-# INLINE setMAddr #-}
@@ -617,14 +617,14 @@ setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
 -- computation.
 --
 -- @since 0.2.0
-modifyMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> (a, b)) -> m b
+modifyMAddr :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> (a, b)) -> m b
 modifyMAddr maddr f = modifyMAddrM maddr (return . f)
 {-# INLINE modifyMAddr #-}
 
 -- | Apply a pure function to the contents of a mutable variable.
 --
 -- @since 0.1.0
-modifyMAddr_ :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m ()
+modifyMAddr_ :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> a) -> m ()
 modifyMAddr_ maddr f = modifyMAddrM_ maddr (return . f)
 {-# INLINE modifyMAddr_ #-}
 
@@ -632,14 +632,14 @@ modifyMAddr_ maddr f = modifyMAddrM_ maddr (return . f)
 -- | Apply a pure function to the contents of a mutable variable. Returns the old value.
 --
 -- @since 2.0.0
-modifyFetchOldMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m a
+modifyFetchOldMAddr :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> a) -> m a
 modifyFetchOldMAddr maddr f = modifyFetchOldMAddrM maddr (return . f)
 {-# INLINE modifyFetchOldMAddr #-}
 
 -- | Apply a pure function to the contents of a mutable variable. Returns the new value.
 --
 -- @since 2.0.0
-modifyFetchNewMAddr :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> a) -> m a
+modifyFetchNewMAddr :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> a) -> m a
 modifyFetchNewMAddr maddr f = modifyFetchNewMAddrM maddr (return . f)
 {-# INLINE modifyFetchNewMAddr #-}
 
@@ -648,7 +648,7 @@ modifyFetchNewMAddr maddr f = modifyFetchNewMAddrM maddr (return . f)
 -- computation.
 --
 -- @since 0.2.0
-modifyMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m (a, b)) -> m b
+modifyMAddrM :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> m (a, b)) -> m b
 modifyMAddrM maddr f = do
   a <- readMAddr maddr
   (a', b) <- f a
@@ -658,7 +658,7 @@ modifyMAddrM maddr f = do
 -- | Apply a monadic action to the contents of a mutable variable. Returns the old value.
 --
 -- @since 2.0.0
-modifyFetchOldMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m a
+modifyFetchOldMAddrM :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> m a) -> m a
 modifyFetchOldMAddrM maddr f = do
   a <- readMAddr maddr
   a <$ (writeMAddr maddr =<< f a)
@@ -668,7 +668,7 @@ modifyFetchOldMAddrM maddr f = do
 -- | Apply a monadic action to the contents of a mutable variable. Returns the new value.
 --
 -- @since 2.0.0
-modifyFetchNewMAddrM :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m a
+modifyFetchNewMAddrM :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> m a) -> m a
 modifyFetchNewMAddrM maddr f = do
   a <- readMAddr maddr
   a' <- f a
@@ -679,14 +679,14 @@ modifyFetchNewMAddrM maddr f = do
 -- | Apply a monadic action to the contents of a mutable variable.
 --
 -- @since 0.1.0
-modifyMAddrM_ :: (MonadPrim s m, Prim a) => MAddr a s -> (a -> m a) -> m ()
+modifyMAddrM_ :: (MonadPrim s m, Unbox a) => MAddr a s -> (a -> m a) -> m ()
 modifyMAddrM_ maddr f = readMAddr maddr >>= f >>= writeMAddr maddr
 {-# INLINE modifyMAddrM_ #-}
 
 -- | Swap contents of two mutable variables. Returns their old values.
 --
 -- @since 0.1.0
-swapMAddrs :: (MonadPrim s m, Prim a) => MAddr a s -> MAddr a s -> m (a, a)
+swapMAddrs :: (MonadPrim s m, Unbox a) => MAddr a s -> MAddr a s -> m (a, a)
 swapMAddrs maddr1 maddr2 = do
   a1 <- readMAddr maddr1
   a2 <- modifyFetchOldMAddr maddr2 (const a1)
@@ -696,7 +696,7 @@ swapMAddrs maddr1 maddr2 = do
 -- | Swap contents of two mutable variables.
 --
 -- @since 0.1.0
-swapMAddrs_ :: (MonadPrim s m, Prim a) => MAddr a s -> MAddr a s -> m ()
+swapMAddrs_ :: (MonadPrim s m, Unbox a) => MAddr a s -> MAddr a s -> m ()
 swapMAddrs_ maddr1 maddr2 = void $ swapMAddrs maddr1 maddr2
 {-# INLINE swapMAddrs_ #-}
 
@@ -1206,34 +1206,34 @@ prefetchMAddr3 (MAddr maddr# _) = prim_ (prefetchAddr3# maddr# 0#)
 {-# INLINE prefetchMAddr3 #-}
 
 
-prefetchOffAddr0 :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m ()
+prefetchOffAddr0 :: (MonadPrim s m, Unbox e) => Addr e -> Off e -> m ()
 prefetchOffAddr0 (Addr addr# _) off = prim_ (prefetchAddr0# addr# (unOffBytes# off))
 {-# INLINE prefetchOffAddr0 #-}
 
-prefetchOffMAddr0 :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m ()
+prefetchOffMAddr0 :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> m ()
 prefetchOffMAddr0 (MAddr maddr# _) off = prim_ (prefetchAddr0# maddr# (unOffBytes# off))
 {-# INLINE prefetchOffMAddr0 #-}
 
-prefetchOffAddr1 :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m ()
+prefetchOffAddr1 :: (MonadPrim s m, Unbox e) => Addr e -> Off e -> m ()
 prefetchOffAddr1 (Addr addr# _) off = prim_ (prefetchAddr1# addr# (unOffBytes# off))
 {-# INLINE prefetchOffAddr1 #-}
 
-prefetchOffMAddr1 :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m ()
+prefetchOffMAddr1 :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> m ()
 prefetchOffMAddr1 (MAddr maddr# _) off = prim_ (prefetchAddr1# maddr# (unOffBytes# off))
 {-# INLINE prefetchOffMAddr1 #-}
 
-prefetchOffAddr2 :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m ()
+prefetchOffAddr2 :: (MonadPrim s m, Unbox e) => Addr e -> Off e -> m ()
 prefetchOffAddr2 (Addr addr# _) off = prim_ (prefetchAddr2# addr# (unOffBytes# off))
 {-# INLINE prefetchOffAddr2 #-}
 
-prefetchOffMAddr2 :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m ()
+prefetchOffMAddr2 :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> m ()
 prefetchOffMAddr2 (MAddr maddr# _) off = prim_ (prefetchAddr2# maddr# (unOffBytes# off))
 {-# INLINE prefetchOffMAddr2 #-}
 
-prefetchOffAddr3 :: (MonadPrim s m, Prim e) => Addr e -> Off e -> m ()
+prefetchOffAddr3 :: (MonadPrim s m, Unbox e) => Addr e -> Off e -> m ()
 prefetchOffAddr3 (Addr addr# _) off = prim_ (prefetchAddr3# addr# (unOffBytes# off))
 {-# INLINE prefetchOffAddr3 #-}
 
-prefetchOffMAddr3 :: (MonadPrim s m, Prim e) => MAddr e s -> Off e -> m ()
+prefetchOffMAddr3 :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> m ()
 prefetchOffMAddr3 (MAddr maddr# _) off = prim_ (prefetchAddr3# maddr# (unOffBytes# off))
 {-# INLINE prefetchOffMAddr3 #-}

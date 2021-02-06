@@ -33,8 +33,8 @@ module Primal.Array.Internal
 
 import Primal.Exception
 import qualified Data.Foldable as F
-import Primal.Prim
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Class
 
 
 -- | Number of elements contained in the data structure
@@ -43,7 +43,7 @@ import Primal.Prim.Class
 newtype Size = Size { unSize :: Int }
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
-instance Prim Size where
+instance Unbox Size where
   type PrimBase Size = Int
 
 -------------

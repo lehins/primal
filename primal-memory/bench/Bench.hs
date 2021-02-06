@@ -118,7 +118,7 @@ main = do
     ]
 
 benchIndex ::
-     forall a p. (Typeable a, Prim a, BA.Prim a)
+     forall a p. (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> Bytes p
   -> BA.ByteArray
@@ -132,7 +132,7 @@ benchIndex px b ba =
   where i = 100
 
 benchRead ::
-     forall a p. (Typeable a, Prim a, BA.Prim a)
+     forall a p. (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> MBytes p RealWorld
   -> BA.MutableByteArray RealWorld
@@ -146,7 +146,7 @@ benchRead px mb mba =
   where i = 100
 
 benchPeek ::
-     forall a. (Typeable a, Prim a, S.Storable a)
+     forall a. (Typeable a, Unbox a, S.Storable a)
   => Proxy a
   -> MBytes 'Pin RealWorld
   -> ForeignPtr a
@@ -159,7 +159,7 @@ benchPeek px mb fptr =
     ]
 
 setBytesBench ::
-     forall a . (Typeable a, BA.Prim a, Prim a)
+     forall a . (Typeable a, BA.Prim a, Unbox a)
   => MBytes 'Pin RealWorld
   -> MBytes 'Pin RealWorld
   -> BA.MutableByteArray RealWorld

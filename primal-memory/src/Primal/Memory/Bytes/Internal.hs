@@ -90,8 +90,8 @@ import Primal.Mutable.Eq
 import Primal.Mutable.Ord
 import Primal.Mutable.Freeze
 import Primal.Monad.Unsafe
-import Primal.Prim
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Class
 import Unsafe.Coerce
 #if MIN_VERSION_base(4,14,0)
 import Data.IORef
@@ -204,13 +204,13 @@ fromMutableByteArray# = MBytes
 
 ---- Pure
 
-compareByteOffBytes :: Prim e => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count e -> Ordering
+compareByteOffBytes :: Unbox e => Bytes p1 -> Off Word8 -> Bytes p2 -> Off Word8 -> Count e -> Ordering
 compareByteOffBytes (Bytes b1#) (Off (I# off1#)) (Bytes b2#) (Off (I# off2#)) c =
   toOrdering# (compareByteArrays# b1# off1# b2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffBytes #-}
 
 compareByteOffMBytes ::
-     (Prim e, MonadPrim s m)
+     (Unbox e, MonadPrim s m)
   => MBytes p1 s
   -> Off Word8
   -> MBytes p2 s
@@ -221,11 +221,11 @@ compareByteOffMBytes (MBytes mb1#) (Off (I# off1#)) (MBytes mb2#) (Off (I# off2#
   toOrdering <$> unsafeIOToPrim (memcmpMutableByteArray# mb1# off1# mb2# off2# (unCountBytes# c))
 {-# INLINE compareByteOffMBytes #-}
 
-indexOffBytes :: Prim e => Bytes p -> Off e -> e
+indexOffBytes :: Unbox e => Bytes p -> Off e -> e
 indexOffBytes (Bytes ba#) (Off (I# i#)) = indexByteArray# ba# i#
 {-# INLINE indexOffBytes #-}
 
-indexByteOffBytes :: Prim e => Bytes p -> Off Word8 -> e
+indexByteOffBytes :: Unbox e => Bytes p -> Off Word8 -> e
 indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
 {-# INLINE indexByteOffBytes #-}
 
@@ -234,7 +234,7 @@ indexByteOffBytes (Bytes ba#) (Off (I# i#)) = indexByteOffByteArray# ba# i#
 
 
 allocMBytes ::
-     forall p e s m. (Typeable p, Prim e, MonadPrim s m)
+     forall p e s m. (Typeable p, Unbox e, MonadPrim s m)
   => Count e
   -> m (MBytes p s)
 allocMBytes c =
@@ -253,7 +253,7 @@ allocMBytes c =
 "allocPinnedMBytes" allocMBytes = allocPinnedMBytes
   #-}
 
-allocUnpinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Inc s)
+allocUnpinnedMBytes :: (MonadPrim s m, Unbox e) => Count e -> m (MBytes 'Inc s)
 allocUnpinnedMBytes c =
   prim $ \s ->
     case newByteArray# (unCountBytes# c) s of
@@ -261,7 +261,7 @@ allocUnpinnedMBytes c =
 {-# INLINE allocUnpinnedMBytes #-}
 
 
-allocPinnedMBytes :: (MonadPrim s m, Prim e) => Count e -> m (MBytes 'Pin s)
+allocPinnedMBytes :: (MonadPrim s m, Unbox e) => Count e -> m (MBytes 'Pin s)
 allocPinnedMBytes c =
   prim $ \s ->
     case newPinnedByteArray# (unCountBytes# c) s of
@@ -269,7 +269,7 @@ allocPinnedMBytes c =
 {-# INLINE allocPinnedMBytes #-}
 
 allocAlignedMBytes ::
-     forall e m s. (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocAlignedMBytes c =
@@ -284,7 +284,7 @@ allocAlignedMBytes c =
 
 -- @since 0.3.0
 allocZeroPinnedMBytes ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocZeroPinnedMBytes n = allocPinnedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
@@ -292,7 +292,7 @@ allocZeroPinnedMBytes n = allocPinnedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (t
 
 -- @since 0.3.0
 allocZeroAlignedMBytes ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
 allocZeroAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
@@ -321,13 +321,13 @@ thawBytes (Bytes ba#) =
 {-# INLINE thawBytes #-}
 
 copyByteOffBytesToMBytes ::
-     (MonadPrim s m, Prim e) => Bytes ps -> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => Bytes ps -> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
 copyByteOffBytesToMBytes (Bytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
   prim_ $ copyByteArray# src# srcOff# dst# dstOff# (unCountBytes# c)
 {-# INLINE copyByteOffBytesToMBytes #-}
 
 moveByteOffMBytesToMBytes ::
-     (MonadPrim s m, Prim e) => MBytes ps s-> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => MBytes ps s-> Off Word8 -> MBytes pd s -> Off Word8 -> Count e -> m ()
 moveByteOffMBytesToMBytes (MBytes src#) (Off (I# srcOff#)) (MBytes dst#) (Off (I# dstOff#)) c =
   prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# (unCountBytes# c))
 {-# INLINE moveByteOffMBytesToMBytes #-}
@@ -340,7 +340,7 @@ byteCountBytes (Bytes ba#) = coerce (I# (sizeofByteArray# ba#))
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountMBytes`.
-shrinkMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m ()
+shrinkMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> Count e -> m ()
 shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (unCountBytes# c))
 {-# INLINE shrinkMBytes #-}
 
@@ -351,7 +351,7 @@ shrinkMBytes (MBytes mb#) c = prim_ (shrinkMutableByteArray# mb# (unCountBytes# 
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizeMBytes ::
-     (MonadPrim s m, Prim e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
+     (MonadPrim s m, Unbox e) => MBytes p s -> Count e -> m (MBytes 'Inc s)
 resizeMBytes (MBytes mb#) c =
   prim $ \s ->
     case resizeMutableByteArray# mb# (unCountBytes# c) s of
@@ -359,7 +359,7 @@ resizeMBytes (MBytes mb#) c =
 {-# INLINE resizeMBytes #-}
 
 reallocMBytes ::
-     forall e p m s. (MonadPrim s m, Typeable p,  Prim e)
+     forall e p m s. (MonadPrim s m, Typeable p,  Unbox e)
   => MBytes p s
   -> Count e
   -> m (MBytes p s)
@@ -401,29 +401,29 @@ toInconclusiveMBytes = castPinnedMBytes
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
 -- count of leftover bytes use `countRemBytes`
-countBytes :: Prim e => Bytes p -> Count e
+countBytes :: Unbox e => Bytes p -> Count e
 countBytes = fromByteCount . byteCountBytes
 {-# INLINE countBytes #-}
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get any number
 -- of leftover bytes use `countRemBytes`
-getCountMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> m (Count e)
+getCountMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> m (Count e)
 getCountMBytes b = fromByteCount <$> getByteCountMBytes b
 {-# INLINE getCountMBytes #-}
 
-readOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m e
+readOffMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> m e
 readOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readMutableByteArray# mba# i#)
 {-# INLINE readOffMBytes #-}
 
-readByteOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off Word8 -> m e
+readByteOffMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> Off Word8 -> m e
 readByteOffMBytes (MBytes mba#) (Off (I# i#)) = prim (readByteOffMutableByteArray# mba# i#)
 {-# INLINE readByteOffMBytes #-}
 
-writeOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> e -> m ()
+writeOffMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> e -> m ()
 writeOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeMutableByteArray# mba# i# a)
 {-# INLINE writeOffMBytes #-}
 
-writeByteOffMBytes :: (MonadPrim s m, Prim e) => MBytes p s -> Off Word8 -> e -> m ()
+writeByteOffMBytes :: (MonadPrim s m, Unbox e) => MBytes p s -> Off Word8 -> e -> m ()
 writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a = prim_ (writeByteOffMutableByteArray# mba# i# a)
 {-# INLINE writeByteOffMBytes #-}
 
@@ -443,7 +443,7 @@ isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 
 
 setMBytes ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => MBytes p s -- ^ Chunk of memory to fill
   -> Off e -- ^ Offset in number of elements
   -> Count e -- ^ Number of cells to fill

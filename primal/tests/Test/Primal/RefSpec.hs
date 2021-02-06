@@ -5,14 +5,14 @@
 module Test.Primal.RefSpec (spec) where
 
 import qualified Control.Concurrent as Base
-import Primal.Concurrent
-import Primal.Ref
-import Primal.Exception
 import Data.Maybe
-import Primal.Prim
+import Primal.Concurrent
+import Primal.Exception
 import Primal.Mem.Weak
-import Test.Hspec
+import Primal.Ref
+import Primal.Unbox
 import System.Mem (performGC)
+import Test.Hspec
 
 instance Typeable a => Show (BRef a RW) where
   show _ = "BRef " ++ showsType (Proxy :: Proxy a) " RW"

@@ -11,12 +11,12 @@
 --
 module Primal.Memory.Fold where
 
-import Primal.Prim
+import Primal.Unbox
 import Primal.Memory.Internal
 
 
 foldlMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (a -> e -> a)
   -- ^ Folding function
   -> a
@@ -29,7 +29,7 @@ foldlMem f = ifoldlMem (\a _ -> f a)
 
 
 ifoldlMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (a -> Off e -> e -> a)
   -- ^ Folding function
   -> a
@@ -41,7 +41,7 @@ ifoldlMem f initAcc mem = ifoldlOffMem 0 (countMem mem :: Count e) f initAcc mem
 {-# INLINE ifoldlMem #-}
 
 ifoldlOffMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => Off e
   -- ^ Initial offset to start at
   -> Count e
@@ -65,7 +65,7 @@ ifoldlOffMem off count f initAcc mem = loop initAcc off
 
 
 foldlLazyMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (a -> e -> a)
   -- ^ Folding function
   -> a
@@ -77,7 +77,7 @@ foldlLazyMem f = ifoldlLazyMem (\a _ -> f a)
 {-# INLINE foldlLazyMem #-}
 
 ifoldlLazyMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (a -> Off e -> e -> a)
   -- ^ Folding function
   -> a
@@ -89,7 +89,7 @@ ifoldlLazyMem f initAcc mem = ifoldlLazyOffMem 0 (countMem mem :: Count e) f ini
 {-# INLINE ifoldlLazyMem #-}
 
 ifoldlLazyOffMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => Off e
   -- ^ Initial offset to start at
   -> Count e
@@ -113,7 +113,7 @@ ifoldlLazyOffMem off count f initAcc mem = loop initAcc off
 
 
 foldrMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (e -> a -> a)
   -- ^ Folding function
   -> a
@@ -125,7 +125,7 @@ foldrMem f = ifoldrMem (const f)
 {-# INLINE foldrMem #-}
 
 ifoldrMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (Off e -> e -> a -> a)
   -- ^ Folding function
   -> a
@@ -137,7 +137,7 @@ ifoldrMem f initAcc mem = ifoldrOffMem 0 (countMem mem :: Count e) f initAcc mem
 {-# INLINE ifoldrMem #-}
 
 ifoldrOffMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => Off e
   -- ^ Initial offset to start at
   -> Count e
@@ -162,7 +162,7 @@ ifoldrOffMem off count f initAcc mem = loop initAcc off
 --
 -- @since 0.3.0
 foldrLazyMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (e -> a -> a)
   -- ^ Folding function
   -> a
@@ -177,7 +177,7 @@ foldrLazyMem f = ifoldrLazyMem (const f)
 --
 -- @since 0.3.0
 ifoldrLazyMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => (Off e -> e -> a -> a)
   -- ^ Folding function
   -> a
@@ -191,7 +191,7 @@ ifoldrLazyMem f initAcc mem =
 
 
 ifoldrLazyOffMem ::
-     forall e a mr. (Prim e, MemRead mr)
+     forall e a mr. (Unbox e, MemRead mr)
   => Off e
   -- ^ Initial offset to start at
   -> Count e
@@ -215,7 +215,7 @@ ifoldrLazyOffMem off count f initAcc mem = loop initAcc off
 
 
 foldMapOffMem ::
-     forall e m mr. (Prim e, MemRead mr, Monoid m)
+     forall e m mr. (Unbox e, MemRead mr, Monoid m)
   => Off e
   -> Count e
   -> (e -> m)
@@ -225,7 +225,7 @@ foldMapOffMem off count f = ifoldrLazyOffMem off count (\_ e acc -> f e `mappend
 {-# INLINE foldMapOffMem #-}
 
 ifoldMapOffMem ::
-     forall e m mr. (Prim e, MemRead mr, Monoid m)
+     forall e m mr. (Unbox e, MemRead mr, Monoid m)
   => Off e
   -> Count e
   -> (Off e -> e -> m)
@@ -238,7 +238,7 @@ ifoldMapOffMem off count f =
 
 
 anyOffMem ::
-     forall e mr. (Prim e, MemRead mr)
+     forall e mr. (Unbox e, MemRead mr)
   => Off e
   -> Count e
   -> (e -> Bool)
@@ -248,7 +248,7 @@ anyOffMem off count p = getAny #. foldMapOffMem off count (Any #. p)
 {-# INLINE anyOffMem #-}
 
 ianyOffMem ::
-     forall e mr. (Prim e, MemRead mr)
+     forall e mr. (Unbox e, MemRead mr)
   => Off e
   -> Count e
   -> (Off e -> e -> Bool)
@@ -258,16 +258,16 @@ ianyOffMem off count p = getAny #. ifoldMapOffMem off count (\i -> Any #. p i)
 {-# INLINE ianyOffMem #-}
 
 
-anyMem :: forall e mr . (Prim e, MemRead mr) => (e -> Bool) -> mr -> Bool
+anyMem :: forall e mr . (Unbox e, MemRead mr) => (e -> Bool) -> mr -> Bool
 anyMem p xs = anyOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE anyMem #-}
 
-ianyMem :: forall e mr . (Prim e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
+ianyMem :: forall e mr . (Unbox e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
 ianyMem p xs = ianyOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE ianyMem #-}
 
 allOffMem ::
-     forall e mr. (Prim e, MemRead mr)
+     forall e mr. (Unbox e, MemRead mr)
   => Off e
   -> Count e
   -> (e -> Bool)
@@ -277,7 +277,7 @@ allOffMem off count p = getAll #. foldMapOffMem off count (All #. p)
 {-# INLINE allOffMem #-}
 
 iallOffMem ::
-     forall e mr. (Prim e, MemRead mr)
+     forall e mr. (Unbox e, MemRead mr)
   => Off e
   -> Count e
   -> (Off e -> e -> Bool)
@@ -287,11 +287,11 @@ iallOffMem off count p = getAll #. ifoldMapOffMem off count (\i -> All #. p i)
 {-# INLINE iallOffMem #-}
 
 
-allMem :: forall e mr . (Prim e, MemRead mr) => (e -> Bool) -> mr -> Bool
+allMem :: forall e mr . (Unbox e, MemRead mr) => (e -> Bool) -> mr -> Bool
 allMem p xs = allOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE allMem #-}
 
-iallMem :: forall e mr . (Prim e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
+iallMem :: forall e mr . (Unbox e, MemRead mr) => (Off e -> e -> Bool) -> mr -> Bool
 iallMem p xs = iallOffMem 0 (countMem xs :: Count e) p xs
 {-# INLINE iallMem #-}
 
@@ -303,7 +303,7 @@ iallMem p xs = iallOffMem 0 (countMem xs :: Count e) p xs
 
 
 -- Dangerous: ignores the slack
-eqMem :: forall e mr . (Prim e, Eq e, MemRead mr) => mr -> mr -> Bool
+eqMem :: forall e mr . (Unbox e, Eq e, MemRead mr) => mr -> mr -> Bool
 eqMem m1 m2
   | isSameMem m1 m2 = True
   | otherwise = n == countMem m2 && eqOffMem m1 0 m2 0 n
@@ -324,7 +324,7 @@ eqMem m1 m2
 --
 -- @since 0.3.0
 eqOffMem ::
-     (Prim e, Eq e, MemRead mr1, MemRead mr2)
+     (Unbox e, Eq e, MemRead mr1, MemRead mr2)
   => mr1 -- ^ /memRead1/ - First region of memory
   -> Off e
   -- ^ /memOff1/ - Offset for @memRead1@ in number of elements
@@ -360,7 +360,7 @@ eqOffMem m1 off1 m2 off2 count = loop off1
 {-# INLINE[1] eqOffMem #-}
 
 eqOffMemBinary ::
-     forall e mr1 mr2. (Prim e, MemRead mr1, MemRead mr2)
+     forall e mr1 mr2. (Unbox e, MemRead mr1, MemRead mr2)
   => mr1
   -> Off e
   -> mr2
@@ -386,7 +386,7 @@ eqOffMemBinary m1 off1 m2 off2 count =
 #-}
 
 eqOffMutMem ::
-     forall e ma1 ma2 m s. (Prim e, Eq e, MonadPrim s m, MemWrite ma1, MemWrite ma2)
+     forall e ma1 ma2 m s. (Unbox e, Eq e, MonadPrim s m, MemWrite ma1, MemWrite ma2)
   => ma1 s
   -> Off e
   -> ma2 s
@@ -412,7 +412,7 @@ eqOffMutMem mm1 off1 mm2 off2 count = loop off1
 -- modified, as such it is semantically similar to `eqMem` which works on immutable
 -- regions.
 eqMutMem ::
-     forall e ma m s. (Prim e, Eq e, MonadPrim s m, MemAlloc ma)
+     forall e ma m s. (Unbox e, Eq e, MonadPrim s m, MemAlloc ma)
   => ma s
   -> ma s
   -> m Bool
@@ -436,7 +436,7 @@ eqMutMem mm1 mm2
 --
 -- @since 0.3.0
 compareMem ::
-     forall e mr. (Prim e, Ord e, MemRead mr)
+     forall e mr. (Unbox e, Ord e, MemRead mr)
   => mr -- ^ /memRead1/ - First region of memory
   -> mr -- ^ /memRead2/ - Second region of memory
   -> Ordering
@@ -460,7 +460,7 @@ compareMem m1 m2
 --
 -- @since 0.3.0
 compareOffMem ::
-     (Prim e, Ord e, MemRead mr1, MemRead mr2)
+     (Unbox e, Ord e, MemRead mr1, MemRead mr2)
   => mr1 -- ^ /memRead1/ - First region of memory
   -> Off e
   -- ^ /memOff1/ - Offset for @memRead1@ in number of elements

@@ -73,8 +73,8 @@ import Primal.Memory.Bytes.Internal (Bytes, MBytes(..), Pinned(..),
                                      withNoHaltPtrBytes, withNoHaltPtrMBytes,
                                      withPtrBytes, withPtrMBytes)
 import Primal.Monad
-import Primal.Prim
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Class
 
 
 -- | For memory allocated as pinned it is possible to operate on it with a `Ptr`. Any data
@@ -179,17 +179,17 @@ newForeignPtr_ :: MonadPrim RW m => Ptr e -> m (ForeignPtr e)
 newForeignPtr_ = liftPrimBase . GHC.newForeignPtr_
 
 -- | Simila to `GHC.mallocForeignPtr`, except it operates on `Prim`, instead of `Storable`.
-mallocForeignPtr :: forall e m . (MonadPrim RW m, Prim e) => m (ForeignPtr e)
+mallocForeignPtr :: forall e m . (MonadPrim RW m, Unbox e) => m (ForeignPtr e)
 mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 
 
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
 -- use `Prim`.
-mallocCountForeignPtr :: (MonadPrim RW m, Prim e) => Count e -> m (ForeignPtr e)
+mallocCountForeignPtr :: (MonadPrim RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . unCountBytes
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
-mallocCountForeignPtrAligned :: (MonadPrim RW m, Prim e) => Count e -> m (ForeignPtr e)
+mallocCountForeignPtrAligned :: (MonadPrim RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtrAligned count =
   liftPrimBase $ GHC.mallocForeignPtrAlignedBytes (coerce count) (alignmentProxy count)
 
@@ -221,20 +221,20 @@ addForeignPtrFinalizerEnv fin envPtr = liftPrimBase . GHC.addForeignPtrFinalizer
 -- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Prim` and
 -- we are not restricted to `IO`, since finalizers are not possible with `PlaintPtr`
 mallocPlainForeignPtr ::
-     forall e m s. (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Unbox e)
   => m (ForeignPtr e)
 mallocPlainForeignPtr = mallocCountPlainForeignPtr (1 :: Count e)
 {-# INLINE mallocPlainForeignPtr #-}
 
 -- | Similar to `Foreign.ForeignPtr.mallocPlainForeignPtrArray`, except instead of `Storable` we
 -- use `Prim`.
-mallocCountPlainForeignPtr :: (MonadPrim s m, Prim e) => Count e -> m (ForeignPtr e)
+mallocCountPlainForeignPtr :: (MonadPrim s m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountPlainForeignPtr = mallocByteCountPlainForeignPtr . toByteCount
 {-# INLINE mallocCountPlainForeignPtr #-}
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
 mallocCountPlainForeignPtrAligned ::
-     forall e m s. (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Unbox e)
   => Count e
   -> m (ForeignPtr e)
 mallocCountPlainForeignPtrAligned c =
@@ -290,7 +290,7 @@ finalizeForeignPtr = liftPrimBase . GHC.finalizeForeignPtr
 -- does not affect associated finalizers in any way.
 --
 -- @since 0.1.0
-plusOffForeignPtr :: Prim e => ForeignPtr e -> Off e -> ForeignPtr e
+plusOffForeignPtr :: Unbox e => ForeignPtr e -> Off e -> ForeignPtr e
 plusOffForeignPtr (ForeignPtr addr# content) off =
   ForeignPtr (addr# `plusAddr#` unOffBytes# off) content
 {-# INLINE plusOffForeignPtr #-}
@@ -318,7 +318,7 @@ minusByteOffForeignPtr (ForeignPtr xaddr# _) (ForeignPtr yaddr# _) =
 -- one address from another and dividing the result by the size of an element.
 --
 -- @since 0.1.0
-minusOffForeignPtr :: Prim e => ForeignPtr e -> ForeignPtr e -> Off e
+minusOffForeignPtr :: Unbox e => ForeignPtr e -> ForeignPtr e -> Off e
 minusOffForeignPtr (ForeignPtr xaddr# _) (ForeignPtr yaddr# _) =
   fromByteOff (Off (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusOffForeignPtr #-}
@@ -327,7 +327,7 @@ minusOffForeignPtr (ForeignPtr xaddr# _) (ForeignPtr yaddr# _) =
 -- left over.
 --
 -- @since 0.1.0
-minusOffRemForeignPtr :: Prim e => ForeignPtr e -> ForeignPtr e -> (Off e, Off Word8)
+minusOffRemForeignPtr :: Unbox e => ForeignPtr e -> ForeignPtr e -> (Off e, Off Word8)
 minusOffRemForeignPtr (ForeignPtr xaddr# _) (ForeignPtr yaddr# _) =
   fromByteOffRem (Off (I# (xaddr# `minusAddr#` yaddr#)))
 {-# INLINE minusOffRemForeignPtr #-}

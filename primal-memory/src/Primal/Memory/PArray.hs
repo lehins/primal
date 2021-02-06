@@ -51,20 +51,21 @@ module Primal.Memory.PArray
   , setPMArray
   , copyPArrayToPMArray
   , movePMArrayToPMArray
+  , module Primal.Unbox
   ) where
 
 import Control.DeepSeq
-import Primal.Monad
-import Primal.Mutable.Eq
-import Primal.Mutable.Freeze
-import Primal.Mutable.Ord
-import Primal.Prim
 import Primal.Array.Unboxed (Size(..), UArray(..), UMArray(..))
+import Primal.Foreign
 import Primal.Memory.Bytes
 import Primal.Memory.Fold
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Internal
-import Primal.Foreign
+import Primal.Monad
+import Primal.Mutable.Eq
+import Primal.Mutable.Freeze
+import Primal.Mutable.Ord
+import Primal.Unbox
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)
@@ -72,11 +73,11 @@ newtype PArray (p :: Pinned) e = PArray (Bytes p)
 type role PArray nominal nominal
 
 
-instance (Prim e, Eq e) => Eq (PArray p e) where
+instance (Unbox e, Eq e) => Eq (PArray p e) where
   (==) = eqMem @e
   {-# INLINE (==) #-}
 
-instance (Prim e, Ord e) => Ord (PArray p e) where
+instance (Unbox e, Ord e) => Ord (PArray p e) where
   compare = compareMem @e
   {-# INLINE compare #-}
 
@@ -114,7 +115,7 @@ instance Typeable p => MemAlloc (PMArray p e) where
   reallocMutMem mba = fmap fromMBytesPMArray . reallocMBytes (toMBytesPMArray mba)
   {-# INLINE reallocMutMem #-}
 
-instance (Typeable p, Prim e) => IsList (PArray p e) where
+instance (Typeable p, Unbox e) => IsList (PArray p e) where
   type Item (PArray p e) = e
   fromList = fromListMem
   fromListN n = fromListZeroMemN_ (Count n)
@@ -123,7 +124,7 @@ instance (Typeable p, Prim e) => IsList (PArray p e) where
 instance Typeable p => IsString (PArray p Char) where
   fromString = fromListMem
 
-instance (Show e, Prim e) => Show (PArray p e) where
+instance (Show e, Unbox e) => Show (PArray p e) where
   show = show . toListPArray
 
 type instance Frozen (PMArray p e) = PArray p e
@@ -137,7 +138,7 @@ instance  Typeable p => MutFreeze (PMArray p e) where
   {-# INLINE freezeMut #-}
 
 
-toListPArray :: Prim e => PArray p e -> [e]
+toListPArray :: Unbox e => PArray p e -> [e]
 toListPArray = toListMem
 
 castPArray :: PArray p e' -> PArray p e
@@ -187,29 +188,29 @@ fromUMArrayPMArray (UMArray mba#) = fromMBytesPMArray (fromMutableByteArray# mba
 {-# INLINE fromUMArrayPMArray #-}
 
 
-sizePArray :: forall e p. Prim e => PArray p e -> Size
+sizePArray :: forall e p. Unbox e => PArray p e -> Size
 sizePArray = (coerce :: Count e -> Size) . countBytes . toBytesPArray
 {-# INLINE sizePArray #-}
 
-getSizePMArray :: forall e p m s. (MonadPrim s m, Prim e) => PMArray p e s -> m Size
+getSizePMArray :: forall e p m s. (MonadPrim s m, Unbox e) => PMArray p e s -> m Size
 getSizePMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPMArray
 {-# INLINE getSizePMArray #-}
 
 allocPMArray ::
-     forall e p m s . (Typeable p, Prim e, MonadPrim s m) => Size -> m (PMArray p e s)
+     forall e p m s . (Typeable p, Unbox e, MonadPrim s m) => Size -> m (PMArray p e s)
 allocPMArray sz = fromMBytesPMArray <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocPMArray #-}
 
-allocUnpinnedPMArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (PMArray 'Inc e s)
+allocUnpinnedPMArray :: forall e m s . (MonadPrim s m, Unbox e) => Size -> m (PMArray 'Inc e s)
 allocUnpinnedPMArray sz = fromMBytesPMArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocUnpinnedPMArray #-}
 
-allocPinnedPMArray :: forall e m s . (MonadPrim s m, Prim e) => Size -> m (PMArray 'Pin e s)
+allocPinnedPMArray :: forall e m s . (MonadPrim s m, Unbox e) => Size -> m (PMArray 'Pin e s)
 allocPinnedPMArray sz = fromMBytesPMArray <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocPinnedPMArray #-}
 
 allocAlignedPMArray ::
-     (MonadPrim s m, Prim e)
+     (MonadPrim s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (PMArray 'Pin e s)
 allocAlignedPMArray = fmap fromMBytesPMArray . allocAlignedMBytes
@@ -226,7 +227,7 @@ thawPArray = fmap fromMBytesPMArray . thawBytes . toBytesPArray
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountPMArray`.
 shrinkPMArray ::
-     forall e p m s. (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Unbox e)
   => PMArray p e s
   -> Size
   -> m ()
@@ -240,7 +241,7 @@ shrinkPMArray mba sz = shrinkMBytes (toMBytesPMArray mba) (coerce sz :: Count e)
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizePMArray ::
-     forall e p m s. (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Unbox e)
   => PMArray p e s
   -> Size
   -> m (PMArray 'Inc e s)
@@ -250,7 +251,7 @@ resizePMArray mba sz =
 {-# INLINE resizePMArray #-}
 
 reallocPMArray ::
-     forall e p m s. (MonadPrim s m, Typeable p,  Prim e)
+     forall e p m s. (MonadPrim s m, Typeable p,  Unbox e)
   => PMArray p e s
   -> Size
   -> m (PMArray p e s)
@@ -268,18 +269,18 @@ isPinnedPMArray :: PMArray p e s -> Bool
 isPinnedPMArray (PMArray mb) = isPinnedMBytes mb
 {-# INLINE isPinnedPMArray #-}
 
-readPMArray :: (MonadPrim s m, Prim e) => PMArray p e s -> Int -> m e
+readPMArray :: (MonadPrim s m, Unbox e) => PMArray p e s -> Int -> m e
 readPMArray (PMArray mb) = readOffMBytes mb . coerce
 {-# INLINE readPMArray #-}
 
-writePMArray :: (MonadPrim s m, Prim e) => PMArray p e s -> Int -> e -> m ()
+writePMArray :: (MonadPrim s m, Unbox e) => PMArray p e s -> Int -> e -> m ()
 writePMArray (PMArray mb) o = writeOffMBytes mb (coerce o)
 {-# INLINE writePMArray #-}
 
 
 
 setPMArray ::
-     forall e p m s. (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Unbox e)
   => PMArray p e s -- ^ Chunk of memory to fill
   -> Int -- ^ Offset in number of elements
   -> Size -- ^ Number of cells to fill
@@ -289,7 +290,7 @@ setPMArray (PMArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
 {-# INLINE setPMArray #-}
 
 copyPArrayToPMArray ::
-     forall e p m s. (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Unbox e)
   => PArray p e
   -> Int
   -> PMArray p e s
@@ -301,7 +302,7 @@ copyPArrayToPMArray ba srcOff mba dstOff sz =
 {-# INLINE copyPArrayToPMArray #-}
 
 movePMArrayToPMArray ::
-     forall e p m s. (MonadPrim s m, Prim e)
+     forall e p m s. (MonadPrim s m, Unbox e)
   => PMArray p e s
   -> Int
   -> PMArray p e s

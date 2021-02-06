@@ -32,28 +32,20 @@ module Primal.Memory.ByteString
   ) where
 
 import Control.Monad.ST
+import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Internal
-import Data.ByteString.Short.Internal
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import Primal.Prim
-import Primal.Foreign
-import Primal.Monad
-import Primal.Eval
+import Data.ByteString.Short.Internal
 import GHC.ForeignPtr
+import Primal.Eval
+import Primal.Foreign
+import Primal.Memory.Bytes.Internal (Bytes(..), Pinned(..), allocMBytes,
+                                     byteCountBytes, byteStringConvertError,
+                                     castForeignPtrToBytes, freezeMBytes,
+                                     relaxPinnedBytes, toForeignPtrBytes)
 import Primal.Memory.Ptr
-import Primal.Memory.Bytes.Internal
-  ( Bytes(..)
-  , Pinned(..)
-  , allocMBytes
-  , freezeMBytes
-  , byteCountBytes
-  , relaxPinnedBytes
-  , toForeignPtrBytes
-  , castForeignPtrToBytes
-  , byteStringConvertError
-  )
+import Primal.Monad
 
 -- | Mutable version of a `ByteString`
 newtype MByteString s = MByteString ByteString

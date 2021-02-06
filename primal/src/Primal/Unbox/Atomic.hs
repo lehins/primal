@@ -12,14 +12,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 -- |
--- Module      : Primal.Prim.Atomic
+-- Module      : Primal.Unbox.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Prim.Atomic
+module Primal.Unbox.Atomic
   ( Atomic(..)
   , AtomicBits(..)
   , AtomicCount(..)
@@ -43,7 +43,7 @@ import Data.Bits
 import Data.Char
 import Data.Functor.Identity
 import Data.Monoid
-import Primal.Prim.Class
+import Primal.Unbox.Class
 import Foreign.C.Error (Errno(..))
 import Primal.Foreign hiding (Any)
 import GHC.Conc
@@ -56,7 +56,7 @@ import Data.Semigroup
 
 #include "MachDeps.h"
 
-class (Prim a, Eq a) => Atomic a where
+class (Unbox a, Eq a) => Atomic a where
   -- | Read an element from `MutableByteArray#` atomically. Implies full memory barrier.
   atomicReadMutableByteArray# ::
        MutableByteArray# s -- ^ Mutable array to read the element from

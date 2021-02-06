@@ -35,7 +35,7 @@ instance Eq e => MutEq (SBMArray e) where
   eqMut m1 m2 = liftST $ eqWithST isSameSBMArray getSizeOfSBMArray readSBMArray m1 m2
   {-# INLINE eqMut #-}
 
-instance (Prim e, Eq e) => MutEq (UMArray e) where
+instance (Unbox e, Eq e) => MutEq (UMArray e) where
   eqMut m1 m2 = liftST $ eqWithST isSameUMArray getSizeOfUMArray readUMArray m1 m2
   {-# INLINE eqMut #-}
 

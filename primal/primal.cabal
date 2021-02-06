@@ -47,11 +47,11 @@ library
                      , Primal.Mutable.Ord
                      --, Primal.Mutable.Show
 
-                     , Primal.Prim
+                     , Primal.Unbox
                        -- ^ consider Unpack name instead
-                     , Primal.Prim.Atom
-                     , Primal.Prim.Atomic
-                     , Primal.Prim.Class
+                     , Primal.Unbox.Atom
+                     , Primal.Unbox.Atomic
+                     , Primal.Unbox.Class
 
                      -- , Primal.Mutable.Foldable
 

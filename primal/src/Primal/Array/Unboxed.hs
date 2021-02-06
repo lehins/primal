@@ -62,7 +62,7 @@ module Primal.Array.Unboxed
   , casUMArray
   -- * Re-export
   , MonadPrim
-  , Prim
+  , Unbox
   ) where
 
 import Control.DeepSeq
@@ -71,9 +71,9 @@ import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
 import Primal.Exception
 import Primal.Foreign
-import Primal.Prim
-import Primal.Prim.Atomic
-import Primal.Prim.Class
+import Primal.Unbox
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 
 -------------------
 -- Unboxed Array --
@@ -86,14 +86,14 @@ import Primal.Prim.Class
 data UArray e = UArray ByteArray#
 type role UArray nominal
 
-instance (Prim e, Show e) => Show (UArray e) where
+instance (Unbox e, Show e) => Show (UArray e) where
   showsPrec n arr
     | n > 1 = ('(' :) . inner . (')' :)
     | otherwise = inner
     where
       inner = ("UArray " ++) . shows (toList arr)
 
-instance Prim e => IsList (UArray e) where
+instance Unbox e => IsList (UArray e) where
   type Item (UArray e) = e
   fromList = fromListUArray
   {-# INLINE fromList #-}
@@ -111,16 +111,16 @@ instance NFData (UArray e) where
   rnf (UArray _) = ()
   {-# INLINE rnf #-}
 
-instance (Prim e, Eq e) => Eq (UArray e) where
+instance (Unbox e, Eq e) => Eq (UArray e) where
   (==) = eqWith isSameUArray sizeOfUArray indexUArray
   {-# INLINE (==) #-}
 
-instance (Prim e, Ord e) => Ord (UArray e) where
+instance (Unbox e, Ord e) => Ord (UArray e) where
   compare = compareWith isSameUArray sizeOfUArray indexUArray
   {-# INLINE compare #-}
 
 
-instance Prim e => Semigroup (UArray e) where
+instance Unbox e => Semigroup (UArray e) where
   (<>) = appendWith newRawUMArray copyUArray freezeUMArray sizeOfUArray
   {-# INLINE (<>) #-}
   sconcat xs = concatWith newRawUMArray copyUArray freezeUMArray sizeOfUArray (NE.toList xs)
@@ -128,7 +128,7 @@ instance Prim e => Semigroup (UArray e) where
   stimes n = cycleWith newRawUMArray copyUArray freezeUMArray sizeOfUArray (fromIntegral n)
   {-# INLINE stimes #-}
 
-instance Prim e => Monoid (UArray e) where
+instance Unbox e => Monoid (UArray e) where
   mempty = runST $ newRawUMArray 0 >>= freezeUMArray
   {-# NOINLINE mempty #-}
   mappend = (<>)
@@ -164,7 +164,7 @@ isPinnedUArray (UArray b#) = isTrue# (isByteArrayPinned# b#)
 --
 -- @since 0.3.0
 sizeOfUArray ::
-     forall e. Prim e
+     forall e. Unbox e
   => UArray e
   -> Size
 sizeOfUArray (UArray a#) =
@@ -190,7 +190,7 @@ sizeOfUArray (UArray a#) =
 --
 -- @since 0.3.0
 indexUArray ::
-     forall e. Prim e
+     forall e. Unbox e
   => UArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
@@ -225,7 +225,7 @@ indexUArray (UArray a#) (I# i#) = indexByteArray# a# i#
 --
 -- @since 1.0.0
 cloneSliceUArray ::
-     forall e. Prim e
+     forall e. Unbox e
   => UArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -262,7 +262,7 @@ cloneSliceUArray arr off sz = runST $ thawCopyUArray arr off sz >>= freezeUMArra
 --
 -- @since 0.3.0
 copyUArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -366,7 +366,7 @@ thawUArray (UArray a#) =
 --
 -- @since 1.0.0
 thawCopyUArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -400,7 +400,7 @@ thawCopyUArray arr off sz = newRawUMArray sz >>= \marr -> marr <$ copyUArray arr
 --
 -- @since 0.1.0
 toListUArray ::
-     forall e. Prim e
+     forall e. Unbox e
   => UArray e
   -> [e]
 toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
@@ -426,7 +426,7 @@ toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
 --
 -- @since 0.1.0
 fromListUArrayN ::
-     forall e. Prim e
+     forall e. Unbox e
   => Size -- ^ /sz/ - Expected number of elements in the @list@
   -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> UArray e
@@ -448,7 +448,7 @@ fromListUArrayN sz xs =
 --
 -- @since 0.3.0
 fromListUArray ::
-     forall e. Prim e
+     forall e. Unbox e
   => [e]
   -> UArray e
 fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
@@ -465,7 +465,7 @@ fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
 -- UArray [30,31,32,33,34,35]
 --
 -- @since 0.3.0
-fromBaseUArray :: (Prim e, A.IArray A.UArray e) => A.UArray ix e -> UArray e
+fromBaseUArray :: (Unbox e, A.IArray A.UArray e) => A.UArray ix e -> UArray e
 fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
 
 -- | /O(1)/ - cast an unboxed `UArray` from primal into `A.UArray`, which is wired with
@@ -478,7 +478,7 @@ fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
 -- array (0,2) [(0,1),(1,2),(2,3)]
 --
 -- @since 0.3.0
-toBaseUArray :: (Prim e, A.IArray A.UArray e) => UArray e -> A.UArray Int e
+toBaseUArray :: (Unbox e, A.IArray A.UArray e) => UArray e -> A.UArray Int e
 toBaseUArray a@(UArray ba#) =
   let Size n = sizeOfUArray a
   in A.UArray 0 (max 0 (n - 1)) n ba#
@@ -531,7 +531,7 @@ isPinnedUMArray (UMArray mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 --
 -- @since 0.3.0
 getSizeOfUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s
   -> m Size
 getSizeOfUMArray (UMArray ma#) =
@@ -557,7 +557,7 @@ getSizeOfUMArray (UMArray ma#) =
 --
 -- @since 0.3.0
 readUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
@@ -582,7 +582,6 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Prim
 -- >>> ma <- newRawUMArray 4 :: IO (UMArray (Maybe Int) RW)
 -- >>> mapM_ (\i -> writeUMArray ma i Nothing) [0, 1, 3]
 -- >>> writeUMArray ma 2 (Just 2)
@@ -591,7 +590,7 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- @since 0.3.0
 writeUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s
   -> Int
   -> e
@@ -619,7 +618,7 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 --
 -- @since 0.3.0
 newUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -645,7 +644,7 @@ newUMArray n e = newRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
 --
 -- @since 0.3.0
 newPinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> e
   -> m (UMArray e s)
@@ -660,7 +659,7 @@ newPinnedUMArray n e = newRawPinnedUMArray n >>= \ma -> ma <$ setUMArray ma 0 n 
 --
 -- @since 0.3.0
 newAlignedPinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> e
   -> m (UMArray e s)
@@ -687,7 +686,7 @@ newAlignedPinnedUMArray n e = newRawAlignedPinnedUMArray n >>= \ma -> ma <$ setU
 --
 -- @since 0.3.0
 makeUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -701,7 +700,7 @@ makeUMArray = makeMutWith newRawUMArray writeUMArray
 --
 -- @since 0.3.0
 makePinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -714,7 +713,7 @@ makePinnedUMArray = makeMutWith newRawPinnedUMArray writeUMArray
 --
 -- @since 0.3.0
 makeAlignedPinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -735,7 +734,6 @@ makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
@@ -744,7 +742,7 @@ makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 --
 -- @since 0.3.0
 newRawUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -773,7 +771,7 @@ newRawUMArray n =
 --
 -- @since 0.3.0
 newRawPinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> m (UMArray e s)
 newRawPinnedUMArray n =
@@ -791,7 +789,7 @@ newRawPinnedUMArray n =
 --
 -- @since 0.3.0
 newRawAlignedPinnedUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => Size
   -> m (UMArray e s)
 newRawAlignedPinnedUMArray n =
@@ -815,7 +813,7 @@ newRawAlignedPinnedUMArray n =
 --
 -- @since 0.3.0
 moveUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
@@ -854,7 +852,7 @@ moveUMArray (UMArray src#) srcOff (UMArray dst#) dstOff n =
     prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveUMArray #-}
 
-withPrimOffsets :: forall e a. Prim e => e -> Int -> Int -> Size -> (Int# -> Int# -> Int# -> a) -> a
+withPrimOffsets :: forall e a. Unbox e => e -> Int -> Int -> Size -> (Int# -> Int# -> Int# -> a) -> a
 withPrimOffsets _ srcOff dstOff n f =
   let srcOff# = unOffBytes# (coerce srcOff :: Off e)
       dstOff# = unOffBytes# (coerce dstOff :: Off e)
@@ -869,7 +867,7 @@ withPrimOffsets _ srcOff dstOff n f =
 --
 -- @since 0.3.0
 setUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s -- ^ /dstMutArray/ - Mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the mutable array
@@ -904,7 +902,7 @@ setUMArray (UMArray ma#) (I# o#) (Size (I# n#)) a =
 --
 -- 0.3.0
 shrinkUMArray ::
-     forall e m s. (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Unbox e)
   => UMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -935,7 +933,7 @@ shrinkUMArray (UMArray mb#) sz =
 --
 -- 0.3.0
 resizeUMArray ::
-     forall e m s. (MonadPrim s m, Prim e)
+     forall e m s. (MonadPrim s m, Unbox e)
   => UMArray e s -- ^ /srcMutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -991,7 +989,7 @@ freezeUMArray (UMArray ma#) = prim $ \s ->
 --
 -- @since 0.3.0
 freezeCopyUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1030,7 +1028,7 @@ freezeCopyUMArray marr off sz = cloneSliceUMArray marr off sz >>= freezeUMArray
 --
 -- @since 1.0.0
 cloneSliceUMArray ::
-     forall e m s. (Prim e, MonadPrim s m)
+     forall e m s. (Unbox e, MonadPrim s m)
   => UMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1069,35 +1067,25 @@ cloneSliceUMArray marr off sz = freezeUMArray marr >>= \arr -> thawCopyUArray ar
 --
 -- ====__Examples__
 --
--- >>> ma <- makeSBMArray 5 (pure . (*10))
--- >>> freezeSBMArray ma
--- SBArray [0,10,20,30,40]
+-- >>> ma <- makeUMArray 5 (pure . (*10))
+-- >>> freezeUMArray ma
+-- UArray [0,10,20,30,40]
 --
--- A possible mistake is to try and pass the expected value, instead of an actual element:
+-- Unlike a boxed arrays it is OK to pass the expected value, instead of an actual element:
 --
--- >>> casSBMArray ma 2 20 1000
--- (False,20)
--- >>> freezeSBMArray ma
--- SBArray [0,10,20,30,40]
---
--- But this will get us nowhere, since what we really need is the actual reference to the
--- value currently in the array cell
---
--- >>> expected <- readSBMArray ma 2
--- >>> r@(_, currentValue) <- casSBMArray ma 2 expected 1000
--- >>> freezeSBMArray ma
--- SBArray [0,10,1000,30,40]
--- >>> r
+-- >>> casUMArray ma 2 20 1000
 -- (True,1000)
+-- >>> freezeUMArray ma
+-- UArray [0,10,1000,30,40]
 --
 -- In a concurrent setting current value can potentially be modified by some other
--- thread, therefore returned value can be immedieately used as the expected one to the
--- next call, if we don want to retry the atomic modification:
+-- thread, therefore returned value can be immediately used as the expected one to the
+-- next call, if we need to retry the atomic modification:
 --
--- >>> casSBMArray ma 2 currentValue 2000
+-- >>> casUMArray ma 2 1000 2000
 -- (True,2000)
--- >>> freezeSBMArray ma
--- SBArray [0,10,2000,30,40]
+-- >>> freezeUMArray ma
+-- UArray [0,10,2000,30,40]
 --
 -- @since 1.0.0
 casUMArray ::

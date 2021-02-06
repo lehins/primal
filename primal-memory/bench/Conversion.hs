@@ -95,7 +95,7 @@ withPtrMBytes_noinline mb f = do
   res <$ touch mb
 {-# NOINLINE withPtrMBytes_noinline #-}
 
-ptrAction :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction (Count n) mb = go 0
   where
     go i
@@ -104,7 +104,7 @@ ptrAction (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-ptrAction_inline :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_inline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_inline (Count n) mb = go 0
   where
     go i
@@ -113,7 +113,7 @@ ptrAction_inline (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-ptrAction_noinline :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_noinline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_noinline (Count n) mb = go 0
   where
     go i
@@ -122,7 +122,7 @@ ptrAction_noinline (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-bytesAction :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+bytesAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 bytesAction (Count n) mb = go 0
   where
     go i
@@ -131,7 +131,7 @@ bytesAction (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-foreignPtrAction :: forall a . (Num a, Prim a) => Count a -> ForeignPtr a -> IO ()
+foreignPtrAction :: forall a . (Num a, Unbox a) => Count a -> ForeignPtr a -> IO ()
 foreignPtrAction (Count n) fp = go 0
   where
     go i

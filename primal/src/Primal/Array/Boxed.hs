@@ -65,7 +65,7 @@ import Primal.Exception
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
-import Primal.Prim
+import Primal.Unbox
 import Primal.Foreign
 import qualified GHC.Arr as A
 
@@ -777,7 +777,6 @@ newLazyBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeBMArray ma i x) (zip [0..] xs)
@@ -1104,7 +1103,7 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 --
 -- In a concurrent setting current value can potentially be modified by some other
 -- thread, therefore returned value can be immediately used as the expected one to the
--- next call, if we want to retry the atomic swap:
+-- next call, if we need to retry the atomic swap:
 --
 -- >>> casBMArray ma 2 currentValue 2000
 -- (True,2000)

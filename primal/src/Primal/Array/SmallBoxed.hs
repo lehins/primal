@@ -63,7 +63,7 @@ import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
 import Primal.Exception
 import Primal.Foreign
-import Primal.Prim
+import Primal.Unbox
 
 
 -----------------------
@@ -787,7 +787,6 @@ newLazySBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Prim
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawSBMArray (Size (length xs)) :: IO (SBMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeSBMArray ma i x) (zip [0..] xs)
@@ -1022,8 +1021,8 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 -- (True,1000)
 --
 -- In a concurrent setting current value can potentially be modified by some other
--- thread, therefore returned value can be immedieately used as the expected one to the
--- next call, if we don want to retry the atomic modification:
+-- thread, therefore returned value can be immediately used as the expected one to the
+-- next call, if we need to retry the atomic modification:
 --
 -- >>> casSBMArray ma 2 currentValue 2000
 -- (True,2000)

@@ -23,7 +23,7 @@ import Primal.Monad
 import Primal.Monad.Throw
 import Primal.Ref
 import Primal.Foreign
-import Primal.Prim
+import Primal.Unbox
 import Primal.Array
 
 
@@ -62,12 +62,12 @@ instance Lift Maybe a where
 
 
 
-type instance Elt UArray a = Prim a
+type instance Elt UArray a = Unbox a
 
-instance Prim a => Singleton UArray a where
+instance Unbox a => Singleton UArray a where
   singleton = fromListUArray . pure
 
-instance Prim a => Lift UArray a where
+instance Unbox a => Lift UArray a where
   lift f = fromListUArray . map f . toListUArray
 
   lift2 f a b = fromListUArray $ zipWith f (toListUArray a) (toListUArray b)
@@ -176,10 +176,10 @@ class Elt f e => MFilter (f :: * -> * -> *) e where
 -- class PFunctor f a b => KeyPFunctor (f :: * -> *) k a b | f -> k where
 --   pilift :: (k -> a -> b) -> f a -> f b
 
--- instance (Prim a, Prim b) => PFunctor UArray a b where
+-- instance (Unbox a, Unbox b) => PFunctor UArray a b where
 --   plift f = fromListUArray . map f . toListUArray
 
--- instance (Prim a, Prim b) => KeyPFunctor UArray Int a b where
+-- instance (Unbox a, Unbox b) => KeyPFunctor UArray Int a b where
 --   pilift f = fromListUArray . zipWith f [0..] . toListUArray
 
 -- instance PFunctor [] a b where
@@ -208,7 +208,7 @@ instance FoldMut BRef e where
   foldlMutM f acc ref = readBRef ref >>= f acc
 
 
-instance Prim e => FoldMut UMArray e where
+instance Unbox e => FoldMut UMArray e where
   foldlMutM f initAcc marr = do
     Size k <- getSizeOfUMArray marr
     let go acc i

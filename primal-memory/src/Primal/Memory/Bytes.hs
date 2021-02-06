@@ -16,7 +16,7 @@
 -- Portability : non-portable
 --
 module Primal.Memory.Bytes
-  ( module Primal.Prim
+  ( module Primal.Unbox
     -- * Immutable
   , Bytes
   , toByteArray#
@@ -160,8 +160,8 @@ import Data.Maybe (fromMaybe)
 import Primal.Foreign
 import Primal.Memory.Internal
 import Primal.Monad
-import Primal.Prim
-import Primal.Prim.Atomic
+import Primal.Unbox
+import Primal.Unbox.Atomic
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2
@@ -169,13 +169,13 @@ eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2
 
 ---- Pure
 
-compareBytes :: Prim e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
+compareBytes :: Unbox e => Bytes p1 -> Off e -> Bytes p2 -> Off e -> Count e -> Ordering
 compareBytes (Bytes b1#) off1 (Bytes b2#) off2 c =
   toOrdering# (compareByteArrays# b1# (unOffBytes# off1) b2# (unOffBytes# off2) (unCountBytes# c))
 {-# INLINE compareBytes #-}
 
 -- compareMBytes ::
---      (Prim e, MonadPrim s m)
+--      (Unbox e, MonadPrim s m)
 --   => MBytes p1 s
 --   -> Off e
 --   -> MBytes p2 s
@@ -201,13 +201,13 @@ isEmptyBytes :: Bytes p -> Bool
 isEmptyBytes b = byteCountBytes b == 0
 {-# INLINE isEmptyBytes #-}
 
-singletonBytes :: forall e p. (Prim e, Typeable p) => e -> Bytes p
+singletonBytes :: forall e p. (Unbox e, Typeable p) => e -> Bytes p
 singletonBytes a = runST $ singletonMBytes a >>= freezeMBytes
 {-# INLINE singletonBytes #-}
 
 ---- Mutable
 
-singletonMBytes :: forall e p m s. (Prim e, Typeable p, MonadPrim s m) => e -> m (MBytes p s)
+singletonMBytes :: forall e p m s. (Unbox e, Typeable p, MonadPrim s m) => e -> m (MBytes p s)
 singletonMBytes a = do
   mb <- allocMBytes (1 :: Count e)
   mb <$ writeOffMBytes mb 0 a
@@ -226,7 +226,7 @@ cloneMBytes mb = do
 
 
 copyBytesToMBytes ::
-     (MonadPrim s m, Prim e) => Bytes ps -> Off e -> MBytes pd s -> Off e -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => Bytes ps -> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ $
   copyByteArray# src# (unOffBytes# srcOff) dst# (unOffBytes# dstOff) (unCountBytes# c)
@@ -234,7 +234,7 @@ copyBytesToMBytes (Bytes src#) srcOff (MBytes dst#) dstOff c =
 
 
 moveMBytesToMBytes ::
-     (MonadPrim s m, Prim e) => MBytes ps s-> Off e -> MBytes pd s -> Off e -> Count e -> m ()
+     (MonadPrim s m, Unbox e) => MBytes ps s-> Off e -> MBytes pd s -> Off e -> Count e -> m ()
 moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
   prim_ (copyMutableByteArray# src# (unOffBytes# srcOff) dst# (unOffBytes# dstOff) (unCountBytes# c))
 {-# INLINE moveMBytesToMBytes #-}
@@ -242,7 +242,7 @@ moveMBytesToMBytes (MBytes src#) srcOff (MBytes dst#) dstOff c =
 -- | Allocated memory is not cleared, so make sure to fill it in properly, otherwise you
 -- might find some garbage there.
 createBytes ::
-     forall p e b s m. (Prim e, Typeable p, MonadPrim s m)
+     forall p e b s m. (Unbox e, Typeable p, MonadPrim s m)
   => Count e
   -> (MBytes p s -> m b)
   -> m (b, Bytes p)
@@ -253,7 +253,7 @@ createBytes n f = do
 {-# INLINE createBytes #-}
 
 createBytes_ ::
-     forall p e b s m. (Prim e, Typeable p, MonadPrim s m)
+     forall p e b s m. (Unbox e, Typeable p, MonadPrim s m)
   => Count e
   -> (MBytes p s -> m b)
   -> m (Bytes p)
@@ -261,7 +261,7 @@ createBytes_ n f = allocMBytes n >>= \mb -> f mb >> freezeMBytes mb
 {-# INLINE createBytes_ #-}
 
 createBytesST ::
-     forall p e b. (Prim e, Typeable p)
+     forall p e b. (Unbox e, Typeable p)
   => Count e
   -> (forall s . MBytes p s -> ST s b)
   -> (b, Bytes p)
@@ -269,14 +269,14 @@ createBytesST n f = runST $ createBytes n f
 {-# INLINE createBytesST #-}
 
 createBytesST_ ::
-     forall p e b. (Prim e, Typeable p)
+     forall p e b. (Unbox e, Typeable p)
   => Count e
   -> (forall s. MBytes p s -> ST s b)
   -> Bytes p
 createBytesST_ n f =  runST $ createBytes_ n f
 {-# INLINE createBytesST_ #-}
 
-allocZeroMBytes :: (MonadPrim s m, Prim e, Typeable p) => Count e -> m (MBytes p s)
+allocZeroMBytes :: (MonadPrim s m, Unbox e, Typeable p) => Count e -> m (MBytes p s)
 allocZeroMBytes n = allocMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE allocZeroMBytes #-}
 
@@ -327,7 +327,7 @@ withCloneMBytesST_ b f = runST $ withCloneMBytes_ b f
 -- number of bytes that would be leftover in case when total number of bytes available is
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
-countRemBytes :: forall e p. Prim e => Bytes p -> (Count e, Count Word8)
+countRemBytes :: forall e p. Unbox e => Bytes p -> (Count e, Count Word8)
 countRemBytes = fromByteCountRem . byteCountBytes
 {-# INLINE countRemBytes #-}
 
@@ -338,7 +338,7 @@ countRemBytes = fromByteCountRem . byteCountBytes
 -- not exactly divisable by the size of the element that will be stored in the memory
 -- chunk.
 getCountRemOfMBytes ::
-     forall e p s m. (MonadPrim s m, Prim e)
+     forall e p s m. (MonadPrim s m, Unbox e)
   => MBytes p s
   -> m (Count e, Count Word8)
 getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
@@ -347,34 +347,34 @@ getCountRemOfMBytes b = fromByteCountRem <$> getByteCountMBytes b
 -- | It is only guaranteed to convert the whole memory to a list whenever the size of
 -- allocated memory is exactly divisible by the size of the element, otherwise there will
 -- be some slack left unaccounted for.
-toListBytes :: Prim e => Bytes p -> [e]
+toListBytes :: Unbox e => Bytes p -> [e]
 toListBytes = toListMem
 {-# INLINE toListBytes #-}
 
-toListSlackBytes :: Prim e => Bytes p -> ([e], [Word8])
+toListSlackBytes :: Unbox e => Bytes p -> ([e], [Word8])
 toListSlackBytes = toListSlackMem
 {-# INLINE toListSlackBytes #-}
 
 -- | Same as `loadListMutMem`
-loadListMBytes :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Count e)
+loadListMBytes :: (Unbox e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ([e], Count e)
 loadListMBytes = loadListMutMem
 {-# INLINE loadListMBytes #-}
 
 -- | Same as `loadListMutMem_`
-loadListMBytes_ :: (Prim e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ()
+loadListMBytes_ :: (Unbox e, Typeable p, MonadPrim s m) => [e] -> MBytes p s -> m ()
 loadListMBytes_ = loadListMutMem_
 {-# INLINE loadListMBytes_ #-}
 
 -- | Same as `fromListZeroMemN_`
 --
 -- @since 0.3.0
-fromListZeroBytesN_ :: (Prim e, Typeable p) => Count e -> [e] -> Bytes p
+fromListZeroBytesN_ :: (Unbox e, Typeable p) => Count e -> [e] -> Bytes p
 fromListZeroBytesN_ = fromListZeroMemN_
 {-# INLINE fromListZeroBytesN_ #-}
 
 -- | Exactly like `fromListMemN`, but restricted to `Bytes`.
 fromListBytesN ::
-     (Prim e, Typeable p)
+     (Unbox e, Typeable p)
   => Count e
   -> [e]
   -> (Either [e] (Count e), Bytes p)
@@ -382,7 +382,7 @@ fromListBytesN = fromListMemN
 {-# INLINE fromListBytesN #-}
 
 fromListBytes ::
-     forall e p. (Prim e, Typeable p)
+     forall e p. (Unbox e, Typeable p)
   => [e]
   -> Bytes p
 fromListBytes = fromListMem
@@ -877,35 +877,35 @@ atomicNotFetchNewMBytes (MBytes mba#) (Off (I# i#)) =
 
 
 
-prefetchBytes0 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
+prefetchBytes0 :: (MonadPrim s m, Unbox e) => Bytes p -> Off e -> m ()
 prefetchBytes0 (Bytes b#) off = prim_ (prefetchByteArray0# b# (unOffBytes# off))
 {-# INLINE prefetchBytes0 #-}
 
-prefetchMBytes0 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
+prefetchMBytes0 :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> m ()
 prefetchMBytes0 (MBytes mb#) off = prim_ (prefetchMutableByteArray0# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes0 #-}
 
-prefetchBytes1 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
+prefetchBytes1 :: (MonadPrim s m, Unbox e) => Bytes p -> Off e -> m ()
 prefetchBytes1 (Bytes b#) off = prim_ (prefetchByteArray1# b# (unOffBytes# off))
 {-# INLINE prefetchBytes1 #-}
 
-prefetchMBytes1 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
+prefetchMBytes1 :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> m ()
 prefetchMBytes1 (MBytes mb#) off = prim_ (prefetchMutableByteArray1# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes1 #-}
 
-prefetchBytes2 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
+prefetchBytes2 :: (MonadPrim s m, Unbox e) => Bytes p -> Off e -> m ()
 prefetchBytes2 (Bytes b#) off = prim_ (prefetchByteArray2# b# (unOffBytes# off))
 {-# INLINE prefetchBytes2 #-}
 
-prefetchMBytes2 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
+prefetchMBytes2 :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> m ()
 prefetchMBytes2 (MBytes mb#) off = prim_ (prefetchMutableByteArray2# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes2 #-}
 
-prefetchBytes3 :: (MonadPrim s m, Prim e) => Bytes p -> Off e -> m ()
+prefetchBytes3 :: (MonadPrim s m, Unbox e) => Bytes p -> Off e -> m ()
 prefetchBytes3 (Bytes b#) off = prim_ (prefetchByteArray3# b# (unOffBytes# off))
 {-# INLINE prefetchBytes3 #-}
 
-prefetchMBytes3 :: (MonadPrim s m, Prim e) => MBytes p s -> Off e -> m ()
+prefetchMBytes3 :: (MonadPrim s m, Unbox e) => MBytes p s -> Off e -> m ()
 prefetchMBytes3 (MBytes mb#) off = prim_ (prefetchMutableByteArray3# mb# (unOffBytes# off))
 {-# INLINE prefetchMBytes3 #-}
 

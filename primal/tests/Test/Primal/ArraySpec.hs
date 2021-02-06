@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Test.Primal.ArraySpec (spec) where
 
-import Primal.Prim
+import Primal.Unbox
 import Primal.Foreign (IsList(..))
 import Primal.Exception
 import Primal.Array
@@ -36,7 +36,7 @@ instance Arbitrary1 SBArray where
     fromListSBArrayN sz <$> vectorOf n gen
 
 
-instance (Prim e, Arbitrary e) => Arbitrary (UArray e) where
+instance (Unbox e, Arbitrary e) => Arbitrary (UArray e) where
   arbitrary = do
     sz@(Size n) <- arbitrary
     fromListUArrayN sz <$> vector n
