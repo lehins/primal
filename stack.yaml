@@ -2,7 +2,7 @@ resolver: lts-16.15 # nightly-2020-09-16
 packages:
 - primal
 # - primal-adaptive
-#- primal-container
+- primal-container
 - primal-memory
 #- primal-test
 

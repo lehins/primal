@@ -3,14 +3,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Primal.Container.Mutable.Ref.Internal
+-- Module      : Primal.Container.Ref.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Container.Mutable.Ref.Internal
+module Primal.Container.Ref.Internal
   ( MRef(..)
   , modifyMRef
   , modifyMRef_
@@ -24,8 +24,8 @@ module Primal.Container.Mutable.Ref.Internal
 
 import Primal.Concurrent.MVar
 import Primal.Container.Internal
-import Primal.Data.Array
-import Primal.Data.Ref
+import Primal.Array
+import Primal.Ref
 import Primal.Memory
 import Primal.Memory.Addr
 import Primal.Memory.PArray
@@ -92,7 +92,7 @@ instance MRef MVar a where
   {-# INLINE readMRef #-}
 
 
-instance Prim e => MRef MAddr e where
+instance Unbox e => MRef MAddr e where
   newRawMRef = allocMAddr 1
   {-# INLINE newRawMRef #-}
   writeMRef = writeMAddr
@@ -101,7 +101,7 @@ instance Prim e => MRef MAddr e where
   {-# INLINE readMRef #-}
 
 
-instance (Typeable p, Prim e) => MRef (PMArray p) e where
+instance (Typeable p, Unbox e) => MRef (PMArray p) e where
   newRawMRef = allocPMArray 1
   {-# INLINE newRawMRef #-}
   writeMRef mba = writePMArray mba 0
@@ -111,14 +111,14 @@ instance (Typeable p, Prim e) => MRef (PMArray p) e where
 
 
 
-instance MRef Ref a where
-  newMRef = newRef
+instance MRef BRef a where
+  newMRef = newBRef
   {-# INLINE newMRef #-}
-  newRawMRef = newRef (uninitialized "Primal.Container.Mutable.Ref.Internal" "newRawMRef")
+  newRawMRef = newBRef (uninitialized "Primal.Container.Mutable.Ref.Internal" "newRawMRef")
   {-# INLINE newRawMRef #-}
-  writeMRef = writeRef
+  writeMRef = writeBRef
   {-# INLINE writeMRef #-}
-  readMRef = readRef
+  readMRef = readBRef
   {-# INLINE readMRef #-}
 
 
@@ -145,7 +145,7 @@ instance MRef SBMArray e where
   {-# INLINE newMRef #-}
 
 
-instance Prim e => MRef UMArray e where
+instance Unbox e => MRef UMArray e where
   newRawMRef = newRawUMArray 1
   {-# INLINE newRawMRef #-}
   readMRef mba = readUMArray mba 0

@@ -10,14 +10,14 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 #endif
 -- |
--- Module      : Primal.Data.Mutable.Foldable
+-- Module      : Primal.Container.Foldable
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Data.Mutable.Foldable where
+module Primal.Container.Foldable where
 
 import Primal.Monad
 import Primal.Monad.Throw

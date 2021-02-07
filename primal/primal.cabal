@@ -62,7 +62,6 @@ library
                      , Primal.Ref.Boxed.Atomic
                      -- , Primal.Ref.Unboxed
                      -- , Primal.Ref.Unboxed.Atomic
-                     , Primal.Data.Mutable.Foldable
 
                      , Primal.Mem
                      , Primal.Mem.Weak

@@ -35,9 +35,9 @@ library
                      -- , Primal.Container.Mutable.Reduce
                      -- , Primal.Container.Mutable.Lift
 
-                       Primal.Container.Array
-                     , Primal.Container.Array.Atomic
-                     , Primal.Container.Ref
+                     --   Primal.Container.Array
+                     -- , Primal.Container.Array.Atomic
+                       Primal.Container.Ref
                      , Primal.Container.Ref.Atomic
 
                      --   Primal.Container.Mutable.Array
@@ -49,9 +49,9 @@ library
                      --, Primal.Data.Array.Unboxed
                      --, Primal.Data.Array.Unboxed.Pinned
                      , Primal.Container.Internal
-                     , Primal.Array.Ragged.Unboxed
-  other-modules:       Primal.Container.Mutable.Ref.Internal
-                     , Primal.Container.Mutable.Array.Internal
+                     --, Primal.Array.Ragged.Unboxed
+  other-modules:       Primal.Container.Ref.Internal
+                     --, Primal.Container.Array.Internal
   build-depends:       base >= 4.9 && < 5
                      , deepseq
                      , primal

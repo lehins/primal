@@ -4,14 +4,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Primal.Container.Mutable.Ref.Atomic
+-- Module      : Primal.Container.Ref.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Container.Mutable.Ref.Atomic
+module Primal.Container.Ref.Atomic
   ( AtomicMRef(..)
   , AtomicCountMRef(..)
   , AtomicBitsMRef(..)
@@ -19,9 +19,9 @@ module Primal.Container.Mutable.Ref.Atomic
   ) where
 
 import Data.Bits
-import Primal.Data.Ref
-import Primal.Data.Array
-import Primal.Container.Mutable.Ref.Internal
+import Primal.Ref
+import Primal.Array
+import Primal.Container.Ref.Internal
 import Primal.Memory.Addr
 import Primal.Memory.Bytes
 import Primal.Memory.PArray
@@ -164,24 +164,24 @@ class (Bits e, AtomicMRef c e) => AtomicBitsMRef c e where
 
 
 
-instance AtomicMRef Ref a where
-  atomicReadMRef = atomicReadRef
+instance AtomicMRef BRef a where
+  atomicReadMRef = atomicReadBRef
   {-# INLINE atomicReadMRef #-}
-  atomicWriteMRef = atomicWriteRef
+  atomicWriteMRef = atomicWriteBRef
   {-# INLINE atomicWriteMRef #-}
-  casMRef = casRef
+  casMRef = casBRef
   {-# INLINE casMRef #-}
-  atomicModifyMRef = atomicModifyRef
+  atomicModifyMRef = atomicModifyBRef
   {-# INLINE atomicModifyMRef #-}
-  atomicModifyFetchOldMRef = atomicModifyFetchOldRef
+  atomicModifyFetchOldMRef = atomicModifyFetchOldBRef
   {-# INLINE atomicModifyFetchOldMRef #-}
-  atomicModifyFetchNewMRef = atomicModifyFetchNewRef
+  atomicModifyFetchNewMRef = atomicModifyFetchNewBRef
   {-# INLINE atomicModifyFetchNewMRef #-}
 
 
-instance Num a => AtomicCountMRef Ref a
+instance Num a => AtomicCountMRef BRef a
 
-instance Bits a => AtomicBitsMRef Ref a
+instance Bits a => AtomicBitsMRef BRef a
 
 
 instance (Typeable p, Atomic e) => AtomicMRef (PMArray p) e where

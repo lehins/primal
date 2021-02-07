@@ -6,8 +6,8 @@
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Container.Mutable.Ref
-  ( module Primal.Container.Mutable.Ref.Internal
+module Primal.Container.Ref
+  ( module Primal.Container.Ref.Internal
   ) where
 
-import Primal.Container.Mutable.Ref.Internal
+import Primal.Container.Ref.Internal
