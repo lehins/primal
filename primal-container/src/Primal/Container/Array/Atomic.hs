@@ -9,14 +9,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 -- |
--- Module      : Primal.Container.Mutable.Array.Atomic
+-- Module      : Primal.Container.Array.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Container.Mutable.Array.Atomic
+module Primal.Container.Array.Atomic
   ( AtomicMArray(..)
   , AtomicCountMArray(..)
   , AtomicBitsMArray(..)
@@ -24,8 +24,8 @@ module Primal.Container.Mutable.Array.Atomic
 
 import Primal.Monad
 import Data.Bits
-import Primal.Container.Mutable.Array.Internal
-import Primal.Data.Array
+import Primal.Container.Array.Internal
+import Primal.Array
 import Primal.Memory.Addr
 import Primal.Memory.Bytes
 import Primal.Memory.PArray

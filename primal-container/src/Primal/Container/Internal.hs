@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
@@ -39,3 +40,28 @@ type instance Elt Addr a = Unbox a
 type instance Elt MAddr a = Unbox a
 type instance Elt (PArray p) a = Unbox a
 type instance Elt (PMArray p) a = Unbox a
+
+
+type family Elt' (c :: k) :: Type -> Constraint
+type instance Elt' UMArray = Unbox
+
+class Noop a
+instance Noop a
+
+type instance Elt' BMArray = Noop
+
+
+class MutArray ma where
+  writeMutArray ::
+       (Elt' ma e, MonadPrim s m)
+    => ma e s -- ^ Array to write an element into
+    -> Int
+    -- ^ Offset into the array
+    --
+    -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMArray` mut@
+    -> e -- ^ Element to be written
+    -> m ()
+
+
+instance MutArray UMArray where
+  writeMutArray = writeUMArray
