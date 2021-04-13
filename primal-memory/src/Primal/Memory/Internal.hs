@@ -1347,8 +1347,7 @@ createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freeze
 -- Note that this example will work correctly only on little-endian machines:
 --
 -- >>> :set -XTypeApplications
--- >>> import Primal.Prim
--- >>> import Control.Monad
+-- >>> import Primal.Monad
 -- >>> let ibs = zip [0, 4 ..] [0x48,0x61,0x73,0x6b,0x65,0x6c,0x6c] :: [(Off Word8, Word8)]
 -- >>> let c = Count (length ibs) :: Count Char
 -- >>> let bc = createZeroMemST_ @_ @(MBytes 'Inc) c $ \m -> forM_ ibs $ \(i, b) -> writeByteOffMutMem m i b
