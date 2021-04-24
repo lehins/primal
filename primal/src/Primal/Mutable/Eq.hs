@@ -26,6 +26,10 @@ instance Eq e => MutEq (BRef e) where
   eqMut m1 m2 = (==) <$> readBRef m1 <*> readBRef m2
   {-# INLINE eqMut #-}
 
+instance (Unbox e, Eq e) => MutEq (URef e) where
+  eqMut m1 m2 = (==) <$> readURef m1 <*> readURef m2
+  {-# INLINE eqMut #-}
+
 
 instance Eq e => MutEq (BMArray e) where
   eqMut m1 m2 = liftST $ eqWithST isSameBMArray getSizeOfBMArray readBMArray m1 m2

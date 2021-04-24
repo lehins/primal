@@ -9,7 +9,11 @@
 module Primal.Ref
   ( module Primal.Ref.Boxed
   , module Primal.Ref.Boxed.Atomic
+  , module Primal.Ref.Unboxed
+  , module Primal.Ref.Unboxed.Atomic
   ) where
 
 import Primal.Ref.Boxed
 import Primal.Ref.Boxed.Atomic
+import Primal.Ref.Unboxed
+import Primal.Ref.Unboxed.Atomic

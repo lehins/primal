@@ -80,7 +80,7 @@ class Elt c e => MRef c e where
 --   writeMRefMut (RefMut ref) me = writeMRef ref me
 
 
--- | Read/write aren't atomic - /not/ thread safe.
+-- | Read\/write aren't atomic - /not/ thread safe.
 instance MRef MVar a where
   newMRef = newMVar
   {-# INLINE newMRef #-}

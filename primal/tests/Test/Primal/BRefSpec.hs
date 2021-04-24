@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Test.Primal.RefSpec (spec) where
+module Test.Primal.BRefSpec (spec) where
 
 import qualified Control.Concurrent as Base
 import Data.Maybe
@@ -59,22 +59,23 @@ spec = do
       readBRef ref `shouldReturn` "Hello"
       writeBRef ref "World"
       readBRef ref `shouldReturn` "World"
-    it "swapBRef" $ do
+    it "writeFetchOldBRef" $ do
       ref <- newBRef "Hello"
-      swapBRef ref "World" `shouldReturn` "Hello"
-      swapBRef ref (impureThrow BRefException) `shouldThrow` (== BRefException)
+      writeFetchOldBRef ref "World" `shouldReturn` "Hello"
+      writeFetchOldBRef ref (impureThrow BRefException) `shouldThrow` (== BRefException)
       readBRef ref `shouldReturn` "World"
-    it "swapLazyBRef" $ do
+    it "writeFetchOldLazyBRef" $ do
       ref <- newBRef "Hello"
-      swapLazyBRef ref "World" `shouldReturn` "Hello"
+      writeFetchOldLazyBRef ref "World" `shouldReturn` "Hello"
       readBRef ref `shouldReturn` "World"
-      swapLazyBRef ref (impureThrow BRefException) `shouldReturn` "World"
+      writeFetchOldLazyBRef ref (impureThrow BRefException) `shouldReturn` "World"
       res <- readBRef ref
       eval res `shouldThrow` (== BRefException)
-    it "swapDeepBRef" $ do
+    it "writeFetchOldDeepBRef" $ do
       ref <- newBRef "Hello"
-      swapDeepBRef ref "World" `shouldReturn` "Hello"
-      swapDeepBRef ref ("Booyah" ++ impureThrow BRefException) `shouldThrow` (== BRefException)
+      writeFetchOldDeepBRef ref "World" `shouldReturn` "Hello"
+      writeFetchOldDeepBRef ref
+        ("Booyah" ++ impureThrow BRefException) `shouldThrow` (== BRefException)
       readBRef ref `shouldReturn` "World"
     it "modifyBRef" $ do
       ref <- newBRef "Hello"

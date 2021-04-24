@@ -1011,7 +1011,7 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 -- SBArray [0,10,20,30,40]
 --
 -- But this will get us nowhere, since what we really need is the actual reference to the
--- value currently in the array cell
+-- value currently in the array cell, therefore we must read the exact value from the cell.
 --
 -- >>> expected <- readSBMArray ma 2
 -- >>> r@(_, currentValue) <- casSBMArray ma 2 expected 1000
@@ -1019,15 +1019,14 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 -- SBArray [0,10,1000,30,40]
 -- >>> r
 -- (True,1000)
---
--- In a concurrent setting current value can potentially be modified by some other
--- thread, therefore returned value can be immediately used as the expected one to the
--- next call, if we need to retry the atomic modification:
---
 -- >>> casSBMArray ma 2 currentValue 2000
 -- (True,2000)
 -- >>> freezeSBMArray ma
 -- SBArray [0,10,2000,30,40]
+--
+-- In a concurrent setting current the contents of the cell can potentially be modified by
+-- some other thread. When that happens we can retry the failed atomic update immendiately
+-- by using the returned value.
 --
 -- @since 1.0.0
 casSBMArray ::

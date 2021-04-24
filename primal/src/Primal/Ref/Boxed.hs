@@ -22,12 +22,12 @@ module Primal.Ref.Boxed
   , isSameBRef
   -- * Read/write
   , readBRef
-  , swapBRef
-  , swapDeepBRef
-  , swapLazyBRef
   , writeBRef
   , writeDeepBRef
   , writeLazyBRef
+  , writeFetchOldBRef
+  , writeFetchOldDeepBRef
+  , writeFetchOldLazyBRef
   -- * Modify
   -- ** Pure
   , modifyBRef
@@ -158,56 +158,56 @@ readBRef (BRef ref#) = prim (readMutVar# ref#)
 {-# INLINE readBRef #-}
 
 
--- | Swap a value of a mutable variable with a new one, while retrieving the old one. New
--- value is evaluated prior to it being written to the variable.
+-- | Swap the contents of a mutable variable with a new value, while retrieving the old
+-- one. New value is evaluated prior to it being written to the variable.
 --
 -- ==== __Examples__
 --
 -- >>> ref <- newBRef (Left "Initial" :: Either String String)
--- >>> swapBRef ref (Right "Last")
+-- >>> writeFetchOldBRef ref (Right "Last")
 -- Left "Initial"
 -- >>> readBRef ref
 -- Right "Last"
 --
 -- @since 1.0.0
-swapBRef :: MonadPrim s m => BRef a s -> a -> m a
-swapBRef ref a = readBRef ref <* writeBRef ref a
-{-# INLINE swapBRef #-}
+writeFetchOldBRef :: MonadPrim s m => BRef a s -> a -> m a
+writeFetchOldBRef ref a = readBRef ref <* writeBRef ref a
+{-# INLINE writeFetchOldBRef #-}
 
 
--- | Swap a value of a mutable variable with a new one lazily, while retrieving the old
+-- | Swap the contents of a mutable variable with a new value lazily, while retrieving the old
 -- one. New value is __not__ evaluated prior to it being written to the variable.
 --
 -- ==== __Examples__
 --
 -- >>> ref <- newBRef "Initial"
--- >>> swapLazyBRef ref undefined
+-- >>> writeFetchOldLazyBRef ref undefined
 -- "Initial"
--- >>> _ <- swapLazyBRef ref "Different"
+-- >>> _ <- writeFetchOldLazyBRef ref "Different"
 -- >>> readBRef ref
 -- "Different"
 --
 -- @since 1.0.0
-swapLazyBRef :: MonadPrim s m => BRef a s -> a -> m a
-swapLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
-{-# INLINE swapLazyBRef #-}
+writeFetchOldLazyBRef :: MonadPrim s m => BRef a s -> a -> m a
+writeFetchOldLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
+{-# INLINE writeFetchOldLazyBRef #-}
 
 
--- | Swap a value of a mutable variable with a new one, while retrieving the old one. New
+-- | Swap the contents of a mutable variable with a new value, while retrieving the old one. New
 -- value is evaluated to __normal__ form prior to it being written to the variable.
 --
 -- ==== __Examples__
 --
 -- >>> ref <- newBRef (Just "Initial")
--- >>> swapDeepBRef ref (Just (errorWithoutStackTrace "foo"))
+-- >>> writeFetchOldDeepBRef ref (Just (errorWithoutStackTrace "foo"))
 -- *** Exception: foo
 -- >>> readBRef ref
 -- Just "Initial"
 --
 -- @since 1.0.0
-swapDeepBRef :: (NFData a, MonadPrim s m) => BRef a s -> a -> m a
-swapDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
-{-# INLINE swapDeepBRef #-}
+writeFetchOldDeepBRef :: (NFData a, MonadPrim s m) => BRef a s -> a -> m a
+writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
+{-# INLINE writeFetchOldDeepBRef #-}
 
 
 -- | Write a value into a mutable variable strictly. If evaluating a value results in
@@ -218,7 +218,7 @@ swapDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 --
 -- >>> ref <- newBRef "Original value"
 -- >>> import Primal.Exception
--- >>> _ <- try $ writeBRef ref undefined :: IO (Either SomeException ())
+-- >>> Left _exc <- tryAny $ writeBRef ref undefined
 -- >>> readBRef ref
 -- "Original value"
 -- >>> writeBRef ref "New total value"
@@ -326,15 +326,15 @@ modifyLazyBRef ref f = modifyLazyBRefM ref (pure . f)
 
 
 -- | Modify value of a mutable variable with a monadic action. It is not strict in a
--- return value of type @b@, but the ne value written into the mutable variable is
+-- return value of type @b@, but the new value written into the mutable variable is
 -- evaluated to WHNF.
 --
 -- ==== __Examples__
 --
 modifyBRefM :: MonadPrim s m => BRef a s -> (a -> m (a, b)) -> m b
 modifyBRefM ref f = do
-  (a', b) <- f =<< readBRef ref
-  b <$ writeBRef ref a'
+  (a, b) <- f =<< readBRef ref
+  b <$ writeBRef ref a
 {-# INLINE modifyBRefM #-}
 
 
@@ -366,14 +366,14 @@ modifyBRefM_ ref f = readBRef ref >>= f >>= writeBRef ref
 --
 -- ==== __Examples__
 --
--- >>> refName <- newBRef "My name is: "
--- >>> refMyName <- newBRef "Alexey"
--- >>> myName <- modifyFetchOldBRefM refMyName $ \ name -> "Leo" <$ modifyBRef_ refName (++ name)
--- >>> readBRef refName >>= putStrLn
--- My name is: Alexey
--- >>> putStrLn myName
+-- >>> refGreeting <- newBRef "Hello "
+-- >>> refName <- newBRef "Alexey"
+-- >>> oldName <- modifyFetchOldBRefM refName $ \ name -> "Leo" <$ modifyBRef_ refGreeting (++ name)
+-- >>> putStrLn =<< readBRef refGreeting
+-- Hello Alexey
+-- >>> putStrLn oldName
 -- Alexey
--- >>> readBRef refMyName >>= putStrLn
+-- >>> putStrLn =<< readBRef refName
 -- Leo
 --
 -- @since 1.0.0
@@ -437,7 +437,7 @@ fromIORef = fromSTRef . coerce
 
 -- | Create a `Weak` pointer associated with the supplied `BRef`.
 --
--- Same as `Data.IOBRef.mkWeakBRef` from @base@, but works in any `MonadPrim` with
+-- Same as `Data.IORef.mkWeakRef` from @base@, but works in any `MonadUnliftPrim` with
 -- `RealWorld` state token.
 --
 -- @since 1.0.0

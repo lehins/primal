@@ -21,7 +21,7 @@ type family Frozen (mut :: k -> *) = (frozen :: k) | frozen -> mut
 class MutFreeze mut where
   {-# MINIMAL thaw, freezeMut, (clone|thawClone) #-}
 
-  -- | Convert a pure immutable type into the corresponding mutable one.  Most likely
+  -- | Convert a pure immutable type into the corresponding mutable one. Most likely
   -- it will be implemented as type cast without any data copy.
   --
   -- [Unsafe] This function might make it possible to break referential transparency,
