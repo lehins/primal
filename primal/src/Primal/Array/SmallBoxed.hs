@@ -57,10 +57,10 @@ module Primal.Array.SmallBoxed
   , MonadPrim
   ) where
 
-import Control.DeepSeq
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
+import Primal.Eval
 import Primal.Exception
 import Primal.Foreign
 import Primal.Unbox
@@ -571,6 +571,17 @@ data SBMArray e s = SBMArray (SmallMutableArray# s e)
 instance Eq (SBMArray e s) where
   (==) = isSameSBMArray
   {-# INLINE (==) #-}
+
+-- | /O(n)/ - evaluate all elements to NF
+instance NFData e => MutNFData (SBMArray e) where
+  rnfMutST ma = do
+    Size k <- getSizeOfSBMArray ma
+    let loop i =
+          when (i < k) $ do
+            rnf <$> readSBMArray ma i
+            loop (i + 1)
+    loop 0
+  {-# INLINE rnfMutST #-}
 
 
 -- | Compare pointers for two mutable arrays and see if they refer to the exact same one.

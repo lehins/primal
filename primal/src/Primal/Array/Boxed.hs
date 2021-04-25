@@ -60,14 +60,14 @@ module Primal.Array.Boxed
   , MonadPrim
   ) where
 
-import Control.DeepSeq
-import Primal.Exception
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
-import Primal.Array.Internal
-import Primal.Unbox
-import Primal.Foreign
 import qualified GHC.Arr as A
+import Primal.Array.Internal
+import Primal.Eval
+import Primal.Exception
+import Primal.Foreign
+import Primal.Unbox
 
 
 -----------------
@@ -536,6 +536,17 @@ instance Eq (BMArray e s) where
   (==) = isSameBMArray
   {-# INLINE (==) #-}
 
+-- | /O(n)/ - evaluate all elements to NF
+instance NFData e => MutNFData (BMArray e) where
+  rnfMutST ma = do
+    Size k <- getSizeOfBMArray ma
+    let loop i =
+          when (i < k) $ do
+            rnf <$> readBMArray ma i
+            loop (i + 1)
+    loop 0
+  {-# INLINE rnfMutST #-}
+
 
 -- | Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
@@ -713,7 +724,6 @@ writeDeepBMArray ma i !x =
 {-# INLINE writeDeepBMArray #-}
 
 
-
 -- | Create a mutable boxed array where each element is set to the supplied initial value
 -- @elt@, which is evaluated before array allocation happens. See `newLazyBMArray` for
 -- an ability to initialize with a thunk.
@@ -763,8 +773,6 @@ newLazyBMArray (Size (I# n#)) a =
 {-# INLINE newLazyBMArray #-}
 
 
-
-
 -- | Create new mutable array, where each element is initilized to a thunk that throws an
 -- error when evaluated. This is useful when there is a plan to later iterate over the whole
 -- array and write values into each cell in some index aware fashion. Consider `makeBMArray`
@@ -790,7 +798,6 @@ newRawBMArray ::
   -> m (BMArray e s)
 newRawBMArray sz = newLazyBMArray sz (uninitialized "Primal.Array.Boxed" "newRawBMArray")
 {-# INLINE newRawBMArray #-}
-
 
 
 -- | Create new mutable boxed array of the supplied size and fill it with a monadic action

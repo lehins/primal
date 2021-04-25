@@ -48,7 +48,7 @@ module Primal.Ref.Unboxed
   , mkWeakURef
   ) where
 
-import Control.DeepSeq
+import Primal.Eval
 import Primal.Foreign
 import Primal.Mem.Weak
 import Primal.Monad
@@ -65,9 +65,15 @@ data URef e s = URef (MutableByteArray# s)
 instance NFData (URef e s) where
   rnf (URef _) = ()
 
+-- | Values are already written into `URef` in NF, this instance is trivial.
+instance MutNFData (URef e) where
+  rnfMutST (URef _) = pure ()
+  {-# INLINE rnfMutST #-}
+
 -- | Uses `isSameURef`
 instance Eq (URef e s) where
   (==) = isSameURef
+  {-# INLINE (==) #-}
 
 -- | Check whether supplied `URef`s refer to the exact same one or not.
 --

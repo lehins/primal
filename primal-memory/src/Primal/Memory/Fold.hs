@@ -397,7 +397,7 @@ eqOffMutMem mm1 off1 mm2 off2 count = loop off1
   where
     doff = off2 - off1
     k = countToOff count + off1
-    loop !i
+    loop i
       | i < k = do
         e1 <- readOffMutMem mm1 i
         e2 <- readOffMutMem mm2 (i + doff)

@@ -142,28 +142,29 @@ module Primal.Memory.Addr
   ) where
 
 import Control.Arrow (first)
-import Primal.Eval
-import Primal.Monad
-import Primal.Monad.Unsafe
-import Primal.Mutable.Eq
-import Primal.Mutable.Ord
-import Primal.Mutable.Freeze
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Monoid as Monoid
-import Primal.Unbox
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
+import qualified Data.Semigroup as Semigroup
+import Primal.Array
+import Primal.Eval
+import Primal.Foreign
+import Primal.Memory.ByteString
 import Primal.Memory.Bytes
 import Primal.Memory.Bytes.Internal
-import Primal.Memory.ByteString
 import Primal.Memory.Fold
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Internal
 import Primal.Memory.Ptr
-import qualified Data.Semigroup as Semigroup
-import Primal.Foreign
+import Primal.Monad
+import Primal.Monad.Unsafe
+import Primal.Mutable.Eq
+import Primal.Mutable.Freeze
+import Primal.Mutable.Ord
+import Primal.Unbox
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 import Unsafe.Coerce
 
 
@@ -186,22 +187,33 @@ instance (Eq e, Unbox e) => Eq (Addr e) where
   (==) = eqMem @e
   {-# INLINE (==) #-}
 
+instance (Unbox e, Eq e) => MutEq (MAddr e) where
+  eqMutST m1 m2 = eqWithST isSameMAddr getSizeOfMAddr (\m -> readOffMAddr m . coerce) m1 m2
+  {-# INLINE eqMutST #-}
+
 instance (Unbox e, Ord e) => Ord (Addr e) where
   compare = compareMem @e
   {-# INLINE compare #-}
 
+instance (Unbox e, Ord e) => MutOrd (MAddr e) where
+  compareMutST m1 m2 = compareWithST isSameMAddr getSizeOfMAddr (\m -> readOffMAddr m . coerce) m1 m2
+  {-# INLINE compareMutST #-}
 
 instance (Show e, Unbox e) => Show (Addr e) where
   show a = show (toListMem a :: [e])
 
 instance IsString (Addr Char) where
   fromString = fromListMem
+  {-# INLINE fromString #-}
 
 instance Unbox e => IsList (Addr e) where
   type Item (Addr e) = e
   fromList = fromListMem
+  {-# INLINE fromList #-}
   fromListN n = fromListZeroMemN_ (Count n)
+  {-# INLINE fromListN #-}
   toList = toListMem
+  {-# INLINE toList #-}
 
 instance Semigroup.Semigroup (Addr e) where
   (<>) = appendMem
@@ -222,12 +234,12 @@ instance Monoid.Monoid (Addr e) where
 type instance Frozen (MAddr e) = Addr e
 
 instance MutFreeze (MAddr e) where
-  thaw = thawAddr
-  {-# INLINE thaw #-}
+  thawST = thawAddr
+  {-# INLINE thawST #-}
   clone = cloneMem
   {-# INLINE clone #-}
-  freezeMut = freezeMAddr
-  {-# INLINE freezeMut #-}
+  freezeMutST = freezeMAddr
+  {-# INLINE freezeMutST #-}
 
 castAddr :: Addr e -> Addr b
 castAddr (Addr a b) = Addr a b
@@ -343,6 +355,9 @@ byteCountAddr = countAddr . castAddr
 getCountMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> m (Count e)
 getCountMAddr maddr@(MAddr _ mb) =
   subtract (coerce (curOffMAddr maddr)) <$> getCountMBytes mb
+
+getSizeOfMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> m Size
+getSizeOfMAddr maddr = coerce <$> getCountMAddr maddr
 
 getByteCountMAddr :: MonadPrim s m => MAddr e s -> m (Count Word8)
 getByteCountMAddr = getCountMAddr . castMAddr

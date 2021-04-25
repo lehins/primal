@@ -908,12 +908,12 @@ instance MemWrite MByteString where
 type instance Frozen MByteString = ByteString
 
 instance MutFreeze MByteString where
-  thaw bs = pure $! MByteString bs
-  {-# INLINE thaw #-}
+  thawST bs = pure $! MByteString bs
+  {-# INLINE thawST #-}
   clone = cloneMem
   {-# INLINE clone #-}
-  freezeMut (MByteString bs) = pure bs
-  {-# INLINE freezeMut #-}
+  freezeMutST (MByteString bs) = pure bs
+  {-# INLINE freezeMutST #-}
 
 
 instance MemAlloc MByteString where
@@ -959,12 +959,12 @@ instance MemRead T.Array where
 type instance Frozen T.MArray = T.Array
 
 instance MutFreeze T.MArray where
-  thaw = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
-  {-# INLINE thaw #-}
-  thawClone = fmap T.toMArrayMBytes . thawClone . T.fromArrayBytes
-  {-# INLINE thawClone #-}
-  freezeMut = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
-  {-# INLINE freezeMut #-}
+  thawST = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
+  {-# INLINE thawST #-}
+  thawCloneST = fmap T.toMArrayMBytes . thawClone . T.fromArrayBytes
+  {-# INLINE thawCloneST #-}
+  freezeMutST = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
+  {-# INLINE freezeMutST #-}
 
 
 instance MemAlloc T.MArray where

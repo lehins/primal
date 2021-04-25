@@ -79,17 +79,16 @@ module Primal.Memory.Bytes.Internal
   , byteStringConvertError
   ) where
 
-import Control.DeepSeq
 import Data.Typeable
 import GHC.ForeignPtr
 import Primal.Array.Unboxed
 import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
-import Primal.Mutable.Eq
-import Primal.Mutable.Ord
-import Primal.Mutable.Freeze
 import Primal.Monad.Unsafe
+import Primal.Mutable.Eq
+import Primal.Mutable.Freeze
+import Primal.Mutable.Ord
 import Primal.Unbox
 import Primal.Unbox.Class
 import Unsafe.Coerce
@@ -146,33 +145,36 @@ instance NFData (Bytes p) where
 instance NFData (MBytes p s) where
   rnf (MBytes _) = ()
 
+instance MutNFData (MBytes p) where
+  rnfMutST (MBytes _) = pure ()
+
 type instance Frozen (MBytes p) = Bytes p
 
 instance Typeable p => MutFreeze (MBytes p) where
-  thaw = thawBytes
-  {-# INLINE thaw #-}
-  thawClone bs = do
+  thawST = thawBytes
+  {-# INLINE thawST #-}
+  thawCloneST bs = do
     let bytes = byteCountBytes bs
     mbs <- allocMBytes bytes
     mbs <$ copyByteOffBytesToMBytes bs 0 mbs 0 bytes
-  {-# INLINE thawClone #-}
-  freezeMut = freezeMBytes
-  {-# INLINE freezeMut #-}
+  {-# INLINE thawCloneST #-}
+  freezeMutST = freezeMBytes
+  {-# INLINE freezeMutST #-}
 
 instance MutEq (MBytes p) where
-  eqMut mbs1 mbs2 = (EQ ==) <$> compareMut mbs1 mbs2
-  {-# INLINE eqMut #-}
+  eqMutST mbs1 mbs2 = (EQ ==) <$> compareMut mbs1 mbs2
+  {-# INLINE eqMutST #-}
 
 instance MutOrd (MBytes p) where
-  compareMut mbs1 mbs2
+  compareMutST mbs1 mbs2
     | isSameMBytes mbs1 mbs2 = pure EQ
     | otherwise = do
       sz1 <- getByteCountMBytes mbs1
       sz2 <- getByteCountMBytes mbs2
       case compare sz1 sz2 of
-        EQ -> compareByteOffMBytes mbs1 0 mbs2 0 sz1
+        EQ  -> compareByteOffMBytes mbs1 0 mbs2 0 sz1
         cmp -> pure cmp
-  {-# INLINE compareMut #-}
+  {-# INLINE compareMutST #-}
 
 
 -- | Unwrap `Bytes` to get the underlying `ByteArray#`.

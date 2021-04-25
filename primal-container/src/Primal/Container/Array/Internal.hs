@@ -259,7 +259,7 @@ instance (Typeable p, Unbox e) => MArray (PMArray p) e where
   {-# INLINE sizeOfArray #-}
   indexArray a i = indexOffMem a (coerce i)
   {-# INLINE indexArray #-}
-  getSizeOfMArray = getSizePMArray
+  getSizeOfMArray = getSizeOfPMArray
   {-# INLINE getSizeOfMArray #-}
   newRawMArray = allocPMArray
   {-# INLINE newRawMArray #-}

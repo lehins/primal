@@ -55,6 +55,7 @@ module Primal.Ref.Boxed
   ) where
 
 import Control.DeepSeq
+import Primal.Eval
 import Primal.Monad
 import Primal.Foreign
 import Primal.Mem.Weak
@@ -68,11 +69,17 @@ import qualified GHC.STRef as ST
 -- [@PVar@](https://hackage.haskell.org/package/pvar) package instead.
 --
 -- @since 1.0.0
-data BRef a s = BRef (MutVar# s a)
+data BRef e s = BRef (MutVar# s e)
 
 -- | Uses `isSameBRef`
-instance Eq (BRef a s) where
+instance Eq (BRef e s) where
   (==) = isSameBRef
+  {-# INLINE (==) #-}
+
+
+instance NFData e => MutNFData (BRef e) where
+  rnfMutST ref = rnf <$> readBRef ref
+  {-# INLINE rnfMutST #-}
 
 -- | Check whether supplied `BRef`s refer to the exact same one or not.
 --

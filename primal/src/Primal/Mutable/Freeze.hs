@@ -1,3 +1,4 @@
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
@@ -10,38 +11,43 @@
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Mutable.Freeze where
+module Primal.Mutable.Freeze
+  ( thaw
+  , thawClone
+  , freezeMut
+  , freezeCloneMut
+  , clone
+  , cloneMut
+  , Frozen
+  , MutFreeze(..)
+  ) where
 
 import Primal.Monad
 import Primal.Array
 import Primal.Foreign
 
-type family Frozen (mut :: k -> *) = (frozen :: k) | frozen -> mut
 
+-- | Injective type family that relates the frozen and thawed types together into
+-- one-to-one correspondance. Their kind should be the same, except additional type
+-- argument for the state token for the mutable data type.
+--
+-- @since 1.0.0
+type family Frozen (thawed :: k -> *) = (frozen :: k) | frozen -> thawed
+
+-- | A type class that allows for going between frozen and thawed states for a mutable
+-- data structure.
 class MutFreeze mut where
-  {-# MINIMAL thaw, freezeMut, (clone|thawClone) #-}
+  {-# MINIMAL thawST, freezeMutST, (clone|thawCloneST) #-}
 
-  -- | Convert a pure immutable type into the corresponding mutable one. Most likely
-  -- it will be implemented as type cast without any data copy.
-  --
-  -- [Unsafe] This function might make it possible to break referential transparency,
-  -- because any subsequent destructive operation to the returned mutable type will
-  -- also be reflected in the source immutable type as well. Use `thawClone` instead,
-  -- which avoids this problem with fresh allocation and efficient data copy.
+  -- | See `thawMut` for documentation.
   --
   -- @since 1.0.0
-  thaw :: MonadPrim s m => Frozen mut -> m (mut s)
+  thawST :: Frozen mut -> ST s (mut s)
 
-  -- | Convert a mutable type into the corresponding immutable one. Most likely it
-  -- will be implemented as type cast without any data copy.
-  --
-  -- [Unsafe] This function might make it possible to break referential transparency,
-  -- because any subsequent destructive operation to the source mutable type will also
-  -- be reflected in the result immutable type as well. Use `freezeCloneMut` instead,
-  -- which avoids this problem with fresh allocation and efficient data copy.
+  -- | See `freezeMut` for documentation.
   --
   -- @since 1.0.0
-  freezeMut :: MonadPrim s m => mut s -> m (Frozen mut)
+  freezeMutST :: mut s -> ST s (Frozen mut)
 
   -- | Make an exact copy of the immutable type.
   --
@@ -50,72 +56,137 @@ class MutFreeze mut where
   clone frozen = runST $ thawClone frozen >>= freezeMut
   {-# INLINE clone #-}
 
-  -- | Make an exact copy of the mutable type.
+  -- | See `cloneMut` for documentation.
   --
   -- @since 1.0.0
-  cloneMut :: MonadPrim s m => mut s -> m (mut s)
-  cloneMut mut = thaw . clone =<< freezeMut mut
-  {-# INLINE cloneMut #-}
+  cloneMutST :: mut s -> ST s (mut s)
+  cloneMutST mut = thawST . clone =<< freezeMutST mut
+  {-# INLINE cloneMutST #-}
 
-  -- | Convert an exact copy of an immutable type into the corresponding mutable
-  -- one. Unlike `thaw`, this function does copy all of the data.
+  -- | See `thawClone` for documentation.
   --
   -- @since 1.0.0
-  thawClone :: MonadPrim s m => Frozen mut -> m (mut s)
-  thawClone = thaw . clone
-  {-# INLINE thawClone #-}
+  thawCloneST :: Frozen mut -> ST s (mut s)
+  thawCloneST = thawST . clone
+  {-# INLINE thawCloneST #-}
 
-  -- | Convert an exact copy of a mutable type into the corresponding immutable
-  -- one. Unlike `freezeMut`, this function does copy all of the data.
+  -- | See `freezeCloneMut` for documentation.
   --
   -- @since 1.0.0
-  freezeCloneMut :: MonadPrim s m => mut s -> m (Frozen mut)
-  freezeCloneMut = cloneMut >=> freezeMut
-  {-# INLINE freezeCloneMut #-}
+  freezeCloneMutST :: mut s -> ST s (Frozen mut)
+  freezeCloneMutST = cloneMutST >=> freezeMutST
+  {-# INLINE freezeCloneMutST #-}
 
 type instance Frozen (BMArray e) = BArray e
 
 instance MutFreeze (BMArray e) where
-  thaw = thawBArray
-  {-# INLINE thaw #-}
+  thawST = thawBArray
+  {-# INLINE thawST #-}
   clone arr = cloneSliceBArray arr 0 (sizeOfBArray arr)
   {-# INLINE clone #-}
-  thawClone arr = thawCopyBArray arr 0 (sizeOfBArray arr)
-  {-# INLINE thawClone #-}
-  freezeMut = freezeBMArray
-  {-# INLINE freezeMut #-}
-  cloneMut marr = getSizeOfBMArray marr >>= cloneSliceBMArray marr 0
-  {-# INLINE cloneMut #-}
-  freezeCloneMut marr = getSizeOfBMArray marr >>= freezeCopyBMArray marr 0
-  {-# INLINE freezeCloneMut #-}
+  thawCloneST arr = thawCopyBArray arr 0 (sizeOfBArray arr)
+  {-# INLINE thawCloneST #-}
+  freezeMutST = freezeBMArray
+  {-# INLINE freezeMutST #-}
+  cloneMutST marr = getSizeOfBMArray marr >>= cloneSliceBMArray marr 0
+  {-# INLINE cloneMutST #-}
+  freezeCloneMutST marr = getSizeOfBMArray marr >>= freezeCopyBMArray marr 0
+  {-# INLINE freezeCloneMutST #-}
 
 type instance Frozen (SBMArray e) = SBArray e
 
 instance MutFreeze (SBMArray e) where
-  thaw = thawSBArray
-  {-# INLINE thaw #-}
+  thawST = thawSBArray
+  {-# INLINE thawST #-}
   clone arr = cloneSliceSBArray arr 0 (sizeOfSBArray arr)
   {-# INLINE clone #-}
-  thawClone arr = thawCopySBArray arr 0 (sizeOfSBArray arr)
-  {-# INLINE thawClone #-}
-  freezeMut = freezeSBMArray
-  {-# INLINE freezeMut #-}
-  cloneMut marr = getSizeOfSBMArray marr >>= cloneSliceSBMArray marr 0
-  {-# INLINE cloneMut #-}
-  freezeCloneMut marr = getSizeOfSBMArray marr >>= freezeCopySBMArray marr 0
-  {-# INLINE freezeCloneMut #-}
+  thawCloneST arr = thawCopySBArray arr 0 (sizeOfSBArray arr)
+  {-# INLINE thawCloneST #-}
+  freezeMutST = freezeSBMArray
+  {-# INLINE freezeMutST #-}
+  cloneMutST marr = getSizeOfSBMArray marr >>= cloneSliceSBMArray marr 0
+  {-# INLINE cloneMutST #-}
+  freezeCloneMutST marr = getSizeOfSBMArray marr >>= freezeCopySBMArray marr 0
+  {-# INLINE freezeCloneMutST #-}
 
 
 type instance Frozen (UMArray e) = UArray e
 
 instance MutFreeze (UMArray e) where
-  thaw = thawUArray
-  {-# INLINE thaw #-}
-  thawClone (UArray arr#) = do
+  thawST = thawUArray
+  {-# INLINE thawST #-}
+  thawCloneST (UArray arr#) = do
     let n# = sizeofByteArray# arr#
-    prim $ \s ->
+    ST $ \s ->
       case newByteArray# n# s of
         (# s', marr# #) -> (# copyByteArray# arr# 0# marr# 0# n# s', UMArray marr# #)
-  {-# INLINE thawClone #-}
-  freezeMut = freezeUMArray
-  {-# INLINE freezeMut #-}
+  {-# INLINE thawCloneST #-}
+  freezeMutST = freezeUMArray
+  {-# INLINE freezeMutST #-}
+
+
+
+-- | Convert a pure immutable type into the corresponding mutable one. Most likely
+-- it will be implemented as type cast without any data copy.
+--
+-- [Unsafe] This function might make it possible to break referential transparency,
+-- because any subsequent destructive operation to the returned mutable type will
+-- also be reflected in the source immutable type as well. Use `thawClone` instead,
+-- which avoids this problem with fresh allocation and efficient data copy.
+--
+-- @since 1.0.0
+thaw ::
+     forall mut m s. (MutFreeze mut, MonadPrim s m)
+  => Frozen mut
+  -> m (mut s)
+thaw = liftST . thawST
+{-# INLINE thaw #-}
+
+-- | Convert a mutable type into the corresponding immutable one. Most likely it
+-- will be implemented as type cast without any data copy.
+--
+-- [Unsafe] This function might make it possible to break referential transparency,
+-- because any subsequent destructive operation to the source mutable type will also
+-- be reflected in the result immutable type as well. Use `freezeCloneMut` instead,
+-- which avoids this problem with fresh allocation and efficient data copy.
+--
+-- @since 1.0.0
+freezeMut ::
+     forall mut m s. (MutFreeze mut, MonadPrim s m)
+  => mut s
+  -> m (Frozen mut)
+freezeMut = liftST . freezeMutST
+{-# INLINE freezeMut #-}
+
+
+-- | Make an exact copy of the mutable type.
+--
+-- @since 1.0.0
+cloneMut ::
+     forall mut m s. (MutFreeze mut, MonadPrim s m)
+  => mut s
+  -> m (mut s)
+cloneMut = liftST . cloneMutST
+{-# INLINE cloneMut #-}
+
+-- | Convert an exact copy of an immutable type into the corresponding mutable
+-- one. Unlike `thaw`, this function does copy all of the data.
+--
+-- @since 1.0.0
+thawClone ::
+     forall mut m s. (MutFreeze mut, MonadPrim s m)
+  => Frozen mut
+  -> m (mut s)
+thawClone = liftST . thawCloneST
+{-# INLINE thawClone #-}
+
+-- | Convert an exact copy of a mutable type into the corresponding immutable
+-- one. Unlike `freezeMut`, this function does copy all of the data.
+--
+-- @since 1.0.0
+freezeCloneMut ::
+     forall mut m s. (MutFreeze mut, MonadPrim s m)
+  => mut s
+  -> m (Frozen mut)
+freezeCloneMut = liftST . freezeCloneMutST
+{-# INLINE freezeCloneMut #-}

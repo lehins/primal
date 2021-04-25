@@ -26,8 +26,9 @@ module Primal.Eval
   , deepeval
   , deepevalM
   , module Control.DeepSeq
+  , rnfMut
+  , MutNFData(..)
   , BNF(..)
-  , MNFData(..)
   ) where
 
 import Control.DeepSeq
@@ -147,6 +148,11 @@ newtype BNF a = BNF a
 instance NFData (BNF a) where
   rnf (BNF a) = a `seq` ()
 
--- | Same
-class MNFData f where
-  mrnf :: MonadPrim s m => f s -> m ()
+-- | Same as `NFData`, but for mutable data types
+class MutNFData mut where
+  rnfMutST :: mut s -> ST s ()
+
+-- | Force the mutable type to Normal Form
+rnfMut :: (MutNFData mut, MonadPrim s m) => mut s -> m ()
+rnfMut = liftST . rnfMutST
+{-# INLINE rnfMut #-}

@@ -65,10 +65,10 @@ module Primal.Array.Unboxed
   , Unbox
   ) where
 
-import Control.DeepSeq
 import qualified Data.Array.Base as A
 import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
+import Primal.Eval
 import Primal.Exception
 import Primal.Foreign
 import Primal.Unbox
@@ -110,6 +110,7 @@ instance e ~ Char => IsString (UArray e) where
 instance NFData (UArray e) where
   rnf (UArray _) = ()
   {-# INLINE rnf #-}
+
 
 instance (Unbox e, Eq e) => Eq (UArray e) where
   (==) = eqWith isSameUArray sizeOfUArray indexUArray
@@ -499,6 +500,11 @@ instance Eq (UMArray e s) where
 instance NFData (UMArray e s) where
   rnf (UMArray _) = ()
   {-# INLINE rnf #-}
+
+-- | /O(1)/ - `UMArray` is always in NF
+instance MutNFData (UMArray e) where
+  rnfMutST (UMArray _) = pure ()
+  {-# INLINE rnfMutST #-}
 
 -- | /O(1)/ - Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --

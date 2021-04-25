@@ -23,6 +23,7 @@ module Primal.Array.Internal
   , eqWith
   , eqWithST
   , compareWith
+  , compareWithST
   , appendWith
   , concatWith
   , cycleWith
@@ -144,7 +145,7 @@ eqWithST ::
      Eq e
   => (a e s -> a e s -> Bool) -- ^ Pointer equality
   -> (a e s -> ST s Size) -- ^ Get the size of array
-  -> (a e s -> Int -> ST s e) -- ^ Index an element of an array
+  -> (a e s -> Int -> ST s e) -- ^ Read an element from the mutable array
   -> a e s -- ^ First array
   -> a e s -- ^ Second array
   -> ST s Bool
@@ -165,6 +166,32 @@ eqWithST isSameMut getSizeOfMut readMut ma1 ma2
       else loop 0
 {-# INLINE eqWithST #-}
 
+-- | Compare two mutable arrays using supplied functions
+--
+-- @since 1.0.0
+compareWithST ::
+     Ord e
+  => (a e s -> a e s -> Bool) -- ^ Pointer equality
+  -> (a e s -> ST s Size) -- ^ Get the size of array
+  -> (a e s -> Int -> ST s e) -- ^ Read an element from the mutable array
+  -> a e s -- ^ First array
+  -> a e s -- ^ Second array
+  -> ST s Ordering
+compareWithST isSameMut getSizeOfMut readMut ma1 ma2
+  | isSameMut ma1 ma2 = pure EQ
+  | otherwise = do
+      sz1@(Size n) <- getSizeOfMut ma1
+      sz2 <- getSizeOfMut ma2
+      let loop i
+            | i < n = do
+              x1 <- readMut ma1 i
+              x2 <- readMut ma2 i
+              case compare x1 x2 of
+                EQ -> loop (i + 1)
+                c  -> pure c
+            | otherwise = pure $ compare sz1 sz2
+      loop 0
+{-# INLINE compareWithST #-}
 
 -- | Compare two arrays using supplied functions
 --
@@ -181,10 +208,12 @@ compareWith isSame sizeOf index a1 a2
   | isSame a1 a2 = EQ
   | otherwise = loop 0
   where
-    Size n = min (sizeOf a1) (sizeOf a2)
+    sz1 = sizeOf a1
+    sz2 = sizeOf a2
+    Size n = min sz1 sz2
     loop i
       | i < n = compare (index a1 i) (index a2 i) <> loop (i + 1)
-      | otherwise = compare (sizeOf a1) (sizeOf a2)
+      | otherwise = compare sz1 sz2
 {-# INLINE compareWith #-}
 
 

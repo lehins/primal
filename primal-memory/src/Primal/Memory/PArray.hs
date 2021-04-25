@@ -44,7 +44,7 @@ module Primal.Memory.PArray
   , thawPArray
   , freezePMArray
   , sizePArray
-  , getSizePMArray
+  , getSizeOfPMArray
   , readPMArray
   , writePMArray
 
@@ -54,14 +54,13 @@ module Primal.Memory.PArray
   , module Primal.Unbox
   ) where
 
-import Control.DeepSeq
-import Primal.Array.Unboxed (Size(..), UArray(..), UMArray(..))
+import Primal.Array (Size(..), UArray(..), UMArray(..), eqWithST, compareWithST)
+import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Bytes
 import Primal.Memory.Fold
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Internal
-import Primal.Monad
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
@@ -77,14 +76,24 @@ instance (Unbox e, Eq e) => Eq (PArray p e) where
   (==) = eqMem @e
   {-# INLINE (==) #-}
 
+instance (Unbox e, Eq e) => MutEq (PMArray p e) where
+  eqMutST m1 m2 = eqWithST isSamePMArray getSizeOfPMArray readPMArray m1 m2
+  {-# INLINE eqMutST #-}
+
 instance (Unbox e, Ord e) => Ord (PArray p e) where
   compare = compareMem @e
   {-# INLINE compare #-}
 
+instance (Unbox e, Ord e) => MutOrd (PMArray p e) where
+  compareMutST m1 m2 = compareWithST isSamePMArray getSizeOfPMArray readPMArray m1 m2
+  {-# INLINE compareMutST #-}
+
 -- | A mutable array with elements of type @e@
 newtype PMArray (p :: Pinned) e s = PMArray (MBytes p s)
-  deriving (NFData, MemWrite)
+  deriving (NFData, MutNFData, MutFreeze, MemWrite)
 type role PMArray nominal nominal nominal
+
+type instance Frozen (PMArray p e) = PArray p e
 
 -- | Read-only access, but it is not enforced.
 instance PtrAccess s (PArray 'Pin e) where
@@ -126,17 +135,6 @@ instance Typeable p => IsString (PArray p Char) where
 
 instance (Show e, Unbox e) => Show (PArray p e) where
   show = show . toListPArray
-
-type instance Frozen (PMArray p e) = PArray p e
-
-instance  Typeable p => MutFreeze (PMArray p e) where
-  thaw = thawPArray
-  {-# INLINE thaw #-}
-  clone = cloneMem
-  {-# INLINE clone #-}
-  freezeMut = freezePMArray
-  {-# INLINE freezeMut #-}
-
 
 toListPArray :: Unbox e => PArray p e -> [e]
 toListPArray = toListMem
@@ -187,14 +185,22 @@ fromUMArrayPMArray :: UMArray e s -> PMArray 'Inc e s
 fromUMArrayPMArray (UMArray mba#) = fromMBytesPMArray (fromMutableByteArray# mba#)
 {-# INLINE fromUMArrayPMArray #-}
 
+-- | /O(1)/ - Compare pointers for two mutable arrays and see if they refer to the exact same one.
+--
+-- Documentation for utilized primop: `sameMutableByteArray#`.
+--
+-- @since 1.0.0
+isSamePMArray :: forall a b p1 p2 s. PMArray p1 a s -> PMArray p2 b s -> Bool
+isSamePMArray (PMArray mb1) (PMArray mb2) = isSameMBytes mb1 mb2
+{-# INLINE isSamePMArray #-}
 
 sizePArray :: forall e p. Unbox e => PArray p e -> Size
 sizePArray = (coerce :: Count e -> Size) . countBytes . toBytesPArray
 {-# INLINE sizePArray #-}
 
-getSizePMArray :: forall e p m s. (MonadPrim s m, Unbox e) => PMArray p e s -> m Size
-getSizePMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPMArray
-{-# INLINE getSizePMArray #-}
+getSizeOfPMArray :: forall e p m s. (MonadPrim s m, Unbox e) => PMArray p e s -> m Size
+getSizeOfPMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPMArray
+{-# INLINE getSizeOfPMArray #-}
 
 allocPMArray ::
      forall e p m s . (Typeable p, Unbox e, MonadPrim s m) => Size -> m (PMArray p e s)

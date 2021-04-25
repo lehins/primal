@@ -20,6 +20,7 @@ module Primal.Array
   , eqWith
   , eqWithST
   , compareWith
+  , compareWithST
   , appendWith
   , concatWith
   , cycleWith
@@ -47,4 +48,4 @@ import Primal.Array.Internal
 --
 -- Mutable vs Immutable
 --
--- Note more features in primal-memory and primal-mutable
+-- Note more features in primal-memory and primal-containers
