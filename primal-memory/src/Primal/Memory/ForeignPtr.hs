@@ -6,8 +6,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Primal.Bytes.ForeignPtr
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Memory.ForeignPtr
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -67,7 +67,7 @@ import GHC.ForeignPtr (FinalizerEnvPtr, FinalizerPtr, ForeignPtr(..),
 import qualified GHC.ForeignPtr as GHC
 import Primal.Eval
 import Primal.Foreign
-import Primal.Memory.ByteString
+import Data.ByteString.Internal (ByteString(..))
 import Primal.Memory.Bytes.Internal (Bytes, MBytes(..), Pinned(..),
                                      toForeignPtrBytes, toForeignPtrMBytes,
                                      withNoHaltPtrBytes, withNoHaltPtrMBytes,
@@ -97,43 +97,35 @@ class PtrAccess s p where
   withNoHaltPtrAccess p action = toForeignPtr p >>= (`withNoHaltForeignPtr` action)
   {-# INLINE withNoHaltPtrAccess #-}
 
-instance PtrAccess RealWorld (ForeignPtr a) where
-  toForeignPtr = pure . coerce
-  {-# INLINE toForeignPtr #-}
+-- instance PtrAccess RealWorld (ForeignPtr a) where
+--   toForeignPtr = pure . coerce
+--   {-# INLINE toForeignPtr #-}
 
--- | Read-only access, but immutability is not enforced.
-instance PtrAccess s ByteString where
-  toForeignPtr (PS ps s _) = pure (coerce ps `plusByteOffForeignPtr` Off s)
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess = withPtrByteString
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess = withNoHaltPtrByteString
-  {-# INLINE withNoHaltPtrAccess #-}
+-- -- | Read-only access, but immutability is not enforced.
+-- instance PtrAccess s ByteString where
+--   toForeignPtr (PS ps s _) = pure (coerce ps `plusByteOffForeignPtr` Off s)
+--   {-# INLINE toForeignPtr #-}
+--   withPtrAccess = withPtrByteString
+--   {-# INLINE withPtrAccess #-}
+--   withNoHaltPtrAccess = withNoHaltPtrByteString
+--   {-# INLINE withNoHaltPtrAccess #-}
 
-instance PtrAccess s (MByteString s) where
-  toForeignPtr mbs = toForeignPtr (coerce mbs :: ByteString)
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess mbs = withPtrByteString (coerce mbs)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess mbs = withNoHaltPtrByteString (coerce mbs)
-  {-# INLINE withNoHaltPtrAccess #-}
+-- -- | Read-only access, but immutability is not enforced.
+-- instance PtrAccess s (Bytes 'Pin) where
+--   toForeignPtr = pure . toForeignPtrBytes
+--   {-# INLINE toForeignPtr #-}
+--   withPtrAccess = withPtrBytes
+--   {-# INLINE withPtrAccess #-}
+--   withNoHaltPtrAccess = withNoHaltPtrBytes
+--   {-# INLINE withNoHaltPtrAccess #-}
 
--- | Read-only access, but immutability is not enforced.
-instance PtrAccess s (Bytes 'Pin) where
-  toForeignPtr = pure . toForeignPtrBytes
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess = withPtrBytes
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess = withNoHaltPtrBytes
-  {-# INLINE withNoHaltPtrAccess #-}
-
-instance PtrAccess s (MBytes 'Pin s) where
-  toForeignPtr = pure . toForeignPtrMBytes
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess = withPtrMBytes
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess = withNoHaltPtrMBytes
-  {-# INLINE withNoHaltPtrAccess #-}
+-- instance PtrAccess s (MBytes 'Pin s) where
+--   toForeignPtr = pure . toForeignPtrMBytes
+--   {-# INLINE toForeignPtr #-}
+--   withPtrAccess = withPtrMBytes
+--   {-# INLINE withPtrAccess #-}
+--   withNoHaltPtrAccess = withNoHaltPtrMBytes
+--   {-# INLINE withNoHaltPtrAccess #-}
 
 
 

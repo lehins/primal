@@ -15,10 +15,11 @@ module Primal.Mutable.Eq
   , eqFrozen
   ) where
 
+import qualified Data.Text.Array as T
 import Primal.Array
-import Primal.Ref
 import Primal.Monad
 import Primal.Mutable.Freeze
+import Primal.Ref
 
 class MutEq mut where
   eqMutST :: mut s -> mut s -> ST s Bool
@@ -45,6 +46,10 @@ instance Eq e => MutEq (SBMArray e) where
 
 instance (Unbox e, Eq e) => MutEq (UMArray e) where
   eqMutST m1 m2 = eqWithST isSameUMArray getSizeOfUMArray readUMArray m1 m2
+  {-# INLINE eqMutST #-}
+
+instance MutEq T.MArray where
+  eqMutST ma1 ma2 = eqMutST (fromTextMArray ma1) (fromTextMArray ma2)
   {-# INLINE eqMutST #-}
 
 -- | Check two mutable data types for equality.

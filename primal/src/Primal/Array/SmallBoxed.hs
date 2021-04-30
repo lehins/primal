@@ -656,7 +656,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 --
 -- >>> ma <- newSBMArray 4 (Nothing :: Maybe Integer)
 -- >>> writeSBMArray ma 2 (Just 2)
--- >>> freezeSBMArray ma
+-- >>> freezeCopySBMArray ma
 -- SBArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- It is important to note that an element is evaluated prior to being written into a
@@ -666,7 +666,7 @@ readSBMArray (SBMArray ma#) (I# i#) = prim (readSmallArray# ma# i#)
 -- >>> import Primal.Exception
 -- >>> writeSBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
--- >>> freezeSBMArray ma
+-- >>> freezeCopyBMArray ma
 -- SBArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
@@ -1011,14 +1011,14 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 -- ====__Examples__
 --
 -- >>> ma <- makeSBMArray 5 (pure . (*10))
--- >>> freezeSBMArray ma
+-- >>> freezeCopyBMArray ma
 -- SBArray [0,10,20,30,40]
 --
 -- A possible mistake is to try and pass the expected value, instead of an actual element:
 --
 -- >>> casSBMArray ma 2 20 1000
 -- (False,20)
--- >>> freezeSBMArray ma
+-- >>> freezeCopyBMArray ma
 -- SBArray [0,10,20,30,40]
 --
 -- But this will get us nowhere, since what we really need is the actual reference to the
@@ -1026,7 +1026,7 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 --
 -- >>> expected <- readSBMArray ma 2
 -- >>> r@(_, currentValue) <- casSBMArray ma 2 expected 1000
--- >>> freezeSBMArray ma
+-- >>> freezeCopySBMArray ma
 -- SBArray [0,10,1000,30,40]
 -- >>> r
 -- (True,1000)

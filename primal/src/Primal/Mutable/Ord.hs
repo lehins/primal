@@ -11,6 +11,7 @@
 --
 module Primal.Mutable.Ord where
 
+import qualified Data.Text.Array as T
 import Primal.Array
 import Primal.Monad
 import Primal.Mutable.Eq
@@ -44,6 +45,10 @@ instance Ord e => MutOrd (SBMArray e) where
 
 instance (Unbox e, Ord e) => MutOrd (UMArray e) where
   compareMutST m1 m2 = compareWithST isSameUMArray getSizeOfUMArray readUMArray m1 m2
+  {-# INLINE compareMutST #-}
+
+instance MutOrd T.MArray where
+  compareMutST ma1 ma2 = compareMutST (fromTextMArray ma1) (fromTextMArray ma2)
   {-# INLINE compareMutST #-}
 
 

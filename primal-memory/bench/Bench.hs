@@ -42,7 +42,7 @@ main = do
         [ env (freezeMBytes mb1) $ \b ->
             bench "(==) - isSameBytes" $ whnf (isSameBytes b) b
         , env (freezeMBytes mb1) $ \b ->
-            bench "isSameBytes" $ whnf (isSameBytes b) (relaxPinnedBytes b)
+            bench "isSameBytes" $ whnf (isSameBytes b) (relaxPinBytes b)
         , env (freezeMBytes mb1) $ \b ->
             bench "isSamePinnedBytes" $ whnf (isSamePinnedBytes b) b
         , bench "(==) - sameByteArray (unexported)" $ whnf (ba ==) ba

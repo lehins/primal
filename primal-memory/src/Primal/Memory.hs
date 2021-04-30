@@ -30,7 +30,7 @@ module Primal.Memory
   -- ** Copy
   , cloneMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
   , copyMem                   -- DOC: [x], DOCTEST [ ], TEST: [x]
-  , copyByteOffMem            -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , copyByteOffMutMem         -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , copyByteOffToMBytesMem    -- DOC: [x], DOCTEST [ ], TEST: [x]
   , copyByteOffToPtrMem       -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Compare
@@ -65,7 +65,7 @@ module Primal.Memory
   , MemAlloc
   , Frozen
   , MutFreeze(..)
-  , MemState(..)
+  -- , MemState(..)
   -- ** Size
   , getCountMutMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
   , getCountRemMutMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
@@ -90,10 +90,10 @@ module Primal.Memory
   -- ** Thaw/Freeze
   , thawCloneMem                 -- DOC: [x], DOCTEST [x], TEST: [ ]
   , thawCopyMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , thawMem                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , thaw                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , freezeCloneMutMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCopyMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , freezeMutMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , freezeMut                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , cloneMutMem                  -- DOC: [x], DOCTEST [ ], TEST: [-]
   , moveMutMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]
@@ -116,3 +116,4 @@ import Primal.Unbox
 import Primal.Memory.Internal
 import Primal.Memory.Fold
 import Primal.Mutable.Freeze
+

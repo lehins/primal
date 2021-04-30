@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Memory.ByteString
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -18,7 +19,7 @@ module Primal.Memory.ByteString
   , toBuilderBytes
   , fromBuilderBytes
   -- ** ByteString
-  , ByteString(..)
+  , BS.ByteString(..)
   , toByteStringBytes
   , fromByteStringBytes
   , fromLazyByteStringBytes
@@ -34,33 +35,106 @@ module Primal.Memory.ByteString
 import Control.Monad.ST
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
-import Data.ByteString.Internal
+import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.ByteString.Short.Internal
 import GHC.ForeignPtr
 import Primal.Eval
 import Primal.Foreign
-import Primal.Memory.Bytes.Internal (Bytes(..), Pinned(..), allocMBytes,
-                                     byteCountBytes, byteStringConvertError,
-                                     castForeignPtrToBytes, freezeMBytes,
-                                     relaxPinnedBytes, toForeignPtrBytes)
+import Primal.Memory.Bytes.Internal
 import Primal.Memory.Ptr
 import Primal.Monad
+import Primal.Mutable.Freeze
+import Primal.Memory.ForeignPtr
 
 -- | Mutable version of a `ByteString`
-newtype MByteString s = MByteString ByteString
+newtype MByteString s = MByteString BS.ByteString
+
+type instance Frozen MByteString = BS.ByteString
+
+instance MutFreeze MByteString where
+  thawST bs = pure $! MByteString bs
+  {-# INLINE thawST #-}
+  thawCloneST bs = do
+    let c = Count (BS.length bs) :: Count Word8
+    mbs@(MByteString bs') <- allocMutMemST c
+    withPtrByteString bs' $ \ptr -> copyByteOffToPtrMemST bs 0 ptr 0 c
+    pure mbs
+  {-# INLINE thawCloneST #-}
+  freezeMutST (MByteString bs) = pure bs
+  {-# INLINE freezeMutST #-}
+
+
+instance MemWrite MByteString where
+  isSameMutMem (MByteString bs1) (MByteString bs2) = isSameMem bs1 bs2
+  {-# INLINE isSameMutMem #-}
+  readOffMutMemST (MByteString mbs) i = withPtrByteString mbs (`readOffPtr` i)
+  {-# INLINE readOffMutMemST #-}
+  readByteOffMutMemST (MByteString mbs) i =
+    withPtrByteString mbs (`readByteOffPtr` i)
+  {-# INLINE readByteOffMutMemST #-}
+  writeOffMutMemST (MByteString mbs) i a =
+    withPtrByteString mbs $ \ptr -> writeOffPtr ptr i a
+  {-# INLINE writeOffMutMemST #-}
+  writeByteOffMutMemST (MByteString mbs) i a =
+    withPtrByteString mbs $ \ptr -> writeByteOffPtr ptr i a
+  {-# INLINE writeByteOffMutMemST #-}
+  moveByteOffToPtrMutMemST (MByteString fsrc) srcOff dstPtr dstOff c =
+    withPtrByteString fsrc $ \srcPtr ->
+      moveByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffToPtrMutMemST #-}
+  moveByteOffToMBytesMutMemST (MByteString fsrc) srcOff dst dstOff c =
+    withPtrByteString fsrc $ \srcPtr ->
+      moveByteOffPtrToMBytes srcPtr srcOff dst dstOff c
+  {-# INLINE moveByteOffToMBytesMutMemST #-}
+  copyByteOffMutMemST src srcOff (MByteString fdst) dstOff c =
+    withPtrByteString fdst $ \dstPtr ->
+      copyByteOffToPtrMemST src srcOff dstPtr dstOff c
+  {-# INLINE copyByteOffMutMemST #-}
+  moveByteOffMutMemST src srcOff (MByteString fdst) dstOff c =
+    withPtrByteString fdst $ \dstPtr ->
+      moveByteOffToPtrMutMemST src srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffMutMemST #-}
+  setMutMemST (MByteString mbs) off c a =
+    withPtrByteString mbs $ \ptr -> setOffPtr ptr off c a
+  {-# INLINE setMutMemST #-}
+
+
+instance MemAlloc MByteString where
+  getByteCountMutMemST (MByteString bs) = pure $! Count (BS.length bs)
+  {-# INLINE getByteCountMutMemST #-}
+  allocMutMemST c = do
+    let cb = toByteCount c
+    fp <- mallocByteCountPlainForeignPtr cb
+    pure $ MByteString (BS.PS fp 0 (coerce cb))
+  {-# INLINE allocMutMemST #-}
+  reallocMutMemST bsm@(MByteString (BS.PS fp o n)) newc
+    | newn > n = defaultReallocMutMem bsm newc
+    | otherwise = pure $ MByteString (BS.PS fp o newn)
+    where -- constant time slice if we need to reduce the size
+      Count newn = toByteCount newc
+  {-# INLINE reallocMutMemST #-}
+
+
+-- instance PtrAccess s (MByteString s) where
+--   toForeignPtr mbs = toForeignPtr (coerce mbs :: BS.ByteString)
+--   {-# INLINE toForeignPtr #-}
+--   withPtrAccess mbs = withPtrByteString (coerce mbs)
+--   {-# INLINE withPtrAccess #-}
+--   withNoHaltPtrAccess mbs = withNoHaltPtrByteString (coerce mbs)
+--   {-# INLINE withNoHaltPtrAccess #-}
 
 
 -- | /O(1)/ - Cast immutable `Bytes` to an immutable `ByteString`
 --
 -- @since 0.1.0
-toByteStringBytes :: Bytes 'Pin -> ByteString
+toByteStringBytes :: Bytes 'Pin -> BS.ByteString
 {-# INLINE toByteStringBytes #-}
 toByteStringBytes b =
 #if MIN_VERSION_bytestring(0,11,0)
-  BS (toForeignPtrBytes b) (coerce (byteCountBytes b))
+  BS.BS (toForeignPtrBytes b) (coerce (byteCountBytes b))
 #else
-  PS (toForeignPtrBytes b) 0 (coerce (byteCountBytes b))
+  BS.PS (toForeignPtrBytes b) 0 (coerce (byteCountBytes b))
 #endif
 
 
@@ -69,11 +143,11 @@ toByteStringBytes b =
 -- finilizers can be converted without copy.
 --
 -- @since 0.2.0
-castByteStringBytes :: ByteString -> Either String (Bytes 'Pin)
+castByteStringBytes :: BS.ByteString -> Either String (Bytes 'Pin)
 #if MIN_VERSION_bytestring(0,11,0)
-castByteStringBytes (BS fptr n) = do
+castByteStringBytes (BS.BS fptr n) = do
 #else
-castByteStringBytes (PS fptr o n) = do
+castByteStringBytes (BS.PS fptr o n) = do
   unless (o == 0) sliceError
 #endif
   b <- castForeignPtrToBytes fptr
@@ -83,20 +157,6 @@ castByteStringBytes (PS fptr o n) = do
     sliceError = Left "ByteString was sliced"
 {-# INLINE castByteStringBytes #-}
 
-
--- | /O(1)/ - Cast an immutable `Bytes` to an immutable `ShortByteString`
---
--- @since 0.1.0
-toShortByteStringBytes :: Bytes p -> ShortByteString
-toShortByteStringBytes (Bytes ba#) = SBS ba#
-{-# INLINE toShortByteStringBytes #-}
-
--- | /O(1)/ - Cast an immutable  `ShortByteString` to an immutable `Bytes`
---
--- @since 0.1.0
-fromShortByteStringBytes :: ShortByteString -> Bytes 'Inc
-fromShortByteStringBytes (SBS ba#) = Bytes ba#
-{-# INLINE fromShortByteStringBytes #-}
 
 -- | Convert `Bytes` into a bytestring `Builder`
 toBuilderBytes :: Bytes p -> Builder
@@ -119,10 +179,10 @@ fromLazyByteStringBytes = fromByteStringBytes . BSL.toStrict
 
 
 -- | /O(n)/ - Convert a strict `ByteString` to `Bytes`.
-fromByteStringBytes :: Typeable p => ByteString -> Bytes p
+fromByteStringBytes :: Typeable p => BS.ByteString -> Bytes p
 fromByteStringBytes bs =
   case castByteStringBytes bs of
-    Right b -> relaxPinnedBytes b
+    Right b -> relaxPinBytes b
     Left _ ->
       runST $
       withPtrByteString bs $ \ptr -> do
@@ -133,23 +193,12 @@ fromByteStringBytes bs =
 {-# INLINE fromByteStringBytes #-}
 
 
-withPtrByteString :: MonadPrim s m => ByteString -> (Ptr a -> m b) -> m b
-#if MIN_VERSION_bytestring(0,11,0)
-withPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
-#else
-withPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
-  let addr# = addr'# `plusAddr#` o#
-#endif
-  r <- f (Ptr addr#)
-  r <$ touch ptrContents
-{-# INLINE withPtrByteString #-}
 
-
-withNoHaltPtrByteString :: MonadUnliftPrim s m => ByteString -> (Ptr a -> m b) -> m b
+withNoHaltPtrByteString :: MonadUnliftPrim s m => BS.ByteString -> (Ptr a -> m b) -> m b
 #if MIN_VERSION_bytestring(0,11,0)
-withNoHaltPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
+withNoHaltPtrByteString (BS.BS (ForeignPtr addr# ptrContents) _) f = do
 #else
-withNoHaltPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
+withNoHaltPtrByteString (BS.PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
   let addr# = addr'# `plusAddr#` o#
 #endif
   keepAlive ptrContents $ f (Ptr addr#)

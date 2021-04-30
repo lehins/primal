@@ -217,12 +217,11 @@ class Unbox a where
   writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toPrimBase a)
   {-# INLINE writeOffAddr# #-}
 
-  -- TODO: implement
-  -- setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  -- default setMutableByteArray# ::
-  --   Unbox (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  -- setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrimBase a)
-  -- {-# INLINE setByteOffMutableByteArray# #-}
+  setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
+  default setByteOffMutableByteArray# ::
+    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
+  setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrimBase a)
+  {-# INLINE setByteOffMutableByteArray# #-}
 
   -- | Set the region of MutableByteArray to the same value. Offset is in number of elements
   setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s

@@ -99,6 +99,7 @@ library
                      , Primal.Foreign.Cmm
   build-depends:       base >= 4.8.1 && < 5
                      , array >= 0.1
+                     , text
                      , deepseq
                      , transformers >= 0.4.2.0
 

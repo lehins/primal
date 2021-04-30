@@ -474,16 +474,12 @@ instance PtrAccess s (MAddr e s) where
 
 
 instance MemAlloc (MAddr e) where
-  getByteCountMutMem = getByteCountMAddr
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap castMAddr . allocMAddr
-  {-# INLINE allocMutMem #-}
-  thawMem = thawAddr
-  {-# INLINE thawMem #-}
-  freezeMutMem = freezeMAddr
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
-  {-# INLINE reallocMutMem #-}
+  getByteCountMutMemST = getByteCountMAddr
+  {-# INLINE getByteCountMutMemST #-}
+  allocMutMemST = fmap castMAddr . allocMAddr
+  {-# INLINE allocMutMemST #-}
+  reallocMutMemST maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
+  {-# INLINE reallocMutMemST #-}
 
 
 instance MemRead (Addr e) where
@@ -495,15 +491,15 @@ instance MemRead (Addr e) where
   {-# INLINE indexOffMem #-}
   indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
   {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem a si mb di c =
+  copyByteOffToMBytesMemST a si mb di c =
     withPtrAddr a $ \ptr -> copyByteOffPtrToMBytes (castPtr ptr) si mb di c
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem a si mb di c =
+  {-# INLINE copyByteOffToMBytesMemST #-}
+  copyByteOffToPtrMemST a si mb di c =
     withPtrAddr a $ \ptr -> copyByteOffPtrToPtr (castPtr ptr) si mb di c
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem addr off1 ptr2 off2 c =
+  {-# INLINE copyByteOffToPtrMemST #-}
+  compareByteOffToPtrMemST addr off1 ptr2 off2 c =
     withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffToPtrMem #-}
+  {-# INLINE compareByteOffToPtrMemST #-}
   compareByteOffToBytesMem addr off1 bytes off2 c =
     unsafeInlineIO $ withPtrAccess addr $ \ptr1 ->
       pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
@@ -515,32 +511,32 @@ instance MemRead (Addr e) where
 instance MemWrite (MAddr e) where
   isSameMutMem = isSameMAddr
   {-# INLINE isSameMutMem #-}
-  readOffMutMem a = readOffMAddr (castMAddr a)
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem a = readByteOffMAddr (castMAddr a)
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem a = writeOffMAddr (castMAddr a)
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem a = writeByteOffMAddr (castMAddr a)
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem src srcOff dstPtr dstOff c =
+  readOffMutMemST a = readOffMAddr (castMAddr a)
+  {-# INLINE readOffMutMemST #-}
+  readByteOffMutMemST a = readByteOffMAddr (castMAddr a)
+  {-# INLINE readByteOffMutMemST #-}
+  writeOffMutMemST a = writeOffMAddr (castMAddr a)
+  {-# INLINE writeOffMutMemST #-}
+  writeByteOffMutMemST a = writeByteOffMAddr (castMAddr a)
+  {-# INLINE writeByteOffMutMemST #-}
+  moveByteOffToPtrMutMemST src srcOff dstPtr dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
       moveByteOffPtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem src srcOff dst dstOff c =
+  {-# INLINE moveByteOffToPtrMutMemST #-}
+  moveByteOffToMBytesMutMemST src srcOff dst dstOff c =
     withAddrMAddr# src $ \ srcAddr# ->
       moveByteOffPtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  copyByteOffMem src srcOff dst dstOff c =
+  {-# INLINE moveByteOffToMBytesMutMemST #-}
+  copyByteOffMutMemST src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
       copyByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE copyByteOffMem #-}
-  moveByteOffMutMem src srcOff dst dstOff c =
+  {-# INLINE copyByteOffMutMemST #-}
+  moveByteOffMutMemST src srcOff dst dstOff c =
     withAddrMAddr# dst $ \ dstAddr# ->
-      moveByteOffToPtrMutMem src srcOff (Ptr dstAddr#) dstOff c
-  {-# INLINE moveByteOffMutMem #-}
-  setMutMem maddr = setMAddr (castMAddr maddr)
-  {-# INLINE setMutMem #-}
+      moveByteOffToPtrMutMemST src srcOff (Ptr dstAddr#) dstOff c
+  {-# INLINE moveByteOffMutMemST #-}
+  setMutMemST maddr = setMAddr (castMAddr maddr)
+  {-# INLINE setMutMemST #-}
 
 
 

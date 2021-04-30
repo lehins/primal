@@ -25,7 +25,7 @@ module Primal.Mutable.Freeze
 import Primal.Monad
 import Primal.Array
 import Primal.Foreign
-
+import Data.Text.Array as T
 
 -- | Injective type family that relates the frozen and thawed types together into
 -- one-to-one correspondance. Their kind should be the same, except additional type
@@ -190,3 +190,14 @@ freezeCloneMut ::
   -> m (Frozen mut)
 freezeCloneMut = liftST . freezeCloneMutST
 {-# INLINE freezeCloneMut #-}
+
+
+type instance Frozen T.MArray = T.Array
+
+instance MutFreeze T.MArray where
+  thawST a = toTextMArray <$> thawST (fromTextArray a)
+  {-# INLINE thawST #-}
+  thawCloneST a = toTextMArray <$> thawCloneST (fromTextArray a)
+  {-# INLINE thawCloneST #-}
+  freezeMutST = T.unsafeFreeze
+  {-# INLINE freezeMutST #-}

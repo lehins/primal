@@ -37,1053 +37,663 @@ import Primal.Memory.ByteString
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
-import qualified Primal.Memory.Text as T
 import Primal.Monad.Unsafe
 import Primal.Mutable.Freeze
 
--- | Type class that can be implemented for an immutable data type that provides
--- read-only direct access to memory
-class MemRead mr where
-
-  -- | Check if two read only regions refer to the exact same region of memory
-  --
-  -- @since 0.3.0
-  isSameMem :: mr -> mr -> Bool
-
-  -- | Number of bytes allocated by the data type available for reading.
-  --
-  -- ====__Example__
-  --
-  -- >>> :set -XDataKinds
-  -- >>> import Primal.Memory
-  -- >>> byteCountMem (fromByteListMem [1,2,3] :: Bytes 'Inc)
-  -- Count {unCount = 3}
-  --
-  -- @since 0.1.0
-  byteCountMem :: mr -> Count Word8
-
-  -- | Read an element with an offset in number of elements, rather than bytes as is the
-  -- case with `indexByteOffMem`.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- result is either unpredictable output or failure with a segfault.
-  --
-  -- @since 0.1.0
-  indexOffMem :: Unbox e
-    => mr -- ^ /memRead/ - Memory to read an element from
-    -> Off e
-    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= off
-    --
-    -- > unOffBytes off <= unCount (byteCountMem memRead - byteCountType @e)
-    --
-    -> e
-  indexOffMem mr off = indexByteOffMem mr (toByteOff off)
-  {-# INLINE indexOffMem #-}
-
-  -- | Read an element with an offset in number of bytes. Bounds are not checked.
-  --
-  -- [Unsafe] When precondition for @off@ argument is violated the result is either
-  -- unpredictable output or failure with a segfault.
-  --
-  -- @since 0.1.0
-  indexByteOffMem :: Unbox e
-    => mr -- ^ /memRead/ - Memory to read an element from
-    -> Off Word8
-    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= unOff off
-    --
-    -- > unOff off <= unCount (byteCountMem memRead - byteCountType @e)
-    --
-    -> e
-
-  -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `MBytes`. Source and target /must not/ refer to the same memory region, otherwise
-  -- that would imply that the source is not immutable which would be a violation of some
-  -- other invariant elsewhere in the code.
-  --
-  -- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
-  --
-  -- @since 0.1.0
-  copyByteOffToMBytesMem ::
-       (MonadPrim s m, Unbox e)
-    => mr -- ^ /memSourceRead/ - Source from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    -> MBytes p s -- ^ /memTargetWrite/ - Target mutable memory
-    -> Off Word8
-    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    --
-    -- > unCountBytes memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
-    -> m ()
-
-  -- | Copy contiguous chunk of memory from the read only memory into the target mutable
-  -- `Ptr`. Source and target /must not/ refer to the same memory region, otherwise that
-  -- would imply that the source is not immutable which would be a violation of some other
-  -- invariant elsewhere in the code.
-  --
-  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated a call to this function can result in:
-  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
-  -- a segfault.
-  --
-  --
-  -- @since 0.1.0
-  copyByteOffToPtrMem ::
-       (MonadPrim s m, Unbox e)
-    => mr -- ^ /memSourceRead/ - Source from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    -> Ptr e
-    -- ^ /memTargetWrite/ - Pointer to the target mutable memory
-    --
-    -- /__Preconditions:__/
-    --
-    -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
-    -- still belong to the same region of memory @memTargetWrite@
-    -> Off Word8
-    -- ^ /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
-    --
-    -- /__Precondition:__/
-    --
-    -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
-    -- memory region @memTargetWrite@
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    -> m ()
-
-  -- | Same as `compareByteOffMem`, but compare the read-only
-  -- memory region to a region addressed by a `Ptr` inside of a `MonadPrim`.
-  --
-  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@, the
-  -- pointer @memRead2@ or the element count @memCount@ is violated the result is either
-  -- unpredictable output or failure with a segfault.
-  --
-  -- @since 0.1.0
-  compareByteOffToPtrMem ::
-       (MonadPrim s m, Unbox e)
-    => mr -- ^ /memRead1/ - First memory region
-    -> Off Word8
-    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memOff1
-    --
-    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    -> Ptr e
-    -- ^ /memRead2/- Second memory region that can be accessed by a pointer
-    --
-    -- /__Preconditions__/
-    --
-    -- Once the pointer is advanced by @memOff2@ the next @unCountBytes memCount@ bytes must
-    -- still belong to the same region of memory @memRead2@
-    -> Off Word8
-    -- ^ /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
-    --
-    -- /__Precondition:__/
-    --
-    -- Once the pointer is advanced by @memOff2@ it must still refer to the same memory
-    -- region @memRead2@
-    -> Count e -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
-    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    -> m Ordering
-
-  -- | Same as `compareByteOffMem`, but compare the read-only memory region to `Bytes`.
-  --
-  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
-  -- element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
-  --
-  -- @since 0.1.0
-  compareByteOffToBytesMem ::
-       Unbox e
-    => mr -- ^ /memRead1/ - First memory region
-    -> Off Word8
-    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memOff1
-    --
-    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    -> Bytes p -- ^ /memRead2/- Second memory region that is backed by `Bytes`
-    -> Off Word8
-    -- ^ /memOff2/ - Offset for @memRead2@ in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memOff2
-    --
-    -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    --
-    -- > unCountBytes memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
-    -> Ordering
-
-  -- | Compare two read-only regions of memory byte-by-byte. The very first mismatched
-  -- byte will cause this function to produce `LT` if the byte in @memRead1@ is smaller
-  -- than the one in @memRead2@ and `GT` if it is bigger. It is not a requirement to
-  -- short-circuit on the first mismatch, but it is a good optimization to have for
-  -- non-sensitive data. Memory regions that store security critical data may choose to
-  -- implement this function to work in constant time.
-  --
-  -- This function is usually implemented by either one of `compareByteOffToPtrMem` or
-  -- `compareByteOffToBytesMem`, depending on the nature of @mr@ type. However it differs
-  -- from the aforementioned functions with a fact that it is pure non-monadic
-  -- computation.
-  --
-  -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@ or the
-  -- element count @memCount@ is violated the result is either unpredictable output or
-  -- failure with a segfault.
-  --
-  -- @since 0.1.0
-  compareByteOffMem ::
-       (MemRead mr', Unbox e)
-    => mr' -- ^ /memRead1/ - First memory region
-    -> Off Word8
-    -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memOff1
-    --
-    -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    -> mr -- ^ /memRead2/ - Second memory region
-    -> Off Word8
-    -- ^ /memOff2/ - Offset for @memRead2@ in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memOff2
-    --
-    -- > unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-    --
-    -- > unCountBytes memCount + unOff memOff2 <= unCount (byteCountMem memRead2 - byteCountType @e)
-    -> Ordering
-
--- | Type class that can be implemented for a mutable data type that provides direct read
--- and write access to memory
-class MemWrite mw where
-
-  -- | Check if two mutable regions refer to the exact same region of memory
-  --
-  -- @since 0.3.0
-  isSameMutMem :: mw s -> mw s -> Bool
-
-  -- | Read an element with an offset in number of elements, rather than bytes as it is
-  -- the case with `readByteOffMutMem`.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- result is either unpredictable output or failure with a segfault.
-  --
-  -- @since 0.3.0
-  readOffMutMem :: (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memRead/ - Memory region to read an element from
-    -> Off e
-    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= off
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > count <- getByteCountMutMem memRead
-    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-    --
-    -> m e
-  readOffMutMem mw off = readByteOffMutMem mw (toByteOff off)
-  {-# INLINE readOffMutMem #-}
-
-  -- | Read an element with an offset in number of bytes.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- result is either unpredictable output or failure with a segfault.
-  --
-  -- @since 0.3.0
-  readByteOffMutMem :: (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memRead/ - Memory region to read an element from
-    -> Off Word8
-    -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= off
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > count <- getByteCountMutMem memRead
-    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-    --
-    -> m e
-
-  -- | Write an element with an offset in number of elements, rather than bytes as it is
-  -- the case with `writeByteOffMutMem`.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- outcome is either heap corruption or failure with a segfault.
-  --
-  -- @since 0.3.0
-  writeOffMutMem :: (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memWrite/ - Memory region to write an element into
-    -> Off e
-    -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= off
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > count <- getByteCountMutMem memWrite
-    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-    --
-    -> e -- ^ /elt/ - Element to write
-    -> m ()
-  writeOffMutMem mw off = writeByteOffMutMem mw (toByteOff off)
-  {-# INLINE writeOffMutMem #-}
-
-  -- | Write an element with an offset in number of bytes.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
-  -- outcome is either heap corruption or failure with a segfault.
-  --
-  -- @since 0.3.0
-  writeByteOffMutMem :: (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memWrite/ - Memory region to write an element into
-    -> Off Word8
-    -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= off
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > count <- getByteCountMutMem memWrite
-    -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-    --
-    -> e -> m ()
-
-  -- | Copy contiguous chunk of memory from the source mutable memory into the target
-  -- mutable `MBytes`. Source and target /may/ refer to overlapping memory regions.
-  --
-  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated a call to this function can result in:
-  -- copy of data that doesn't belong to @memSource@, heap corruption or failure with
-  -- a segfault.
-  --
-  -- @since 0.3.0
-  moveByteOffToMBytesMutMem ::
-    (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memSource/ - Source memory from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
-    -> MBytes p s -- ^ /memTarget/ - Target memory into where to copy
-    -> Off Word8
-    -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Both source and target memory regions must have enough memory to perform a copy
-    -- of @memCount@ elements starting at their respective offsets. For types that also
-    -- implement `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-    -> m ()
-
-  -- | Copy contiguous chunk of memory from the source mutable memory into the target
-  -- `Ptr`. Source and target /may/ refer to overlapping memory regions.
-  --
-  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@ or
-  -- @memTargetOff@, a target pointer @memTarget@ or the element count @memCount@ is
-  -- violated a call to this function can result in: copy of data that doesn't belong to
-  -- @memSource@, heap corruption or failure with a segfault.
-  --
-  -- @since 0.3.0
-  moveByteOffToPtrMutMem ::
-    (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memSource/ - Source memory from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
-    -> Ptr e
-    -- ^ /memTarget/ - Target memory into where to copy
-    --
-    -- /__Precondition:__/
-    --
-    -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
-    -- still belong to the same region of memory @memTargetWrite@
-    -> Off Word8
-    -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
-    -- memory region @memTarget@
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Both source and target memory regions must have enough memory to perform a copy
-    -- of @memCount@ elements starting at their respective offsets. For /memSource/ that also
-    -- implements `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
-    -> m ()
-
-  -- | Copy contiguous chunk of memory from the read only memory region into the target
-  -- mutable memory region. Source and target /must not/ refer to the same memory region,
-  -- otherwise that would imply that the source is not immutable which would be a
-  -- violation of some other invariant elsewhere in the code.
-  --
-  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated a call to this function can result in:
-  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
-  -- a segfault.
-  --
-  -- @since 0.1.0
-  copyByteOffMem :: (MonadPrim s m, MemRead mr, Unbox e)
-    => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset into source memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    -> mw s -- ^ /memTargetWrite/ - Target mutable memory
-    -> Off Word8
-    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTargetWrite
-    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Both source and target memory regions must have enough memory to perform a copy
-    -- of @memCount@ elements starting at their respective offsets. For @memSourceRead@:
-    --
-    -- > unOff memSourceOff + unCountBytes memCount <= unCount (byteCountMem memSourceRead - byteCountType @e)
-    --
-    -- and for @memTargetWrite@ that also implements `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTargetWrite
-    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-    -> m ()
-
-  -- | Copy contiguous chunk of memory from a mutable memory region into the target
-  -- mutable memory region. Source and target /may/ refer to the same memory region.
-  --
-  -- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
-  -- or the element count @memCount@ is violated a call to this function can result in:
-  -- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
-  -- a segfault.
-  --
-  -- @since 0.3.0
-  moveByteOffMutMem :: (MonadPrim s m, MemWrite mw', Unbox e)
-    => mw' s -- ^ /memSource/ - Source memory from where to copy
-    -> Off Word8
-    -- ^ /memSourceOff/ - Offset in number of bytes into source memory
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memSourceOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOffBytes memSourceOff <= unCount (sourceByteCount - byteCountType @e)
-    -> mw s -- ^ /memTarget/ - Target memory into where to copy
-    -> Off Word8
-    -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unOffBytes (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of elements of type __@e@__ to copy
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Both source and target memory regions must have enough memory to perform a copy
-    -- of @memCount@ elements starting at their respective offsets. For types that also
-    -- implement `MemAlloc` this can be described as:
-    --
-    -- > sourceByteCount <- getByteCountMutMem memSource
-    -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-    -> m ()
-
-  -- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
-  --setByteOffMutMem :: (MonadPrim s m, Unbox e) => w s -> Off Word8 -> Count e -> e -> m ()
-
-  -- | Write the same value @memCount@ times into each cell of @memTarget@ starting at an
-  -- offset @memTargetOff@.
-  --
-  -- [Unsafe] Bounds are not checked. When precondition for @memTargetOff@ argument is
-  -- violated the outcome is either heap corruption or failure with a segfault.
-  --
-  -- @since 0.3.0
-  setMutMem
-    :: (MonadPrim s m, Unbox e)
-    => mw s -- ^ /memTarget/ - Target memory into where to write the element
-    -> Off e
-    -- ^ /memTargetOff/ - Offset into target memory in number of elements at which element
-    -- setting should start.
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memTargetOff
-    --
-    -- With offset applied it should still refer to the same memory region. For types that
-    -- also implement `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-    -> Count e
-    -- ^ /memCount/ - Number of times the element @elt@ should be written
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Target memory region should have enough memory to perform a set operation of the
-    -- supplied element @memCount@ number of times starting at the supplied offset. For
-    -- types that also implement `MemAlloc` this can be described as:
-    --
-    -- > targetByteCount <- getByteCountMutMem memTarget
-    -- > unCountBytes memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-    -> e
-    -- ^ /elt/ - Element to write into memory cells. This function is strict with
-    -- respect to element, which means that the even @memCount = 0@ it might be still
-    -- fully evaluated.
-    -> m ()
-
--- | Generalized memory allocation and pure/mutable state conversion.
-class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
-
-  -- | Extract the number of bytes a mutable memory region can hold, i.e. what is the
-  -- total allocated size for this region. The size of a region can be changes and in some
-  -- circuimstances even in place without copy, see `reallocMutMem` for more info.
-  --
-  -- ====__Examples__
-  --
-  -- >>> m <- allocMutMem (10 :: Count Int64) :: IO (MBytes 'Pin RW)
-  -- >>> getByteCountMutMem m
-  -- Count {unCount = 80}
-  --
-  -- @since 0.3.0
-  getByteCountMutMem :: MonadPrim s m => ma s -> m (Count Word8)
-
-  -- | Allocate a mutable memory region for specified number of elements. Memory is not
-  -- reset and will likely hold some garbage data, therefore prefer to use `allocZeroMutMem`,
-  -- unless it is guaranteed that all of allocated memory will be overwritten.
-  --
-  -- [Unsafe] When any of preconditions for @memCount@ argument is violated the outcome is
-  -- unpredictable. One possible outcome is termination with
-  -- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
-  -- executed within `runST`, if allocated memory is not fully overwritten it can lead to
-  -- violation of referential transparency, because contents of newly allocated region is
-  -- non-determinstic.
-  --
-  -- @since 0.3.0
-  allocMutMem :: (Unbox e, MonadPrim s m)
-    => Count e
-    -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
-    -- type __@e@__
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Possibility of overflow:
-    --
-    -- > memCount <= fromByteCount maxBound
-    --
-    -- When converted to bytes the value should be less then available physical memory
-    -> m (ma s)
-
-  -- | Convert the state of an immutable memory region to the mutable one. This is a no
-  -- copy operation, as such it is fast, but dangerous. See `thawCloneMutMem` for a safe
-  -- alternative.
-  --
-  -- [Unsafe] This function makes it possible to break referential transparency, because
-  -- any subsequent destructive operation to the mutable region of memory will also be
-  -- reflected in the frozen immutable type as well.
-  --
-  -- @since 0.1.0
-  thawMem :: MonadPrim s m => Frozen ma -> m (ma s)
-
-  -- | Convert the state of a mutable memory region to the immutable one. This is a no
-  -- copy operation, as such it is fast, but dangerous. See `freezeCopyMem` for a safe alternative.
-  --
-  -- [Unsafe] It makes it possible to break referential transparency, because any
-  -- subsequent destructive operation to the mutable region of memory will also be
-  -- reflected in the frozen immutable type as well.
-  --
-  -- @since 0.3.0
-  freezeMutMem :: MonadPrim s m => ma s -> m (Frozen ma)
-
-  -- | Either grow or shrink currently allocated mutable region of memory. For some
-  -- implementations it might be possible to change the size of the allocated region
-  -- in-place, i.e. without copy. However in all implementations there is a good chance
-  -- that the memory region has to be allocated anew, in which case all of the contents
-  -- up to the minimum of new and old sizes will get copied over. After the resize
-  -- operation is complete the supplied @memSource@ region must not be used
-  -- anymore. Moreover, no reference to the old one should be kept in order to allow
-  -- garbage collection of the original in case a new one had to be allocated.
-  --
-  -- Default implementation is `defaultReallocMutMem`
-  --
-  -- [Unsafe] Undefined behavior when @memSource@ is used afterwards. The same unsafety
-  -- notice from `allocMutMem` with regards to @memCount@ is applicable here as well.
-  --
-  -- @since 0.3.0
-  reallocMutMem :: (MonadPrim s m, Unbox e)
-    => ma s
-    -- ^ /memSource/ - Source memory region to resize
-    -> Count e
-    -- ^ /memCount/ - Number of elements for the reallocated memory region
-    --
-    -- /__Preconditions:__/
-    --
-    -- > 0 <= memCount
-    --
-    -- Should be less then available physical memory
-    -> m (ma s)
-  reallocMutMem = defaultReallocMutMem
-  {-# INLINE reallocMutMem #-}
-
-instance MemRead (UArray e) where
-  isSameMem = isSameUArray
-  {-# INLINE isSameMem #-}
-  byteCountMem = byteCountMem . fromUArrayBytes
-  {-# INLINE byteCountMem #-}
-  indexOffMem a = indexOffMem (fromUArrayBytes a)
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem a = indexByteOffMem (fromUArrayBytes a)
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (fromUArrayBytes a)
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem a = copyByteOffToPtrMem (fromUArrayBytes a)
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem a = compareByteOffToPtrMem (fromUArrayBytes a)
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem a = compareByteOffToBytesMem (fromUArrayBytes a)
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem1 off1 a = compareByteOffMem mem1 off1 (fromUArrayBytes a)
-  {-# INLINE compareByteOffMem #-}
-
-instance MemWrite (UMArray e) where
-  isSameMutMem = isSameUMArray
-  {-# INLINE isSameMutMem #-}
-  readOffMutMem ma = readOffMutMem (fromUMArrayMBytes ma)
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem ma = readByteOffMutMem (fromUMArrayMBytes ma)
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem ma = writeOffMutMem (fromUMArrayMBytes ma)
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem ma = writeByteOffMutMem (fromUMArrayMBytes ma)
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem ma = moveByteOffToPtrMutMem (fromUMArrayMBytes ma)
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem ma = moveByteOffToMBytesMutMem (fromUMArrayMBytes ma)
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  copyByteOffMem src srcOff ma = copyByteOffMem src srcOff (fromUMArrayMBytes ma)
-  {-# INLINE copyByteOffMem #-}
-  moveByteOffMutMem src srcOff ma = moveByteOffMutMem src srcOff (fromUMArrayMBytes ma)
-  {-# INLINE moveByteOffMutMem #-}
-  setMutMem ma = setMutMem (fromUMArrayMBytes ma)
-  {-# INLINE setMutMem #-}
 
 
-instance MemAlloc (UMArray e) where
-  getByteCountMutMem = getByteCountMutMem . fromUMArrayMBytes
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap toUMArrayMBytes . allocUnpinnedMBytes
-  {-# INLINE allocMutMem #-}
-  thawMem = fmap toUMArrayMBytes . thawBytes . fromUArrayBytes
-  {-# INLINE thawMem #-}
-  freezeMutMem = fmap toUArrayBytes . freezeMBytes . fromUMArrayMBytes
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem ma = fmap toUMArrayMBytes . reallocMBytes (fromUMArrayMBytes ma)
-  {-# INLINE reallocMutMem #-}
+-- | Copy contiguous chunk of memory from the read only memory into the target mutable
+-- `Ptr`. Source and target /must not/ refer to the same memory region, otherwise that
+-- would imply that the source is not immutable which would be a violation of some other
+-- invariant elsewhere in the code.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated a call to this function can result in:
+-- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+-- a segfault.
+--
+--
+-- @since 0.1.0
+copyByteOffToPtrMem ::
+     forall e mr m s. (MonadPrim s m, MemRead mr, Unbox e)
+  => mr -- ^ /memSourceRead/ - Source from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  -> Ptr e
+  -- ^ /memTargetWrite/ - Pointer to the target mutable memory
+  --
+  -- /__Preconditions:__/
+  --
+  -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
+  -- still belong to the same region of memory @memTargetWrite@
+  -> Off Word8
+  -- ^ /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
+  --
+  -- /__Precondition:__/
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
+  -- memory region @memTargetWrite@
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  -> m ()
+copyByteOffToPtrMem src srcOff dst dstOff c =
+  liftST $ copyByteOffToPtrMemST src srcOff dst dstOff c
+{-# INLINE copyByteOffToPtrMem #-}
+
+-- | Same as `compareByteOffMem`, but compare the read-only
+-- memory region to a region addressed by a `Ptr` inside of a `MonadPrim`.
+--
+-- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@, the
+-- pointer @memRead2@ or the element count @memCount@ is violated the result is either
+-- unpredictable output or failure with a segfault.
+--
+-- @since 0.1.0
+compareByteOffToPtrMem ::
+     forall e mr m s. (MonadPrim s m, MemRead mr, Unbox e)
+  => mr -- ^ /memRead1/ - First memory region
+  -> Off Word8
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memOff1
+  --
+  -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+  -> Ptr e
+  -- ^ /memRead2/- Second memory region that can be accessed by a pointer
+  --
+  -- /__Preconditions__/
+  --
+  -- Once the pointer is advanced by @memOff2@ the next @unCountBytes memCount@ bytes must
+  -- still belong to the same region of memory @memRead2@
+  -> Off Word8
+  -- ^ /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
+  --
+  -- /__Precondition:__/
+  --
+  -- Once the pointer is advanced by @memOff2@ it must still refer to the same memory
+  -- region @memRead2@
+  -> Count e -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
+  -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
+  -> m Ordering
+compareByteOffToPtrMem src srcOff dst dstOff c =
+  liftST $ compareByteOffToPtrMemST src srcOff dst dstOff c
+{-# INLINE compareByteOffToPtrMem #-}
 
 
-instance MemRead ByteString where
-  isSameMem bs1 bs2 =
-    unsafeInlineIO $
-    withPtrAccess bs1 $ \ptr1 ->
-      withPtrAccess bs2 $ \ptr2 -> -- Can refer to the same memory but sliced differently:
-        pure (ptr1 == (ptr2 :: Ptr Word8) && BS.length bs1 == BS.length bs2)
-  {-# INLINE isSameMem #-}
-  byteCountMem = Count . BS.length
-  {-# INLINE byteCountMem #-}
-  indexOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readOffPtr` i)
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem bs i = unsafeInlineIO $ withPtrAccess bs (`readByteOffPtr` i)
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem bs srcOff mb dstOff c =
-    withPtrAccess bs $ \srcPtr ->
-      copyByteOffPtrToMBytes srcPtr srcOff mb dstOff c
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem bs srcOff dstPtr dstOff c =
-    withPtrAccess bs $ \srcPtr ->
-      copyByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem bs off1 ptr2 off2 c =
-    withPtrAccess bs $ \ptr1 ->
-      pure $! compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem bs off1 bytes off2 c =
-    unsafeInlineIO $
-    withPtrAccess bs $ \ptr1 ->
-      pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem1 off1 bs off2 c =
-    unsafeInlineIO $
-    withPtrAccess bs $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffMem #-}
+-- | Copy contiguous chunk of memory from the read only memory into the target mutable
+-- `MBytes`. Source and target /must not/ refer to the same memory region, otherwise
+-- that would imply that the source is not immutable which would be a violation of some
+-- other invariant elsewhere in the code.
+--
+-- [Unsafe] When a precondition for either of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated the result is either unpredictable output or
+-- failure with a segfault.
+--
+-- @since 0.1.0
+copyByteOffToMBytesMem ::
+     forall e mr p m s. (MonadPrim s m, MemRead mr, Unbox e)
+  => mr -- ^ /memSourceRead/ - Source from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  -> MBytes p s -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  --
+  -- > unCountBytes memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
+  -> m ()
+copyByteOffToMBytesMem src srcOff dst dstOff c =
+  liftST $ copyByteOffToMBytesMemST src srcOff dst dstOff c
+{-# INLINE copyByteOffToMBytesMem #-}
 
-instance MemWrite MByteString where
-  isSameMutMem (MByteString bs1) (MByteString bs2) = isSameMem bs1 bs2
-  {-# INLINE isSameMutMem #-}
-  readOffMutMem (MByteString mbs) i = withPtrAccess mbs (`readOffPtr` i)
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem (MByteString mbs) i = withPtrAccess mbs (`readByteOffPtr` i)
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem (MByteString mbs) i a = withPtrAccess mbs $ \ptr -> writeOffPtr ptr i a
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem (MByteString mbs) i a = withPtrAccess mbs $ \ptr -> writeByteOffPtr ptr i a
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem (MByteString fsrc) srcOff dstPtr dstOff c =
-    withPtrAccess fsrc $ \srcPtr -> moveByteOffPtrToPtr srcPtr srcOff dstPtr dstOff c
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem (MByteString fsrc) srcOff dst dstOff c =
-    withPtrAccess fsrc $ \srcPtr -> moveByteOffPtrToMBytes srcPtr srcOff dst dstOff c
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  copyByteOffMem src srcOff (MByteString fdst) dstOff c =
-    withPtrAccess fdst $ \dstPtr -> copyByteOffToPtrMem src srcOff dstPtr dstOff c
-  {-# INLINE copyByteOffMem #-}
-  moveByteOffMutMem src srcOff (MByteString fdst) dstOff c =
-    withPtrAccess fdst $ \dstPtr -> moveByteOffToPtrMutMem src srcOff dstPtr dstOff c
-  {-# INLINE moveByteOffMutMem #-}
-  setMutMem (MByteString mbs) off c a = withPtrAccess mbs $ \ptr -> setOffPtr ptr off c a
-  {-# INLINE setMutMem #-}
+-- | Read an element with an offset in number of elements, rather than bytes as it is
+-- the case with `readByteOffMutMem`.
+--
+-- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+-- result is either unpredictable output or failure with a segfault.
+--
+-- @since 0.3.0
+readOffMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memRead/ - Memory region to read an element from
+  -> Off e
+  -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= off
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > count <- getByteCountMutMem memRead
+  -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+  --
+  -> m e
+readOffMutMem mw = liftST . readOffMutMemST mw
+{-# INLINE readOffMutMem #-}
+
+-- | Read an element with an offset in number of bytes.
+--
+-- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+-- result is either unpredictable output or failure with a segfault.
+--
+-- @since 0.3.0
+readByteOffMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memRead/ - Memory region to read an element from
+  -> Off Word8
+  -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= off
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > count <- getByteCountMutMem memRead
+  -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+  --
+  -> m e
+readByteOffMutMem mw = liftST . readByteOffMutMemST mw
+{-# INLINE readByteOffMutMem #-}
+
+-- | Write an element with an offset in number of elements, rather than bytes as it is
+-- the case with `writeByteOffMutMem`.
+--
+-- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+-- outcome is either heap corruption or failure with a segfault.
+--
+-- @since 0.3.0
+writeOffMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memWrite/ - Memory region to write an element into
+  -> Off e
+  -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= off
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > count <- getByteCountMutMem memWrite
+  -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+  --
+  -> e -- ^ /elt/ - Element to write
+  -> m ()
+writeOffMutMem mw off = liftST . writeOffMutMemST mw off
+{-# INLINE writeOffMutMem #-}
+
+-- | Write an element with an offset in number of bytes.
+--
+-- [Unsafe] Bounds are not checked. When precondition for @off@ argument is violated the
+-- outcome is either heap corruption or failure with a segfault.
+--
+-- @since 0.3.0
+writeByteOffMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memWrite/ - Memory region to write an element into
+  -> Off Word8
+  -- ^ /off/ - Offset in number of bytes from the beginning of @memWrite@
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= off
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > count <- getByteCountMutMem memWrite
+  -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
+  --
+  -> e
+  -- ^ /elt/ - Element to write into memory at the supplied offset
+  -> m ()
+writeByteOffMutMem mw off = liftST . writeByteOffMutMemST mw off
+{-# INLINE writeByteOffMutMem #-}
+
+-- | Copy contiguous chunk of memory from the source mutable memory into the target
+-- mutable `MBytes`. Source and target /may/ refer to overlapping memory regions.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated a call to this function can result in:
+-- copy of data that doesn't belong to @memSource@, heap corruption or failure with
+-- a segfault.
+--
+-- @since 0.3.0
+moveByteOffToMBytesMutMem ::
+     forall e mw p m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+  -> MBytes p s -- ^ /memTarget/ - Target memory into where to copy
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Both source and target memory regions must have enough memory to perform a copy
+  -- of @memCount@ elements starting at their respective offsets. For types that also
+  -- implement `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
+  -> m ()
+moveByteOffToMBytesMutMem src srcOff dst dstOff c =
+  liftST $ moveByteOffToMBytesMutMemST src srcOff dst dstOff c
+{-# INLINE moveByteOffToMBytesMutMem #-}
 
 
-type instance Frozen MByteString = ByteString
+-- | Copy contiguous chunk of memory from the source mutable memory into the target
+-- `Ptr`. Source and target /may/ refer to overlapping memory regions.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@ or
+-- @memTargetOff@, a target pointer @memTarget@ or the element count @memCount@ is
+-- violated a call to this function can result in: copy of data that doesn't belong to
+-- @memSource@, heap corruption or failure with a segfault.
+--
+-- @since 0.3.0
+moveByteOffToPtrMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
+  -> Ptr e
+  -- ^ /memTarget/ - Target memory into where to copy
+  --
+  -- /__Precondition:__/
+  --
+  -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
+  -- still belong to the same region of memory @memTargetWrite@
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
+  -- memory region @memTarget@
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Both source and target memory regions must have enough memory to perform a copy
+  -- of @memCount@ elements starting at their respective offsets. For /memSource/ that also
+  -- implements `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
+  -> m ()
+moveByteOffToPtrMutMem src srcOff dst dstOff c =
+  liftST $ moveByteOffToPtrMutMemST src srcOff dst dstOff c
+{-# INLINE moveByteOffToPtrMutMem #-}
 
-instance MutFreeze MByteString where
-  thawST bs = pure $! MByteString bs
-  {-# INLINE thawST #-}
-  clone = cloneMem
-  {-# INLINE clone #-}
-  freezeMutST (MByteString bs) = pure bs
-  {-# INLINE freezeMutST #-}
+-- | Copy contiguous chunk of memory from the read only memory region into the target
+-- mutable memory region. Source and target /must not/ refer to the same memory region,
+-- otherwise that would imply that the source is not immutable which would be a
+-- violation of some other invariant elsewhere in the code.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated a call to this function can result in:
+-- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+-- a segfault.
+--
+-- @since 0.1.0
+copyByteOffMutMem ::
+     forall e mw mr m s. (MonadPrim s m, MemWrite mw, MemRead mr, Unbox e)
+  => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  -> mw s -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTargetWrite
+  -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Both source and target memory regions must have enough memory to perform a copy
+  -- of @memCount@ elements starting at their respective offsets. For @memSourceRead@:
+  --
+  -- > unOff memSourceOff + unCountBytes memCount <= unCount (byteCountMem memSourceRead - byteCountType @e)
+  --
+  -- and for @memTargetWrite@ that also implements `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTargetWrite
+  -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
+  -> m ()
+copyByteOffMutMem src srcOff dst dstOff c =
+  liftST $ copyByteOffMutMemST src srcOff dst dstOff c
+{-# INLINE copyByteOffMutMem #-}
+
+-- | Copy contiguous chunk of memory from a mutable memory region into the target
+-- mutable memory region. Source and target /may/ refer to the same memory region.
+--
+-- [Unsafe] When any precondition for one of the offsets @memSourceOff@, @memTargetOff@
+-- or the element count @memCount@ is violated a call to this function can result in:
+-- copy of data that doesn't belong to @memSourceRead@, heap corruption or failure with
+-- a segfault.
+--
+-- @since 0.3.0
+moveByteOffMutMem ::
+     forall e mw' mw m s. (MonadPrim s m, MemWrite mw, MemWrite mw', Unbox e)
+  => mw' s -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memSourceOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOffBytes memSourceOff <= unCount (sourceByteCount - byteCountType @e)
+  -> mw s -- ^ /memTarget/ - Target memory into where to copy
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unOffBytes (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Both source and target memory regions must have enough memory to perform a copy
+  -- of @memCount@ elements starting at their respective offsets. For types that also
+  -- implement `MemAlloc` this can be described as:
+  --
+  -- > sourceByteCount <- getByteCountMutMem memSource
+  -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
+  -> m ()
+moveByteOffMutMem src srcOff dst dstOff c =
+  liftST $ moveByteOffMutMemST src srcOff dst dstOff c
+{-# INLINE moveByteOffMutMem #-}
+
+-- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
+--setByteOffMutMem :: (MonadPrim s m, Unbox e) => w s -> Off Word8 -> Count e -> e -> m ()
+
+-- | Write the same value @memCount@ times into each cell of @memTarget@ starting at an
+-- offset @memTargetOff@.
+--
+-- [Unsafe] Bounds are not checked. When precondition for @memTargetOff@ argument is
+-- violated the outcome is either heap corruption or failure with a segfault.
+--
+-- @since 0.3.0
+setMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s -- ^ /memTarget/ - Target memory into where to write the element
+  -> Off e
+  -- ^ /memTargetOff/ - Offset into target memory in number of elements at which element
+  -- setting should start.
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memTargetOff
+  --
+  -- With offset applied it should still refer to the same memory region. For types that
+  -- also implement `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
+  -> Count e
+  -- ^ /memCount/ - Number of times the element @elt@ should be written
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Target memory region should have enough memory to perform a set operation of the
+  -- supplied element @memCount@ number of times starting at the supplied offset. For
+  -- types that also implement `MemAlloc` this can be described as:
+  --
+  -- > targetByteCount <- getByteCountMutMem memTarget
+  -- > unCountBytes memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
+  -> e
+  -- ^ /elt/ - Element to write into memory cells. This function is strict with
+  -- respect to element, which means that the even @memCount = 0@ it might be still
+  -- fully evaluated.
+  -> m ()
+setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
+{-# INLINE setMutMem #-}
 
 
-instance MemAlloc MByteString where
-  getByteCountMutMem (MByteString bs) = pure $! Count (BS.length bs)
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem c = do
-    let cb = toByteCount c
-    fp <- mallocByteCountPlainForeignPtr cb
-    pure $ MByteString (PS fp 0 (coerce cb))
-  {-# INLINE allocMutMem #-}
-  thawMem bs = pure $ MByteString bs
-  {-# INLINE thawMem #-}
-  freezeMutMem (MByteString bs) = pure bs
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem bsm@(MByteString (PS fp o n)) newc
-    | newn > n = defaultReallocMutMem bsm newc
-    | otherwise = pure $ MByteString (PS fp o newn)
-    where -- constant time slice if we need to reduce the size
-      Count newn = toByteCount newc
-  {-# INLINE reallocMutMem #-}
+-- | Extract the number of bytes a mutable memory region can hold, i.e. what is the
+-- total allocated size for this region. The size of a region can be changes and in some
+-- circuimstances even in place without copy, see `reallocMutMem` for more info.
+--
+-- ====__Examples__
+--
+-- >>> m <- allocMutMem (10 :: Count Int64) :: IO (MBytes 'Pin RW)
+-- >>> getByteCountMutMem m
+-- Count {unCount = 80}
+--
+-- @since 0.3.0
+getByteCountMutMem ::
+     forall ma m s. (MonadPrim s m, MemAlloc ma)
+  => ma s
+  -> m (Count Word8)
+getByteCountMutMem = liftST . getByteCountMutMemST
+{-# INLINE getByteCountMutMem #-}
 
 
-instance MemRead T.Array where
-  isSameMem a1 a2 = isSameMem (T.fromArrayBytes a1) (T.fromArrayBytes a2)
-  {-# INLINE isSameMem #-}
-  byteCountMem = byteCountMem . T.fromArrayBytes
-  {-# INLINE byteCountMem #-}
-  indexOffMem a = indexOffMem (T.fromArrayBytes a)
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem a = indexByteOffMem (T.fromArrayBytes a)
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem a = copyByteOffToMBytesMem (T.fromArrayBytes a)
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem a = copyByteOffToPtrMem (T.fromArrayBytes a)
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem a = compareByteOffToPtrMem (T.fromArrayBytes a)
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem a = compareByteOffToBytesMem (T.fromArrayBytes a)
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem off1 a = compareByteOffMem mem off1 (T.fromArrayBytes a)
-  {-# INLINE compareByteOffMem #-}
-
-type instance Frozen T.MArray = T.Array
-
-instance MutFreeze T.MArray where
-  thawST = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
-  {-# INLINE thawST #-}
-  thawCloneST = fmap T.toMArrayMBytes . thawClone . T.fromArrayBytes
-  {-# INLINE thawCloneST #-}
-  freezeMutST = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
-  {-# INLINE freezeMutST #-}
-
-
-instance MemAlloc T.MArray where
-  getByteCountMutMem = getByteCountMBytes . T.fromMArrayMBytes
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap T.toMArrayMBytes . allocUnpinnedMBytes
-  {-# INLINE allocMutMem #-}
-  thawMem = fmap T.toMArrayMBytes . thawBytes . T.fromArrayBytes
-  {-# INLINE thawMem #-}
-  freezeMutMem = fmap T.toArrayBytes . freezeMBytes . T.fromMArrayMBytes
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem m = fmap T.toMArrayMBytes . reallocMBytes (T.fromMArrayMBytes m)
-  {-# INLINE reallocMutMem #-}
-
-instance MemWrite T.MArray where
-  isSameMutMem ma1 ma2 = isSameMutMem (T.fromMArrayMBytes ma1) (T.fromMArrayMBytes ma2)
-  {-# INLINE isSameMutMem #-}
-  readOffMutMem m = readOffMBytes (T.fromMArrayMBytes m)
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem m = readByteOffMBytes (T.fromMArrayMBytes m)
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem m = writeOffMBytes (T.fromMArrayMBytes m)
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem m = writeByteOffMBytes (T.fromMArrayMBytes m)
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem m = moveByteOffMBytesToPtr (T.fromMArrayMBytes m)
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem m = moveByteOffMBytesToMBytes (T.fromMArrayMBytes m)
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  moveByteOffMutMem src srcOff m = moveByteOffToMBytesMutMem src srcOff (T.fromMArrayMBytes m)
-  {-# INLINE moveByteOffMutMem #-}
-  copyByteOffMem src srcOff m = copyByteOffToMBytesMem src srcOff (T.fromMArrayMBytes m)
-  {-# INLINE copyByteOffMem #-}
-  setMutMem m = setMBytes (T.fromMArrayMBytes m)
-  {-# INLINE setMutMem #-}
-
-instance MemRead T.Text where
-  isSameMem (T.Text a1 o1 n1) (T.Text a2 o2 n2) = isSameMem a1 a2 && o1 == o2 && n1 == n2
-  {-# INLINE isSameMem #-}
-  byteCountMem (T.Text _ _ n) = toByteCount (Count n :: Count Word16)
-  {-# INLINE byteCountMem #-}
-  indexByteOffMem (T.Text a o _) i = indexByteOffMem a (toByteOff (Off o :: Off Word16) + i)
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem (T.Text a o _) i =
-    copyByteOffToMBytesMem a (toByteOff (Off o :: Off Word16) + i)
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem (T.Text a o _) i =
-    copyByteOffToPtrMem a (toByteOff (Off o :: Off Word16) + i)
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem (T.Text a o _) off =
-    compareByteOffToPtrMem a (toByteOff (Off o :: Off Word16) + off)
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem (T.Text a o _) off =
-    compareByteOffToBytesMem a (toByteOff (Off o :: Off Word16) + off)
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem off1 (T.Text a o _) off2 =
-    compareByteOffMem mem off1 a (toByteOff (Off o :: Off Word16) + off2)
-  {-# INLINE compareByteOffMem #-}
+-- | Allocate a mutable memory region for specified number of elements. Memory is not
+-- reset and will likely hold some garbage data, therefore prefer to use `allocZeroMutMem`,
+-- unless it is guaranteed that all of allocated memory will be overwritten.
+--
+-- [Unsafe] When any of preconditions for @memCount@ argument is violated the outcome is
+-- unpredictable. One possible outcome is termination with
+-- `Control.Exception.HeapOverflow` async exception. In a pure setting, such as when
+-- executed within `runST`, if allocated memory is not fully overwritten it can lead to
+-- violation of referential transparency, because contents of newly allocated region is
+-- non-determinstic.
+--
+-- @since 0.3.0
+allocMutMem ::
+     forall e ma m s. (MonadPrim s m, MemAlloc ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
+  -- type __@e@__
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Possibility of overflow:
+  --
+  -- > memCount <= fromByteCount maxBound
+  --
+  -- When converted to bytes the value should be less then available physical memory
+  -> m (ma s)
+allocMutMem = liftST . allocMutMemST
+{-# INLINE allocMutMem #-}
 
 
-instance MemRead ShortByteString where
-  isSameMem sbs1 sbs2 = isSameMem (fromShortByteStringBytes sbs1) (fromShortByteStringBytes sbs2)
-  {-# INLINE isSameMem #-}
-  byteCountMem = byteCountMem . fromShortByteStringBytes
-  {-# INLINE byteCountMem #-}
-  indexOffMem sbs = indexOffMem (fromShortByteStringBytes sbs)
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem sbs = indexByteOffMem (fromShortByteStringBytes sbs)
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem sbs = copyByteOffToMBytesMem (fromShortByteStringBytes sbs)
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem sbs = copyByteOffToPtrMem (fromShortByteStringBytes sbs)
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem sbs = compareByteOffToPtrMem (fromShortByteStringBytes sbs)
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem sbs = compareByteOffToBytesMem (fromShortByteStringBytes sbs)
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem off1 sbs = compareByteOffMem mem off1 (fromShortByteStringBytes sbs)
-  {-# INLINE compareByteOffMem #-}
+-- | Either grow or shrink currently allocated mutable region of memory. For some
+-- implementations it might be possible to change the size of the allocated region
+-- in-place, i.e. without copy. However in all implementations there is a good chance
+-- that the memory region has to be allocated anew, in which case all of the contents
+-- up to the minimum of new and old sizes will get copied over. After the resize
+-- operation is complete the supplied @memSource@ region must not be used
+-- anymore. Moreover, no reference to the old one should be kept in order to allow
+-- garbage collection of the original in case a new one had to be allocated.
+--
+-- Default implementation is `defaultReallocMutMem`
+--
+-- [Unsafe] Undefined behavior when @memSource@ is used afterwards. The same unsafety
+-- notice from `allocMutMem` with regards to @memCount@ is applicable here as well.
+--
+-- @since 0.3.0
+reallocMutMem ::
+     forall e ma m s. (MonadPrim s m, MemAlloc ma, Unbox e)
+  => ma s
+  -- ^ /memSource/ - Source memory region to resize
+  -> Count e
+  -- ^ /memCount/ - Number of elements for the reallocated memory region
+  --
+  -- /__Preconditions:__/
+  --
+  -- > 0 <= memCount
+  --
+  -- Should be less then available physical memory
+  -> m (ma s)
+reallocMutMem ma = liftST . reallocMutMemST ma
+{-# INLINE reallocMutMem #-}
 
--- | A wrapper that adds a phantom state token. It can be used with types that either
--- don't have such state token or are designed to work in `IO` and therefore restricted
--- to `RealWorld`. Using this wrapper is very much unsafe, so make sure you know what you are
--- doing.
-newtype MemState a s = MemState { unMemState :: a }
 
-instance MemWrite (MemState (ForeignPtr a)) where
-  isSameMutMem (MemState fptr1) (MemState fptr2) =
-    unsafeInlineIO $
-    withPtrAccess fptr1 $ \ptr1 ->
-      withPtrAccess fptr2 $ \ptr2 ->
-        pure (ptr1 == (ptr2 :: Ptr Word8))
-  {-# INLINE isSameMutMem #-}
-  readOffMutMem (MemState fptr) i = withForeignPtr fptr $ \ptr -> readOffPtr (castPtr ptr) i
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem (MemState fptr) i =
-    withForeignPtr fptr $ \ptr -> readByteOffPtr (castPtr ptr) i
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem (MemState fptr) i a = withForeignPtr fptr $ \ptr -> writeOffPtr (castPtr ptr) i a
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem (MemState fptr) i a =
-    withForeignPtr fptr $ \ptr -> writeByteOffPtr (castPtr ptr) i a
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem (MemState fsrc) srcOff dstPtr dstOff c =
-    withForeignPtr fsrc $ \srcPtr -> moveByteOffPtrToPtr (castPtr srcPtr) srcOff dstPtr dstOff c
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem (MemState fsrc) srcOff dst dstOff c =
-    withForeignPtr fsrc $ \srcPtr -> moveByteOffPtrToMBytes (castPtr srcPtr) srcOff dst dstOff c
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  copyByteOffMem src srcOff (MemState fdst) dstOff c =
-    withForeignPtr fdst $ \dstPtr ->
-       copyByteOffToPtrMem src srcOff (castPtr dstPtr) dstOff c
-  {-# INLINE copyByteOffMem #-}
-  moveByteOffMutMem src srcOff (MemState fdst) dstOff c =
-    withForeignPtr fdst $ \dstPtr ->
-       moveByteOffToPtrMutMem src srcOff (castPtr dstPtr) dstOff c
-  {-# INLINE moveByteOffMutMem #-}
-  setMutMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
-  {-# INLINE setMutMem #-}
+-- -- | A wrapper that adds a phantom state token. It can be used with types that either
+-- -- don't have such state token or are designed to work in `IO` and therefore restricted
+-- -- to `RealWorld`. Using this wrapper is very much unsafe, so make sure you know what you are
+-- -- doing.
+-- newtype MemState a s = MemState { unMemState :: a }
+
+-- instance MemWrite (MemState (ForeignPtr a)) where
+--   isSameMutMem (MemState fptr1) (MemState fptr2) =
+--     unsafeInlineIO $
+--     withPtrAccess fptr1 $ \ptr1 ->
+--       withPtrAccess fptr2 $ \ptr2 ->
+--         pure (ptr1 == (ptr2 :: Ptr Word8))
+--   {-# INLINE isSameMutMem #-}
+--   readOffMutMem (MemState fptr) i = withForeignPtr fptr $ \ptr -> readOffPtr (castPtr ptr) i
+--   {-# INLINE readOffMutMem #-}
+--   readByteOffMutMem (MemState fptr) i =
+--     withForeignPtr fptr $ \ptr -> readByteOffPtr (castPtr ptr) i
+--   {-# INLINE readByteOffMutMem #-}
+--   writeOffMutMem (MemState fptr) i a = withForeignPtr fptr $ \ptr -> writeOffPtr (castPtr ptr) i a
+--   {-# INLINE writeOffMutMem #-}
+--   writeByteOffMutMem (MemState fptr) i a =
+--     withForeignPtr fptr $ \ptr -> writeByteOffPtr (castPtr ptr) i a
+--   {-# INLINE writeByteOffMutMem #-}
+--   moveByteOffToPtrMutMem (MemState fsrc) srcOff dstPtr dstOff c =
+--     withForeignPtr fsrc $ \srcPtr -> moveByteOffPtrToPtr (castPtr srcPtr) srcOff dstPtr dstOff c
+--   {-# INLINE moveByteOffToPtrMutMem #-}
+--   moveByteOffToMBytesMutMem (MemState fsrc) srcOff dst dstOff c =
+--     withForeignPtr fsrc $ \srcPtr -> moveByteOffPtrToMBytes (castPtr srcPtr) srcOff dst dstOff c
+--   {-# INLINE moveByteOffToMBytesMutMem #-}
+--   copyByteOffMutMem src srcOff (MemState fdst) dstOff c =
+--     withForeignPtr fdst $ \dstPtr ->
+--        copyByteOffToPtrMem src srcOff (castPtr dstPtr) dstOff c
+--   {-# INLINE copyByteOffMutMem #-}
+--   moveByteOffMutMem src srcOff (MemState fdst) dstOff c =
+--     withForeignPtr fdst $ \dstPtr ->
+--        moveByteOffToPtrMutMem src srcOff (castPtr dstPtr) dstOff c
+--   {-# INLINE moveByteOffMutMem #-}
+--   setMutMem (MemState fptr) off c a = withForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
+--   {-# INLINE setMutMem #-}
 
 --
 -- @since 0.3.0
@@ -1121,28 +731,6 @@ modifyFetchNewMutMemM mem o f = do
   a' <$ writeOffMutMem mem o a'
 {-# INLINE modifyFetchNewMutMemM #-}
 
--- | An action that can be used as a default implementation for `reallocMutMem`. Whenever
--- current memory region byte count matches the supplied new size exactly then such memory
--- region is simply returned back and this function is a noop. Otherwise a new memory
--- region is allocated and all the data that can fit into the new region will be copied
--- over.
---
--- [Unsafe] Same unsafety notice as in `reallocMutMem`
---
--- @since 0.3.0
-defaultReallocMutMem ::
-     (Unbox e, MemAlloc ma, MonadPrim s m) => ma s -> Count e -> m (ma s)
-defaultReallocMutMem mem c = do
-  let newByteCount = toByteCount c
-  oldByteCount <- getByteCountMutMem mem
-  if oldByteCount == newByteCount
-    then pure mem
-    else do
-      newMem <- allocMutMem newByteCount
-      oldMem <- freezeMutMem mem
-      newMem <$ copyMem oldMem 0 newMem 0 (min oldByteCount newByteCount)
-{-# INLINE defaultReallocMutMem #-}
-
 
 -- | Place @n@ copies of supplied region of memory one after another in a newly allocated
 -- contiguous chunk of memory. Similar to `stimes`, but the source memory @memRead@ does
@@ -1170,9 +758,9 @@ cycleMemN n r
       let bc@(Count chunk) = byteCountMem r
           c@(Count c8) = Count n * bc
       mem <- allocMutMem c
-      let go i = when (i < c8) $ copyByteOffMem r 0 mem (Off i) bc >> go (i + chunk)
+      let go i = when (i < c8) $ copyByteOffMutMem r 0 mem (Off i) bc >> go (i + chunk)
       go 0
-      freezeMutMem mem
+      freezeMut mem
 {-# INLINE cycleMemN #-}
 
 
@@ -1279,7 +867,7 @@ createMemST ::
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
   -> (b, Frozen ma)
-createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
+createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 {-# INLINE createMemST #-}
 
 
@@ -1303,7 +891,7 @@ createMemST_ ::
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
   -> Frozen ma
-createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMutMem m)
+createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMut m)
 {-# INLINE createMemST_ #-}
 
 -- | Same as `createMemST`, except it in ensures that the memory is reset to zeros right
@@ -1333,7 +921,7 @@ createZeroMemST ::
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
   -> (b, Frozen ma)
-createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freezeMutMem m
+createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 {-# INLINE createZeroMemST #-}
 
 -- | Same as `createMemST_`, except it ensures that the memory gets reset with zeros right
@@ -1377,7 +965,7 @@ createZeroMemST_ ::
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
   -> Frozen ma
-createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMutMem m)
+createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMut m)
 {-# INLINE createZeroMemST_ #-}
 
 -- | Copy all of the data from the source into a newly allocate memory region of identical
@@ -1401,15 +989,15 @@ cloneMem ::
      forall ma. MemAlloc ma
   => Frozen ma -- ^ /memSource/ - immutable source memory.
   -> Frozen ma
-cloneMem fm =
-  runST $ do
-    let n = byteCountMem fm
-    mm <- allocMutMem n
-    copyMem fm 0 mm 0 n
-    freezeMutMem mm
+cloneMem = clone
+  -- runST $ do
+  --   let n = byteCountMem fm
+  --   mm <- allocMutMem n
+  --   copyMem fm 0 mm 0 n
+  --   freezeMut mm
 {-# INLINE cloneMem #-}
 
--- | Similar to `copyByteOffMem`, but supply offsets in number of elements instead of
+-- | Similar to `copyByteOffMutMem`, but supply offsets in number of elements instead of
 -- bytes. Copy contiguous chunk of memory from the read only memory region into the target
 -- mutable memory region. Source and target /must not/ refer to the same memory region,
 -- otherwise that would imply that the source is not immutable which would be a violation
@@ -1463,7 +1051,7 @@ copyMem ::
   -- > targetCount <- getCountMutMem memTargetWrite
   -- > unOff memTargetOff + unCount memCount < unCount targetCount
   -> m ()
-copyMem src srcOff dst dstOff = copyByteOffMem src (toByteOff srcOff) dst (toByteOff dstOff)
+copyMem src srcOff dst dstOff = copyByteOffMutMem src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyMem #-}
 
 
@@ -1592,7 +1180,7 @@ freezeCopyMutMem ::
   -> Off e
   -> Count e
   -> m (Frozen ma)
-freezeCopyMutMem mem off c = freezeMutMem mem >>= \r -> thawCopyMem r off c >>= freezeMutMem
+freezeCopyMutMem mem off c = freezeMut mem >>= \r -> thawCopyMem r off c >>= freezeMut
 {-# INLINE freezeCopyMutMem #-}
 
 -- | Safe version of `freezeMutMem`. Yields an immutable copy of the supplied mutable
@@ -1618,7 +1206,7 @@ freezeCloneMutMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
   -> m (Frozen ma)
-freezeCloneMutMem = freezeMutMem >=> thawCloneMem >=> freezeMutMem
+freezeCloneMutMem = freezeCloneMut
 {-# INLINE freezeCloneMutMem #-}
 
 -- | /O(n)/ - Convert a read-only memory region into a newly allocated other type of
@@ -1737,7 +1325,7 @@ cloneMutMem ::
      forall ma m s. (MemAlloc ma, MonadPrim s m)
   => ma s
   -> m (ma s)
-cloneMutMem = freezeMutMem >=> thawCloneMem
+cloneMutMem = cloneMut
 {-# INLINE cloneMutMem #-}
 
 -- | Compare two memory regions byte-by-byte. Computation may be short-circuited on the
@@ -2420,7 +2008,7 @@ mapByteOffMemM f r = do
   --           writeOffMem mem (offAsProxy c (Off i))
   --         go (i + 1)
   -- go 0
-  freezeMutMem mem
+  freezeMut mem
 
 
 -- | Iterate over a region of memory
@@ -2689,64 +2277,6 @@ izipWithOffMemM_ r1 off1 r2 off2 nc f =
 ---------------------
 -- Bytes instances --
 ---------------------
-
-instance MemRead (Bytes p) where
-  isSameMem = isSameBytes
-  {-# INLINE isSameMem #-}
-  byteCountMem = byteCountBytes
-  {-# INLINE byteCountMem #-}
-  indexOffMem = indexOffBytes
-  {-# INLINE indexOffMem #-}
-  indexByteOffMem = indexByteOffBytes
-  {-# INLINE indexByteOffMem #-}
-  copyByteOffToMBytesMem = copyByteOffBytesToMBytes
-  {-# INLINE copyByteOffToMBytesMem #-}
-  copyByteOffToPtrMem = copyByteOffBytesToPtr
-  {-# INLINE copyByteOffToPtrMem #-}
-  compareByteOffToPtrMem bytes1 off1 ptr2 off2 c =
-    pure $! compareByteOffBytesToPtr bytes1 off1 ptr2 off2 c
-  {-# INLINE compareByteOffToPtrMem #-}
-  compareByteOffToBytesMem bytes1 off1 bytes2 off2 c =
-    compareByteOffBytes bytes1 off1 bytes2 off2 c
-  {-# INLINE compareByteOffToBytesMem #-}
-  compareByteOffMem mem1 off1 bs off2 c =
-    compareByteOffToBytesMem mem1 off1 bs off2 c
-  {-# INLINE compareByteOffMem #-}
-
-instance Typeable p => MemAlloc (MBytes p) where
-  getByteCountMutMem = getByteCountMBytes
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem = allocMBytes
-  {-# INLINE allocMutMem #-}
-  thawMem = thawBytes
-  {-# INLINE thawMem #-}
-  freezeMutMem = freezeMBytes
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem = reallocMBytes
-  {-# INLINE reallocMutMem #-}
-
-instance MemWrite (MBytes p) where
-  isSameMutMem = isSameMBytes
-  {-# INLINE isSameMutMem #-}
-  readOffMutMem = readOffMBytes
-  {-# INLINE readOffMutMem #-}
-  readByteOffMutMem = readByteOffMBytes
-  {-# INLINE readByteOffMutMem #-}
-  writeOffMutMem = writeOffMBytes
-  {-# INLINE writeOffMutMem #-}
-  writeByteOffMutMem = writeByteOffMBytes
-  {-# INLINE writeByteOffMutMem #-}
-  moveByteOffToPtrMutMem = moveByteOffMBytesToPtr
-  {-# INLINE moveByteOffToPtrMutMem #-}
-  moveByteOffToMBytesMutMem = moveByteOffMBytesToMBytes
-  {-# INLINE moveByteOffToMBytesMutMem #-}
-  moveByteOffMutMem = moveByteOffToMBytesMutMem
-  {-# INLINE moveByteOffMutMem #-}
-  copyByteOffMem = copyByteOffToMBytesMem
-  {-# INLINE copyByteOffMem #-}
-  setMutMem = setMBytes
-  {-# INLINE setMutMem #-}
-
 
 instance Show (Bytes p) where
   show b =

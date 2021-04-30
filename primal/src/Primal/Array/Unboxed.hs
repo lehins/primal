@@ -33,8 +33,6 @@ module Primal.Array.Unboxed
   , toListUArray
   , fromListUArray
   , fromListUArrayN
-  , fromBaseUArray
-  , toBaseUArray
   -- ** Mutable
   , UMArray(..)
   , isSameUMArray
@@ -60,6 +58,13 @@ module Primal.Array.Unboxed
   , freezeUMArray
   , freezeCopyUMArray
   , casUMArray
+  -- * Conversion
+  , fromBaseUArray
+  , toBaseUArray
+  , fromTextArray
+  , toTextArray
+  , fromTextMArray
+  , toTextMArray
   -- * Re-export
   , MonadPrim
   , Unbox
@@ -67,6 +72,7 @@ module Primal.Array.Unboxed
 
 import qualified Data.Array.Base as A
 import qualified Data.List.NonEmpty as NE (toList)
+import qualified Data.Text.Array as T
 import Primal.Array.Internal
 import Primal.Eval
 import Primal.Exception
@@ -454,35 +460,6 @@ fromListUArray ::
   -> UArray e
 fromListUArray xs = fromListUArrayN (coerce (length xs)) xs
 {-# INLINE fromListUArray #-}
-
--- | /O(1)/ - cast an unboxed `A.UArray` that is wired with GHC to `UArray` from primal.
---
--- >>> import Data.Array.IArray as IA
--- >>> import Data.Array.Unboxed as UA
--- >>> let uarr = IA.listArray (10, 15) [30 .. 35] :: UA.UArray Int Word
--- >>> uarr
--- array (10,15) [(10,30),(11,31),(12,32),(13,33),(14,34),(15,35)]
--- >>> fromBaseUArray uarr
--- UArray [30,31,32,33,34,35]
---
--- @since 0.3.0
-fromBaseUArray :: (Unbox e, A.IArray A.UArray e) => A.UArray ix e -> UArray e
-fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
-
--- | /O(1)/ - cast an unboxed `UArray` from primal into `A.UArray`, which is wired with
--- GHC. Resulting array range starts at 0, like any sane array would.
---
--- >>> let uarr = fromListUArray [1, 2, 3 :: Int]
--- >>> uarr
--- UArray [1,2,3]
--- >>> toBaseUArray uarr
--- array (0,2) [(0,1),(1,2),(2,3)]
---
--- @since 0.3.0
-toBaseUArray :: (Unbox e, A.IArray A.UArray e) => UArray e -> A.UArray Int e
-toBaseUArray a@(UArray ba#) =
-  let Size n = sizeOfUArray a
-  in A.UArray 0 (max 0 (n - 1)) n ba#
 
 -- Mutable Unboxed Array --
 ---------------------------
@@ -1109,3 +1086,67 @@ casUMArray (UMArray mba#) (I# i#) expected new =
         case readMutableByteArray# mba# i# s' of
           (# s'', old #) -> (# s'', (False, old) #)
 {-# INLINE casUMArray #-}
+
+
+-- Conversion
+
+-- | /O(1)/ - cast an unboxed `A.UArray` that is wired with GHC to `UArray` from primal.
+--
+-- >>> import Data.Array.IArray as IA
+-- >>> import Data.Array.Unboxed as UA
+-- >>> let uarr = IA.listArray (10, 15) [30 .. 35] :: UA.UArray Int Word
+-- >>> uarr
+-- array (10,15) [(10,30),(11,31),(12,32),(13,33),(14,34),(15,35)]
+-- >>> fromBaseUArray uarr
+-- UArray [30,31,32,33,34,35]
+--
+-- @since 0.3.0
+fromBaseUArray :: (Unbox e, A.IArray A.UArray e) => A.UArray ix e -> UArray e
+fromBaseUArray (A.UArray _ _ _ ba#) = UArray ba#
+
+-- | /O(1)/ - cast an unboxed `UArray` from primal into `A.UArray`, which is wired with
+-- GHC. Resulting array range starts at 0, like any sane array would.
+--
+-- >>> let uarr = fromListUArray [1, 2, 3 :: Int]
+-- >>> uarr
+-- UArray [1,2,3]
+-- >>> toBaseUArray uarr
+-- array (0,2) [(0,1),(1,2),(2,3)]
+--
+-- @since 0.3.0
+toBaseUArray :: (Unbox e, A.IArray A.UArray e) => UArray e -> A.UArray Int e
+toBaseUArray a@(UArray ba#) =
+  let Size n = sizeOfUArray a
+  in A.UArray 0 (max 0 (n - 1)) n ba#
+
+
+-- | /O(1)/ - Cast an immutable array from @text@ package to an unboxed immutable array
+--
+-- @since 1.0.0
+fromTextArray :: T.Array -> UArray Word8
+fromTextArray (T.Array ba#) = UArray ba#
+{-# INLINE fromTextArray #-}
+
+-- | /O(1)/ - Cast an immutable unboxed array to an immutable array from @text@ package
+--
+-- @since 1.0.0
+toTextArray :: UArray e -> T.Array
+toTextArray (UArray ba#) = T.Array ba#
+{-# INLINE toTextArray #-}
+
+
+-- | /O(1)/ - Cast a mutable array from @text@ package to an unboxed mutable array
+--
+-- @since 1.0.0
+fromTextMArray :: T.MArray s -> UMArray Word8 s
+fromTextMArray (T.MArray mba#) = UMArray mba#
+{-# INLINE fromTextMArray #-}
+
+
+-- | /O(1)/ - Cast an immutable array from @text@ package to an unboxed immutable array
+--
+-- @since 1.0.0
+toTextMArray :: UMArray e s -> T.MArray s
+toTextMArray (UMArray mba#) = T.MArray mba#
+{-# INLINE toTextMArray #-}
+

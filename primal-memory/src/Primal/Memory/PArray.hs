@@ -113,16 +113,12 @@ instance PtrAccess s (PMArray 'Pin e s) where
   {-# INLINE withNoHaltPtrAccess #-}
 
 instance Typeable p => MemAlloc (PMArray p e) where
-  getByteCountMutMem = getByteCountMutMem . toMBytesPMArray
-  {-# INLINE getByteCountMutMem #-}
-  allocMutMem = fmap fromMBytesPMArray . allocMBytes
-  {-# INLINE allocMutMem #-}
-  thawMem = thawPArray
-  {-# INLINE thawMem #-}
-  freezeMutMem = freezePMArray
-  {-# INLINE freezeMutMem #-}
-  reallocMutMem mba = fmap fromMBytesPMArray . reallocMBytes (toMBytesPMArray mba)
-  {-# INLINE reallocMutMem #-}
+  getByteCountMutMemST = getByteCountMutMem . toMBytesPMArray
+  {-# INLINE getByteCountMutMemST #-}
+  allocMutMemST = fmap fromMBytesPMArray . allocMBytes
+  {-# INLINE allocMutMemST #-}
+  reallocMutMemST mba = fmap fromMBytesPMArray . reallocMBytes (toMBytesPMArray mba)
+  {-# INLINE reallocMutMemST #-}
 
 instance (Typeable p, Unbox e) => IsList (PArray p e) where
   type Item (PArray p e) = e
