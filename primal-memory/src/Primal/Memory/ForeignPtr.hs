@@ -76,6 +76,23 @@ import Primal.Monad
 import Primal.Unbox
 import Primal.Unbox.Class
 
+class MemPtr mp where
+  -- | Convert to `ForeignPtr`.
+  toForeignPtrMemST :: mp s -> ST s (ForeignPtr a)
+
+  -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
+  -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
+  -- treat the memory content.
+  withPtrMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
+  withPtrMemST p action = toForeignPtrMemST p >>= (`withForeignPtr` action)
+  {-# INLINE withPtrMemST #-}
+
+  -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
+  -- related to it in order to get more insight why this is needed.
+  withPtrNoHaltMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
+  withPtrNoHaltMemST p action = toForeignPtrMemST p >>= (`withNoHaltForeignPtr` action)
+  {-# INLINE withPtrNoHaltMemST #-}
+
 
 -- | For memory allocated as pinned it is possible to operate on it with a `Ptr`. Any data
 -- type that is backed by such memory can have a `PtrAccess` instance. The simplest way is

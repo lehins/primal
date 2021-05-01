@@ -90,10 +90,10 @@ module Primal.Memory
   -- ** Thaw/Freeze
   , thawCloneMem                 -- DOC: [x], DOCTEST [x], TEST: [ ]
   , thawCopyMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , thaw                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , thawMem                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , freezeCloneMutMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCopyMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , freezeMut                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
+  , freezeMutMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , cloneMutMem                  -- DOC: [x], DOCTEST [ ], TEST: [-]
   , moveMutMem                   -- DOC: [ ], DOCTEST [ ], TEST: [x]
