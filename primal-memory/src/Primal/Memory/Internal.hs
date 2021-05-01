@@ -422,7 +422,7 @@ moveByteOffToPtrMutMem src srcOff dst dstOff c =
 --
 -- @since 0.1.0
 copyByteOffMutMem ::
-     forall e mw mr m s. (MonadPrim s m, MemWrite mw, MemRead mr, Unbox e)
+     forall e mr mw m s. (MonadPrim s m, MemWrite mw, MemRead mr, Unbox e)
   => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset into source memory in number of bytes
@@ -698,7 +698,11 @@ reallocMutMem ma = liftST . reallocMutMemST ma
 --
 -- @since 0.3.0
 modifyFetchOldMutMem ::
-     (MemWrite mw, MonadPrim s m, Unbox e) => mw s -> Off e -> (e -> e) -> m e
+     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> e)
+  -> m e
 modifyFetchOldMutMem mem o f = modifyFetchOldMutMemM mem o (pure . f)
 {-# INLINE modifyFetchOldMutMem #-}
 
@@ -706,7 +710,11 @@ modifyFetchOldMutMem mem o f = modifyFetchOldMutMemM mem o (pure . f)
 --
 -- @since 0.3.0
 modifyFetchNewMutMem ::
-     (MemWrite mw, MonadPrim s m, Unbox e) => mw s -> Off e -> (e -> e) -> m e
+     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> e)
+  -> m e
 modifyFetchNewMutMem mem o f = modifyFetchNewMutMemM mem o (pure . f)
 {-# INLINE modifyFetchNewMutMem #-}
 
@@ -714,7 +722,11 @@ modifyFetchNewMutMem mem o f = modifyFetchNewMutMemM mem o (pure . f)
 --
 -- @since 0.3.0
 modifyFetchOldMutMemM ::
-     (MemWrite mw, MonadPrim s m, Unbox e) => mw s -> Off e -> (e -> m e) -> m e
+     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> m e)
+  -> m e
 modifyFetchOldMutMemM mem o f = do
   a <- readOffMutMem mem o
   a <$ (writeOffMutMem mem o =<< f a)
@@ -724,7 +736,11 @@ modifyFetchOldMutMemM mem o f = do
 --
 -- @since 0.3.0
 modifyFetchNewMutMemM ::
-     (MemWrite mw, MonadPrim s m, Unbox e) => mw s -> Off e -> (e -> m e) -> m e
+     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> m e)
+  -> m e
 modifyFetchNewMutMemM mem o f = do
   a <- readOffMutMem mem o
   a' <- f a
@@ -872,7 +888,7 @@ createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 
 
 createMemST_ ::
-     (MemAlloc ma, Unbox e)
+     forall e b ma. (MemAlloc ma, Unbox e)
   => Count e
   -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
@@ -968,7 +984,7 @@ createZeroMemST_ ::
 createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMut m)
 {-# INLINE createZeroMemST_ #-}
 
--- | Copy all of the data from the source into a newly allocate memory region of identical
+-- | Copy all of the data from the source into a newly allocated memory region of identical
 -- size.
 --
 -- ====__Examples__
@@ -990,11 +1006,6 @@ cloneMem ::
   => Frozen ma -- ^ /memSource/ - immutable source memory.
   -> Frozen ma
 cloneMem = clone
-  -- runST $ do
-  --   let n = byteCountMem fm
-  --   mm <- allocMutMem n
-  --   copyMem fm 0 mm 0 n
-  --   freezeMut mm
 {-# INLINE cloneMem #-}
 
 -- | Similar to `copyByteOffMutMem`, but supply offsets in number of elements instead of
@@ -1010,7 +1021,7 @@ cloneMem = clone
 --
 -- @since 0.1.0
 copyMem ::
-     (MonadPrim s m, MemRead mr, MemWrite mw, Unbox e)
+     forall e mr mw m s. (MonadPrim s m, MemRead mr, MemWrite mw, Unbox e)
   => mr -- ^ /memSourceRead/ - Read-only source memory region from which the data will
         -- copied
   -> Off e
@@ -1058,7 +1069,7 @@ copyMem src srcOff dst dstOff = copyByteOffMutMem src (toByteOff srcOff) dst (to
 --
 -- @since 0.3.0
 moveMutMem ::
-     (MonadPrim s m, MemWrite mw1, MemWrite mw2, Unbox e)
+     forall e mw1 mw2 m s. (MonadPrim s m, MemWrite mw1, MemWrite mw2, Unbox e)
   => mw1 s -- ^ Source memory region
   -> Off e -- ^ Offset into the source in number of elements
   -> mw2 s -- ^ Destination memory region
@@ -1095,6 +1106,41 @@ concatMem xs = do
           (i + Off n) <$ copyMem b 0 mb i cb
     foldM_ load 0 xs
 {-# INLINABLE concatMem #-}
+
+-- | Convert the state of an immutable memory region to the mutable one. This is a no
+-- copy operation, as such it is fast, but extremely dangerous. See `thawCloneMutMem` for a safe
+-- alternative.
+--
+-- [Extremely Unsafe] This function makes it possible to break referential transparency,
+-- because any subsequent destructive operation to the mutable region of memory will also
+-- be reflected in the frozen immutable type as well. The most dangerous part about this
+-- function is that the argument suppplied can be floated out by the compiler and thus
+-- shared by many invocations to `thawMem`.
+--
+-- @since 0.1.0
+thawMem ::
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => Frozen ma
+  -> m (ma s)
+thawMem = liftST . thawST
+{-# INLINE thawMem #-}
+
+
+-- | Convert the state of a mutable memory region to the immutable one. This is a no
+-- copy operation, as such it is fast, but dangerous. See `freezeCopyMem` for a safe alternative.
+--
+-- [Unsafe] It makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable region of memory will also be
+-- reflected in the frozen immutable type as well.
+--
+-- @since 0.3.0
+freezeMutMem ::
+     forall ma m s. (MemAlloc ma, MonadPrim s m)
+  => ma s
+  -> m (Frozen ma)
+freezeMutMem = liftST . freezeMutST
+{-# INLINE freezeMutMem #-}
+
 
 -- | This is a safe version of `thawMem`. It first makes an exact copy of the supplied
 -- memory region and only then thaws it, thus yielding a mutable region of memory. This
