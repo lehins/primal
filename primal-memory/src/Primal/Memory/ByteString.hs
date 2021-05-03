@@ -182,7 +182,7 @@ fromLazyByteStringBytes = fromByteStringBytes . BSL.toStrict
 fromByteStringBytes :: Typeable p => BS.ByteString -> Bytes p
 fromByteStringBytes bs =
   case castByteStringBytes bs of
-    Right b -> relaxPinBytes b
+    Right b -> relaxPinnedBytes b
     Left _ ->
       runST $
       withPtrByteString bs $ \ptr -> do

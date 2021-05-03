@@ -30,10 +30,10 @@ module Primal.Memory.Bytes.Internal
   , isPinnedBytes
   , isPinnedMBytes
   , castStateMBytes
-  , castPinBytes
-  , castPinMBytes
-  , relaxPinBytes
-  , relaxPinMBytes
+  , castPinnedBytes
+  , castPinnedMBytes
+  , relaxPinnedBytes
+  , relaxPinnedMBytes
   , toIncBytes
   , toIncMBytes
   , allocMBytes
@@ -417,30 +417,30 @@ reallocMBytes mb c = do
              b <- freezeMBytes mb
              mb' <- allocPinnedMBytes newByteCount
              mb' <$ copyByteOffBytesToMBytes b 0 mb' 0 oldByteCount
-           Nothing -> castPinMBytes <$> resizeMBytes mb newByteCount
+           Nothing -> castPinnedMBytes <$> resizeMBytes mb newByteCount
 {-# INLINABLE reallocMBytes #-}
 
 castStateMBytes :: MBytes p s' -> MBytes p s
 castStateMBytes = unsafeCoerce
 
-castPinBytes :: Bytes p' -> Bytes p
-castPinBytes (Bytes b#) = Bytes b#
+castPinnedBytes :: Bytes p' -> Bytes p
+castPinnedBytes (Bytes b#) = Bytes b#
 
-castPinMBytes :: MBytes p' s -> MBytes p s
-castPinMBytes (MBytes b#) = MBytes b#
+castPinnedMBytes :: MBytes p' s -> MBytes p s
+castPinnedMBytes (MBytes b#) = MBytes b#
 
 
-relaxPinBytes :: Bytes 'Pin -> Bytes p
-relaxPinBytes = castPinBytes
+relaxPinnedBytes :: Bytes 'Pin -> Bytes p
+relaxPinnedBytes = castPinnedBytes
 
-relaxPinMBytes :: MBytes 'Pin e -> MBytes p e
-relaxPinMBytes = castPinMBytes
+relaxPinnedMBytes :: MBytes 'Pin e -> MBytes p e
+relaxPinnedMBytes = castPinnedMBytes
 
 toIncBytes :: Bytes p -> Bytes 'Inc
-toIncBytes = castPinBytes
+toIncBytes = castPinnedBytes
 
 toIncMBytes :: MBytes p e -> MBytes 'Inc e
-toIncMBytes = castPinMBytes
+toIncMBytes = castPinnedMBytes
 
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible

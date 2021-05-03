@@ -68,15 +68,12 @@ import qualified GHC.ForeignPtr as GHC
 import Primal.Eval
 import Primal.Foreign
 import Data.ByteString.Internal (ByteString(..))
-import Primal.Memory.Bytes.Internal (Bytes, MBytes(..), Pinned(..),
-                                     toForeignPtrBytes, toForeignPtrMBytes,
-                                     withNoHaltPtrBytes, withNoHaltPtrMBytes,
-                                     withPtrBytes, withPtrMBytes)
+import Primal.Memory.Bytes.Internal
 import Primal.Monad
 import Primal.Unbox
 import Primal.Unbox.Class
 
-class MemPtr mp where
+class MemWrite mp => MemPtr mp where
   -- | Convert to `ForeignPtr`.
   toForeignPtrMemST :: mp s -> ST s (ForeignPtr a)
 

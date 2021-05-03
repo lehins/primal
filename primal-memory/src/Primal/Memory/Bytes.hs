@@ -38,8 +38,8 @@ module Primal.Memory.Bytes
   , toPinnedMBytes
   , toIncBytes
   , toIncMBytes
-  , relaxPinBytes
-  , relaxPinMBytes
+  , relaxPinnedBytes
+  , relaxPinnedMBytes
   , ensurePinnedBytes
   , ensurePinnedMBytes
   -- * Mutable
@@ -194,7 +194,7 @@ coerceStateMBytes = unsafeCoerce#
 
 
 emptyBytes :: Bytes p
-emptyBytes = castPinBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
+emptyBytes = castPinnedBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
 {-# INLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool

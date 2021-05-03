@@ -40,7 +40,9 @@ import Primal.Memory.Ptr
 import Primal.Monad.Unsafe
 import Primal.Mutable.Freeze
 
-
+--TODO: implement:
+-- - cloneSliceMutMem, cloneByteOffSliceMutMem
+-- - thawByteOffCopyMem, freezeByteOffCopyMutMem
 
 -- | Copy contiguous chunk of memory from the read only memory into the target mutable
 -- `Ptr`. Source and target /must not/ refer to the same memory region, otherwise that
@@ -1254,6 +1256,9 @@ freezeCloneMutMem ::
   -> m (Frozen ma)
 freezeCloneMutMem = freezeCloneMut
 {-# INLINE freezeCloneMutMem #-}
+
+
+
 
 -- | /O(n)/ - Convert a read-only memory region into a newly allocated other type of
 -- memory region
