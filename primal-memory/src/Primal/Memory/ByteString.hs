@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MagicHash #-}
@@ -11,11 +12,11 @@
 -- Portability : non-portable
 --
 module Primal.Memory.ByteString
-  (
-    MByteString(..)
+  ( MByteString(..)
   -- * Conversion
   -- Builder
   , Builder
+  , toBuilderMem
   , toBuilderBytes
   , fromBuilderBytes
   -- ** ByteString
@@ -35,6 +36,7 @@ module Primal.Memory.ByteString
 import Control.Monad.ST
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
+import qualified Data.ByteString.Builder.Internal as B
 import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.ByteString.Short.Internal
@@ -42,10 +44,10 @@ import GHC.ForeignPtr
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Bytes.Internal
+import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 import Primal.Monad
 import Primal.Mutable.Freeze
-import Primal.Memory.ForeignPtr
 
 -- | Mutable version of a `ByteString`
 newtype MByteString s = MByteString BS.ByteString
@@ -115,14 +117,14 @@ instance MemAlloc MByteString where
       Count newn = toByteCount newc
   {-# INLINE reallocMutMemST #-}
 
-
--- instance PtrAccess s (MByteString s) where
---   toForeignPtr mbs = toForeignPtr (coerce mbs :: BS.ByteString)
---   {-# INLINE toForeignPtr #-}
---   withPtrAccess mbs = withPtrByteString (coerce mbs)
---   {-# INLINE withPtrAccess #-}
---   withNoHaltPtrAccess mbs = withNoHaltPtrByteString (coerce mbs)
---   {-# INLINE withNoHaltPtrAccess #-}
+instance MemPtr MByteString where
+  toMForeignPtrMem (MByteString bs) =
+    case bs of
+#if MIN_VERSION_bytestring(0,11,0)
+      BS.BS fptr _ -> MForeignPtr (castForeignPtr fptr)
+#else
+      BS.PS fptr o _ -> MForeignPtr (castForeignPtr (fptr `plusByteOffForeignPtr` Off o))
+#endif
 
 
 -- | /O(1)/ - Cast immutable `Bytes` to an immutable `ByteString`
@@ -203,3 +205,36 @@ withNoHaltPtrByteString (BS.PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
 #endif
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrByteString #-}
+
+
+
+-- | Construct a 'Builder' that copies an immutable read-only memory buffer.
+--
+-- @since 0.1.0
+toBuilderMem :: MemRead mr => mr -> Builder
+toBuilderMem = \mr -> B.builder $ toBuilderMemStep mr
+{-# INLINE toBuilderMem #-}
+
+-- | Copy the bytes from an immutable read-only memory buffer into the output stream.
+toBuilderMemStep ::
+     MemRead mr
+  => mr -- ^ Input 'SH.ShortByteString'.
+  -> (B.BufferRange -> IO (B.BuildSignal e))
+  -> (B.BufferRange -> IO (B.BuildSignal e))
+toBuilderMemStep !mr k = go 0 (byteCountMem mr)
+  where
+    go !ip !ipe (B.BufferRange op ope)
+      | inpRemaining <= outRemaining = do
+        stToIO $ copyByteOffToPtrMemST mr ip op 0 inpRemaining
+        let !br' = B.BufferRange (op `plusByteCountPtr` inpRemaining) ope
+        k br'
+      | otherwise = do
+        stToIO $ copyByteOffToPtrMemST mr ip op 0 outRemaining
+        let !ip' = ip `offPlusCount` outRemaining
+        return $ B.bufferFull 1 ope (go ip' ipe)
+      where
+        outRemaining = ope `minusByteCountPtr` op
+        inpRemaining = ipe `countMinusOff` ip
+{-# INLINE toBuilderMemStep #-}
+
+

@@ -38,6 +38,10 @@ module Primal.Unbox
   , unCountBytes#
   , fromByteCount
   , fromByteCountRem
+  , offPlusCount
+  , offMinusCount
+  , countPlusOff
+  , countMinusOff
   , countToOff
   , countToByteOff
   , countForType
@@ -383,6 +387,26 @@ fromByteOffRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 
 "fromByteOffRemInt8"  fromByteOffRem = fromByteOffRemInt8
   #-}
 
+
+
+
+offPlusCount :: Off e -> Count e -> Off e
+offPlusCount o c = Off (coerce o + coerce c)
+{-# INLINE offPlusCount #-}
+
+offMinusCount :: Off e -> Count e -> Off e
+offMinusCount o c = Off (coerce o - coerce c)
+{-# INLINE offMinusCount #-}
+
+
+
+countPlusOff :: Count e -> Off e -> Count e
+countPlusOff c o = Count (coerce c + coerce o)
+{-# INLINE countPlusOff #-}
+
+countMinusOff :: Count e -> Off e -> Count e
+countMinusOff c o = Count (coerce c - coerce o)
+{-# INLINE countMinusOff #-}
 
 
 prefetchValue0 :: MonadPrim s m => a -> m ()

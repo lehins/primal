@@ -73,8 +73,6 @@ module Primal.Memory.Bytes.Internal
   , withPtrMBytes
   , withNoHaltPtrBytes
   , withNoHaltPtrMBytes
-  , toForeignPtrBytes
-  , toForeignPtrMBytes
   , castForeignPtrToBytes
   , onForeignPtrContents
   , byteStringConvertError
@@ -573,17 +571,6 @@ withPtrMBytes mb f = do
 withNoHaltPtrMBytes :: MonadUnliftPrim s m => MBytes 'Pin s -> (Ptr e -> m b) -> m b
 withNoHaltPtrMBytes mb f = keepAlive mb $ f (toPtrMBytes mb)
 {-# INLINE withNoHaltPtrMBytes #-}
-
-toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e
-toForeignPtrBytes (Bytes ba#) =
-  ForeignPtr (byteArrayContents# ba#) (PlainPtr (unsafeCoerce# ba#))
-{-# INLINE toForeignPtrBytes #-}
-
-
-toForeignPtrMBytes :: MBytes 'Pin s -> ForeignPtr e
-toForeignPtrMBytes (MBytes mba#) =
-  ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#))
-{-# INLINE toForeignPtrMBytes #-}
 
 
 -- | This function will only cast a pointer that was allocated on Haskell heap and it is

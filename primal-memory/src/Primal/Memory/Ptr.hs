@@ -23,6 +23,9 @@ module Primal.Memory.Ptr
   , minusOffPtr
   , minusOffRemPtr
   , minusByteOffPtr
+  , minusByteCountPtr
+  , plusCountPtr
+  , plusByteCountPtr
   , readPtr
   , readOffPtr
   , readByteOffPtr
@@ -138,17 +141,34 @@ plusByteOffPtr :: Ptr e -> Off Word8 -> Ptr e
 plusByteOffPtr (Ptr addr#) (Off (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteOffPtr #-}
 
-
 plusOffPtr :: Unbox e => Ptr e -> Off e -> Ptr e
 plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unOffBytes# off)
 {-# INLINE plusOffPtr #-}
+
+
+plusByteCountPtr :: Ptr e -> Count Word8 -> Ptr e
+plusByteCountPtr (Ptr addr#) (Count (I# off#)) = Ptr (addr# `plusAddr#` off#)
+{-# INLINE plusByteCountPtr #-}
+
+plusCountPtr :: Unbox e => Ptr e -> Count e -> Ptr e
+plusCountPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unCountBytes# off)
+{-# INLINE plusCountPtr #-}
+
+
+-- | Find the number of bytes that is between the two pointers by subtracting one address
+-- from another.
+--
+-- @since 1.0.0
+minusByteCountPtr :: Ptr e1 -> Ptr e2 -> Count Word8
+minusByteCountPtr (Ptr addr1#) (Ptr addr2#) = Count (I# (addr1# `minusAddr#` addr2#))
+{-# INLINE minusByteCountPtr #-}
 
 -- | Find the offset in bytes that is between the two pointers by subtracting one address
 -- from another.
 --
 -- @since 0.1.0
-minusByteOffPtr :: Ptr e -> Ptr e -> Off Word8
-minusByteOffPtr (Ptr xaddr#) (Ptr yaddr#) = Off (I# (xaddr# `minusAddr#` yaddr#))
+minusByteOffPtr :: Ptr e1 -> Ptr e2 -> Off Word8
+minusByteOffPtr (Ptr addr1#) (Ptr addr2#) = Off (I# (addr1# `minusAddr#` addr2#))
 {-# INLINE minusByteOffPtr #-}
 
 -- | Find the offset in number of elements that is between the two pointers by subtracting

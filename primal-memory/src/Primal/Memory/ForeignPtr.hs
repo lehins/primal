@@ -4,6 +4,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Memory.ForeignPtr
@@ -14,9 +15,10 @@
 -- Portability : non-portable
 --
 module Primal.Memory.ForeignPtr
-  ( PtrAccess(..)
+  ( MemPtr(..)
     -- * ForeignPtr
   , ForeignPtr(..)
+  , MForeignPtr(..)
   , castForeignPtr
   , unsafeForeignPtrToPtr
   , ForeignPtrContents(..)
@@ -57,7 +59,7 @@ module Primal.Memory.ForeignPtr
   -- * Conversion
   -- ** Bytes
   , toForeignPtrBytes
-  , toForeignPtrMBytes
+  , toMForeignPtrMBytes
   ) where
 
 import qualified Foreign.ForeignPtr as GHC
@@ -67,79 +69,96 @@ import GHC.ForeignPtr (FinalizerEnvPtr, FinalizerPtr, ForeignPtr(..),
 import qualified GHC.ForeignPtr as GHC
 import Primal.Eval
 import Primal.Foreign
-import Data.ByteString.Internal (ByteString(..))
 import Primal.Memory.Bytes.Internal
+import Primal.Memory.Ptr
 import Primal.Monad
-import Primal.Unbox
 import Primal.Unbox.Class
 
+
+newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)
+
+
+instance MemWrite (MForeignPtr e) where
+  isSameMutMem (MForeignPtr (ForeignPtr a1# _)) (MForeignPtr (ForeignPtr a2# _)) =
+    isTrue# (a1# `eqAddr#` a2#)
+  {-# INLINE isSameMutMem #-}
+  readOffMutMemST fptr i =
+    withMForeignPtr fptr $ \ptr -> readOffPtr (castPtr ptr) i
+  {-# INLINE readOffMutMemST #-}
+  readByteOffMutMemST fptr i =
+    withMForeignPtr fptr $ \ptr -> readByteOffPtr (castPtr ptr) i
+  {-# INLINE readByteOffMutMemST #-}
+  writeOffMutMemST fptr i a =
+    withMForeignPtr fptr $ \ptr -> writeOffPtr (castPtr ptr) i a
+  {-# INLINE writeOffMutMemST #-}
+  writeByteOffMutMemST fptr i a =
+    withMForeignPtr fptr $ \ptr -> writeByteOffPtr (castPtr ptr) i a
+  {-# INLINE writeByteOffMutMemST #-}
+  moveByteOffToPtrMutMemST fsrc srcOff dstPtr dstOff c =
+    withMForeignPtr fsrc $ \srcPtr ->
+      moveByteOffPtrToPtr (castPtr srcPtr) srcOff dstPtr dstOff c
+  {-# INLINE moveByteOffToPtrMutMemST #-}
+  moveByteOffToMBytesMutMemST fsrc srcOff dst dstOff c =
+    withMForeignPtr fsrc $ \srcPtr ->
+      moveByteOffPtrToMBytes (castPtr srcPtr) srcOff dst dstOff c
+  {-# INLINE moveByteOffToMBytesMutMemST #-}
+  copyByteOffMutMemST src srcOff fdst dstOff c =
+    withMForeignPtr fdst $ \dstPtr ->
+      copyByteOffToPtrMemST src srcOff (castPtr dstPtr) dstOff c
+  {-# INLINE copyByteOffMutMemST #-}
+  moveByteOffMutMemST src srcOff fdst dstOff c =
+    withMForeignPtr fdst $ \dstPtr ->
+      moveByteOffToPtrMutMemST src srcOff (castPtr dstPtr) dstOff c
+  {-# INLINE moveByteOffMutMemST #-}
+  setMutMemST fptr off c a =
+    withMForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
+  {-# INLINE setMutMemST #-}
+
+
+-- | It is possible to operate on memory that was allocated as pinned with a regular
+-- `Ptr`. Any data type that is backed by such memory can have a `MemPtr` instance. The
+-- simplest way is to convert it to a `ForeignPtr` and other functions will come for free.
 class MemWrite mp => MemPtr mp where
   -- | Convert to `ForeignPtr`.
-  toForeignPtrMemST :: mp s -> ST s (ForeignPtr a)
+  toMForeignPtrMem :: mp s -> MForeignPtr e s
 
   -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
   -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
   -- treat the memory content.
   withPtrMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
-  withPtrMemST p action = toForeignPtrMemST p >>= (`withForeignPtr` action)
+  withPtrMemST = withMForeignPtr . toMForeignPtrMem
   {-# INLINE withPtrMemST #-}
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
   -- related to it in order to get more insight why this is needed.
-  withPtrNoHaltMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
-  withPtrNoHaltMemST p action = toForeignPtrMemST p >>= (`withNoHaltForeignPtr` action)
-  {-# INLINE withPtrNoHaltMemST #-}
+  withNoHaltPtrMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
+  withNoHaltPtrMemST = withNoHaltMForeignPtr . toMForeignPtrMem
+  {-# INLINE withNoHaltPtrMemST #-}
 
 
--- | For memory allocated as pinned it is possible to operate on it with a `Ptr`. Any data
--- type that is backed by such memory can have a `PtrAccess` instance. The simplest way is
--- to convert it to a `ForeignPtr` and other functions will come for free.
-class PtrAccess s p where
-  -- | Convert to `ForeignPtr`.
-  toForeignPtr :: MonadPrim s m => p -> m (ForeignPtr a)
+instance MemPtr (MForeignPtr e) where
+  toMForeignPtrMem = coerce
+  {-# INLINE toMForeignPtrMem #-}
 
-  -- | Apply an action to the raw memory `Ptr` to which the data type point to. Type of data
-  -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
-  -- treat the memory content.
-  withPtrAccess :: MonadPrim s m => p -> (Ptr a -> m b) -> m b
-  withPtrAccess p action = toForeignPtr p >>= (`withForeignPtr` action)
-  {-# INLINE withPtrAccess #-}
+instance MemPtr (MBytes 'Pin) where
+  toMForeignPtrMem = toMForeignPtrMBytes
+  {-# INLINE toMForeignPtrMem #-}
+  withPtrMemST = withPtrMBytes
+  {-# INLINE withPtrMemST #-}
+  withNoHaltPtrMemST = withNoHaltPtrMBytes
+  {-# INLINE withNoHaltPtrMemST #-}
 
-  -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
-  -- related to it in order to get more insight why this is needed.
-  withNoHaltPtrAccess :: MonadUnliftPrim s m => p -> (Ptr a -> m b) -> m b
-  withNoHaltPtrAccess p action = toForeignPtr p >>= (`withNoHaltForeignPtr` action)
-  {-# INLINE withNoHaltPtrAccess #-}
 
--- instance PtrAccess RealWorld (ForeignPtr a) where
---   toForeignPtr = pure . coerce
---   {-# INLINE toForeignPtr #-}
+toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e
+toForeignPtrBytes (Bytes ba#) =
+  ForeignPtr (byteArrayContents# ba#) (PlainPtr (unsafeCoerce# ba#))
+{-# INLINE toForeignPtrBytes #-}
 
--- -- | Read-only access, but immutability is not enforced.
--- instance PtrAccess s ByteString where
---   toForeignPtr (PS ps s _) = pure (coerce ps `plusByteOffForeignPtr` Off s)
---   {-# INLINE toForeignPtr #-}
---   withPtrAccess = withPtrByteString
---   {-# INLINE withPtrAccess #-}
---   withNoHaltPtrAccess = withNoHaltPtrByteString
---   {-# INLINE withNoHaltPtrAccess #-}
 
--- -- | Read-only access, but immutability is not enforced.
--- instance PtrAccess s (Bytes 'Pin) where
---   toForeignPtr = pure . toForeignPtrBytes
---   {-# INLINE toForeignPtr #-}
---   withPtrAccess = withPtrBytes
---   {-# INLINE withPtrAccess #-}
---   withNoHaltPtrAccess = withNoHaltPtrBytes
---   {-# INLINE withNoHaltPtrAccess #-}
-
--- instance PtrAccess s (MBytes 'Pin s) where
---   toForeignPtr = pure . toForeignPtrMBytes
---   {-# INLINE toForeignPtr #-}
---   withPtrAccess = withPtrMBytes
---   {-# INLINE withPtrAccess #-}
---   withNoHaltPtrAccess = withNoHaltPtrMBytes
---   {-# INLINE withNoHaltPtrAccess #-}
+toMForeignPtrMBytes :: MBytes 'Pin s -> MForeignPtr e s
+toMForeignPtrMBytes (MBytes mba#) =
+  MForeignPtr (ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)))
+{-# INLINE toMForeignPtrMBytes #-}
 
 
 
@@ -151,7 +170,7 @@ class PtrAccess s p where
 -- the logic that runs after the action and GC will happen before the action get's a chance
 -- to finish resulting in corrupt memory. Whenever you have an action that runs an infinite
 -- loop or ends in an exception throwing, make sure to use `withNoHaltForeignPtr` instead.
-withForeignPtr :: MonadPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
+withForeignPtr :: MonadPrim RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withForeignPtr (ForeignPtr addr# ptrContents) f = do
   r <- f (Ptr addr#)
   r <$ touch ptrContents
@@ -162,10 +181,37 @@ withForeignPtr (ForeignPtr addr# ptrContents) f = do
 --
 -- @since 0.1.0
 withNoHaltForeignPtr ::
-     MonadUnliftPrim s m => ForeignPtr e -> (Ptr e -> m b) -> m b
+     MonadUnliftPrim RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltForeignPtr #-}
+
+
+-- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from
+-- the action because memory itself might get garbage collected or cleaned up by
+-- finalizers.
+--
+-- It is also important not to run non-terminating actions, because GHC can optimize away
+-- the logic that runs after the action and GC will happen before the action get's a chance
+-- to finish resulting in corrupt memory. Whenever you have an action that runs an infinite
+-- loop or ends in an exception throwing, make sure to use `withNoHaltForeignPtr` instead.
+withMForeignPtr :: MonadPrim s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
+withMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f = do
+  r <- f (Ptr addr#)
+  r <$ touch ptrContents
+{-# INLINE withMForeignPtr #-}
+
+-- | Same thing as `withMForeignPtr` except it should be used for never ending actions. See
+-- `withNoHaltPtrAccess` for more information on how this differes from `withMForeignPtr`.
+--
+-- @since 1.0.0
+withNoHaltMForeignPtr ::
+     MonadUnliftPrim s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
+withNoHaltMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f =
+  keepAlive ptrContents $ f (Ptr addr#)
+{-# INLINE withNoHaltMForeignPtr #-}
+
+
 
 -- | Lifted version of `GHC.touchForeignPtr`.
 touchForeignPtr :: MonadPrim s m => ForeignPtr e -> m ()
@@ -184,7 +230,7 @@ newForeignPtrEnv finEnv envPtr = liftPrimBase . GHC.newForeignPtrEnv finEnv envP
 newForeignPtr_ :: MonadPrim RW m => Ptr e -> m (ForeignPtr e)
 newForeignPtr_ = liftPrimBase . GHC.newForeignPtr_
 
--- | Simila to `GHC.mallocForeignPtr`, except it operates on `Prim`, instead of `Storable`.
+-- | Similar to `GHC.mallocForeignPtr`, except it operates on `Prim`, instead of `Storable`.
 mallocForeignPtr :: forall e m . (MonadPrim RW m, Unbox e) => m (ForeignPtr e)
 mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 
@@ -197,7 +243,7 @@ mallocCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . unCountBytes
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
 mallocCountForeignPtrAligned :: (MonadPrim RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtrAligned count =
-  liftPrimBase $ GHC.mallocForeignPtrAlignedBytes (coerce count) (alignmentProxy count)
+  liftPrimBase $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
 
 -- | Lifted version of `GHC.mallocForeignPtrBytes`.
 mallocByteCountForeignPtr :: MonadPrim RW m => Count Word8 -> m (ForeignPtr e)
