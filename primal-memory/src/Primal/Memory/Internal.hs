@@ -580,6 +580,8 @@ setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
 --
 -- ====__Examples__
 --
+-- >>> :set -XDataKinds
+-- >>> import Primal.Memory
 -- >>> m <- allocMutMem (10 :: Count Int64) :: IO (MBytes 'Pin RW)
 -- >>> getByteCountMutMem m
 -- Count {unCount = 80}
