@@ -95,22 +95,13 @@ type role PMArray nominal nominal nominal
 
 type instance Frozen (PMArray p e) = PArray p e
 
--- | Read-only access, but it is not enforced.
-instance PtrAccess s (PArray 'Pin e) where
-  toForeignPtr = pure . toForeignPtrBytes . toBytesPArray
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess b = withPtrBytes (toBytesPArray b)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess b = withNoHaltPtrBytes (toBytesPArray b)
-  {-# INLINE withNoHaltPtrAccess #-}
-
-instance PtrAccess s (PMArray 'Pin e s) where
-  toForeignPtr = pure . toForeignPtrMBytes . toMBytesPMArray
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess mb = withPtrMBytes (toMBytesPMArray mb)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess mb = withNoHaltPtrMBytes (toMBytesPMArray mb)
-  {-# INLINE withNoHaltPtrAccess #-}
+instance MemPtr (PMArray 'Pin e) where
+  toMForeignPtrMem = toMForeignPtrMBytes . toMBytesPMArray
+  {-# INLINE toMForeignPtrMem #-}
+  withPtrMemST mb = withPtrMBytes (toMBytesPMArray mb)
+  {-# INLINE withPtrMemST #-}
+  withNoHaltPtrMemST mb = withNoHaltPtrMBytes (toMBytesPMArray mb)
+  {-# INLINE withNoHaltPtrMemST #-}
 
 instance Typeable p => MemAlloc (PMArray p e) where
   getByteCountMutMemST = getByteCountMutMem . toMBytesPMArray

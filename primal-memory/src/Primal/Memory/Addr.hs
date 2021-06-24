@@ -81,7 +81,7 @@ module Primal.Memory.Addr
   , withAddrMAddr#
   , withNoHaltPtrMAddr
   , toForeignPtrAddr
-  , toForeignPtrMAddr
+  , toMForeignPtrMAddr
   , fromForeignPtrAddr
   , fromForeignPtrMAddr
   -- * Conversion
@@ -404,8 +404,9 @@ toForeignPtrAddr :: Addr e -> ForeignPtr e
 toForeignPtrAddr (Addr addr# (Bytes ba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# ba#))
 
 
-toForeignPtrMAddr :: MAddr e s -> ForeignPtr e
-toForeignPtrMAddr (MAddr addr# (MBytes mba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#))
+toMForeignPtrMAddr :: MAddr e s -> MForeignPtr e s
+toMForeignPtrMAddr (MAddr addr# (MBytes mba#)) =
+  MForeignPtr (ForeignPtr addr# (PlainPtr (unsafeCoerce# mba#)))
 
 -- | This is a unsafe cast therefore modification of `ForeignPtr` will be reflected in
 -- resulting immutable `Addr`. Pointer created with @malloc@ cannot be converted to `Addr`
@@ -453,23 +454,13 @@ withNoHaltPtrMAddr (MAddr addr# mb) f = keepAlive mb $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrMAddr #-}
 
 
-
--- | Read-only access, but it is not enforced.
-instance PtrAccess s (Addr e) where
-  toForeignPtr = pure . toForeignPtrAddr . castAddr
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess addr = withPtrAddr (castAddr addr)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess addr = withNoHaltPtrAddr (castAddr addr)
-  {-# INLINE withNoHaltPtrAccess #-}
-
-instance PtrAccess s (MAddr e s) where
-  toForeignPtr = pure . toForeignPtrMAddr . castMAddr
-  {-# INLINE toForeignPtr #-}
-  withPtrAccess maddr = withPtrMAddr (castMAddr maddr)
-  {-# INLINE withPtrAccess #-}
-  withNoHaltPtrAccess maddr = withNoHaltPtrMAddr (castMAddr maddr)
-  {-# INLINE withNoHaltPtrAccess #-}
+instance MemPtr (MAddr e) where
+  toMForeignPtrMem = toMForeignPtrMAddr . castMAddr
+  {-# INLINE toMForeignPtrMem #-}
+  withPtrMemST maddr = withPtrMAddr (castMAddr maddr)
+  {-# INLINE withPtrMemST #-}
+  withNoHaltPtrMemST maddr = withNoHaltPtrMAddr (castMAddr maddr)
+  {-# INLINE withNoHaltPtrMemST #-}
 
 
 
@@ -498,14 +489,15 @@ instance MemRead (Addr e) where
     withPtrAddr a $ \ptr -> copyByteOffPtrToPtr (castPtr ptr) si mb di c
   {-# INLINE copyByteOffToPtrMemST #-}
   compareByteOffToPtrMemST addr off1 ptr2 off2 c =
-    withPtrAccess addr $ \ptr1 -> pure $ compareByteOffPtrToPtr ptr1 off1 ptr2 off2 c
+    withPtrAddr addr $ \ptr1 -> pure $ compareByteOffPtrToPtr (castPtr ptr1) off1 ptr2 off2 c
   {-# INLINE compareByteOffToPtrMemST #-}
   compareByteOffToBytesMem addr off1 bytes off2 c =
-    unsafeInlineIO $ withPtrAccess addr $ \ptr1 ->
-      pure $! compareByteOffPtrToBytes ptr1 off1 bytes off2 c
+    unsafeInlineIO $ withPtrAddr addr $ \ptr1 ->
+      pure $! compareByteOffPtrToBytes (castPtr ptr1) off1 bytes off2 c
   {-# INLINE compareByteOffToBytesMem #-}
   compareByteOffMem mem1 off1 addr off2 c =
-    unsafeInlineIO $ withPtrAccess addr $ \ptr2 -> compareByteOffToPtrMem mem1 off1 ptr2 off2 c
+    unsafeInlineIO $ withPtrAddr addr $ \ptr2 ->
+      compareByteOffToPtrMem mem1 off1 (castPtr ptr2) off2 c
   {-# INLINE compareByteOffMem #-}
 
 instance MemWrite (MAddr e) where

@@ -48,14 +48,9 @@ library
                      --, Primal.Mutable.Show
 
                      , Primal.Unbox
-                       -- ^ consider Unpack name instead
                      , Primal.Unbox.Atom
                      , Primal.Unbox.Atomic
                      , Primal.Unbox.Class
-
-                     -- , Primal.Mutable.Foldable
-
-
 
                      , Primal.Ref
                      , Primal.Ref.Boxed
@@ -68,27 +63,6 @@ library
                      , Primal.Mem.StableName
                      , Primal.Foreign
                      , Primal.Foreign.StablePtr
-
-                     -- , Primal.Container.Singleton
-                     -- , Primal.Container.Reduce
-                     -- , Primal.Container.Lift
-                     -- , Primal.Container.Mutable.Singleton
-                     -- , Primal.Container.Mutable.Reduce
-                     -- , Primal.Container.Mutable.Lift
-
-                     -- , Primal.Mutable.Prim
-                     -- , Primal.Mutable.Atomic
-                     -- , Primal.Mutable.DeepSeq
-                     -- , Primal.Mutable.MArray
-                     -- , Primal.Mutable.MArray.Deep
-                     -- , Primal.Mutable.MArray.Lazy
-                     -- , Primal.Mutable.MArray.Unsafe
-                     -- , Primal.Mutable.MRef
-                     -- , Primal.Mutable.MRef.Deep
-                     -- , Primal.Mutable.MRef.Lazy
-                     -- , Primal.Mutable.MVar
-                     -- , Primal.Mutable.MVar.Deep
-                     -- , Primal.Mutable.MVar.Lazy
 
   other-modules:       Primal.Array.Internal
                      , Primal.Monad.Internal

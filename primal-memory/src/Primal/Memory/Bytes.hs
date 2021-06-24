@@ -104,7 +104,7 @@ module Primal.Memory.Bytes
   , toPtrBytes
   , toPtrMBytes
   , toForeignPtrBytes
-  , toForeignPtrMBytes
+  , toMForeignPtrMBytes
   -- * Conversion
   , toUArrayBytes
   , fromUArrayBytes
@@ -159,6 +159,7 @@ module Primal.Memory.Bytes
 import Data.Maybe (fromMaybe)
 import Primal.Foreign
 import Primal.Memory.Internal
+import Primal.Memory.ForeignPtr
 import Primal.Monad
 import Primal.Unbox
 import Primal.Unbox.Atomic

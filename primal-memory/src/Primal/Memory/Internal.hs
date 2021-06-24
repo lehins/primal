@@ -2366,12 +2366,12 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
 -- @since 0.3.0
 withScrubbedMutMem ::
      forall e ma m a.
-     (MonadUnliftPrim RW m, Unbox e, MemAlloc ma, PtrAccess RW (ma RW))
+     (MonadUnliftPrim RW m, Unbox e, MemAlloc ma, MemPtr ma)
   => Count e
   -> (ma RW -> m a)
   -> m a
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
-  let _fptr = toForeignPtr mem :: IO (ForeignPtr e) -- Enforce the `PtrAccess` constraint.
+  let _fptr = toMForeignPtrMem mem :: MForeignPtr e RW -- Enforce the `PtrAccess` constraint.
   f mem `ufinally` setMutMem mem 0 (toByteCount c) 0
 {-# INLINE withScrubbedMutMem #-}
