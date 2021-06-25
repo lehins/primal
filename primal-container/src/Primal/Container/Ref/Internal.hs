@@ -31,17 +31,18 @@ import Primal.Memory.Addr
 import Primal.Memory.PArray
 
 -- TODO: make MSingleton superclass
-class Elt c e => MRef c e where
+class --Elt mr e =>
+  MRef mr e where
 
-  newMRef :: MonadPrim s m => e -> m (c e s)
+  newMRef :: MonadPrim s m => e -> m (mr e s)
   newMRef a = newRawMRef >>= \mut -> mut <$ writeMRef mut a
   {-# INLINE newMRef #-}
 
-  newRawMRef :: MonadPrim s m => m (c e s)
+  newRawMRef :: MonadPrim s m => m (mr e s)
 
-  readMRef :: MonadPrim s m => c e s -> m e
+  readMRef :: MonadPrim s m => mr e s -> m e
 
-  writeMRef :: MonadPrim s m => c e s -> e -> m ()
+  writeMRef :: MonadPrim s m => mr e s -> e -> m ()
 
 
 -- Experiment with mutable ref containing other effectful
@@ -49,17 +50,17 @@ class Elt c e => MRef c e where
 
 -- newtype RefMut ref mc s = RefMut (ref (mc s) s)
 
--- class MRefMut c e where
+-- class MRefMut mr e where
 
---   newMRefMut :: MonadPrim s m => e s -> m (c e s)
+--   newMRefMut :: MonadPrim s m => e s -> m (mr e s)
 --   newMRefMut a = newRawMRefMut >>= \mut -> mut <$ writeMRefMut mut a
 --   {-# INLINE newMRefMut #-}
 
---   newRawMRefMut :: MonadPrim s m => m (c e s)
+--   newRawMRefMut :: MonadPrim s m => m (mr e s)
 
---   readMRefMut :: MonadPrim s m => c e s -> m (e s)
+--   readMRefMut :: MonadPrim s m => mr e s -> m (e s)
 
---   writeMRefMut :: MonadPrim s m => c e s -> e s -> m ()
+--   writeMRefMut :: MonadPrim s m => mr e s -> e s -> m ()
 
 -- instance MRefMut BMRefMut me where
 --   newMRefMut me = BMRefMut <$> newMRef me
@@ -156,20 +157,20 @@ instance Unbox e => MRef UMArray e where
   {-# INLINE newMRef #-}
 
 modifyMRef ::
-     (MRef c e, MonadPrim s m) => c e s -> (e -> (e, a)) -> m a
+     (MRef mr e, MonadPrim s m) => mr e s -> (e -> (e, a)) -> m a
 modifyMRef ref f = modifyMRefM ref (pure . f)
 {-# INLINE modifyMRef #-}
 
 
-modifyMRef_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> e) -> m ()
+modifyMRef_ :: (MRef mr e, MonadPrim s m) => mr e s -> (e -> e) -> m ()
 modifyMRef_ ref f = modifyMRefM_ ref (pure . f)
 {-# INLINE modifyMRef_ #-}
 
 
 
 modifyFetchOldMRef ::
-     (MRef c e, MonadPrim s m)
-  => c e s
+     (MRef mr e, MonadPrim s m)
+  => mr e s
   -> (e -> e)
   -> m e
 modifyFetchOldMRef ref f = modifyFetchOldMRefM ref (pure . f)
@@ -180,8 +181,8 @@ modifyFetchOldMRef ref f = modifyFetchOldMRefM ref (pure . f)
 --
 -- @since 0.1.0
 modifyFetchNewMRef ::
-     (MRef c e, MonadPrim s m)
-  => c e s
+     (MRef mr e, MonadPrim s m)
+  => mr e s
   -> (e -> e)
   -> m e
 modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
@@ -201,7 +202,7 @@ modifyFetchNewMRef ref f = modifyFetchNewMRefM ref (pure . f)
 -- Nothing
 --
 -- @since 0.1.0
-modifyMRefM_ :: (MRef c e, MonadPrim s m) => c e s -> (e -> m e) -> m ()
+modifyMRefM_ :: (MRef mr e, MonadPrim s m) => mr e s -> (e -> m e) -> m ()
 modifyMRefM_ ref f = readMRef ref >>= f >>= writeMRef ref
 {-# INLINE modifyMRefM_ #-}
 
@@ -215,7 +216,7 @@ modifyMRefM_ ref f = readMRef ref >>= f >>= writeMRef ref
 -- ==== __Examples__
 --
 modifyMRefM ::
-     (MRef c e, MonadPrim s m) => c e s -> (e -> m (e, a)) -> m a
+     (MRef mr e, MonadPrim s m) => mr e s -> (e -> m (e, a)) -> m a
 modifyMRefM ref f = do
   a <- readMRef ref
   (a', b) <- f a
@@ -239,8 +240,8 @@ modifyMRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchOldMRefM ::
-     (MRef c e, MonadPrim s m)
-  => c e s
+     (MRef mr e, MonadPrim s m)
+  => mr e s
   -> (e -> m e)
   -> m e
 modifyFetchOldMRefM ref f = do
@@ -253,8 +254,8 @@ modifyFetchOldMRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchNewMRefM ::
-     (MRef c e, MonadPrim s m)
-  => c e s
+     (MRef mr e, MonadPrim s m)
+  => mr e s
   -> (e -> m e)
   -> m e
 modifyFetchNewMRefM ref f = do

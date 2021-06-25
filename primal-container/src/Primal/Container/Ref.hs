@@ -8,6 +8,8 @@
 --
 module Primal.Container.Ref
   ( module Primal.Container.Ref.Internal
+  , module Primal.Container.Ref.Atomic
   ) where
 
 import Primal.Container.Ref.Internal
+import Primal.Container.Ref.Atomic

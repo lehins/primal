@@ -9,9 +9,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Test.Prim
-  ( module Test.Prim
-  , module Test.Prim.Common
+module Test.Primal
+  ( module Test.Primal
+  , module Test.Primal.Common
   ) where
 
 import Control.DeepSeq
@@ -20,18 +20,18 @@ import Data.Complex
 import Data.Functor.Const
 import Data.Functor.Compose
 import Data.Functor.Identity
-import Data.Prim.Memory.Bytes
+import Primal.Memory.Bytes
 import Data.Ratio
 import qualified Data.Semigroup as Semigroup
 import Foreign.C.Error
-import Foreign.Prim hiding (Any)
-import Foreign.Prim.Ptr
-import Foreign.Prim.StablePtr
+import Primal.Foreign hiding (Any)
+import Primal.Memory.Ptr
+import Primal.Foreign.StablePtr
 import GHC.Conc
 import GHC.Fingerprint.Type
 import GHC.IO.Device
 import System.IO
-import Test.Prim.Common
+import Test.Primal.Common
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
@@ -526,7 +526,7 @@ instance Arbitrary APrimType where
 
 withAPrimType ::
      APrimType
-  -> (forall e. (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => Proxy e -> a)
+  -> (forall e. (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => Proxy e -> a)
   -> a
 withAPrimType ty f =
   case ty of
@@ -708,31 +708,31 @@ withAPrimType ty f =
       withAPrimType t $ \(_ :: Proxy t) ->
         f (Proxy :: Proxy (Compose Identity Maybe t))
 
-data APrim where
-  APrim :: (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => e -> APrim
+data AUnbox where
+  AUnbox :: (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => e -> AUnbox
 
-instance Show APrim where
-  showsPrec n (APrim a)
+instance Show AUnbox where
+  showsPrec n (AUnbox a)
     | n < 1 = inner
     | otherwise = ('(' :) . inner . (")" ++)
     where
-      inner = ("APrim (" ++) . shows a . (" :: " ++) . showsType [a] . (')':)
+      inner = ("AUnbox (" ++) . shows a . (" :: " ++) . showsType [a] . (')':)
 
-withAPrim :: APrim -> (forall e . (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => e -> a) -> a
-withAPrim (APrim e) f = f e
+withAUnbox :: AUnbox -> (forall e . (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => e -> a) -> a
+withAUnbox (AUnbox e) f = f e
 
 
 arbitraryProxy :: Arbitrary e => Proxy e -> Gen e
 arbitraryProxy _ = arbitrary
 
-instance Arbitrary APrim where
+instance Arbitrary AUnbox where
   arbitrary = do
     aPrimTy <- arbitrary
-    withAPrimType aPrimTy (fmap APrim . arbitraryProxy)
+    withAPrimType aPrimTy (fmap AUnbox . arbitraryProxy)
 
 
 data APrimList where
-  APrimList :: (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> APrimList
+  APrimList :: (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> APrimList
 
 instance Show APrimList where
   showsPrec n (APrimList a)
@@ -743,7 +743,7 @@ instance Show APrimList where
 
 withAPrimList ::
      APrimList
-  -> (forall e. (Prim e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> a)
+  -> (forall e. (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> a)
   -> a
 withAPrimList (APrimList e) f = f e
 

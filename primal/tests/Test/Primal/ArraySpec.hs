@@ -67,15 +67,56 @@ prop_writeBArrayException :: Integer -> Property
 prop_writeBArrayException x = monadicIO $ run $ do
   ma <- newBMArray 4 (Nothing :: Maybe Integer)
   writeBMArray ma 2 (Just x)
-  a <- freezeBMArray ma
+  a <- freezeCloneMut ma
   a `shouldBe` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
   writeBMArray ma 2 (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
-  freezeBMArray ma `shouldReturn` fromListBArray [Nothing,Nothing,Just x,Nothing]
+  freezeCloneMut ma `shouldReturn` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
   writeBMArray ma 3 (Just (x `div` 0))
   deepevalM (readBMArray ma 3) `shouldThrow` (== DivideByZero)
   deepevalM (freezeBMArray ma) `shouldThrow` (== DivideByZero)
+
+
+prop_shrinkBMArray :: BArray Integer -> NonNegative Size -> Property
+prop_shrinkBMArray a (NonNegative k) = monadicIO $ run $ do
+  ma <- thawBArray a
+  n <- getSizeOfBMArray ma
+  let k'
+        | n == 0 = 0
+        | otherwise = k `mod` n
+  shrinkBMArray ma k'
+  getSizeOfBMArray ma `shouldReturn` k'
+  a' <- freezeBMArray ma
+  sizeOfBArray a' `shouldBe` k'
+
+
+prop_writeSBArrayException :: Integer -> Property
+prop_writeSBArrayException x = monadicIO $ run $ do
+  ma <- newSBMArray 4 (Nothing :: Maybe Integer)
+  writeSBMArray ma 2 (Just x)
+  a <- freezeCloneMut ma
+  a `shouldBe` fromListSBArray [Nothing,Nothing,Just x,Nothing]
+
+  writeSBMArray ma 2 (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
+  freezeCloneMut ma `shouldReturn` fromListSBArray [Nothing,Nothing,Just x,Nothing]
+
+  writeSBMArray ma 3 (Just (x `div` 0))
+  deepevalM (readSBMArray ma 3) `shouldThrow` (== DivideByZero)
+  deepevalM (freezeSBMArray ma) `shouldThrow` (== DivideByZero)
+
+prop_shrinkSBMArray :: SBArray Integer -> NonNegative Size -> Property
+prop_shrinkSBMArray a (NonNegative k) = monadicIO $ run $ do
+  ma <- thawSBArray a
+  n <- getSizeOfSBMArray ma
+  let k'
+        | n == 0 = 0
+        | otherwise = k `mod` n
+  shrinkSBMArray ma k'
+  getSizeOfSBMArray ma `shouldReturn` k'
+  a' <- freezeSBMArray ma
+  sizeOfSBArray a' `shouldBe` k'
+
 
 
 spec :: Spec
@@ -85,9 +126,12 @@ spec = do
     lawsSpec $ functorLaws (Proxy :: Proxy BArray)
     lawsSpec $ foldableLaws (Proxy :: Proxy BArray)
     prop "prop_writeBArrayException" prop_writeBArrayException
+    prop "shrinkBMArray" prop_shrinkBMArray
   describe "SBArray" $ do
     arrayLawsSpec (Proxy :: Proxy (SBArray Char))
     lawsSpec $ functorLaws (Proxy :: Proxy SBArray)
     lawsSpec $ foldableLaws (Proxy :: Proxy SBArray)
+    prop "prop_writeSBArrayException" prop_writeSBArrayException
+    prop "shrinkSBMArray" prop_shrinkSBMArray
   describe "UArray" $ do
     arrayLawsSpec (Proxy :: Proxy (UArray Char))

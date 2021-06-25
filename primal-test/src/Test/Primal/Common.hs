@@ -1,4 +1,4 @@
-module Test.Prim.Common
+module Test.Primal.Common
   ( module X
   , propIO
   , assertException
@@ -15,8 +15,9 @@ import Control.DeepSeq
 import Primal.Monad as X
 import Data.Foldable as Foldable
 import Data.List as List
-import Primal.Prim as X
-import Primal.Data.Array
+import Data.Coerce
+--import Primal as X
+import Primal.Array
 import Primal.Memory.Internal
 import qualified Primal.Memory.Text as T
 import Data.Proxy as X

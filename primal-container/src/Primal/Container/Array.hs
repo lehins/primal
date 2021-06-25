@@ -8,6 +8,8 @@
 --
 module Primal.Container.Array
   ( module Primal.Container.Array.Internal
+  , module Primal.Container.Array.Atomic
   ) where
 
 import Primal.Container.Array.Internal
+import Primal.Container.Array.Atomic

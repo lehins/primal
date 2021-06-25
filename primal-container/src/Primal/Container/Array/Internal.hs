@@ -350,6 +350,8 @@ instance Unbox e => MArray UMArray e where
   {-# INLINE writeMArray #-}
   newMArray = newUMArray
   {-# INLINE newMArray #-}
+  newRawMArray = newRawUMArray
+  {-# INLINE newRawMArray #-}
   copyArray = copyUArray
   {-# INLINE copyArray #-}
   moveMArray = moveUMArray
@@ -430,9 +432,7 @@ makeArrayM ::
      (MArray ma e, MonadPrim s m) => Size -> (Int -> m e) -> m (Frozen (ma e))
 makeArrayM sz@(Size n) f =
   createArrayM_ sz $ \ma ->
-    let go i
-          | i < n = f i >>= writeMArray ma i >> go (i + 1)
-          | otherwise = pure ()
+    let go i = when (i < n) (f i >>= writeMArray ma i >> go (i + 1))
      in go 0
 {-# INLINE makeArrayM #-}
 

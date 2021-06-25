@@ -1,5 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,30 +17,31 @@
 --
 module Test.Prim.MArray where
 
-import Control.Prim.Exception
-import Data.Prim
-import Data.Prim.Array
-import Data.Prim.MArray
-import Data.Prim.MRef
-import Test.Prim.MRef
-import Test.Prim.Common
+import Primal.Exception
+import Primal.Array
+import Primal.Container.Array
+import Primal.Container.Ref
+import Primal.Unbox
+import Test.Primal.Common
+import Test.Primal.MRef
 
-data MEArray mut = MEArray ![Elt mut] !(Array mut)
-deriving instance (Eq (Elt mut), Eq (Array mut)) => Eq (MEArray mut)
-deriving instance (Show (Elt mut), Show (Array mut)) => Show (MEArray mut)
+--type instance Elt MEArray
 
-data MEMArray mut s = MEMArray ![Elt mut] !(mut s)
+data MEArray ma e = MEArray ![e] !(Frozen (ma e))
+deriving instance (Eq e, Eq (Frozen (ma e))) => Eq (MEArray ma e)
+deriving instance (Show e, Show (Frozen (ma e))) => Show (MEArray ma e)
 
-
-data NEArrayIx mut = NEArrayIx !Int ![Elt mut] !(Array mut)
-deriving instance (Eq (Elt mut), Eq (Array mut)) => Eq (NEArrayIx mut)
-deriving instance (Show (Elt mut), Show (Array mut)) => Show (NEArrayIx mut)
-
-data NEMArrayIx mut s = NEMArrayIx !Int ![Elt mut] !(mut s)
+data MEMArray ma e s = MEMArray ![e] !(ma e s)
 
 
-instance MRef mut => MRef (MEMArray mut) where
-  type Elt (MEMArray mut) = Elt mut
+data NEArrayIx ma e = NEArrayIx !Int ![e] !(Frozen (ma e))
+deriving instance (Eq e, Eq (Frozen (ma e))) => Eq (NEArrayIx ma e)
+deriving instance (Show e, Show (Frozen (ma e))) => Show (NEArrayIx ma e)
+
+data NEMArrayIx ma e s = NEMArrayIx !Int ![e] !(ma e s)
+
+
+instance MRef ma e => MRef (MEMArray ma) e where
   newMRef e = MEMArray [e] <$> newMRef e
   {-# INLINE newMRef #-}
   newRawMRef = MEMArray [] <$> newRawMRef
@@ -48,9 +51,28 @@ instance MRef mut => MRef (MEMArray mut) where
   readMRef (MEMArray _ ma) = readMRef ma
   {-# INLINE readMRef #-}
 
+type instance Frozen (MEMArray ma e) = MEArray ma e
 
-instance MArray mut => MArray (MEMArray mut) where
-  type Array (MEMArray mut) = MEArray mut
+instance MArray ma e => MutFreeze (MEMArray ma e) where
+  thawST (MEArray xs a) = MEMArray xs <$> thawArray a
+  {-# INLINE thawST #-}
+  freezeMutST (MEMArray xs ma) = MEArray xs <$> freezeMArray ma
+  {-# INLINE freezeMutST #-}
+  clone (MEArray xs a) = MEArray xs $ clone a
+  {-# INLINE clone #-}
+  cloneMutST (MEMArray xs ma) = MEMArray xs <$> cloneMutST ma
+  {-# INLINE cloneMutST #-}
+  thawCloneST (MEArray xs a) = MEMArray xs <$> thawCloneST a
+  {-# INLINE thawCloneST #-}
+  freezeCloneMutST (MEMArray xs ma) = MEArray xs <$> freezeCloneMutST ma
+  {-# INLINE freezeCloneMutST #-}
+
+-- TODO: cloneMutST is equivalent to (test it as such):
+-- cloneMutST ma =
+--    getSizeOfMArray ma >>= \sz -> newRawMArray sz >>= \ma' -> ma' <$ moveMArray ma 0 ma' 0 sz
+
+
+instance MArray ma e => MArray (MEMArray ma) e where
   sizeOfArray (MEArray _ a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
   indexArray (MEArray _ a) = indexArray a
@@ -81,18 +103,16 @@ instance MArray mut => MArray (MEMArray mut) where
   {-# INLINE resizeMArray #-}
 
 
-instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (MEArray mut) where
+instance (MArray ma e, Arbitrary e) => Arbitrary (MEArray ma e) where
   arbitrary = do
     NonNegative n <- arbitrary
-    xs :: [Elt mut] <- vectorOf n arbitrary
+    xs :: [e] <- vectorOf n arbitrary
     pure $
       MEArray xs $
       createArrayST_ (Size n) $ \ma ->
         zipWithM_ (writeMArray ma) [0 ..] xs
 
-
-instance MArray mut => MRef (NEMArrayIx mut) where
-  type Elt (NEMArrayIx mut) = Elt mut
+instance MArray ma e => MRef (NEMArrayIx ma) e where
   newMRef e = NEMArrayIx 0 [e] <$> newMRef e
   {-# INLINE newMRef #-}
   newRawMRef = NEMArrayIx 0 [] <$> newRawMRef
@@ -102,8 +122,7 @@ instance MArray mut => MRef (NEMArrayIx mut) where
   readMRef (NEMArrayIx i _ ma) = readMArray ma i
   {-# INLINE readMRef #-}
 
-
-instance AtomicMArray mut => AtomicMRef (NEMArrayIx mut) where
+instance AtomicMArray ma e => AtomicMRef (NEMArrayIx ma) e where
   atomicReadMRef (NEMArrayIx i _ ma) = atomicReadMArray ma i
   {-# INLINE atomicReadMRef #-}
   atomicWriteMRef (NEMArrayIx i _ ma) = atomicWriteMArray ma i
@@ -113,7 +132,7 @@ instance AtomicMArray mut => AtomicMRef (NEMArrayIx mut) where
   atomicModifyMRef (NEMArrayIx i _ ma) = atomicModifyMArray ma i
   {-# INLINE atomicModifyMRef #-}
 
-instance AtomicCountMArray mut => AtomicCountMRef (NEMArrayIx mut) where
+instance AtomicCountMArray ma e => AtomicCountMRef (NEMArrayIx ma) e where
   atomicAddFetchOldMRef (NEMArrayIx i _ ma) = atomicAddFetchOldMArray ma i
   {-# INLINE atomicAddFetchOldMRef #-}
   atomicAddFetchNewMRef (NEMArrayIx i _ ma) = atomicAddFetchNewMArray ma i
@@ -123,7 +142,7 @@ instance AtomicCountMArray mut => AtomicCountMRef (NEMArrayIx mut) where
   atomicSubFetchNewMRef (NEMArrayIx i _ ma) = atomicSubFetchNewMArray ma i
   {-# INLINE atomicSubFetchNewMRef #-}
 
-instance AtomicBitsMArray mut => AtomicBitsMRef (NEMArrayIx mut) where
+instance AtomicBitsMArray ma e => AtomicBitsMRef (NEMArrayIx ma) e where
   atomicAndFetchOldMRef (NEMArrayIx i _ ma) = atomicAndFetchOldMArray ma i
   {-# INLINE atomicAndFetchOldMRef #-}
   atomicAndFetchNewMRef (NEMArrayIx i _ ma) = atomicAndFetchNewMArray ma i
@@ -143,8 +162,23 @@ instance AtomicBitsMArray mut => AtomicBitsMRef (NEMArrayIx mut) where
 
 
 
-instance MArray mut => MArray (NEMArrayIx mut) where
-  type Array (NEMArrayIx mut) = NEArrayIx mut
+type instance Frozen (NEMArrayIx ma e) = NEArrayIx ma e
+
+instance MArray ma e => MutFreeze (NEMArrayIx ma e) where
+  thawST (NEArrayIx i xs a) = NEMArrayIx i xs <$> thawArray a
+  {-# INLINE thawST #-}
+  freezeMutST (NEMArrayIx i xs ma) = NEArrayIx i xs <$> freezeMArray ma
+  {-# INLINE freezeMutST #-}
+  clone (NEArrayIx i xs a) = NEArrayIx i xs $ clone a
+  {-# INLINE clone #-}
+  cloneMutST (NEMArrayIx i xs ma) = NEMArrayIx i xs <$> cloneMutST ma
+  {-# INLINE cloneMutST #-}
+  thawCloneST (NEArrayIx i xs a) = NEMArrayIx i xs <$> thawCloneST a
+  {-# INLINE thawCloneST #-}
+  freezeCloneMutST (NEMArrayIx i xs ma) = NEArrayIx i xs <$> freezeCloneMutST ma
+  {-# INLINE freezeCloneMutST #-}
+
+instance MArray ma e => MArray (NEMArrayIx ma) e where
   sizeOfArray (NEArrayIx _ _ a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
   indexArray (NEArrayIx _ _ a) = indexArray a
@@ -181,21 +215,21 @@ instance MArray mut => MArray (NEMArrayIx mut) where
   {-# INLINE resizeMArray #-}
 
 
-instance (MArray mut, Arbitrary (Elt mut)) => Arbitrary (NEArrayIx mut) where
+instance (MArray ma e, Arbitrary e) => Arbitrary (NEArrayIx ma e) where
   arbitrary = do
     Positive n <- arbitrary
     NonNegative k <- arbitrary
     let i = k `mod` n
-    xs :: [Elt mut] <- vectorOf n arbitrary
+    xs :: [e] <- vectorOf n arbitrary
     pure $
       NEArrayIx i xs $
       createArrayST_ (Size n) $ \ma -> zipWithM_ (writeMArray ma) [0 ..] xs
 
 
 prop_writeRead ::
-     (Eq (Elt mut), Show (Elt mut), MArray mut)
-  => NEArrayIx mut
-  -> Elt mut
+     forall ma e. (Eq e, Show e, MArray ma e)
+  => NEArrayIx ma e
+  -> e
   -> Property
 prop_writeRead nea e' = propIO $ do
   ma@(NEMArrayIx i xs _) <- thawArray nea
@@ -204,9 +238,9 @@ prop_writeRead nea e' = propIO $ do
   expectWriteReadMRef ma e'
 
 prop_writeReadAtomic ::
-     (Eq (Elt mut), Show (Elt mut), AtomicMArray mut)
-  => NEArrayIx mut
-  -> Elt mut
+    forall ma e. (Eq e, Show e, AtomicMArray ma e)
+  => NEArrayIx ma e
+  -> e
   -> Property
 prop_writeReadAtomic nea e' = propIO $ do
   ma@(NEMArrayIx i xs _) <- thawArray nea
@@ -215,79 +249,20 @@ prop_writeReadAtomic nea e' = propIO $ do
   expectWriteReadAtomicMRef ma e'
 
 
-prop_writeReadException ::
-     HasCallStack => NEArrayIx (BMArray (Maybe Integer)) -> Integer -> Property
-prop_writeReadException nea e' = propIO $ do
-  ma@(NEMArrayIx i xs m) <- thawCopyArray nea 0 (sizeOfArray nea)
-  e <- readMRef ma
-  e `shouldBe` (xs !! i)
-  writeBMArray m i (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
-  readBMArray m i `shouldReturn` e
-  let i' = i + 1
-  when (i' < length xs) $ do
-    writeBMArray m i' (Just (e' `div` 0))
-    a <- freezeBMArray m
-    case indexBArray a i' of
-      Just x -> do
-        (pure $! x) `shouldThrow` (== DivideByZero)
-      Nothing -> expectationFailure "Wrote Just got back Nothing"
-
-
 
 specMArray ::
-     forall mut.
-     ( Eq (Elt mut)
-     , Show (Elt mut)
-     , Arbitrary (Elt mut)
-     , Show (Array mut)
-     , AtomicMArray mut
-     , Typeable mut
+     forall ma e.
+     ( Eq e
+     , Show e
+     , Arbitrary e
+     , Show (Frozen (ma e))
+     , AtomicMArray ma e
+     , Typeable ma
+     , Typeable e
      )
   => Spec
 specMArray = do
-  let mutTypeName = showsType (Proxy :: Proxy (NEArrayIx mut)) ""
+  let mutTypeName = showsType (Proxy :: Proxy (NEArrayIx ma e)) ""
   describe mutTypeName $ do
-    prop "writeRead" $ prop_writeRead @mut
-    prop "writeReadAtomic" $ prop_writeReadAtomic @mut
-    prop "funny" prop_writeReadException
-    prop "shrinkSBMArray" $ \ (a :: SBArray Integer) (NonNegative k) -> do
-      ma <- thawSBArray a
-      n <- getSizeOfSBMArray ma
-      let k'
-            | n == 0 = 0
-            | otherwise = k `mod` n
-      shrinkSBMArray ma k'
-      getSizeOfSBMArray ma `shouldReturn` k'
-      a' <- freezeSBMArray ma
-      sizeOfSBArray a' `shouldBe` k'
-    prop "shrinkBMArray" $ \ (a :: BArray Integer) (NonNegative k) -> do
-      ma <- thawBArray a
-      n <- getSizeOfBMArray ma
-      let k'
-            | n == 0 = 0
-            | otherwise = k `mod` n
-      shrinkBMArray ma k'
-      getSizeOfBMArray ma `shouldReturn` k'
-      a' <- freezeBMArray ma
-      sizeOfBArray a' `shouldBe` k'
-
--- forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property
--- forAllIO g propM = forAll g $ \v -> monadicIO $ run $ propM v
-
--- forAllMutIO ::
---      (Show p, Atomic p, Testable t)
---   => Gen p
---   -> (p -> r p IO -> IO t)
---   -> Property
--- forAllMutIO g propM = forAllIO g $ \v -> newMut v >>= propM v
-
-
--- propMutSpecIO ::
---      (Show p, Atomic p, Testable t)
---   => String
---   -> Gen p
---   -> (p -> r IO p -> IO t)
---   -> Spec
--- propMutSpecIO name gen action = prop name $ forAllAVarIO gen action
-
---atomicAddFetchOldProp :: (a -> f a s -> m b) ->
+    prop "writeRead" $ prop_writeRead @ma @e
+    prop "writeReadAtomic" $ prop_writeReadAtomic @ma @e
