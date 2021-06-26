@@ -267,7 +267,7 @@ instance Arbitrary a => Arbitrary (Atom a) where
 
 
 -- When Adding new type, make sure to add the corresponding Arbitrary generator
-data APrimType
+data AUnboxType
   = AUnit (Proxy ())
   | ATyEq (Proxy (() :~: ()))
   | AHiKindTyEq (Proxy (Maybe :~~: Maybe))
@@ -354,39 +354,39 @@ data APrimType
   | ARatio (Proxy (Ratio Int))
   | AComplex (Proxy (Complex Float))
   -- recursive polymorphic (built-in)
-  | AAtom APrimType
-  | AOff APrimType
-  | ACount APrimType
+  | AAtom AUnboxType
+  | AOff AUnboxType
+  | ACount AUnboxType
   -- recursive polymorphic
-  | AMaybe APrimType
-  | AEither APrimType APrimType
-  | AFirst APrimType
-  | ALast APrimType
-  | AIdentity APrimType
-  | ADual APrimType
-  | AMin APrimType
-  | AMax APrimType
-  | ASum APrimType
-  | AProduct APrimType
-  | ADown APrimType
-  | ATuple2 APrimType APrimType
-  | ATuple3 APrimType APrimType APrimType
-  | ATuple4 APrimType APrimType APrimType APrimType
-  | ATuple5 APrimType APrimType APrimType APrimType APrimType
-  | ATuple6 APrimType APrimType APrimType APrimType APrimType APrimType
-  | ATuple7 APrimType APrimType APrimType APrimType APrimType APrimType APrimType
-  | ATuple8 APrimType APrimType APrimType APrimType APrimType APrimType APrimType APrimType
-  | ATuple9 APrimType APrimType APrimType APrimType APrimType APrimType APrimType APrimType APrimType
-  | AArg APrimType APrimType
-  | AConst APrimType
+  | AMaybe AUnboxType
+  | AEither AUnboxType AUnboxType
+  | AFirst AUnboxType
+  | ALast AUnboxType
+  | AIdentity AUnboxType
+  | ADual AUnboxType
+  | AMin AUnboxType
+  | AMax AUnboxType
+  | ASum AUnboxType
+  | AProduct AUnboxType
+  | ADown AUnboxType
+  | ATuple2 AUnboxType AUnboxType
+  | ATuple3 AUnboxType AUnboxType AUnboxType
+  | ATuple4 AUnboxType AUnboxType AUnboxType AUnboxType
+  | ATuple5 AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType
+  | ATuple6 AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType
+  | ATuple7 AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType
+  | ATuple8 AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType
+  | ATuple9 AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType AUnboxType
+  | AArg AUnboxType AUnboxType
+  | AConst AUnboxType
 #if __GLASGOW_HASKELL__ >= 806
-  | AAp APrimType
+  | AAp AUnboxType
 #endif
-  | AAlt APrimType
-  | ACompose APrimType
+  | AAlt AUnboxType
+  | ACompose AUnboxType
   deriving Show
 
-instance Arbitrary APrimType where
+instance Arbitrary AUnboxType where
   arbitrary =
     frequency
       [ (10, pure $ AUnit Proxy)
@@ -524,11 +524,11 @@ instance Arbitrary APrimType where
       , (1, ACompose <$> arbitrary)
       ]
 
-withAPrimType ::
-     APrimType
+withAUnboxType ::
+     AUnboxType
   -> (forall e. (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => Proxy e -> a)
   -> a
-withAPrimType ty f =
+withAUnboxType ty f =
   case ty of
     AUnit px -> f px
     ATyEq px -> f px
@@ -614,98 +614,98 @@ withAPrimType ty f =
     AStablePtr px -> f px
     ARatio px -> f px
     AComplex px -> f px
-    AAtom t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Atom t))
-    AOff t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Off t))
+    AAtom t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Atom t))
+    AOff t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Off t))
     ACount t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Count t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Count t))
     AMaybe t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Maybe t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Maybe t))
     AEither t1 t2 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Either t1 t2))
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Either t1 t2))
     AFirst t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (First t))
-    ALast t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Last t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (First t))
+    ALast t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Last t))
     AIdentity t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Identity t))
-    ADual t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Dual t))
-    AMin t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Min t))
-    AMax t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Max t))
-    ASum t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Sum t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Identity t))
+    ADual t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Dual t))
+    AMin t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Min t))
+    AMax t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Max t))
+    ASum t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Sum t))
     AProduct t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Product t))
-    ADown t -> withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Down t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Product t))
+    ADown t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Down t))
     ATuple2 t1 t2 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (t1, t2))
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (t1, t2))
     ATuple3 t1 t2 t3 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) -> f (Proxy :: Proxy (t1, t2, t3))
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) -> f (Proxy :: Proxy (t1, t2, t3))
     ATuple4 t1 t2 t3 t4 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
               f (Proxy :: Proxy (t1, t2, t3, t4))
     ATuple5 t1 t2 t3 t4 t5 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
-              withAPrimType t5 $ \(_ :: Proxy t5) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
+              withAUnboxType t5 $ \(_ :: Proxy t5) ->
                 f (Proxy :: Proxy (t1, t2, t3, t4, t5))
     ATuple6 t1 t2 t3 t4 t5 t6 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
-              withAPrimType t5 $ \(_ :: Proxy t5) ->
-                withAPrimType t6 $ \(_ :: Proxy t6) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
+              withAUnboxType t5 $ \(_ :: Proxy t5) ->
+                withAUnboxType t6 $ \(_ :: Proxy t6) ->
                   f (Proxy :: Proxy (t1, t2, t3, t4, t5, t6))
     ATuple7 t1 t2 t3 t4 t5 t6 t7 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
-              withAPrimType t5 $ \(_ :: Proxy t5) ->
-                withAPrimType t6 $ \(_ :: Proxy t6) ->
-                  withAPrimType t7 $ \(_ :: Proxy t7) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
+              withAUnboxType t5 $ \(_ :: Proxy t5) ->
+                withAUnboxType t6 $ \(_ :: Proxy t6) ->
+                  withAUnboxType t7 $ \(_ :: Proxy t7) ->
                     f (Proxy :: Proxy (t1, t2, t3, t4, t5, t6, t7))
     ATuple8 t1 t2 t3 t4 t5 t6 t7 t8 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
-              withAPrimType t5 $ \(_ :: Proxy t5) ->
-                withAPrimType t6 $ \(_ :: Proxy t6) ->
-                  withAPrimType t7 $ \(_ :: Proxy t7) ->
-                    withAPrimType t8 $ \(_ :: Proxy t8) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
+              withAUnboxType t5 $ \(_ :: Proxy t5) ->
+                withAUnboxType t6 $ \(_ :: Proxy t6) ->
+                  withAUnboxType t7 $ \(_ :: Proxy t7) ->
+                    withAUnboxType t8 $ \(_ :: Proxy t8) ->
                       f (Proxy :: Proxy (t1, t2, t3, t4, t5, t6, t7, t8))
     ATuple9 t1 t2 t3 t4 t5 t6 t7 t8 t9 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) ->
-          withAPrimType t3 $ \(_ :: Proxy t3) ->
-            withAPrimType t4 $ \(_ :: Proxy t4) ->
-              withAPrimType t5 $ \(_ :: Proxy t5) ->
-                withAPrimType t6 $ \(_ :: Proxy t6) ->
-                  withAPrimType t7 $ \(_ :: Proxy t7) ->
-                    withAPrimType t8 $ \(_ :: Proxy t8) ->
-                      withAPrimType t9 $ \(_ :: Proxy t9) ->
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) ->
+          withAUnboxType t3 $ \(_ :: Proxy t3) ->
+            withAUnboxType t4 $ \(_ :: Proxy t4) ->
+              withAUnboxType t5 $ \(_ :: Proxy t5) ->
+                withAUnboxType t6 $ \(_ :: Proxy t6) ->
+                  withAUnboxType t7 $ \(_ :: Proxy t7) ->
+                    withAUnboxType t8 $ \(_ :: Proxy t8) ->
+                      withAUnboxType t9 $ \(_ :: Proxy t9) ->
                         f (Proxy :: Proxy (t1, t2, t3, t4, t5, t6, t7, t8, t9))
     AArg t1 t2 ->
-      withAPrimType t1 $ \(_ :: Proxy t1) ->
-        withAPrimType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Arg t1 t2))
+      withAUnboxType t1 $ \(_ :: Proxy t1) ->
+        withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Arg t1 t2))
     AConst t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Const t ()))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Const t ()))
 #if __GLASGOW_HASKELL__ >= 806
     AAp t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Ap Maybe t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Ap Maybe t))
 #endif
     AAlt t ->
-      withAPrimType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Alt Maybe t))
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Alt Maybe t))
     ACompose t ->
-      withAPrimType t $ \(_ :: Proxy t) ->
+      withAUnboxType t $ \(_ :: Proxy t) ->
         f (Proxy :: Proxy (Compose Identity Maybe t))
 
 data AUnbox where
@@ -728,26 +728,26 @@ arbitraryProxy _ = arbitrary
 instance Arbitrary AUnbox where
   arbitrary = do
     aPrimTy <- arbitrary
-    withAPrimType aPrimTy (fmap AUnbox . arbitraryProxy)
+    withAUnboxType aPrimTy (fmap AUnbox . arbitraryProxy)
 
 
-data APrimList where
-  APrimList :: (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> APrimList
+data AUnboxList where
+  AUnboxList :: (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> AUnboxList
 
-instance Show APrimList where
-  showsPrec n (APrimList a)
+instance Show AUnboxList where
+  showsPrec n (AUnboxList a)
     | n < 1 = inner
     | otherwise = ('(' :) . inner . (")" ++)
     where
-      inner = ("APrimList (" ++) . shows a . (" :: [" ++) . showsType a . ("])" ++)
+      inner = ("AUnboxList (" ++) . shows a . (" :: [" ++) . showsType a . ("])" ++)
 
-withAPrimList ::
-     APrimList
+withAUnboxList ::
+     AUnboxList
   -> (forall e. (Unbox e, Arbitrary e, Show e, Eq e, Typeable e) => [e] -> a)
   -> a
-withAPrimList (APrimList e) f = f e
+withAUnboxList (AUnboxList e) f = f e
 
-instance Arbitrary APrimList where
+instance Arbitrary AUnboxList where
   arbitrary = do
     aPrimTy <- arbitrary
-    withAPrimType aPrimTy (fmap APrimList . listOf . arbitraryProxy)
+    withAUnboxType aPrimTy (fmap AUnboxList . listOf . arbitraryProxy)

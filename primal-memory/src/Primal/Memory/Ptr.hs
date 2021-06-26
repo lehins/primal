@@ -47,6 +47,7 @@ module Primal.Memory.Ptr
   , IntPtr(..)
   , ptrToIntPtr
   , intPtrToPtr
+  -- * Bytes
   -- * Atomic
   , casOffPtr
   , atomicModifyOffPtr

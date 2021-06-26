@@ -610,7 +610,7 @@ onForeignPtrContents (ForeignPtr addr# contents) onHaskellPtr onCPtr =
       finilizers <- liftPrimBase $ readIORef fref
       pure $! case finilizers of
         NoFinalizers         -> False
-        HaskellFinalizers fs -> not $! null fs
+        HaskellFinalizers fs -> not $ Prelude.null fs
         CFinalizers _        -> True -- impossible case, but nevertheless
 #else
     MallocPtr mbaRW# _ -> onHaskellPtr addr# mbaRW# (pure True)

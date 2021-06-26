@@ -45,6 +45,7 @@ import Data.Bits
 import Data.Complex
 import Data.Char
 import Data.Type.Equality
+import Data.Kind
 import Foreign.C.Error (Errno(..))
 import Primal.Foreign hiding (Any)
 import GHC.Conc
@@ -126,7 +127,7 @@ import Foreign.Ptr
 --   are an exception to this rule for obvious reasons.
 --
 class Unbox a where
-  type PrimBase a :: *
+  type PrimBase a :: Type
 
   type SizeOf a :: Nat
   type SizeOf a = SizeOf (PrimBase a)
@@ -1114,7 +1115,10 @@ instance Unbox BlockReason where
       BlockedOnException -> 2
       BlockedOnSTM -> 3
       BlockedOnForeignCall -> 4
-      BlockedOnOther -> 5
+#if __GLASGOW_HASKELL >= 900
+      BlockedOnIOCompletion -> 5
+#endif
+      BlockedOnOther -> 6
   {-# INLINE toPrimBase #-}
   fromPrimBase =
     \case
@@ -1123,6 +1127,9 @@ instance Unbox BlockReason where
       2 -> BlockedOnException
       3 -> BlockedOnSTM
       4 -> BlockedOnForeignCall
+#if __GLASGOW_HASKELL >= 900
+      5 -> BlockedOnIOCompletion
+#endif
       _ -> BlockedOnOther
   {-# INLINE fromPrimBase #-}
 

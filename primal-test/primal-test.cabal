@@ -27,8 +27,8 @@ tested-with:         GHC == 8.0.2
 library
   hs-source-dirs:      src
   exposed-modules:     Test.Primal
-                     , Test.Primal.MArray
-                     , Test.Primal.MRef
+                     , Test.Primal.MutArray
+                     , Test.Primal.MutRef
                      , Test.Primal.Memory
                      --, Test.Primal.Memory.Bytes
 
@@ -100,7 +100,7 @@ test-suite mutable-tests-O1
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Primal.MArraySpec
+                    , Test.Primal.MutArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -122,7 +122,7 @@ test-suite mutable-tests-O0
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Primal.MArraySpec
+                    , Test.Primal.MutArraySpec
   build-depends:      base
                     , bytestring
                     , deepseq

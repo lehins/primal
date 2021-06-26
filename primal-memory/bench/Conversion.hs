@@ -25,7 +25,7 @@ main = do
   b1 <- freezeMBytes mb1
   mb2 <- allocAlignedMBytes n64
   mb3 <- allocAlignedMBytes n64
-  let fp = toForeignPtrMBytes mb3
+  let MForeignPtr fp = toMForeignPtrMBytes mb3
   mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
   -- Ensure that arrays are equal by filling them with zeros

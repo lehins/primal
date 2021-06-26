@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
@@ -75,11 +76,15 @@ keepAlive# ::
   -- ^ The continuation in which the value will be preserved
   -> GHC.State# s
   -> (# GHC.State# s, r #)
+#if __GLASGOW_HASKELL >= 900
+keepAlive# = unsafeCoerce# keepAlive#
+{-# INLINE keepAlive# #-}
+#else
 keepAlive# a m s =
   case m s of
     (# s', r #) -> (# touch# a s', r #)
 {-# NOINLINE keepAlive# #-}
-
+#endif
 
 -- | Similar to `touch`. See `withAlive#` for more info.
 --

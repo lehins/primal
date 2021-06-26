@@ -24,6 +24,7 @@ module Primal.Container.Ref.Internal
   , modifyMutRefM_
   , modifyFetchOldMutRefM
   , modifyFetchNewMutRefM
+  , module Primal.Container.Internal
   ) where
 
 import Primal.Monad

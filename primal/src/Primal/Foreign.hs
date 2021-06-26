@@ -45,7 +45,7 @@ import Primal.Foreign.C
 import Primal.Foreign.Cmm
 import Foreign.C.Types
 import System.Posix.Types
-import GHC.Exts hiding (touch#)
+import GHC.Exts hiding (touch#, keepAlive#)
 import GHC.Int
 import GHC.Word
 import GHC.IO

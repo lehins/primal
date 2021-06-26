@@ -9,44 +9,43 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Prim.Memory.BytesSpec
-  ( module Test.Prim.Memory.BytesSpec
-  , module Data.Prim.Memory.Bytes
+module Test.Primal.Memory.BytesSpec
+  ( module Test.Primal.Memory.BytesSpec
+  , module Primal.Memory.Bytes
   ) where
 
-import Data.Complex
-import Data.Ratio
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Monad
-import Control.Prim.Monad
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as BSL8
-import qualified Data.List as List
+import Data.Complex
 import Data.Functor.Identity
-import Data.Prim.Array
-import Data.Prim.Memory.Addr
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Text
-import Data.Prim.Memory.PArray
-import Data.Prim.Memory.ByteString
-import Foreign.Prim hiding (Any)
-import Foreign.Prim.Ptr
-import Foreign.Prim.StablePtr
+import qualified Data.List as List
+import Data.Ratio
 import Foreign.Storable
-import GHC.IO.Device
 import GHC.Fingerprint.Type
+import GHC.IO.Device
 import Numeric
+import Primal.Array
+import Primal.Foreign hiding (Any)
+import Primal.Foreign.StablePtr
+import Primal.Memory.Addr
+import Primal.Memory.ByteString
+import Primal.Memory.Bytes
+import Primal.Memory.PArray
+import Primal.Memory.Ptr
+import Primal.Memory.Text
 import System.Timeout
-import Test.Prim
-import Test.Prim.Memory
+import Test.Primal
+import Test.Primal.Memory
 
 
 type NEBytes p e = NEMem (MBytes p) e
 
 primSpec ::
      forall (p :: Pinned) e.
-     (NFData e, Eq e, Show e, Prim e, Arbitrary e, Typeable p, Typeable e)
+     (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable p, Typeable e)
   => Spec
 primSpec = do
   let bytesTypeName =
@@ -97,7 +96,7 @@ primSpec = do
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
 
 prop_resizeMBytes ::
-     forall p e. (Prim e, Eq e, Show e, Typeable p)
+     forall p e. (Unbox e, Eq e, Show e, Typeable p)
   => NEBytes p e
   -> NonNegative Int
   -> Property
@@ -111,7 +110,7 @@ prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
 
 
 primTypeSpec ::
-     forall e. (NFData e, Eq e, Show e, Prim e, Arbitrary e, Typeable e)
+     forall e. (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable e)
   => Spec
 primTypeSpec = do
   primSpec @'Pin @e
@@ -122,7 +121,7 @@ primTypeSpec = do
 
 
 primBaseTypeSpec ::
-     forall e. (NFData e, Ord e, Show e, Prim e, Arbitrary e, Typeable e)
+     forall e. (NFData e, Ord e, Show e, Unbox e, Arbitrary e, Typeable e)
   => Spec
 primBaseTypeSpec = do
   memSpec @(UMArray e) @e
@@ -182,7 +181,7 @@ primBinarySpec = do
       prop "Inc" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
         (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
       prop "Inc+Pin" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
-        (toInconclusiveBytes b1 == relaxPinnedBytes b2) ===
+        (toIncBytes b1 == relaxPinnedBytes b2) ===
         (toListBytes b1 == (toListBytes b2 :: [Word8]))
     describe "ensurePinned" $ do
       prop "Bytes" $ \(b :: Bytes p) ->

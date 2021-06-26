@@ -24,8 +24,7 @@ reallyUnsafePtrEquality# (unsafeCoerce# ba1 :: ()) (unsafeCoerce# ba2 :: ())
 * Finish raw implementation of:
   * primal
   * primal-memory (ByteArray, MByteArray, Addr, MAddr, Bytes, MBytes)
-  * primal-mutable
-  * primal-pvar
+  * primal-container
 
 
 

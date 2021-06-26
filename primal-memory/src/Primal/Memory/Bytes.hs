@@ -97,14 +97,29 @@ module Primal.Memory.Bytes
   , setMBytes
   , zeroMBytes
   -- ** Ptr
+  -- *** Access
   , withPtrBytes
   , withNoHaltPtrBytes
   , withPtrMBytes
   , withNoHaltPtrMBytes
+  -- *** Conversion
   , toPtrBytes
   , toPtrMBytes
   , toForeignPtrBytes
   , toMForeignPtrMBytes
+  -- *** Copying
+  , copyPtrToMBytes
+  , movePtrToMBytes
+  , copyBytesToPtr
+  , copyMBytesToPtr
+  , moveMBytesToPtr
+  , copyByteOffPtrToMBytes
+  , moveByteOffPtrToMBytes
+  , copyByteOffBytesToPtr
+  , copyByteOffMBytesToPtr
+  , moveByteOffMBytesToPtr
+  , compareByteOffBytesToPtr
+  , compareByteOffPtrToBytes
   -- * Conversion
   , toUArrayBytes
   , fromUArrayBytes

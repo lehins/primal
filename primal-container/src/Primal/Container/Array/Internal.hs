@@ -25,6 +25,7 @@ module Primal.Container.Array.Internal
   ( Size(..)
   , module Primal.Mutable.Freeze
   , module Primal.Container.Array.Internal
+  , module Primal.Container.Internal
   ) where
 
 import Control.Monad.ST

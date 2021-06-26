@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-module Test.Prim.Memory.BytesExtraSpec (spec) where
+module Test.Primal.Memory.BytesExtraSpec (spec) where
 
 import Data.Typeable
 import Data.Char
@@ -10,9 +10,10 @@ import System.IO
 import GHC.Conc
 import GHC.IO.Device
 import Data.Semigroup
-import Test.Prim hiding (Arg)
-import Test.Prim.Memory.BytesSpec (primTypeSpec)
-import Foreign.Prim
+import Test.Primal
+import Test.Primal.Memory.BytesSpec (primTypeSpec)
+import Primal.Foreign
+import Primal.Unbox.Atom
 
 spec :: Spec
 spec = do

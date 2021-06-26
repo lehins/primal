@@ -3,20 +3,21 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Test.Prim.Memory.PtrSpec
+module Test.Primal.Memory.PtrSpec
   ( spec
   , primPtrSpec
   ) where
 
 import Control.Monad
-import Data.Prim.Memory.Ptr
-import Test.Prim
-import Test.Prim.Memory
-import Test.Prim.Memory.BytesSpec hiding (spec)
+import Primal.Memory.Ptr
+import Primal.Memory
+import Test.Primal
+import Test.Primal.Memory
+import Test.Primal.Memory.BytesSpec hiding (spec)
 
 
 primPtrSpec ::
-     forall a. (Eq a, Show a, Prim a, Arbitrary a, Typeable a)
+     forall a. (Eq a, Show a, Unbox a, Arbitrary a, Typeable a)
   => Spec
 primPtrSpec = do
   let ptrTypeName = ("Ptr " ++) . showsType (Proxy :: Proxy a) $ ""

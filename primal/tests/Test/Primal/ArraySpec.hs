@@ -6,6 +6,7 @@ import Primal.Unbox
 import Primal.Foreign (IsList(..))
 import Primal.Exception
 import Primal.Array
+import Primal.Mutable.Freeze
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Test.QuickCheck.Classes.Base
