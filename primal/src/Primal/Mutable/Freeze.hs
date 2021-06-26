@@ -59,7 +59,7 @@ class MutFreeze mut where
   --
   -- @since 1.0.0
   clone :: Frozen mut -> Frozen mut
-  clone frozen = runST $ thawClone frozen >>= freezeMut
+  clone frozen = runST $ thawCloneST frozen >>= freezeMutST
   {-# INLINE clone #-}
 
   -- | See `cloneMut` for documentation.
