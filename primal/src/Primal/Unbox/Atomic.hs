@@ -108,7 +108,7 @@ class (Unbox a, Eq a) => Atomic a where
     -> State# s -- ^ Starting state
     -> (# State# s, a #)
   default casMutableByteArray#
-    :: Atomic (PrimBase a)
+    :: Atomic (UnboxIso a)
     => MutableByteArray# s
     -> Int#
     -> a
@@ -116,16 +116,16 @@ class (Unbox a, Eq a) => Atomic a where
     -> State# s
     -> (# State# s, a #)
   casMutableByteArray# mba# i# old new s =
-    case casMutableByteArray# mba# i# (toPrimBase old) (toPrimBase new) s of
-      (# s', prev #) -> (# s', fromPrimBase prev #)
+    case casMutableByteArray# mba# i# (toUnboxIso old) (toUnboxIso new) s of
+      (# s', prev #) -> (# s', fromUnboxIso prev #)
   {-# INLINE casMutableByteArray# #-}
 
   casOffAddr# :: Addr# -> Int# -> a -> a -> State# s -> (# State# s, a #)
   default casOffAddr# ::
-    Atomic (PrimBase a) => Addr# -> Int# -> a -> a -> State# s -> (# State# s, a #)
+    Atomic (UnboxIso a) => Addr# -> Int# -> a -> a -> State# s -> (# State# s, a #)
   casOffAddr# addr# i# old new s =
-    case casOffAddr# addr# i# (toPrimBase old) (toPrimBase new) s of
-      (# s', prev #) -> (# s', fromPrimBase prev #)
+    case casOffAddr# addr# i# (toUnboxIso old) (toUnboxIso new) s of
+      (# s', prev #) -> (# s', fromUnboxIso prev #)
   {-# INLINE casOffAddr# #-}
 
 
@@ -137,7 +137,7 @@ class (Unbox a, Eq a) => Atomic a where
     -> State# s -- ^ Starting state
     -> (# State# s, Bool #)
   default casBoolMutableByteArray#
-    :: Atomic (PrimBase a)
+    :: Atomic (UnboxIso a)
     => MutableByteArray# s
     -> Int#
     -> a
@@ -145,15 +145,15 @@ class (Unbox a, Eq a) => Atomic a where
     -> State# s
     -> (# State# s, Bool #)
   casBoolMutableByteArray# mba# i# old new s =
-    case casBoolMutableByteArray# mba# i# (toPrimBase old) (toPrimBase new) s of
+    case casBoolMutableByteArray# mba# i# (toUnboxIso old) (toUnboxIso new) s of
       (# s', casSucc #) -> (# s', casSucc #)
   {-# INLINE casBoolMutableByteArray# #-}
 
   casBoolOffAddr# :: Addr# -> Int# -> a -> a -> State# s -> (# State# s, Bool #)
   default casBoolOffAddr# ::
-    Atomic (PrimBase a) => Addr# -> Int# -> a -> a -> State# s -> (# State# s, Bool #)
+    Atomic (UnboxIso a) => Addr# -> Int# -> a -> a -> State# s -> (# State# s, Bool #)
   casBoolOffAddr# addr# i# old new s =
-    case casBoolOffAddr# addr# i# (toPrimBase old) (toPrimBase new) s of
+    case casBoolOffAddr# addr# i# (toUnboxIso old) (toUnboxIso new) s of
       (# s', casSucc #) -> (# s', casSucc #)
   {-# INLINE casBoolOffAddr# #-}
 
@@ -372,67 +372,67 @@ atomicModifyOffAddr_# addr# i# f s =
 class Atomic a => AtomicCount a where
   atomicAddFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchOldMutableByteArray# ::
-    AtomicCount (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchOldMutableByteArray# mba# i# x s =
-    case atomicAddFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAddFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
 
   atomicAddFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchNewMutableByteArray# ::
-    AtomicCount (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchNewMutableByteArray# mba# i# x s =
-    case atomicAddFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAddFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchNewMutableByteArray# #-}
 
   atomicSubFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchOldMutableByteArray# ::
-    AtomicCount (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchOldMutableByteArray# mba# i# x s =
-    case atomicSubFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicSubFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicSubFetchOldMutableByteArray# #-}
 
   atomicSubFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchNewMutableByteArray# ::
-    AtomicCount (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchNewMutableByteArray# mba# i# x s =
-    case atomicSubFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicSubFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicSubFetchNewMutableByteArray# #-}
 
 
   atomicAddFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchOldOffAddr# ::
-    AtomicCount (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchOldOffAddr# addr# i# x s =
-    case atomicAddFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAddFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchOldOffAddr# #-}
 
   atomicAddFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchNewOffAddr# ::
-    AtomicCount (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchNewOffAddr# addr# i# x s =
-    case atomicAddFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAddFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchNewOffAddr# #-}
 
   atomicSubFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchOldOffAddr# ::
-    AtomicCount (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchOldOffAddr# addr# i# x s =
-    case atomicSubFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicSubFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicSubFetchOldOffAddr# #-}
 
   atomicSubFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchNewOffAddr# ::
-    AtomicCount (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicCount (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchNewOffAddr# addr# i# x s =
-    case atomicSubFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicSubFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicSubFetchNewOffAddr# #-}
 
 
@@ -440,131 +440,131 @@ class Atomic a => AtomicCount a where
 class (Bits a, Atomic a) => AtomicBits a where
   atomicAndFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchOldMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchOldMutableByteArray# mba# i# x s =
-    case atomicAndFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAndFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
 
   atomicAndFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchNewMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchNewMutableByteArray# mba# i# x s =
-    case atomicAndFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAndFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchNewMutableByteArray# #-}
 
   atomicNandFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchOldMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchOldMutableByteArray# mba# i# x s =
-    case atomicNandFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicNandFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchOldMutableByteArray# #-}
 
   atomicNandFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchNewMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchNewMutableByteArray# mba# i# x s =
-    case atomicNandFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicNandFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchNewMutableByteArray# #-}
 
   atomicOrFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchOldMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchOldMutableByteArray# mba# i# x s =
-    case atomicOrFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicOrFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchOldMutableByteArray# #-}
 
   atomicOrFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchNewMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchNewMutableByteArray# mba# i# x s =
-    case atomicOrFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicOrFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchNewMutableByteArray# #-}
 
   atomicXorFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchOldMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchOldMutableByteArray# mba# i# x s =
-    case atomicXorFetchOldMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicXorFetchOldMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicXorFetchOldMutableByteArray# #-}
 
   atomicXorFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchNewMutableByteArray# ::
-    AtomicBits (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchNewMutableByteArray# mba# i# x s =
-    case atomicXorFetchNewMutableByteArray# mba# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicXorFetchNewMutableByteArray# mba# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicXorFetchNewMutableByteArray# #-}
 
 
   atomicAndFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchOldOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchOldOffAddr# addr# i# x s =
-    case atomicAndFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAndFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchOldOffAddr# #-}
 
   atomicAndFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchNewOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchNewOffAddr# addr# i# x s =
-    case atomicAndFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicAndFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchNewOffAddr# #-}
 
   atomicNandFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchOldOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchOldOffAddr# addr# i# x s =
-    case atomicNandFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicNandFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchOldOffAddr# #-}
 
   atomicNandFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchNewOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchNewOffAddr# addr# i# x s =
-    case atomicNandFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicNandFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchNewOffAddr# #-}
 
   atomicOrFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchOldOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchOldOffAddr# addr# i# x s =
-    case atomicOrFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicOrFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchOldOffAddr# #-}
 
   atomicOrFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchNewOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchNewOffAddr# addr# i# x s =
-    case atomicOrFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicOrFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchNewOffAddr# #-}
 
   atomicXorFetchOldOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchOldOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchOldOffAddr# addr# i# x s =
-    case atomicXorFetchOldOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicXorFetchOldOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicXorFetchOldOffAddr# #-}
 
   atomicXorFetchNewOffAddr# :: Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchNewOffAddr# ::
-    AtomicBits (PrimBase a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
+    AtomicBits (UnboxIso a) => Addr# -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchNewOffAddr# addr# i# x s =
-    case atomicXorFetchNewOffAddr# addr# i# (toPrimBase x) s of
-      (# s', y #) -> (# s', fromPrimBase y #)
+    case atomicXorFetchNewOffAddr# addr# i# (toUnboxIso x) s of
+      (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicXorFetchNewOffAddr# #-}
 
 

@@ -45,7 +45,7 @@ newtype Size = Size { unSize :: Int }
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 instance Unbox Size where
-  type PrimBase Size = Int
+  type UnboxIso Size = Int
 
 -------------
 -- Helpers --

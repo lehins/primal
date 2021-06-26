@@ -26,10 +26,10 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Adaptive.Rep
-                     , Data.Prim.Adaptive.MArray
-                     , Data.Prim.Unbox
-                     --, Data.Prim.Adaptive.MRef
+  exposed-modules:     Primal.Adaptive.Rep
+                     , Primal.Adaptive.MutArray
+                     , Primal.Adaptive.MutRef
+                     , Primal.Adaptive.Unpack
 
   other-modules:
   build-depends:       base >= 4.9 && < 5

@@ -96,16 +96,16 @@ intPtrToPtr :: IntPtr -> Ptr a
 intPtrToPtr (IntPtr (I# i#)) = Ptr (int2Addr# i#)
 
 instance Unbox P.IntPtr where
-  type PrimBase P.IntPtr = IntPtr
+  type UnboxIso P.IntPtr = IntPtr
   -- Constructor for newtype was not exported
-  toPrimBase = unsafeCoerce
-  fromPrimBase = unsafeCoerce
+  toUnboxIso = unsafeCoerce
+  fromUnboxIso = unsafeCoerce
 
 instance Unbox P.WordPtr where
-  type PrimBase P.WordPtr = WordPtr
+  type UnboxIso P.WordPtr = WordPtr
   -- Constructor for newtype was not exported
-  toPrimBase = unsafeCoerce
-  fromPrimBase = unsafeCoerce
+  toUnboxIso = unsafeCoerce
+  fromUnboxIso = unsafeCoerce
 #else
 import Foreign.Ptr
 #endif
@@ -122,42 +122,42 @@ import Foreign.Ptr
 -- * A single thread write/read sequence must always roundtrip
 --
 -- * This is not a class for serialization, therefore memory layout of unpacked datatype
---   is selfcontained in `Prim` class and representation is not expected to stay the same
---   between different versions of software. Primitive types like `Int`, `Word`, `Char`
---   are an exception to this rule for obvious reasons.
+--   is selfcontained in `Unbox` class and representation is not expected to stay the same
+--   between different versions of this library. Primitive types like `Int`, `Word`,
+--   `Char` are an exception to this rule for obvious reasons.
 --
 class Unbox a where
-  type PrimBase a :: Type
+  type UnboxIso a :: Type
 
   type SizeOf a :: Nat
-  type SizeOf a = SizeOf (PrimBase a)
+  type SizeOf a = SizeOf (UnboxIso a)
   type Alignment a :: Nat
-  type Alignment a = Alignment (PrimBase a)
+  type Alignment a = Alignment (UnboxIso a)
 
-  toPrimBase :: a -> PrimBase a
-  default toPrimBase :: Coercible a (PrimBase a) => a -> PrimBase a
-  toPrimBase = coerce
+  toUnboxIso :: a -> UnboxIso a
+  default toUnboxIso :: Coercible a (UnboxIso a) => a -> UnboxIso a
+  toUnboxIso = coerce
 
-  fromPrimBase :: PrimBase a -> a
-  default fromPrimBase :: Coercible a (PrimBase a) => PrimBase a -> a
-  fromPrimBase = coerce
+  fromUnboxIso :: UnboxIso a -> a
+  default fromUnboxIso :: Coercible a (UnboxIso a) => UnboxIso a -> a
+  fromUnboxIso = coerce
 
   -- | Returned value must match the `SizeOf` type level Nat
   sizeOf# :: Proxy# a -> Int#
-  default sizeOf# :: Unbox (PrimBase a) => Proxy# a -> Int#
-  sizeOf# _ = sizeOf# (proxy# :: Proxy# (PrimBase a))
+  default sizeOf# :: Unbox (UnboxIso a) => Proxy# a -> Int#
+  sizeOf# _ = sizeOf# (proxy# :: Proxy# (UnboxIso a))
   {-# INLINE sizeOf# #-}
 
   -- | Returned value must match the `Alignment` type level Nat
   alignment# :: Proxy# a -> Int#
-  default alignment# :: Unbox (PrimBase a) => Proxy# a -> Int#
-  alignment# _ = alignment# (proxy# :: Proxy# (PrimBase a))
+  default alignment# :: Unbox (UnboxIso a) => Proxy# a -> Int#
+  alignment# _ = alignment# (proxy# :: Proxy# (UnboxIso a))
   {-# INLINE alignment# #-}
 
 
   indexByteOffByteArray# :: ByteArray# -> Int# -> a
-  default indexByteOffByteArray# :: Unbox (PrimBase a) => ByteArray# -> Int# -> a
-  indexByteOffByteArray# ba# i# = fromPrimBase (indexByteOffByteArray# ba# i# :: PrimBase a)
+  default indexByteOffByteArray# :: Unbox (UnboxIso a) => ByteArray# -> Int# -> a
+  indexByteOffByteArray# ba# i# = fromUnboxIso (indexByteOffByteArray# ba# i# :: UnboxIso a)
   {-# INLINE indexByteOffByteArray# #-}
 
   --
@@ -168,79 +168,79 @@ class Unbox a where
   -- > indexByteArray# ba# i# == indexByteOffByteArray# ba# (i# *# sizeOf (proxy# :: Proxy# a))
   --
   indexByteArray# :: ByteArray# -> Int# -> a
-  default indexByteArray# :: Unbox (PrimBase a) => ByteArray# -> Int# -> a
-  indexByteArray# ba# i# = fromPrimBase (indexByteArray# ba# i# :: PrimBase a)
+  default indexByteArray# :: Unbox (UnboxIso a) => ByteArray# -> Int# -> a
+  indexByteArray# ba# i# = fromUnboxIso (indexByteArray# ba# i# :: UnboxIso a)
   {-# INLINE indexByteArray# #-}
 
   indexOffAddr# :: Addr# -> Int# -> a
-  default indexOffAddr# :: Unbox (PrimBase a) => Addr# -> Int# -> a
-  indexOffAddr# addr# i# = fromPrimBase (indexOffAddr# addr# i# :: PrimBase a)
+  default indexOffAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a
+  indexOffAddr# addr# i# = fromUnboxIso (indexOffAddr# addr# i# :: UnboxIso a)
   {-# INLINE indexOffAddr# #-}
 
 
   readByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   default readByteOffMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readByteOffMutableByteArray# mba# i# s = case readByteOffMutableByteArray# mba# i# s of
-                                             (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
+                                             (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readByteOffMutableByteArray# #-}
 
   readMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   default readMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readMutableByteArray# mba# i# s = case readMutableByteArray# mba# i# s of
-                                      (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
+                                      (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readMutableByteArray# #-}
 
   readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
   default readOffAddr# ::
-    Unbox (PrimBase a) => Addr# -> Int# -> State# s -> (# State# s, a #)
+    Unbox (UnboxIso a) => Addr# -> Int# -> State# s -> (# State# s, a #)
   readOffAddr# addr# i# s = case readOffAddr# addr# i# s of
-                              (# s', pa :: PrimBase a #) -> (# s', fromPrimBase pa #)
+                              (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readOffAddr# #-}
 
 
   writeByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeByteOffMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
   writeByteOffMutableByteArray# mba# i# a =
-    writeByteOffMutableByteArray# mba# i# (toPrimBase a :: PrimBase a)
+    writeByteOffMutableByteArray# mba# i# (toUnboxIso a :: UnboxIso a)
   {-# INLINE writeByteOffMutableByteArray# #-}
 
   writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toPrimBase a :: PrimBase a)
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
+  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toUnboxIso a :: UnboxIso a)
   {-# INLINE writeMutableByteArray# #-}
 
   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
-  default writeOffAddr# :: Unbox (PrimBase a) => Addr# -> Int# -> a -> State# s -> State# s
-  writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toPrimBase a)
+  default writeOffAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a -> State# s -> State# s
+  writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toUnboxIso a)
   {-# INLINE writeOffAddr# #-}
 
   setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setByteOffMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toPrimBase a)
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
+  setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toUnboxIso a)
   {-# INLINE setByteOffMutableByteArray# #-}
 
   -- | Set the region of MutableByteArray to the same value. Offset is in number of elements
   setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setMutableByteArray# ::
-    Unbox (PrimBase a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toPrimBase a)
+    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
+  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toUnboxIso a)
   {-# INLINE setMutableByteArray# #-}
 
   -- | Set the region of memory to the same value. Offset is in number of elements
   setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
   default setOffAddr# ::
-    Unbox (PrimBase a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  setOffAddr# addr# i# n# a = setOffAddr# addr# i# n# (toPrimBase a)
+    Unbox (UnboxIso a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
+  setOffAddr# addr# i# n# a = setOffAddr# addr# i# n# (toUnboxIso a)
   {-# INLINE setOffAddr# #-}
 
 
 instance Unbox () where
-  type PrimBase () = ()
+  type UnboxIso () = ()
   type SizeOf () = 0
   type Alignment () = 1
   sizeOf# _ = 0#
@@ -271,13 +271,13 @@ instance Unbox () where
   {-# INLINE setOffAddr# #-}
 
 instance a ~ b => Unbox (a :~: b) where
-  type PrimBase (a :~: b) = ()
-  toPrimBase Refl = ()
-  fromPrimBase () = Refl
+  type UnboxIso (a :~: b) = ()
+  toUnboxIso Refl = ()
+  fromUnboxIso () = Refl
 
 
 instance Unbox Int where
-  type PrimBase Int = Int
+  type UnboxIso Int = Int
   type SizeOf Int = SIZEOF_HSINT
   type Alignment Int = ALIGNMENT_HSINT
   sizeOf# _ = SIZEOF_HSINT#
@@ -316,7 +316,7 @@ instance Unbox Int where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Int8 where
-  type PrimBase Int8 = Int8
+  type UnboxIso Int8 = Int8
   type SizeOf Int8 = SIZEOF_INT8
   type Alignment Int8 = ALIGNMENT_INT8
   sizeOf# _ = SIZEOF_INT8#
@@ -350,7 +350,7 @@ instance Unbox Int8 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Int16 where
-  type PrimBase Int16 = Int16
+  type UnboxIso Int16 = Int16
   type SizeOf Int16 = SIZEOF_INT16
   type Alignment Int16 = ALIGNMENT_INT16
   sizeOf# _ = SIZEOF_INT16#
@@ -384,7 +384,7 @@ instance Unbox Int16 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Int32 where
-  type PrimBase Int32 = Int32
+  type UnboxIso Int32 = Int32
   type SizeOf Int32 = SIZEOF_INT32
   type Alignment Int32 = ALIGNMENT_INT32
   sizeOf# _ = SIZEOF_INT32#
@@ -418,7 +418,7 @@ instance Unbox Int32 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Int64 where
-  type PrimBase Int64 = Int64
+  type UnboxIso Int64 = Int64
   type SizeOf Int64 = SIZEOF_INT64
   type Alignment Int64 = ALIGNMENT_INT64
   sizeOf# _ = SIZEOF_INT64#
@@ -453,7 +453,7 @@ instance Unbox Int64 where
 
 
 instance Unbox Word where
-  type PrimBase Word = Word
+  type UnboxIso Word = Word
   type SizeOf Word = SIZEOF_HSWORD
   type Alignment Word = ALIGNMENT_HSWORD
   sizeOf# _ = SIZEOF_HSWORD#
@@ -492,7 +492,7 @@ instance Unbox Word where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Word8 where
-  type PrimBase Word8 = Word8
+  type UnboxIso Word8 = Word8
   type SizeOf Word8 = SIZEOF_WORD8
   type Alignment Word8 = ALIGNMENT_WORD8
   sizeOf# _ = SIZEOF_WORD8#
@@ -526,7 +526,7 @@ instance Unbox Word8 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Word16 where
-  type PrimBase Word16 = Word16
+  type UnboxIso Word16 = Word16
   type SizeOf Word16 = SIZEOF_WORD16
   type Alignment Word16 = ALIGNMENT_WORD16
   sizeOf# _ = SIZEOF_WORD16#
@@ -561,7 +561,7 @@ instance Unbox Word16 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Word32 where
-  type PrimBase Word32 = Word32
+  type UnboxIso Word32 = Word32
   type SizeOf Word32 = SIZEOF_WORD32
   type Alignment Word32 = ALIGNMENT_WORD32
   sizeOf# _ = SIZEOF_WORD32#
@@ -595,7 +595,7 @@ instance Unbox Word32 where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox Word64 where
-  type PrimBase Word64 = Word64
+  type UnboxIso Word64 = Word64
   type SizeOf Word64 = SIZEOF_WORD64
   type Alignment Word64 = ALIGNMENT_WORD64
   sizeOf# _ = SIZEOF_WORD64#
@@ -630,7 +630,7 @@ instance Unbox Word64 where
 
 
 instance Unbox Float where
-  type PrimBase Float = Float
+  type UnboxIso Float = Float
   type SizeOf Float = SIZEOF_FLOAT
   type Alignment Float = ALIGNMENT_FLOAT
   sizeOf# _ = SIZEOF_FLOAT#
@@ -665,7 +665,7 @@ instance Unbox Float where
     unsafePrimBase_ (memsetWord32Addr# addr# o# n# (W32# (floatToWord32# f#)))
 
 instance Unbox Double where
-  type PrimBase Double = Double
+  type UnboxIso Double = Double
   type SizeOf Double = SIZEOF_DOUBLE
   type Alignment Double = ALIGNMENT_DOUBLE
   sizeOf# _ = SIZEOF_DOUBLE#
@@ -709,14 +709,14 @@ int2Bool# i# = isTrue# (i# /=# 0#) -- tagToEnum# (i# /=# 0#) -- (andI# i# 1#)
 {-# INLINE int2Bool# #-}
 
 instance Unbox Bool where
-  type PrimBase Bool = Int8
-  fromPrimBase (I8# i#) = int2Bool# i#
-  {-# INLINE fromPrimBase #-}
-  toPrimBase b = I8# (bool2Int# b)
-  {-# INLINE toPrimBase #-}
+  type UnboxIso Bool = Int8
+  fromUnboxIso (I8# i#) = int2Bool# i#
+  {-# INLINE fromUnboxIso #-}
+  toUnboxIso b = I8# (bool2Int# b)
+  {-# INLINE toUnboxIso #-}
 
 instance Unbox Char where
-  type PrimBase Char = Char
+  type UnboxIso Char = Char
   type SizeOf Char = SIZEOF_HSCHAR
   type Alignment Char = ALIGNMENT_HSCHAR
   sizeOf# _ = SIZEOF_HSCHAR#
@@ -750,7 +750,7 @@ instance Unbox Char where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox (Ptr a) where
-  type PrimBase (Ptr a) = Ptr a
+  type UnboxIso (Ptr a) = Ptr a
   type SizeOf (Ptr a) = SIZEOF_HSPTR
   type Alignment (Ptr a) = ALIGNMENT_HSPTR
   sizeOf# _ = SIZEOF_HSINT#
@@ -791,13 +791,13 @@ instance Unbox (Ptr a) where
   {-# INLINE setOffAddr# #-}
 
 instance Unbox (FunPtr a) where
-  type PrimBase (FunPtr a) = Ptr a
-  toPrimBase (FunPtr addr#) = Ptr addr#
-  fromPrimBase (Ptr addr#) = FunPtr addr#
+  type UnboxIso (FunPtr a) = Ptr a
+  toUnboxIso (FunPtr addr#) = Ptr addr#
+  fromUnboxIso (Ptr addr#) = FunPtr addr#
 
 
 instance Unbox (StablePtr a) where
-  type PrimBase (StablePtr a) = StablePtr a
+  type UnboxIso (StablePtr a) = StablePtr a
   type SizeOf (StablePtr a) = SIZEOF_HSSTABLEPTR
   type Alignment (StablePtr a) = ALIGNMENT_HSSTABLEPTR
   sizeOf# _ = SIZEOF_HSINT#
@@ -839,213 +839,213 @@ instance Unbox (StablePtr a) where
 
 
 instance Unbox IntPtr where
-  type PrimBase IntPtr = Int
+  type UnboxIso IntPtr = Int
 
 instance Unbox WordPtr where
-  type PrimBase WordPtr = Word
+  type UnboxIso WordPtr = Word
 
 instance Unbox CBool where
-  type PrimBase CBool = HTYPE_BOOL
+  type UnboxIso CBool = HTYPE_BOOL
 
 instance Unbox CChar where
-  type PrimBase CChar = HTYPE_CHAR
+  type UnboxIso CChar = HTYPE_CHAR
 
 instance Unbox CSChar where
-  type PrimBase CSChar = HTYPE_SIGNED_CHAR
+  type UnboxIso CSChar = HTYPE_SIGNED_CHAR
 
 instance Unbox CUChar where
-  type PrimBase CUChar = HTYPE_UNSIGNED_CHAR
+  type UnboxIso CUChar = HTYPE_UNSIGNED_CHAR
 
 instance Unbox CShort where
-  type PrimBase CShort = HTYPE_SHORT
+  type UnboxIso CShort = HTYPE_SHORT
 
 instance Unbox CUShort where
-  type PrimBase CUShort = HTYPE_UNSIGNED_SHORT
+  type UnboxIso CUShort = HTYPE_UNSIGNED_SHORT
 
 instance Unbox CInt where
-  type PrimBase CInt = HTYPE_INT
+  type UnboxIso CInt = HTYPE_INT
 
 instance Unbox CUInt where
-  type PrimBase CUInt = HTYPE_UNSIGNED_INT
+  type UnboxIso CUInt = HTYPE_UNSIGNED_INT
 
 instance Unbox CLong where
-  type PrimBase CLong = HTYPE_LONG
+  type UnboxIso CLong = HTYPE_LONG
 
 instance Unbox CULong where
-  type PrimBase CULong = HTYPE_UNSIGNED_LONG
+  type UnboxIso CULong = HTYPE_UNSIGNED_LONG
 
 instance Unbox CLLong where
-  type PrimBase CLLong = HTYPE_LONG_LONG
+  type UnboxIso CLLong = HTYPE_LONG_LONG
 
 instance Unbox CULLong where
-  type PrimBase CULLong = HTYPE_UNSIGNED_LONG_LONG
+  type UnboxIso CULLong = HTYPE_UNSIGNED_LONG_LONG
 
 instance Unbox CPtrdiff where
-  type PrimBase CPtrdiff = HTYPE_PTRDIFF_T
+  type UnboxIso CPtrdiff = HTYPE_PTRDIFF_T
 
 instance Unbox CSize where
-  type PrimBase CSize = HTYPE_SIZE_T
+  type UnboxIso CSize = HTYPE_SIZE_T
 
 instance Unbox CWchar where
-  type PrimBase CWchar = HTYPE_WCHAR_T
+  type UnboxIso CWchar = HTYPE_WCHAR_T
 
 instance Unbox CSigAtomic where
-  type PrimBase CSigAtomic = HTYPE_SIG_ATOMIC_T
+  type UnboxIso CSigAtomic = HTYPE_SIG_ATOMIC_T
 
 instance Unbox CIntPtr where
-  type PrimBase CIntPtr = HTYPE_INTPTR_T
+  type UnboxIso CIntPtr = HTYPE_INTPTR_T
 
 instance Unbox CUIntPtr where
-  type PrimBase CUIntPtr = HTYPE_UINTPTR_T
+  type UnboxIso CUIntPtr = HTYPE_UINTPTR_T
 
 instance Unbox CIntMax where
-  type PrimBase CIntMax = HTYPE_INTMAX_T
+  type UnboxIso CIntMax = HTYPE_INTMAX_T
 
 instance Unbox CUIntMax where
-  type PrimBase CUIntMax = HTYPE_UINTMAX_T
+  type UnboxIso CUIntMax = HTYPE_UINTMAX_T
 
 instance Unbox CFloat where
-  type PrimBase CFloat = HTYPE_FLOAT
+  type UnboxIso CFloat = HTYPE_FLOAT
 
 instance Unbox CDouble where
-  type PrimBase CDouble = HTYPE_DOUBLE
+  type UnboxIso CDouble = HTYPE_DOUBLE
 
 
 instance Unbox Fd where
-  type PrimBase Fd = CInt
+  type UnboxIso Fd = CInt
 
 instance Unbox Errno where
-  type PrimBase Errno = CInt
+  type UnboxIso Errno = CInt
 
 
 #if defined(HTYPE_DEV_T)
 instance Unbox CDev where
-  type PrimBase CDev = HTYPE_DEV_T
+  type UnboxIso CDev = HTYPE_DEV_T
 #endif
 #if defined(HTYPE_INO_T)
 instance Unbox CIno where
-  type PrimBase CIno = HTYPE_INO_T
+  type UnboxIso CIno = HTYPE_INO_T
 #endif
 #if defined(HTYPE_MODE_T)
 instance Unbox CMode where
-  type PrimBase CMode = HTYPE_MODE_T
+  type UnboxIso CMode = HTYPE_MODE_T
 #endif
 #if defined(HTYPE_OFF_T)
 instance Unbox COff where
-  type PrimBase COff = HTYPE_OFF_T
+  type UnboxIso COff = HTYPE_OFF_T
 #endif
 #if defined(HTYPE_PID_T)
 instance Unbox CPid where
-  type PrimBase CPid = HTYPE_PID_T
+  type UnboxIso CPid = HTYPE_PID_T
 #endif
 #if defined(HTYPE_SSIZE_T)
 instance Unbox CSsize where
-  type PrimBase CSsize = HTYPE_SSIZE_T
+  type UnboxIso CSsize = HTYPE_SSIZE_T
 #endif
 #if defined(HTYPE_GID_T)
 instance Unbox CGid where
-  type PrimBase CGid = HTYPE_GID_T
+  type UnboxIso CGid = HTYPE_GID_T
 #endif
 #if defined(HTYPE_NLINK_T)
 instance Unbox CNlink where
-  type PrimBase CNlink = HTYPE_NLINK_T
+  type UnboxIso CNlink = HTYPE_NLINK_T
 #endif
 #if defined(HTYPE_UID_T)
 instance Unbox CUid where
-  type PrimBase CUid = HTYPE_UID_T
+  type UnboxIso CUid = HTYPE_UID_T
 #endif
 #if defined(HTYPE_CC_T)
 instance Unbox CCc where
-  type PrimBase CCc = HTYPE_CC_T
+  type UnboxIso CCc = HTYPE_CC_T
 #endif
 #if defined(HTYPE_SPEED_T)
 instance Unbox CSpeed where
-  type PrimBase CSpeed = HTYPE_SPEED_T
+  type UnboxIso CSpeed = HTYPE_SPEED_T
 #endif
 #if defined(HTYPE_TCFLAG_T)
 instance Unbox CTcflag where
-  type PrimBase CTcflag = HTYPE_TCFLAG_T
+  type UnboxIso CTcflag = HTYPE_TCFLAG_T
 #endif
 #if defined(HTYPE_RLIM_T)
 instance Unbox CRLim where
-  type PrimBase CRLim = HTYPE_RLIM_T
+  type UnboxIso CRLim = HTYPE_RLIM_T
 #endif
 
 instance Unbox a => Unbox (Max a) where
-  type PrimBase (Max a) = a
+  type UnboxIso (Max a) = a
 instance Unbox a => Unbox (Min a) where
-  type PrimBase (Min a) = a
+  type UnboxIso (Min a) = a
 instance Unbox a => Unbox (Data.Semigroup.First a) where
-  type PrimBase (Data.Semigroup.First a) = a
+  type UnboxIso (Data.Semigroup.First a) = a
 instance Unbox a => Unbox (Data.Semigroup.Last a) where
-  type PrimBase (Data.Semigroup.Last a) = a
+  type UnboxIso (Data.Semigroup.Last a) = a
 instance (Unbox a, Unbox b) => Unbox (Arg a b) where
-  type PrimBase (Arg a b) = (a, b)
-  toPrimBase (Arg a b) = (a, b)
-  fromPrimBase (a, b) = Arg a b
+  type UnboxIso (Arg a b) = (a, b)
+  toUnboxIso (Arg a b) = (a, b)
+  fromUnboxIso (a, b) = Arg a b
 
 #if __GLASGOW_HASKELL__ >= 800
 instance Unbox a => Unbox (Const a b) where
-  type PrimBase (Const a b) = a
+  type UnboxIso (Const a b) = a
 #endif /* __GLASGOW_HASKELL__ >= 800 */
 
 
 #if __GLASGOW_HASKELL__ >= 802
 
 instance a ~ b => Unbox (a :~~: b) where
-  type PrimBase (a :~~: b) = ()
-  toPrimBase HRefl = ()
-  fromPrimBase () = HRefl
+  type UnboxIso (a :~~: b) = ()
+  toUnboxIso HRefl = ()
+  fromUnboxIso () = HRefl
 
 #if defined(HTYPE_BLKSIZE_T)
 instance Unbox CBlkSize where
-  type PrimBase CBlkSize = HTYPE_BLKSIZE_T
+  type UnboxIso CBlkSize = HTYPE_BLKSIZE_T
 #endif
 #if defined(HTYPE_BLKCNT_T)
 instance Unbox CBlkCnt where
-  type PrimBase CBlkCnt = HTYPE_BLKCNT_T
+  type UnboxIso CBlkCnt = HTYPE_BLKCNT_T
 #endif
 #if defined(HTYPE_CLOCKID_T)
 instance Unbox CClockId where
-  type PrimBase CClockId = HTYPE_CLOCKID_T
+  type UnboxIso CClockId = HTYPE_CLOCKID_T
 #endif
 #if defined(HTYPE_FSBLKCNT_T)
 instance Unbox CFsBlkCnt where
-  type PrimBase CFsBlkCnt = HTYPE_FSBLKCNT_T
+  type UnboxIso CFsBlkCnt = HTYPE_FSBLKCNT_T
 #endif
 #if defined(HTYPE_FSFILCNT_T)
 instance Unbox CFsFilCnt where
-  type PrimBase CFsFilCnt = HTYPE_FSFILCNT_T
+  type UnboxIso CFsFilCnt = HTYPE_FSFILCNT_T
 #endif
 #if defined(HTYPE_ID_T)
 instance Unbox CId where
-  type PrimBase CId = HTYPE_ID_T
+  type UnboxIso CId = HTYPE_ID_T
 #endif
 #if defined(HTYPE_KEY_T)
 instance Unbox CKey where
-  type PrimBase CKey = HTYPE_KEY_T
+  type UnboxIso CKey = HTYPE_KEY_T
 #endif
 #if defined(HTYPE_TIMER_T)
 instance Unbox CTimer where
-  type PrimBase CTimer = HTYPE_TIMER_T
+  type UnboxIso CTimer = HTYPE_TIMER_T
 #endif
 
 #if __GLASGOW_HASKELL__ >= 810
 
 #if defined(HTYPE_SOCKLEN_T)
 instance Unbox CSocklen where
-  type PrimBase CSocklen = HTYPE_SOCKLEN_T
+  type UnboxIso CSocklen = HTYPE_SOCKLEN_T
 #endif
 #if defined(HTYPE_NFDS_T)
 instance Unbox CNfds where
-  type PrimBase CNfds = HTYPE_NFDS_T
+  type UnboxIso CNfds = HTYPE_NFDS_T
 #endif
 
 #endif /* __GLASGOW_HASKELL__ >= 810 */
 
 #if __GLASGOW_HASKELL__ >= 806
 instance Unbox (f a) => Unbox (Ap f a) where
-  type PrimBase (Ap f a) = f a
+  type UnboxIso (Ap f a) = f a
 #endif /* __GLASGOW_HASKELL__ >= 806 */
 
 
@@ -1053,62 +1053,62 @@ instance Unbox (f a) => Unbox (Ap f a) where
 
 
 instance (Unbox (f a), Unbox (g a)) => Unbox (Functor.Product f g a) where
-  type PrimBase (Functor.Product f g a) = (f a, g a)
-  toPrimBase (Functor.Pair fa ga) = (fa, ga)
-  {-# INLINE toPrimBase #-}
-  fromPrimBase (fa, ga) = Functor.Pair fa ga
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (Functor.Product f g a) = (f a, g a)
+  toUnboxIso (Functor.Pair fa ga) = (fa, ga)
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso (fa, ga) = Functor.Pair fa ga
+  {-# INLINE fromUnboxIso #-}
 
 
 instance Unbox (f (g a)) => Unbox (Compose f g a) where
-  type PrimBase (Compose f g a) = f (g a)
+  type UnboxIso (Compose f g a) = f (g a)
 
 instance Unbox a => Unbox (Identity a) where
-  type PrimBase (Identity a) = a
+  type UnboxIso (Identity a) = a
 
 instance Unbox (f a) => Unbox (Alt f a) where
-  type PrimBase (Alt f a) = f a
+  type UnboxIso (Alt f a) = f a
 
 instance Unbox Ordering where
-  type PrimBase Ordering = Int8
-  toPrimBase o = I8# (fromOrdering# o)
-  {-# INLINE toPrimBase #-}
-  fromPrimBase (I8# i#) = toOrdering# i#
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso Ordering = Int8
+  toUnboxIso o = I8# (fromOrdering# o)
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso (I8# i#) = toOrdering# i#
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox IODeviceType where
-  type PrimBase IODeviceType = Int8
-  toPrimBase =
+  type UnboxIso IODeviceType = Int8
+  toUnboxIso =
     \case
       Directory -> 0
       Stream -> 1
       RegularFile -> 2
       RawDevice -> 3
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       0 -> Directory
       1 -> Stream
       2 -> RegularFile
       _ -> RawDevice
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox SeekMode where
-  type PrimBase SeekMode = Int8
-  toPrimBase = \case
+  type UnboxIso SeekMode = Int8
+  toUnboxIso = \case
     AbsoluteSeek -> 0
     RelativeSeek -> 1
     SeekFromEnd  -> 2
-  {-# INLINE toPrimBase #-}
-  fromPrimBase = \case
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso = \case
     0 -> AbsoluteSeek
     1 -> RelativeSeek
     _ -> SeekFromEnd
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox BlockReason where
-  type PrimBase BlockReason = Int8
-  toPrimBase =
+  type UnboxIso BlockReason = Int8
+  toUnboxIso =
     \case
       BlockedOnMVar -> 0
       BlockedOnBlackHole -> 1
@@ -1119,8 +1119,8 @@ instance Unbox BlockReason where
       BlockedOnIOCompletion -> 5
 #endif
       BlockedOnOther -> 6
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       0 -> BlockedOnMVar
       1 -> BlockedOnBlackHole
@@ -1131,135 +1131,135 @@ instance Unbox BlockReason where
       5 -> BlockedOnIOCompletion
 #endif
       _ -> BlockedOnOther
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 
 instance Unbox ThreadStatus where
-  type PrimBase ThreadStatus = Int8
-  toPrimBase =
+  type UnboxIso ThreadStatus = Int8
+  toUnboxIso =
     \case
       ThreadRunning -> 0x00
       ThreadFinished -> 0x10
-      ThreadBlocked br -> 0x20 .|. toPrimBase br
+      ThreadBlocked br -> 0x20 .|. toUnboxIso br
       ThreadDied -> 0x30
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       0x00 -> ThreadRunning
       0x10 -> ThreadFinished
       0x30 -> ThreadDied
-      x -> ThreadBlocked $ fromPrimBase (x .&. 0xf)
-  {-# INLINE fromPrimBase #-}
+      x -> ThreadBlocked $ fromUnboxIso (x .&. 0xf)
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox IOMode where
-  type PrimBase IOMode = Int8
-  toPrimBase =
+  type UnboxIso IOMode = Int8
+  toUnboxIso =
     \case
       ReadMode -> 0
       WriteMode -> 1
       AppendMode -> 2
       ReadWriteMode -> 3
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       0 -> ReadMode
       1 -> WriteMode
       2 -> AppendMode
       _ -> ReadWriteMode
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox BufferMode where
-  type PrimBase BufferMode = (Int8, Maybe Int)
-  toPrimBase =
+  type UnboxIso BufferMode = (Int8, Maybe Int)
+  toUnboxIso =
     \case
       NoBuffering -> (0, Nothing)
       LineBuffering -> (1, Nothing)
       BlockBuffering mb -> (2, mb)
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       (0, _) -> NoBuffering
       (1, _) -> LineBuffering
       (_, mb) -> BlockBuffering mb
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox Newline where
-  type PrimBase Newline = Int8
-  toPrimBase =
+  type UnboxIso Newline = Int8
+  toUnboxIso =
     \case
       LF -> 0
       CRLF -> 1
-  {-# INLINE toPrimBase #-}
-  fromPrimBase =
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso =
     \case
       0 -> LF
       _ -> CRLF
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox NewlineMode where
-  type PrimBase NewlineMode = Int8
-  toPrimBase (NewlineMode i o) =
-    (toPrimBase i `unsafeShiftL` 1) .|. toPrimBase o
-  {-# INLINE toPrimBase #-}
-  fromPrimBase p =
+  type UnboxIso NewlineMode = Int8
+  toUnboxIso (NewlineMode i o) =
+    (toUnboxIso i `unsafeShiftL` 1) .|. toUnboxIso o
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso p =
     NewlineMode
-      (fromPrimBase ((p `unsafeShiftR` 1) .&. 1))
-      (fromPrimBase (p .&. 1))
-  {-# INLINE fromPrimBase #-}
+      (fromUnboxIso ((p `unsafeShiftR` 1) .&. 1))
+      (fromUnboxIso (p .&. 1))
+  {-# INLINE fromUnboxIso #-}
 
 instance Unbox GeneralCategory where
-  type PrimBase GeneralCategory = Word8
-  toPrimBase = fromIntegral . fromEnum
-  {-# INLINE toPrimBase #-}
-  fromPrimBase p
+  type UnboxIso GeneralCategory = Word8
+  toUnboxIso = fromIntegral . fromEnum
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso p
     | ip > fromEnum (maxBound :: GeneralCategory) = NotAssigned
     | otherwise = toEnum ip
     where
       ip = fromIntegral p
-  {-# INLINE fromPrimBase #-}
+  {-# INLINE fromUnboxIso #-}
 
 
 instance Unbox a => Unbox (Down a) where
-  type PrimBase (Down a) = a
+  type UnboxIso (Down a) = a
 
 instance Unbox a => Unbox (Dual a) where
-  type PrimBase (Dual a) = a
+  type UnboxIso (Dual a) = a
 
 instance Unbox a => Unbox (Sum a) where
-  type PrimBase (Sum a) = a
+  type UnboxIso (Sum a) = a
 
 instance Unbox a => Unbox (Product a) where
-  type PrimBase (Product a) = a
+  type UnboxIso (Product a) = a
 
 instance Unbox All where
-  type PrimBase All = Bool
+  type UnboxIso All = Bool
 
 instance Unbox Any where
-  type PrimBase Any = Bool
+  type UnboxIso Any = Bool
 
 instance Unbox Fingerprint where
-  type PrimBase Fingerprint = (Word64, Word64)
+  type UnboxIso Fingerprint = (Word64, Word64)
   type Alignment Fingerprint = Alignment Word64
   alignment# _ = alignment# (proxy# :: Proxy# Word64)
-  toPrimBase (Fingerprint a b) = (a, b)
-  fromPrimBase (a, b) = Fingerprint a b
+  toUnboxIso (Fingerprint a b) = (a, b)
+  fromUnboxIso (a, b) = Fingerprint a b
 
 instance Unbox a => Unbox (Ratio a) where
-  type PrimBase (Ratio a) = (a, a)
+  type UnboxIso (Ratio a) = (a, a)
   type Alignment (Ratio a) = Alignment a
   alignment# _ = alignment# (proxy# :: Proxy# a)
-  toPrimBase (a :% b) = (a, b)
-  fromPrimBase (a, b) = a :% b
+  toUnboxIso (a :% b) = (a, b)
+  fromUnboxIso (a, b) = a :% b
 
 instance Unbox a => Unbox (Complex a) where
-  type PrimBase (Complex a) = (a, a)
+  type UnboxIso (Complex a) = (a, a)
   type Alignment (Complex a) = Alignment a
   alignment# _ = alignment# (proxy# :: Proxy# a)
-  toPrimBase (a :+ b) = (a, b)
-  fromPrimBase (a, b) = a :+ b
+  toUnboxIso (a :+ b) = (a, b)
+  fromUnboxIso (a, b) = a :+ b
 
 instance (Unbox a, Unbox b) => Unbox (a, b) where
-  type PrimBase (a, b) = (a, b)
+  type UnboxIso (a, b) = (a, b)
   type SizeOf (a, b) = SizeOf a + SizeOf b
   type Alignment (a, b) = Alignment a + Alignment b
   sizeOf# _ = sizeOf# (proxy# :: Proxy# a) +# sizeOf# (proxy# :: Proxy# b)
@@ -1322,7 +1322,7 @@ instance (Unbox a, Unbox b) => Unbox (a, b) where
 
 
 instance (Unbox a, Unbox b, Unbox c) => Unbox (a, b, c) where
-  type PrimBase (a, b, c) = (a, b, c)
+  type UnboxIso (a, b, c) = (a, b, c)
   type SizeOf (a, b, c) = SizeOf a + SizeOf b + SizeOf c
   type Alignment (a, b, c) = Alignment a + Alignment b + Alignment c
   sizeOf# _ = sizeOf# (proxy# :: Proxy# a)
@@ -1405,52 +1405,52 @@ instance (Unbox a, Unbox b, Unbox c) => Unbox (a, b, c) where
 
 -- TODO: Write optimized versions for larger tuples
 instance (Unbox a, Unbox b, Unbox c, Unbox d) => Unbox (a, b, c, d) where
-  type PrimBase (a, b, c, d) = ((a, b), (c, d))
-  toPrimBase (a, b, c, d) = ((a, b), (c, d))
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b), (c, d)) = (a, b, c, d)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d) = ((a, b), (c, d))
+  toUnboxIso (a, b, c, d) = ((a, b), (c, d))
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b), (c, d)) = (a, b, c, d)
+  {-# INLINE fromUnboxIso #-}
 
 instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e) => Unbox (a, b, c, d, e) where
-  type PrimBase (a, b, c, d, e) = ((a, b), (c, d), e)
-  toPrimBase (a, b, c, d, e) = ((a, b), (c, d), e)
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b), (c, d), e) = (a, b, c, d, e)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d, e) = ((a, b), (c, d), e)
+  toUnboxIso (a, b, c, d, e) = ((a, b), (c, d), e)
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b), (c, d), e) = (a, b, c, d, e)
+  {-# INLINE fromUnboxIso #-}
 
 instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f) => Unbox (a, b, c, d, e, f) where
-  type PrimBase (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
-  toPrimBase (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b), (c, d), (e, f)) = (a, b, c, d, e, f)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
+  toUnboxIso (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b), (c, d), (e, f)) = (a, b, c, d, e, f)
+  {-# INLINE fromUnboxIso #-}
 
 instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g) => Unbox (a, b, c, d, e, f, g) where
-  type PrimBase (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
-  toPrimBase (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b, c), (d, e, f), g) = (a, b, c, d, e, f, g)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
+  toUnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b, c), (d, e, f), g) = (a, b, c, d, e, f, g)
+  {-# INLINE fromUnboxIso #-}
 
 instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g, Unbox h) =>
   Unbox (a, b, c, d, e, f, g, h) where
-  type PrimBase (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
-  toPrimBase (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b, c), (d, e, f), (g, h)) = (a, b, c, d, e, f, g, h)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
+  toUnboxIso (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b, c), (d, e, f), (g, h)) = (a, b, c, d, e, f, g, h)
+  {-# INLINE fromUnboxIso #-}
 
 instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g, Unbox h, Unbox i) =>
   Unbox (a, b, c, d, e, f, g, h, i) where
-  type PrimBase (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
-  toPrimBase (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
-  {-# INLINE toPrimBase #-}
-  fromPrimBase ((a, b, c), (d, e, f), (g, h, i)) = (a, b, c, d, e, f, g, h, i)
-  {-# INLINE fromPrimBase #-}
+  type UnboxIso (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
+  toUnboxIso (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
+  {-# INLINE toUnboxIso #-}
+  fromUnboxIso ((a, b, c), (d, e, f), (g, h, i)) = (a, b, c, d, e, f, g, h, i)
+  {-# INLINE fromUnboxIso #-}
 
 
 instance Unbox a => Unbox (Maybe a) where
-  type PrimBase (Maybe a) = Maybe a
+  type UnboxIso (Maybe a) = Maybe a
   type SizeOf (Maybe a) = 1 + SizeOf a
   type Alignment (Maybe a) = 1 + Alignment a
   sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# a)
@@ -1537,7 +1537,7 @@ type family MaxOrdering (o :: Ordering) (x :: Nat) (y :: Nat) where
 type MaxOf (x :: Nat) (y :: Nat) = MaxOrdering (CmpNat x y) x y
 
 instance (Unbox a, Unbox b) => Unbox (Either a b) where
-  type PrimBase (Either a b) = Either a b
+  type UnboxIso (Either a b) = Either a b
   type SizeOf (Either a b) = 1 + MaxOf (SizeOf a) (SizeOf b)
   type Alignment (Either a b) = 1 + MaxOf (Alignment a) (Alignment b)
   sizeOf# _ = 1# +# maxInt# (sizeOf# (proxy# :: Proxy# a)) (sizeOf# (proxy# :: Proxy# b))

@@ -88,7 +88,7 @@ newtype Atom e =
 
 
 instance Unbox e => Unbox (Atom e) where
-  type PrimBase (Atom e) = Atom e
+  type UnboxIso (Atom e) = Atom e
   type SizeOf (Atom e) = 1 + SizeOf e
   type Alignment (Atom e) = 1 + Alignment e
   sizeOf# _ = 1# +# sizeOf# (proxy# :: Proxy# e)

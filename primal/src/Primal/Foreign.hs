@@ -45,7 +45,6 @@ import Primal.Foreign.C
 import Primal.Foreign.Cmm
 import Foreign.C.Types
 import System.Posix.Types
-import GHC.Exts hiding (touch#, keepAlive#)
 import GHC.Int
 import GHC.Word
 import GHC.IO
@@ -58,6 +57,11 @@ import GHC.Prim
   , mkWeak#
   , mkWeakNoFinalizer#
   )
+#endif
+#if __GLASGOW_HASKELL__ >= 900
+import GHC.Exts hiding (touch#, keepAlive#)
+#else
+import GHC.Exts hiding (touch#)
 #endif
 
 

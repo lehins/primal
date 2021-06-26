@@ -1,25 +1,25 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
--- Module      : Data.Prim.Unbox
+-- Module      : Primal.Adaptive.Unpack
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Data.Prim.Unbox
-  ( Unbox(..)
+module Primal.Adaptive.Unpack
+  ( Unpack(..)
   ) where
 
 import Control.DeepSeq
 import Data.Bits
-import Primal.Prim.Atomic
-import Primal.Prim.Class
+import Primal.Unbox.Atomic
+import Primal.Unbox.Class
 
-newtype Unbox e =
-  Unbox
-    { unUnbox :: e
+newtype Unpack e =
+  Unpack
+    { unUnpack :: e
     }
   deriving ( Show
            , Eq
@@ -37,13 +37,13 @@ newtype Unbox e =
            )
 
 
-instance Prim e => Prim (Unbox e) where
-  type PrimBase (Unbox e) = Unbox e
-  type SizeOf (Unbox e) = SizeOf e
-  type Alignment (Unbox e) = Alignment e
+instance Unbox e => Unbox (Unpack e) where
+  type PrimBase (Unpack e) = Unpack e
+  type SizeOf (Unpack e) = SizeOf e
+  type Alignment (Unpack e) = Alignment e
 
-instance (Eq e, Prim e) => Atomic (Unbox e)
+instance (Eq e, Unbox e) => Atomic (Unpack e)
 
-instance (Num e, Eq e, Prim e) => AtomicCount (Unbox e)
+instance (Num e, Eq e, Unbox e) => AtomicCount (Unpack e)
 
-instance (Bits e, Eq e, Prim e) => AtomicBits (Unbox e)
+instance (Bits e, Eq e, Unbox e) => AtomicBits (Unpack e)

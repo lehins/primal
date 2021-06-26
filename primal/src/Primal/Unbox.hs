@@ -173,7 +173,7 @@ newtype Count e = Count
   } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
 instance Unbox (Count e) where
-  type PrimBase (Count e) = Int
+  type UnboxIso (Count e) = Int
 
 unCountWord8# :: Count Word8 -> Int#
 unCountWord8# (Count (I# n#)) = n#
@@ -279,7 +279,7 @@ newtype Off e = Off
   } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
 instance Unbox (Off e) where
-  type PrimBase (Off e) = Int
+  type UnboxIso (Off e) = Int
 
 
 -- | Helper noop function that restricts `Off`set to the type of proxy

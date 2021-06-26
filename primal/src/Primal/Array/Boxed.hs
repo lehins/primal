@@ -206,7 +206,7 @@ sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.Boxed
+-- >>> import Primal.Array
 -- >>> let a = fromListBArray [[0 .. i] | i <- [0 .. 10 :: Int]]
 -- >>> indexBArray a 1
 -- [0,1]
