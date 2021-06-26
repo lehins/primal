@@ -618,9 +618,10 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Mutable.Freeze (freezeCloneMut)
 -- >>> ma <- newBMArray 4 (Nothing :: Maybe Integer)
 -- >>> writeBMArray ma 2 (Just 2)
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- It is important to note that an element is evaluated prior to being written into a
@@ -630,14 +631,14 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 -- >>> import Primal.Exception
 -- >>> writeBMArray ma 2 (impureThrow DivideByZero)
 -- *** Exception: divide by zero
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [Nothing,Nothing,Just 2,Nothing]
 --
 -- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
 -- to write something that eventually evaluates to bottom.
 --
 -- >>> writeBMArray ma 3 (Just (7 `div` 0 ))
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
 -- >>> readBMArray ma 3
 -- Just *** Exception: divide by zero
@@ -1087,15 +1088,16 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 --
 -- ====__Examples__
 --
+-- >>> import Primal.Mutable.Freeze (freezeCloneMut)
 -- >>> ma <- makeBMArray 5 (pure . (*10))
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [0,10,20,30,40]
 --
 -- A possible mistake is to try and pass the expected value, instead of an actual element:
 --
 -- >>> casBMArray ma 2 20 1000
 -- (False,20)
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [0,10,20,30,40]
 --
 -- But this will get us nowhere, since what we really need is the actual reference to the
@@ -1105,7 +1107,7 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 -- >>> r@(_, currentValue) <- casBMArray ma 2 expected 1000
 -- >>> r
 -- (True,1000)
--- >>> freezeCopyBMArray ma
+-- >>> freezeCloneMut ma
 -- BArray [0,10,1000,30,40]
 --
 -- In a concurrent setting current value can potentially be modified by some other

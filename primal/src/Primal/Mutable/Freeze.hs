@@ -19,7 +19,13 @@ module Primal.Mutable.Freeze
   , clone
   , cloneMut
   , Frozen
-  , MutFreeze(..)
+  , MutFreeze
+    ( thawST
+    , freezeMutST
+    , cloneMutST
+    , thawCloneST
+    , freezeCloneMutST
+    )
   ) where
 
 import Primal.Monad
