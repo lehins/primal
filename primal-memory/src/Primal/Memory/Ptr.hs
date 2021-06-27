@@ -33,6 +33,7 @@ module Primal.Memory.Ptr
   , writeOffPtr
   , writeByteOffPtr
   , setOffPtr
+  , setByteOffPtr
   , copyPtrToPtr
   , copyByteOffPtrToPtr
   , movePtrToPtr
@@ -107,6 +108,16 @@ setOffPtr ::
   -> m ()
 setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setOffAddr# addr# o# n# a)
 {-# INLINE setOffPtr #-}
+
+setByteOffPtr ::
+     (MonadPrim s m, Unbox e)
+  => Ptr e -- ^ Chunk of memory to fill
+  -> Off Word8 -- ^ Offset in number of Bytes
+  -> Count e -- ^ Number of cells to fill
+  -> e -- ^ A value to fill the cells with
+  -> m ()
+setByteOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = prim_ (setByteOffAddr# addr# o# n# a)
+{-# INLINE setByteOffPtr #-}
 
 
 readOffPtr :: (MonadPrim s m, Unbox e) => Ptr e -> Off e -> m e

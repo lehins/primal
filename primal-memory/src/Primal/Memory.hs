@@ -77,6 +77,7 @@ module Primal.Memory
   , writeOffMutMem               -- DOC: [x], DOCTEST [ ], TEST: [x]
   , writeByteOffMutMem           -- DOC: [x], DOCTEST [ ], TEST: [x]
   , setMutMem                    -- DOC: [x], DOCTEST [ ], TEST: [x]
+  , setByteOffMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [x]
   , modifyFetchOldMutMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , modifyFetchOldMutMemM        -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , modifyFetchNewMutMem         -- DOC: [ ], DOCTEST [ ], TEST: [ ]

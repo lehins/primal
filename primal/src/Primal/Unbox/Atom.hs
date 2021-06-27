@@ -126,10 +126,10 @@ instance Unbox e => Unbox (Atom e) where
     let i0# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
     in writeOffAddr# addr# i0# (0 :: Word8) (writeOffAddr# (addr# `plusAddr#` (1# +# i0#)) 0# e s)
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# = setMutableByteArrayLoop#
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# = setOffAddrLoop#
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# = setAddrLoop#
+  {-# INLINE setAddr# #-}
 
 
 acquireLockByteOffMutableByteArray :: MonadPrim s m => MutableByteArray# s -> Int# -> m ()

@@ -97,6 +97,9 @@ instance MemWrite MByteString where
     withPtrByteString fdst $ \dstPtr ->
       moveByteOffToPtrMutMemST src srcOff dstPtr dstOff c
   {-# INLINE moveByteOffMutMemST #-}
+  setByteOffMutMemST (MByteString mbs) off c a =
+    withPtrByteString mbs $ \ptr -> setByteOffPtr ptr off c a
+  {-# INLINE setByteOffMutMemST #-}
   setMutMemST (MByteString mbs) off c a =
     withPtrByteString mbs $ \ptr -> setOffPtr ptr off c a
   {-# INLINE setMutMemST #-}

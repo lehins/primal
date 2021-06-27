@@ -21,7 +21,7 @@ void primal_memset8(HsWord8 *ptr, HsInt offset, HsInt n, HsWord8 x){
 
 void primal_memset16(HsWord16 *ptr, HsInt offset, HsInt n, HsWord16 x){
   HsWord8 x8 = (HsWord8) x;
-  ptr+= offset;
+  ptr = (HsWord16 *) ((HsWord8 *)ptr + offset);
   if((HsWord8) (x >> 8) == x8){
     memset((void *)ptr, x8, n * 2);
     return;
@@ -34,7 +34,7 @@ void primal_memset16(HsWord16 *ptr, HsInt offset, HsInt n, HsWord16 x){
 
 void primal_memset32(HsWord32 *ptr, HsInt offset, HsInt n, HsWord32 x){
   HsWord8 x8 = (HsWord8) x;
-  ptr+= offset;
+  ptr = (HsWord32 *) ((HsWord8 *)ptr + offset);
   // Use memset if it is a repeating 8bit pattern
   if((HsWord16) (x >> 16) == (HsWord16) x && (HsWord8) (x >> 24) == x8){
     memset((void *)ptr, x8, n * 4);
@@ -49,7 +49,7 @@ void primal_memset32(HsWord32 *ptr, HsInt offset, HsInt n, HsWord32 x){
 void primal_memset64(HsWord64 *ptr, HsInt offset, HsInt n, HsWord64 x){
   HsWord8 x8 = (HsWord8) x;
   HsWord32 x32 = (HsWord32) x;
-  ptr+= offset;
+  ptr = (HsWord64 *) ((HsWord8 *)ptr + offset);
   // Use memset if it is a repeating 8bit pattern
   if((HsWord32) (x   >> 32) == x32 &&
      (HsWord16) (x32 >> 16) == (HsWord16) x32 &&

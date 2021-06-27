@@ -51,6 +51,8 @@ module Primal.Memory.Addr
   , shrinkMAddr
   , shrinkByteCountMAddr
   , setMAddr
+  , setOffMAddr
+  , setByteOffMAddr
   , curOffMAddr
   , getByteCountMAddr
   , getCountMAddr
@@ -527,7 +529,9 @@ instance MemWrite (MAddr e) where
     withAddrMAddr# dst $ \ dstAddr# ->
       moveByteOffToPtrMutMemST src srcOff (Ptr dstAddr#) dstOff c
   {-# INLINE moveByteOffMutMemST #-}
-  setMutMemST maddr = setMAddr (castMAddr maddr)
+  setByteOffMutMemST maddr = setByteOffMAddr (castMAddr maddr)
+  {-# INLINE setByteOffMutMemST #-}
+  setMutMemST maddr = setOffMAddr (castMAddr maddr)
   {-# INLINE setMutMemST #-}
 
 
@@ -609,10 +613,19 @@ moveMAddrToMAddr src srcOff dst dstOff c =
       movePtrToPtr srcPtr srcOff dstPtr dstOff c
 {-# INLINE moveMAddrToMAddr #-}
 
-setMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> Count e -> e -> m ()
-setMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
-  prim_ (setOffAddr# addr# off# n# a) >> touch mb
+setMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Count e -> e -> m ()
+setMAddr (MAddr addr# mb) (Count (I# n#)) a = prim_ (setAddr# addr# n# a) >> touch mb
 {-# INLINE setMAddr #-}
+
+setOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off e -> Count e -> e -> m ()
+setOffMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
+  prim_ (setOffAddr# addr# off# n# a) >> touch mb
+{-# INLINE setOffMAddr #-}
+
+setByteOffMAddr :: (MonadPrim s m, Unbox e) => MAddr e s -> Off Word8 -> Count e -> e -> m ()
+setByteOffMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
+  prim_ (setByteOffAddr# addr# off# n# a) >> touch mb
+{-# INLINE setByteOffMAddr #-}
 
 
 

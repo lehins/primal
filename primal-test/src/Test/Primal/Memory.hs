@@ -381,6 +381,64 @@ prop_setMutMem (NEMem off@(Off o) xs fm) e (NonNegative k) =
     efm <- freezeMutMem emm
     toListMem efm `shouldBe` ([] :: [e])
 
+loopM_ ::
+     forall e m a. Monad m
+  => Off e
+  -> Count e
+  -> (Off e -> m a)
+  -> m ()
+loopM_ (Off o) (Count c) f = go o
+  where
+    n = o + c
+    go i = when (i < n) $ f (Off i) >> go (i + 1)
+
+loopByteOffM_ ::
+     forall e m a. (Unbox e, Monad m)
+  => Off Word8
+  -> Count e
+  -> (Off Word8 -> m a)
+  -> m ()
+loopByteOffM_ (Off o) c f = go o
+  where
+    Count k = byteCountProxy c
+    Count c8 = Count o + toByteCount c
+    go i = when (i < c8) $ f (Off i) >> go (i + k)
+
+
+genByteOff :: MemRead ma => ma -> Gen (Off Word8)
+genByteOff ma =
+  let Count bc = byteCountMem ma
+   in Off <$> choose (0, max 0 (bc - 1))
+
+genByteOffRegion ::
+     (MemRead ma, Unbox e) => ma -> Gen (Off Word8, Count e)
+genByteOffRegion ma = do
+  let Count bc = byteCountMem ma
+  o@(Off off) <- genByteOff ma
+  c <- fromByteCount . Count <$> choose (0, bc - off)
+  pure (o, c)
+
+
+
+prop_setByteOffMutMem ::
+     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+  => Mem ma e
+  -> e
+  -> Property
+prop_setByteOffMutMem (Mem _ fm) e =
+  forAll (genByteOffRegion fm) $ \(o, c) ->
+    propIO $ do
+      m <- thawMem fm
+      n :: Count e <- getCountMutMem m
+      setByteOffMutMem m o c e
+      let (pref, r) = fromByteCountRem (offToCount o) :: (Count e, Count Word8)
+      -- ensure begining of memory is not affected (likely excluding one element)
+      loopM_ 0 pref $ \i -> readOffMutMem m i `shouldReturn` indexOffMem fm i
+      loopByteOffM_ o c $ \i -> readByteOffMutMem m i `shouldReturn` e
+      let suff = Off (unCount pref + 2 * signum (unCount r) + unCount c)
+      -- ensure tail of memory is not affected (potentiallylikely
+      loopM_ suff (n - offToCount suff) $ \i -> readOffMutMem m i `shouldReturn` indexOffMem fm i
+
 asProxyTypeOf1 :: f a -> proxy a -> f a
 asProxyTypeOf1 fa _ = fa
 
@@ -485,6 +543,7 @@ memSpec ::
      , MemAlloc ma
      , Eq (Frozen ma)
      , Show (Frozen ma)
+     , Arbitrary (Frozen ma)
      )
   => Spec
 memSpec = do
@@ -507,6 +566,7 @@ memSpec = do
     prop "copyMem" $ prop_copyMem @ma @e
     prop "moveMutMem" $ prop_moveMutMem @ma @e
     prop "setMutMem" $ prop_setMutMem @ma @e
+    prop "setByteOffMutMem" $ prop_setByteOffMutMem @ma @e
     prop "reallocMutMem" $ prop_reallocMutMem @ma @e
 
     describe "List" $ do

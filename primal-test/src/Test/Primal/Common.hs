@@ -104,10 +104,11 @@ instance Show T.Array where
 instance Arbitrary Size where
   arbitrary = coerce (arbitrary :: Gen Int)
 
-instance Arbitrary a => Arbitrary (BArray a) where
+instance Arbitrary e => Arbitrary (BArray e) where
   arbitrary = fromListBArray <$> arbitrary
 
-
-instance Arbitrary a => Arbitrary (SBArray a) where
+instance Arbitrary e => Arbitrary (SBArray e) where
   arbitrary = fromListSBArray <$> arbitrary
 
+instance (Unbox e, Arbitrary e) => Arbitrary (UArray e) where
+  arbitrary = fromListUArray <$> arbitrary

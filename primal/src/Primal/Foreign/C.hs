@@ -35,6 +35,21 @@ module Primal.Foreign.C
   , memcmpMutableByteArray#
   , memcmpMutableByteArrayAddr#
   -- ** Setting memory
+  , setWord8ArrayAsInt16#
+  , setWord8ArrayAsInt32#
+  , setWord8ArrayAsInt64#
+  , setWord8ArrayAsWord16#
+  , setWord8ArrayAsWord32#
+  , setWord8ArrayAsWord64#
+  , setInt8Addr#
+  , setInt16Addr#
+  , setInt32Addr#
+  , setInt64Addr#
+  , setWord8Addr#
+  , setWord16Addr#
+  , setWord32Addr#
+  , setWord64Addr#
+
   , memsetWord8MutableByteArray#
   , memsetWord8Addr#
   , memsetInt8MutableByteArray#
@@ -60,8 +75,7 @@ module Primal.Foreign.C
   ) where
 
 import GHC.Exts
-import GHC.Int
-import GHC.Word
+import Primal.Monad.Unsafe
 import Primal.Foreign.C.Atomic
 import Primal.Foreign.C.LtGHC806
 
@@ -116,55 +130,119 @@ foreign import ccall unsafe "primal.c primal_memcmp"
 foreign import ccall unsafe "primal.c primal_memcmp"
   memcmpMutableByteArrayAddr# :: MutableByteArray# s -> Int# -> Addr# -> Int# -> Int# -> IO Int
 
-foreign import ccall unsafe "primal.c primal_memset8"
-  memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int8 -> IO ()
+
 
 foreign import ccall unsafe "primal.c primal_memset8"
-  memsetInt8Addr# :: Addr# -> Int# -> Int# -> Int8 -> IO ()
+  memsetInt8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset8"
-  memsetWord8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word8 -> IO ()
+  memsetInt8Addr# :: Addr# -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset8"
-  memsetWord8Addr# :: Addr# -> Int# -> Int# -> Word8 -> IO ()
+  memsetWord8MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
+
+foreign import ccall unsafe "primal.c primal_memset8"
+  memsetWord8Addr# :: Addr# -> Int# -> Int# -> Word# -> IO ()
+
+setInt8Addr# :: Addr# -> Int# -> Int# -> State# s -> State# s
+setInt8Addr# addr# n# a# = unsafePrimBase_ (memsetInt8Addr# addr# 0# n# a#)
+{-# INLINE setInt8Addr# #-}
+
+setWord8Addr# :: Addr# -> Int# -> Word# -> State# s -> State# s
+setWord8Addr# addr# n# a# = unsafePrimBase_ (memsetWord8Addr# addr# 0# n# a#)
+{-# INLINE setWord8Addr# #-}
+
 
 foreign import ccall unsafe "primal.c primal_memset16"
-  memsetInt16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int16 -> IO ()
+  memsetInt16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset16"
-  memsetInt16Addr# :: Addr# -> Int# -> Int# -> Int16 -> IO ()
+  memsetInt16Addr# :: Addr# -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset16"
-  memsetWord16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word16 -> IO ()
+  memsetWord16MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset16"
-  memsetWord16Addr# :: Addr# -> Int# -> Int# -> Word16 -> IO ()
+  memsetWord16Addr# :: Addr# -> Int# -> Int# -> Word# -> IO ()
+
+setWord8ArrayAsInt16# :: MutableByteArray# s -> Int# -> Int# -> Int# -> State# s -> State# s
+setWord8ArrayAsInt16# mba# o# n# a# = unsafePrimBase_ (memsetInt16MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsInt16# #-}
+
+setWord8ArrayAsWord16# :: MutableByteArray# s -> Int# -> Int# -> Word# -> State# s -> State# s
+setWord8ArrayAsWord16# mba# o# n# a# = unsafePrimBase_ (memsetWord16MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsWord16# #-}
+
+setInt16Addr# :: Addr# -> Int# -> Int# -> State# s -> State# s
+setInt16Addr# addr# n# a# = unsafePrimBase_ (memsetInt16Addr# addr# 0# n# a#)
+{-# INLINE setInt16Addr# #-}
+
+setWord16Addr# :: Addr# -> Int# -> Word# -> State# s -> State# s
+setWord16Addr# addr# n# a# = unsafePrimBase_ (memsetWord16Addr# addr# 0# n# a#)
+{-# INLINE setWord16Addr# #-}
 
 
 foreign import ccall unsafe "primal.c primal_memset32"
-  memsetInt32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int32 -> IO ()
+  memsetInt32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset32"
-  memsetInt32Addr# :: Addr# -> Int# -> Int# -> Int32 -> IO ()
+  memsetInt32Addr# :: Addr# -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset32"
-  memsetWord32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word32 -> IO ()
+  memsetWord32MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset32"
-  memsetWord32Addr# :: Addr# -> Int# -> Int# -> Word32 -> IO ()
+  memsetWord32Addr# :: Addr# -> Int# -> Int# -> Word# -> IO ()
 
+
+setWord8ArrayAsInt32# :: MutableByteArray# s -> Int# -> Int# -> Int# -> State# s -> State# s
+setWord8ArrayAsInt32# mba# o# n# a# = unsafePrimBase_ (memsetInt32MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsInt32# #-}
+
+setWord8ArrayAsWord32# :: MutableByteArray# s -> Int# -> Int# -> Word# -> State# s -> State# s
+setWord8ArrayAsWord32# mba# o# n# a# = unsafePrimBase_ (memsetWord32MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsWord32# #-}
+
+
+
+setInt32Addr# :: Addr# -> Int# -> Int# -> State# s -> State# s
+setInt32Addr# addr# n# a# = unsafePrimBase_ (memsetInt32Addr# addr# 0# n# a#)
+{-# INLINE setInt32Addr# #-}
+
+setWord32Addr# :: Addr# -> Int# -> Word# -> State# s -> State# s
+setWord32Addr# addr# n# a# = unsafePrimBase_ (memsetWord32Addr# addr# 0# n# a#)
+{-# INLINE setWord32Addr# #-}
 
 foreign import ccall unsafe "primal.c primal_memset64"
-  memsetInt64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int64 -> IO ()
+  memsetInt64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset64"
-  memsetInt64Addr# :: Addr# -> Int# -> Int# -> Int64 -> IO ()
+  memsetInt64Addr# :: Addr# -> Int# -> Int# -> Int# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset64"
-  memsetWord64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word64 -> IO ()
+  memsetWord64MutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> Word# -> IO ()
 
 foreign import ccall unsafe "primal.c primal_memset64"
-  memsetWord64Addr# :: Addr# -> Int# -> Int# -> Word64 -> IO ()
+  memsetWord64Addr# :: Addr# -> Int# -> Int# -> Word# -> IO ()
+
+
+setWord8ArrayAsInt64# :: MutableByteArray# s -> Int# -> Int# -> Int# -> State# s -> State# s
+setWord8ArrayAsInt64# mba# o# n# a# = unsafePrimBase_ (memsetInt64MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsInt64# #-}
+
+setWord8ArrayAsWord64# :: MutableByteArray# s -> Int# -> Int# -> Word# -> State# s -> State# s
+setWord8ArrayAsWord64# mba# o# n# a# = unsafePrimBase_ (memsetWord64MutableByteArray# mba# o# n# a#)
+{-# INLINE setWord8ArrayAsWord64# #-}
+
+
+
+setInt64Addr# :: Addr# -> Int# -> Int# -> State# s -> State# s
+setInt64Addr# addr# n# a# = unsafePrimBase_ (memsetInt64Addr# addr# 0# n# a#)
+{-# INLINE setInt64Addr# #-}
+
+setWord64Addr# :: Addr# -> Int# -> Word# -> State# s -> State# s
+setWord64Addr# addr# n# a# = unsafePrimBase_ (memsetWord64Addr# addr# 0# n# a#)
+{-# INLINE setWord64Addr# #-}
 
 foreign import ccall unsafe "primal.c primal_memmove"
   memmoveAddr# :: Addr# -- ^ Source ptr

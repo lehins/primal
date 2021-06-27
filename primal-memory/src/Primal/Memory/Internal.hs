@@ -23,7 +23,6 @@ module Primal.Memory.Internal
   , module Primal.Memory.Bytes.Internal
   ) where
 
-import qualified Data.ByteString as BS
 import Data.Foldable as Foldable
 import Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
@@ -37,7 +36,6 @@ import Primal.Memory.ByteString
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
-import Primal.Monad.Unsafe
 import Primal.Mutable.Freeze
 
 --TODO: implement:
@@ -526,8 +524,20 @@ moveByteOffMutMem src srcOff dst dstOff c =
   liftST $ moveByteOffMutMemST src srcOff dst dstOff c
 {-# INLINE moveByteOffMutMem #-}
 
--- TODO: Potential feature for the future implementation. Will require extra function in `Prim`.
---setByteOffMutMem :: (MonadPrim s m, Unbox e) => w s -> Off Word8 -> Count e -> e -> m ()
+
+
+-- | Same as `setMutMem`, except that the offset supplied is in number of bytes.
+--
+-- @since 1.0.0
+setByteOffMutMem ::
+     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+  => mw s
+  -> Off Word8
+  -> Count e
+  -> e
+  -> m ()
+setByteOffMutMem mw off c = liftST . setByteOffMutMemST mw off c
+
 
 -- | Write the same value @memCount@ times into each cell of @memTarget@ starting at an
 -- offset @memTargetOff@.

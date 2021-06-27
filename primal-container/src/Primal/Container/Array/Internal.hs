@@ -260,7 +260,7 @@ instance MutArray MAddr where
   moveMutArrayST mas os mad od n =
     moveMAddrToMAddr mas (coerce os) mad (coerce od) (coerce n)
   {-# INLINE moveMutArrayST #-}
-  setMutArrayST ma i sz = setMAddr ma (coerce i) (coerce sz)
+  setMutArrayST ma i sz = setOffMAddr ma (coerce i) (coerce sz)
   {-# INLINE setMutArrayST #-}
   shrinkMutArrayST ma sz = ma <$ shrinkMAddr ma (coerce sz :: Count e)
   {-# INLINE shrinkMutArrayST #-}

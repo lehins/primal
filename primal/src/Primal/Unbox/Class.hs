@@ -22,8 +22,11 @@
 --
 module Primal.Unbox.Class
   ( Unbox(..)
-  , setMutableByteArrayLoop#
-  , setOffAddrLoop#
+  , setMutableByteArray#
+  , setOffAddr#
+  , setByteOffAddr#
+  , setByteOffMutableByteArrayLoop#
+  , setAddrLoop#
   , errorImpossible
   , bool2Int#
   , int2Bool#
@@ -40,7 +43,6 @@ module Primal.Unbox.Class
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
 
-import Primal.Monad.Unsafe
 import Data.Bits
 import Data.Complex
 import Data.Char
@@ -218,25 +220,42 @@ class Unbox a where
   writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toUnboxIso a)
   {-# INLINE writeOffAddr# #-}
 
+  -- | Set the region of MutableByteArray to the same value. Offset is in number of bytes.
   setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   default setByteOffMutableByteArray# ::
     Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setByteOffMutableByteArray# mba# i# n# a = setByteOffMutableByteArray# mba# i# n# (toUnboxIso a)
+  setByteOffMutableByteArray# mba# o# n# a = setByteOffMutableByteArray# mba# o# n# (toUnboxIso a)
   {-# INLINE setByteOffMutableByteArray# #-}
 
-  -- | Set the region of MutableByteArray to the same value. Offset is in number of elements
-  setMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  default setMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setMutableByteArray# mba# i# n# a = setMutableByteArray# mba# i# n# (toUnboxIso a)
-  {-# INLINE setMutableByteArray# #-}
+  -- | Set specified number of elements to the same value.
+  setAddr# :: Addr# -> Int# -> a -> State# s -> State# s
+  default setAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a -> State# s -> State# s
+  setAddr# addr# n# a = setAddr# addr# n# (toUnboxIso a)
+  {-# INLINE setAddr# #-}
 
-  -- | Set the region of memory to the same value. Offset is in number of elements
-  setOffAddr# :: Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  default setOffAddr# ::
-    Unbox (UnboxIso a) => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-  setOffAddr# addr# i# n# a = setOffAddr# addr# i# n# (toUnboxIso a)
-  {-# INLINE setOffAddr# #-}
+
+-- | Set the region of MutableByteArray to the same value. Offset is in number of elements
+setMutableByteArray# ::
+     forall a s. Unbox a
+  => MutableByteArray# s
+  -> Int#
+  -> Int#
+  -> a
+  -> State# s
+  -> State# s
+setMutableByteArray# mba# o# = setByteOffMutableByteArray# mba# (o# *# sizeOf# (proxy# :: Proxy# a))
+{-# INLINE setMutableByteArray# #-}
+
+
+-- | Set the region of memory to the same value. Offset is in number of elements
+setOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
+setOffAddr# addr# i# = setAddr# (addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# a)))
+{-# INLINE setOffAddr# #-}
+
+-- | Set the region of memory to the same value. Offset is in number of bytes
+setByteOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
+setByteOffAddr# addr# i# = setAddr# (addr# `plusAddr#` i#)
+{-# INLINE setByteOffAddr# #-}
 
 
 instance Unbox () where
@@ -265,10 +284,10 @@ instance Unbox () where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# _ _ () s = s
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# _ _ _ () s = s
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# _ _ _ () s = s
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# _ _ _ () s = s
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# _ _ () s = s
+  {-# INLINE setAddr# #-}
 
 instance a ~ b => Unbox (a :~: b) where
   type UnboxIso (a :~: b) = ()
@@ -306,14 +325,14 @@ instance Unbox Int where
   writeOffAddr# mba# i# (I# a#) = writeIntOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
 #if WORD_SIZE_IN_BITS >= 64
-  setMutableByteArray# mba# o# n# (I# a#) = setMutableByteArray# mba# o# n# (I64# a#)
-  setOffAddr# addr# o# n# (I# a#) = setOffAddr# addr# o# n# (I64# a#)
+  setByteOffMutableByteArray# mba# o# n# (I# a#) = setByteOffMutableByteArray# mba# o# n# (I64# a#)
+  setAddr# addr# n# (I# a#) = setAddr# addr# n# (I64# a#)
 #else
-  setMutableByteArray# mba# o# n# (I# a#) = setMutableByteArray# mba# o# n# (I32# a#)
-  setOffAddr# addr# o# n# (I# a#) = setOffAddr# addr# o# n# (I32# a#)
+  setByteOffMutableByteArray# mba# o# n# (I# a#) = setByteOffMutableByteArray# mba# o# n# (I32# a#)
+  setAddr# addr# n# (I# a#) = setAddr# addr# n# (I32# a#)
 #endif
-  {-# INLINE setMutableByteArray# #-}
-  {-# INLINE setOffAddr# #-}
+  {-# INLINE setByteOffMutableByteArray# #-}
+  {-# INLINE setAddr# #-}
 
 instance Unbox Int8 where
   type UnboxIso Int8 = Int8
@@ -344,10 +363,10 @@ instance Unbox Int8 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (I8# a#) = writeInt8OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# i# n# (I8# a#) = setByteArray# mba# i# n# a#
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetInt8Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# i# n# (I8# a#) = setByteArray# mba# i# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (I8# a#) = setInt8Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Int16 where
   type UnboxIso Int16 = Int16
@@ -378,10 +397,10 @@ instance Unbox Int16 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (I16# a#) = writeInt16OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetInt16MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetInt16Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (I16# a#) = setWord8ArrayAsInt16# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (I16# a#) = setInt16Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Int32 where
   type UnboxIso Int32 = Int32
@@ -412,10 +431,10 @@ instance Unbox Int32 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (I32# a#) = writeInt32OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetInt32MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetInt32Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (I32# a#) = setWord8ArrayAsInt32# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (I32# a#) = setInt32Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Int64 where
   type UnboxIso Int64 = Int64
@@ -446,10 +465,10 @@ instance Unbox Int64 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (I64# a#) = writeInt64OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetInt64MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetInt64Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (I64# a#) = setWord8ArrayAsInt64# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (I64# a#) = setInt64Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 
 instance Unbox Word where
@@ -482,14 +501,14 @@ instance Unbox Word where
   writeOffAddr# mba# i# (W# a#) = writeWordOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
 #if WORD_SIZE_IN_BITS >= 64
-  setMutableByteArray# mba# o# n# (W# a#) = setMutableByteArray# mba# o# n# (W64# a#)
-  setOffAddr# addr# o# n# (W# a#) = setOffAddr# addr# o# n# (W64# a#)
+  setByteOffMutableByteArray# mba# o# n# (W# a#) = setByteOffMutableByteArray# mba# o# n# (W64# a#)
+  setAddr# addr# n# (W# a#) = setAddr# addr# n# (W64# a#)
 #else
-  setMutableByteArray# mba# o# n# (W# a#) = setMutableByteArray# mba# o# n# (W32# a#)
-  setOffAddr# addr# o# n# (W# a#) = setOffAddr# addr# o# n# (W32# a#)
+  setByteOffMutableByteArray# mba# o# n# (W# a#) = setByteOffMutableByteArray# mba# o# n# (W32# a#)
+  setAddr# addr# n# (W# a#) = setAddr# addr# n# (W32# a#)
 #endif
-  {-# INLINE setMutableByteArray# #-}
-  {-# INLINE setOffAddr# #-}
+  {-# INLINE setByteOffMutableByteArray# #-}
+  {-# INLINE setAddr# #-}
 
 instance Unbox Word8 where
   type UnboxIso Word8 = Word8
@@ -520,10 +539,10 @@ instance Unbox Word8 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W8# a#) = writeWord8OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# i# n# (W8# a#) = setByteArray# mba# i# n# (word2Int# a#)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord8Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# i# n# (W8# a#) = setByteArray# mba# i# n# (word2Int# a#)
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (W8# a#) = setWord8Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Word16 where
   type UnboxIso Word16 = Word16
@@ -554,11 +573,10 @@ instance Unbox Word16 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W16# a#) = writeWord16OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a =
-    unsafePrimBase_ (memsetWord16MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord16Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (W16# a#) = setWord8ArrayAsWord16# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (W16# a#) = setWord16Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Word32 where
   type UnboxIso Word32 = Word32
@@ -589,10 +607,10 @@ instance Unbox Word32 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W32# a#) = writeWord32OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetWord32MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord32Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (W32# a#) = setWord8ArrayAsWord32# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (W32# a#) = setWord32Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 instance Unbox Word64 where
   type UnboxIso Word64 = Word64
@@ -623,10 +641,10 @@ instance Unbox Word64 where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W64# a#) = writeWord64OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# a = unsafePrimBase_ (memsetWord64MutableByteArray# mba# o# n# a)
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# a = unsafePrimBase_ (memsetWord64Addr# addr# o# n# a)
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (W64# a#) = setWord8ArrayAsWord64# mba# o# n# a#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (W64# a#) = setWord64Addr# addr# n# a#
+  {-# INLINE setAddr# #-}
 
 
 instance Unbox Float where
@@ -658,11 +676,11 @@ instance Unbox Float where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (F# a#) = writeFloatOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# (F# f#) =
-    unsafePrimBase_ (memsetWord32MutableByteArray# mba# o# n# (W32# (floatToWord32# f#)))
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# (F# f#) =
-    unsafePrimBase_ (memsetWord32Addr# addr# o# n# (W32# (floatToWord32# f#)))
+  setByteOffMutableByteArray# mba# o# n# (F# f#) =
+    setWord8ArrayAsWord32# mba# o# n# (floatToWord32# f#)
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (F# f#) = setWord32Addr# addr# n# (floatToWord32# f#)
+  {-# INLINE setAddr# #-}
 
 instance Unbox Double where
   type UnboxIso Double = Double
@@ -693,12 +711,11 @@ instance Unbox Double where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (D# a#) = writeDoubleOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# (D# d#) =
-    unsafePrimBase_ (memsetWord64MutableByteArray# mba# o# n# (W64# (doubleToWord64# d#)))
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# (D# d#) =
-    unsafePrimBase_ (memsetWord64Addr# addr# o# n# (W64# (doubleToWord64# d#)))
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (D# d#) =
+    setWord8ArrayAsWord64# mba# o# n# (doubleToWord64# d#)
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (D# d#) = setWord64Addr# addr# n# (doubleToWord64# d#)
+  {-# INLINE setAddr# #-}
 
 bool2Int# :: Bool -> Int#
 bool2Int# b = if b then 1# else 0#
@@ -744,10 +761,11 @@ instance Unbox Char where
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (C# a#) = writeWideCharOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# (C# a#) = setMutableByteArray# mba# o# n# (I32# (ord# a#))
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# (C# a#) = setOffAddr# addr# o# n# (I32# (ord# a#))
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# mba# o# n# (C# a#) =
+    setByteOffMutableByteArray# mba# o# n# (I32# (ord# a#))
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# (C# a#) = setAddr# addr# n# (I32# (ord# a#))
+  {-# INLINE setAddr# #-}
 
 instance Unbox (Ptr a) where
   type UnboxIso (Ptr a) = Ptr a
@@ -779,16 +797,18 @@ instance Unbox (Ptr a) where
   writeOffAddr# mba# i# (Ptr a#) = writeAddrOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
 #if SIZEOF_HSPTR == SIZEOF_INT64
-  setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
-  setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I64# (addr2Int# a#))
+  setByteOffMutableByteArray# mba# o# n# (Ptr a#) =
+    setByteOffMutableByteArray# mba# o# n# (I64# (addr2Int# a#))
+  setAddr# addr# n# (Ptr a#) = setAddr# addr# n# (I64# (addr2Int# a#))
 #elif SIZEOF_HSPTR == SIZEOF_INT32
-  setMutableByteArray# mba# o# n# (Ptr a#) = setMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
-  setOffAddr# addr# o# n# (Ptr a#) = setOffAddr# addr# o# n# (I32# (addr2Int# a#))
+  setByteOffMutableByteArray# mba# o# n# (Ptr a#) =
+    setByteOffMutableByteArray# mba# o# n# (I32# (addr2Int# a#))
+  setAddr# addr# n# (Ptr a#) = setAddr# addr# n# (I32# (addr2Int# a#))
 #else
 #error Ptr is of unsupported size SIZEOF_HSPTR
 #endif
-  {-# INLINE setMutableByteArray# #-}
-  {-# INLINE setOffAddr# #-}
+  {-# INLINE setByteOffMutableByteArray# #-}
+  {-# INLINE setAddr# #-}
 
 instance Unbox (FunPtr a) where
   type UnboxIso (FunPtr a) = Ptr a
@@ -826,16 +846,18 @@ instance Unbox (StablePtr a) where
   writeOffAddr# mba# i# (StablePtr a#) = writeStablePtrOffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
 #if SIZEOF_HSSTABLEPTR == SIZEOF_INT64
-  setMutableByteArray# mba# o# n# (StablePtr a#) = setMutableByteArray# mba# o# n# (I64# (unsafeCoerce# a#))
-  setOffAddr# addr# o# n# (StablePtr a#) = setOffAddr# addr# o# n# (I64# (unsafeCoerce# a#))
+  setByteOffMutableByteArray# mba# o# n# (StablePtr a#) =
+    setByteOffMutableByteArray# mba# o# n# (I64# (unsafeCoerce# a#))
+  setAddr# addr# n# (StablePtr a#) = setAddr# addr# n# (I64# (unsafeCoerce# a#))
 #elif SIZEOF_HSSTABLEPTR == SIZEOF_INT32
-  setMutableByteArray# mba# o# n# (StablePtr a#) = setMutableByteArray# mba# o# n# (I32# (unsafeCoerce# a#))
-  setOffAddr# addr# o# n# (StablePtr a#) = setOffAddr# addr# o# n# (I32# (unsafeCoerce# a#))
+  setByteOffMutableByteArray# mba# o# n# (StablePtr a#) =
+    setByteOffMutableByteArray# mba# o# n# (I32# (unsafeCoerce# a#))
+  setAddr# addr# n# (StablePtr a#) = setAddr# addr# n# (I32# (unsafeCoerce# a#))
 #else
 #error StablePtr is of unsupported size SIZEOF_HSSTABLEPTR
 #endif
-  {-# INLINE setMutableByteArray# #-}
-  {-# INLINE setOffAddr# #-}
+  {-# INLINE setByteOffMutableByteArray# #-}
+  {-# INLINE setAddr# #-}
 
 
 instance Unbox IntPtr where
@@ -1312,13 +1334,12 @@ instance (Unbox a, Unbox b) => Unbox (a, b) where
         addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
     in writeOffAddr# addr1# 0# a1 (writeOffAddr# addr0# 0# a0 s)
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# = setMutableByteArrayLoop#
+  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
     -- TODO: optimize with rewrite rules?
-    --  | a0 == a1 = setMutableByteArray# mba# (o# *# 2#) (n# *# 2#) a0 s
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# = setOffAddrLoop#
-  {-# INLINE setOffAddr# #-}
-  --   | a0 == a1 = setOffAddr# addr# (o# *# 2#) (n# *# 2#) a0 s
+    --  | a0 == a1 = setByteOffMutableByteArray# mba# (o# *# 2#) (n# *# 2#) a0 s
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# = setAddrLoop#
+  {-# INLINE setAddr# #-}
 
 
 instance (Unbox a, Unbox b, Unbox c) => Unbox (a, b, c) where
@@ -1396,12 +1417,10 @@ instance (Unbox a, Unbox b, Unbox c) => Unbox (a, b, c) where
        (writeOffAddr# addr1# 0# a1
         (writeOffAddr# addr0# 0# a0 s))
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# = setMutableByteArrayLoop#
-    --  | a0 == a1 && a1 == a2 = setMutableByteArray# mba# (o# *# 3#) (n# *# 3#) a0 s
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# = setOffAddrLoop#
-    --  | a0 == a1 && a1 == a2 = setOffAddr# addr# (o# *# 3#) (n# *# 3#) a0 s
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# = setAddrLoop#
+  {-# INLINE setAddr# #-}
 
 -- TODO: Write optimized versions for larger tuples
 instance (Unbox a, Unbox b, Unbox c, Unbox d) => Unbox (a, b, c, d) where
@@ -1508,20 +1527,20 @@ instance Unbox a => Unbox (Maybe a) where
          Just a  ->
            writeOffAddr# (addr# `plusAddr#` (i0# +# 1#)) 0# a (writeInt8OffAddr# addr# i0# 1# s)
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# mba# o# n# mVal s =
+  setByteOffMutableByteArray# mba# o# n# mVal s =
     case mVal of
       Nothing ->
         let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
-        in setByteArray# mba# (o# *# k#) (n# *# k#) 0# s
-      _       -> setMutableByteArrayLoop# mba# o# n# mVal s
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# addr# o# n# mVal s =
+        in setByteArray# mba# o# (n# *# k#) 0# s
+      _       -> setByteOffMutableByteArrayLoop# mba# o# n# mVal s
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# addr# n# mVal s =
     case mVal of
       Nothing ->
         let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
-        in setOffAddr# addr# (o# *# k#) (n# *# k#) (I8# 0#) s
-      _       ->  setOffAddrLoop# addr# o# n# mVal s
-  {-# INLINE setOffAddr# #-}
+        in setAddr# addr# (n# *# k#) (I8# 0#) s
+      _       ->  setAddrLoop# addr# n# mVal s
+  {-# INLINE setAddr# #-}
 
 maxInt# :: Int# -> Int# -> Int#
 maxInt# x# y# =
@@ -1608,33 +1627,50 @@ instance (Unbox a, Unbox b) => Unbox (Either a b) where
            setOffAddr# addr1# b# (maxInt# 0# (a# -# b#)) (I8# 0#)
            (writeOffAddr# addr1# 0# b (writeInt8OffAddr# addr0# 0# 1# s))
   {-# INLINE writeOffAddr# #-}
-  setMutableByteArray# = setMutableByteArrayLoop#
-  {-# INLINE setMutableByteArray# #-}
-  setOffAddr# = setOffAddrLoop#
-  {-# INLINE setOffAddr# #-}
+  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
+  {-# INLINE setByteOffMutableByteArray# #-}
+  setAddr# = setAddrLoop#
+  {-# INLINE setAddr# #-}
 
 
--- | A loop that uses `writeMutableByteArray#` to set the values in the region. It is a
+-- | A loop that uses `writeByteOffMutableByteArray#` to set the values in the region. It is a
 -- suboptimal way to fill the memory with a single value that is why it is only provided
 -- here for convenience
-setMutableByteArrayLoop# ::
-     Unbox a => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-setMutableByteArrayLoop# mba# o# n# a = go o#
+setByteOffMutableByteArrayLoop# ::
+     forall a s. Unbox a
+  => MutableByteArray# s
+  -> Int#
+  -> Int#
+  -> a
+  -> State# s
+  -> State# s
+setByteOffMutableByteArrayLoop# mba# o# n# a = go o#
   where
-    k# = o# +# n#
+    sz# = sizeOf# (proxy# :: Proxy# a)
+    k# = o# +# n# *# sz#
     go i# s
-      | isTrue# (i# <# k#) = go (i# +# 1#) (writeMutableByteArray# mba# i# a s)
+      | isTrue# (i# <# k#) = go (i# +# sz#) (writeByteOffMutableByteArray# mba# i# a s)
       | otherwise = s
-{-# INLINE setMutableByteArrayLoop# #-}
+{-# INLINE setByteOffMutableByteArrayLoop# #-}
 
-setOffAddrLoop# :: Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-setOffAddrLoop# addr# o# n# a = go o#
+
+-- setAddrLoop# :: forall a s. Unbox a => Addr# -> Int# -> a -> State# s -> State# s
+-- setAddrLoop# addr0# n# a = go addr0# n#
+--   where
+--     k# = sizeOf# (Proxy# :: Proxy# a)
+--     go addr# i# s
+--       | isTrue# (i# >=# 0#) = go (addr# `plusAddr#` k#) (i# -# 1#) (writeOffAddr# addr# 0# a s)
+--       | otherwise = s
+-- {-# INLINE setAddrLoop# #-}
+
+
+setAddrLoop# :: Unbox a => Addr# -> Int# -> a -> State# s -> State# s
+setAddrLoop# addr# n# a = go 0#
   where
-    k# = o# +# n#
     go i# s
-      | isTrue# (i# <# k#) = go (i# +# 1#) (writeOffAddr# addr# i# a s)
+      | isTrue# (i# <# n#) = go (i# +# 1#) (writeOffAddr# addr# i# a s)
       | otherwise = s
-{-# INLINE setOffAddrLoop# #-}
+{-# INLINE setAddrLoop# #-}
 
 
 errorImpossible :: String -> String -> a

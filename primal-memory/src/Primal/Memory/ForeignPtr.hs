@@ -110,6 +110,9 @@ instance MemWrite (MForeignPtr e) where
     withMForeignPtr fdst $ \dstPtr ->
       moveByteOffToPtrMutMemST src srcOff (castPtr dstPtr) dstOff c
   {-# INLINE moveByteOffMutMemST #-}
+  setByteOffMutMemST fptr off c a =
+    withMForeignPtr fptr $ \ptr -> setByteOffPtr (castPtr ptr) off c a
+  {-# INLINE setByteOffMutMemST #-}
   setMutMemST fptr off c a =
     withMForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMutMemST #-}
