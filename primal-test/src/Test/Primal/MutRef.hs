@@ -298,7 +298,6 @@ specAtomicBitsMutRef ::
      , AtomicBitsElt mr e
      , AtomicElt mr e
      , Elt mr e
-     , Elt mr e
      )
   => Spec
 specAtomicBitsMutRef = do

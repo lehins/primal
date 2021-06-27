@@ -86,7 +86,7 @@ class MutRef mr => AtomicMutRef mr where
 
   -- | Perform atomic an modification of an element in a mutable structure.
   --
-  -- @since 0.1.0
+  -- @since 1.0.0
   atomicModifyMutRefST ::
        AtomicElt mr e
     => mr e s -- ^ Variable to be mutated
@@ -111,7 +111,7 @@ class MutRef mr => AtomicMutRef mr where
   -- | Perform atomic modification of an element in a mutable structure and return the
   -- previous value.
   --
-  -- @since 0.1.0
+  -- @since 1.0.0
   atomicModifyFetchOldMutRefST ::
        AtomicElt mr e
     => mr e s -- ^ Variable to be mutated
@@ -123,7 +123,7 @@ class MutRef mr => AtomicMutRef mr where
   -- | Perform atomic modification of an element in a mutable structure and return the
   -- new value.
   --
-  -- @since 0.1.0
+  -- @since 1.0.0
   atomicModifyFetchNewMutRefST ::
        AtomicElt mr e
     => mr e s -- ^ Variable to be mutated
@@ -149,13 +149,13 @@ class AtomicMutRef mr => AtomicCountMutRef mr where
   atomicAddFetchNewMutRefST mut !y = atomicModifyFetchNewMutRefST mut (+ y)
   {-# INLINE atomicAddFetchNewMutRefST #-}
 
-  atomicSubFetchOldMutRefST :: (AtomicCountElt mr e) => mr e s -> e -> ST s e
+  atomicSubFetchOldMutRefST :: AtomicCountElt mr e => mr e s -> e -> ST s e
   default atomicSubFetchOldMutRefST
     :: (AtomicCountElt mr e, AtomicElt mr e, Num e) => mr e s -> e -> ST s e
   atomicSubFetchOldMutRefST mut !y = atomicModifyFetchOldMutRefST mut (subtract y)
   {-# INLINE atomicSubFetchOldMutRefST #-}
 
-  atomicSubFetchNewMutRefST :: (AtomicCountElt mr e) => mr e s -> e -> ST s e
+  atomicSubFetchNewMutRefST :: AtomicCountElt mr e => mr e s -> e -> ST s e
   default atomicSubFetchNewMutRefST
     :: (AtomicCountElt mr e, AtomicElt mr e, Num e) => mr e s -> e -> ST s e
   atomicSubFetchNewMutRefST mut !y = atomicModifyFetchNewMutRefST mut (subtract y)
