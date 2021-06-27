@@ -51,7 +51,7 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 --
 -- === Note
 --
--- This is an identical class to
+-- This is an almost identical class to
 -- [MonadThrow](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:MonadThrow)
 -- from @exceptions@ package. The reason why it was copied, instead of a direct dependency
 -- on the aforementioned package is because @MonadCatch@ and @MonadMask@ are not right
@@ -60,7 +60,7 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 class Monad m => MonadThrow m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
-  -- "Control.Prim.Exception"'s 'Control.Prim.Exception.throw'.
+  -- "Primal.Exception"'s 'Primal.Exception.throw'.
   --
   throwM :: Exception e => e -> m a
 
