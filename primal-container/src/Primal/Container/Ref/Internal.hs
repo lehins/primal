@@ -243,7 +243,7 @@ newRawMutRef = liftST newRawMutRefST
 {-# INLINE newRawMutRef #-}
 
 readMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> m e
-readMutRef = liftST . readMutRef
+readMutRef = liftST . readMutRefST
 {-# INLINE readMutRef #-}
 
 writeMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> e -> m ()

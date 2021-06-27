@@ -135,10 +135,12 @@ instance MutFreeze (UMArray e) where
 -- | Convert a pure immutable type into the corresponding mutable one. Most likely
 -- it will be implemented as type cast without any data copy.
 --
--- [Unsafe] This function might make it possible to break referential transparency,
--- because any subsequent destructive operation to the returned mutable type will
--- also be reflected in the source immutable type as well. Use `thawClone` instead,
--- which avoids this problem with fresh allocation and efficient data copy.
+-- [Unsafe] This function is extremly unsafe, because not only it can make it possible to
+-- break referential transparency, but also ghc can float thawing operation in such a way
+-- that same buffer is used in in different thawing operations. Also any subsequent
+-- destructive operation to the returned mutable type will also be reflected in the source
+-- immutable type as well. Use `thawClone` instead, which avoids these problem with fresh
+-- allocation and efficient data copy.
 --
 -- @since 1.0.0
 thaw ::
@@ -151,7 +153,7 @@ thaw = liftST . thawST
 -- | Convert a mutable type into the corresponding immutable one. Most likely it
 -- will be implemented as type cast without any data copy.
 --
--- [Unsafe] This function might make it possible to break referential transparency,
+-- [Unsafe] This function can make it possible to break referential transparency,
 -- because any subsequent destructive operation to the source mutable type will also
 -- be reflected in the result immutable type as well. Use `freezeCloneMut` instead,
 -- which avoids this problem with fresh allocation and efficient data copy.

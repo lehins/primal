@@ -459,7 +459,7 @@ atomicModifyMutRef ::
   => mr e s -- ^ Variable to be mutated
   -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
   -> m b
-atomicModifyMutRef mut = liftST . atomicModifyMutRef mut
+atomicModifyMutRef mut = liftST . atomicModifyMutRefST mut
 {-# INLINE atomicModifyMutRef #-}
 
 -- | Perform atomic modification of an element in a mutable structure and return the
@@ -471,7 +471,7 @@ atomicModifyFetchOldMutRef ::
   => mr e s -- ^ Variable to be mutated
   -> (e -> e) -- ^ Function to be applied atomically to the element
   -> m e
-atomicModifyFetchOldMutRef mut = liftST . atomicModifyFetchOldMutRef mut
+atomicModifyFetchOldMutRef mut = liftST . atomicModifyFetchOldMutRefST mut
 {-# INLINE atomicModifyFetchOldMutRef #-}
 
 -- | Perform atomic modification of an element in a mutable structure and return the
@@ -483,7 +483,7 @@ atomicModifyFetchNewMutRef ::
   => mr e s -- ^ Variable to be mutated
   -> (e -> e) -- ^ Function to be applied atomically to the element
   -> m e
-atomicModifyFetchNewMutRef mut = liftST . atomicModifyFetchNewMutRef mut
+atomicModifyFetchNewMutRef mut = liftST . atomicModifyFetchNewMutRefST mut
 {-# INLINE atomicModifyFetchNewMutRef #-}
 
 
@@ -572,7 +572,7 @@ atomicXorFetchOldMutRef ::
   => mr e s
   -> e
   -> m e
-atomicXorFetchOldMutRef mut = liftST . atomicXorFetchOldMutRef mut
+atomicXorFetchOldMutRef mut = liftST . atomicXorFetchOldMutRefST mut
 {-# INLINE atomicXorFetchOldMutRef #-}
 
 atomicXorFetchNewMutRef ::
