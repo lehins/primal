@@ -96,7 +96,7 @@ expectWriteReadAtomicMutRef mut e' = do
 
 prop_opFetchOldMutRef ::
      forall mr e. (Eq e, Show e, Arbitrary e, Elt mr e, MutRef mr)
-  => (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+  => (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
   -> (e -> e -> e) -- ^ Pure version
   -> e
   -> Property
@@ -113,7 +113,7 @@ prop_opFetchOldMutRef opMutRef op x =
 
 prop_opFetchNewMutRef ::
      forall mr e. (Eq e, Show e, Arbitrary e, Elt mr e, MutRef mr)
-  => (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+  => (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
   -> (e -> e -> e) -- ^ Pure version
   -> e
   -> Property
@@ -150,7 +150,7 @@ prop_CASMutRef x y = forAllMutRef @mr @e arbitrary $ \ e' ref -> do
 
 asyncAssociativeProp ::
      forall mr e. (Eq e, Show e, Arbitrary e, Elt mr e, AtomicElt mr e, AtomicMutRef mr)
-  => (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+  => (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
   -> (e -> e -> e) -- ^ Pure version
   -> Property
 asyncAssociativeProp opMutRef op =
@@ -164,7 +164,7 @@ asyncAssociativeProp opMutRef op =
 
 asyncAssociativeCommutativeOldProp ::
      forall mr e. (Eq e, Show e, Arbitrary e, Elt mr e, AtomicElt mr e, AtomicMutRef mr)
-  => (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+  => (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
   -> (e -> e -> e) -- ^ Pure version
   -> Property
 asyncAssociativeCommutativeOldProp opMutRef op =
@@ -181,7 +181,7 @@ asyncAssociativeCommutativeOldProp opMutRef op =
 
 -- asyncAssociativeCommutativeNewProp ::
 --      forall mr e. (Eq e, Show e, Arbitrary e, AtomicMutRef mr e)
---   => (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+--   => (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
 --   -> (e -> e -> e) -- ^ Pure version
 --   -> Property
 -- asyncAssociativeCommutativeNewProp opMutRef op =
@@ -204,11 +204,11 @@ asyncProp ::
       (e, [a]) ->
       (e, [a]) ->
       Expectation)
-  -> (forall m s . MonadPrim s m => mr e s -> (e -> e) -> m a)
+  -> (forall m s . Primal s m => mr e s -> (e -> e) -> m a)
   -- ^ Modification
-  -> (forall m s . MonadPrim s m => mr e s -> (e -> e) -> m a)
+  -> (forall m s . Primal s m => mr e s -> (e -> e) -> m a)
   -- ^ Atomic modification
-  -> (forall m s . MonadPrim s m => mr e s -> e -> m e) -- ^ Monadic version
+  -> (forall m s . Primal s m => mr e s -> e -> m e) -- ^ Monadic version
   -> (e -> e -> e) -- ^ Pure version
   -> Property
 asyncProp extraExp modMutRef atomicModMutRef opMutRef op =

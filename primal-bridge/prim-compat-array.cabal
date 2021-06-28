@@ -44,7 +44,7 @@ library
 executable primal-compat-array
   main-is: Main.hs
   other-modules:
-      Paths_prim_compat_array
+      Paths_primal_compat_array
   hs-source-dirs:     app
   ghc-options:        -Wall
                       -O2

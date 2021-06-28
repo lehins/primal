@@ -56,7 +56,7 @@ instance MutEq T.MArray where
 --
 -- @since 1.0.0
 eqMut ::
-     forall mut m s. (MutEq mut, MonadPrim s m)
+     forall mut m s. (MutEq mut, Primal s m)
   => mut s
   -> mut s
   -> m Bool

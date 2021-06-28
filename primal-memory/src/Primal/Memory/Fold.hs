@@ -386,7 +386,7 @@ eqOffMemBinary m1 off1 m2 off2 count =
 #-}
 
 eqOffMutMem ::
-     forall e ma1 ma2 m s. (Unbox e, Eq e, MonadPrim s m, MemWrite ma1, MemWrite ma2)
+     forall e ma1 ma2 m s. (Unbox e, Eq e, Primal s m, MemWrite ma1, MemWrite ma2)
   => ma1 s
   -> Off e
   -> ma2 s
@@ -412,7 +412,7 @@ eqOffMutMem mm1 off1 mm2 off2 count = loop off1
 -- modified, as such it is semantically similar to `eqMem` which works on immutable
 -- regions.
 eqMutMem ::
-     forall e ma m s. (Unbox e, Eq e, MonadPrim s m, MemAlloc ma)
+     forall e ma m s. (Unbox e, Eq e, Primal s m, MemAlloc ma)
   => ma s
   -> ma s
   -> m Bool

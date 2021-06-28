@@ -455,7 +455,7 @@ makeArray sz f = runST $ makeArrayM sz (pure . f)
 {-# INLINE makeArray #-}
 
 makeArrayM ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (Array ma e)
@@ -466,7 +466,7 @@ makeArrayM sz@(Size n) f =
 {-# INLINE makeArrayM #-}
 
 createArrayM ::
-     forall ma e b m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e b m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (ma e s -> m b)
   -> m (b, Array ma e)
@@ -475,7 +475,7 @@ createArrayM sz f =
 {-# INLINE createArrayM #-}
 
 createArrayM_ ::
-     forall ma e b m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e b m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (ma e s -> m b)
   -> m (Array ma e)
@@ -522,7 +522,7 @@ createArrayST_ sz f = runST $ createArrayM_ sz f
 --
 -- @since 0.1.0
 makeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (ma e s)
@@ -538,7 +538,7 @@ makeMutArray sz@(Size n) f = do
 -- --
 -- -- @since 0.1.0
 -- traverseArray ::
---      (MutArray ma, Elt ma e, Elt ma e', MonadPrim s m)
+--      (MutArray ma, Elt ma e, Elt ma e', Primal s m)
 --   => (e -> m e')
 --   -> Array ma e
 --   -> m (Frozen (ma e'))
@@ -552,14 +552,14 @@ makeMutArray sz@(Size n) f = do
 --
 -- @since 1.0.0
 getSizeOfMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> m Size
 getSizeOfMutArray = liftST . getSizeOfMutArrayST
 {-# INLINE getSizeOfMutArray #-}
 
 newRawMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> m (ma e s)
 newRawMutArray = liftST . newRawMutArrayST
@@ -582,7 +582,7 @@ newRawMutArray = liftST . newRawMutArrayST
 --
 -- @since 0.1.0
 readMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s -- ^ Array to read element from
   -> Int
   -- ^ Offset into the array
@@ -596,7 +596,7 @@ readMutArray ma = liftST . readMutArrayST ma
 --
 -- @since 0.1.0
 writeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s -- ^ Array to write an element into
   -> Int
   -- ^ Offset into the array
@@ -619,7 +619,7 @@ writeMutArray ma i = liftST . writeMutArrayST ma i
 --
 -- @since 0.1.0
 copyArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Array ma e -- ^ Source immutable array
   -> Int -- ^ Offset into the source immutable array
   -> ma e s -- ^ Destination mutable array
@@ -641,7 +641,7 @@ copyArray ma ia mb ib = liftST . copyArrayST ma ia mb ib
 --
 -- @since 0.1.0
 moveMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
   -> ma e s -- ^ Destination mutable array
@@ -652,7 +652,7 @@ moveMutArray ma ia mb ib = liftST . moveMutArrayST ma ia mb ib
 {-# INLINE moveMutArray #-}
 
 cloneSliceMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -661,7 +661,7 @@ cloneSliceMutArray ma i = liftST . cloneSliceMutArrayST ma i
 {-# INLINE cloneSliceMutArray #-}
 
 newMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> e
   -> m (ma e s)
@@ -669,7 +669,7 @@ newMutArray k = liftST . newMutArrayST k
 {-# INLINE newMutArray #-}
 
 thawCopyArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Array ma e
   -> Int
   -> Size
@@ -678,7 +678,7 @@ thawCopyArray a i = liftST . thawCopyArrayST a i
 {-# INLINE thawCopyArray #-}
 
 freezeCopyMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -687,7 +687,7 @@ freezeCopyMutArray ma i = liftST . freezeCopyMutArrayST ma i
 {-# INLINE freezeCopyMutArray #-}
 
 setMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -697,7 +697,7 @@ setMutArray ma i k = liftST . setMutArrayST ma i k
 {-# INLINE setMutArray #-}
 
 shrinkMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Size
   -> m (ma e s)
@@ -705,7 +705,7 @@ shrinkMutArray ma = liftST . shrinkMutArrayST ma
 {-# INLINE shrinkMutArray #-}
 
 resizeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Size
   -> m (ma e s)
@@ -730,7 +730,7 @@ resizeMutArray ma = liftST . resizeMutArrayST ma
 --
 -- @since 0.1.0
 thawArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Array ma e -- ^ Immutable array to thaw
   -> m (ma e s)
   -- ^ Thawed mutable array. Any mutation will also affect the source immutable array
@@ -744,7 +744,7 @@ thawArray = liftST . thawArrayST
 --
 -- @since 0.1.0
 freezeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, MonadPrim s m)
+     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -- ^ Mutable array to freeze. Any further mutation will also affect the immutable
   -- array

@@ -132,34 +132,34 @@ instance Unbox e => Unbox (Atom e) where
   {-# INLINE setAddr# #-}
 
 
-acquireLockByteOffMutableByteArray :: MonadPrim s m => MutableByteArray# s -> Int# -> m ()
+acquireLockByteOffMutableByteArray :: Primal s m => MutableByteArray# s -> Int# -> m ()
 acquireLockByteOffMutableByteArray mba# i# =
   let go = do
-        locked <- unsafeIOToPrim $ syncLockTestSetInt8ArrayIO mba# i#
+        locked <- unsafeIOToPrimal $ syncLockTestSetInt8ArrayIO mba# i#
         unless (locked == 0) $ yield >> go
    in go
 {-# INLINE acquireLockByteOffMutableByteArray #-}
 
-releaseLockByteOffMutableByteArray :: MonadPrim s m => MutableByteArray# s -> Int# -> m ()
+releaseLockByteOffMutableByteArray :: Primal s m => MutableByteArray# s -> Int# -> m ()
 releaseLockByteOffMutableByteArray mba# i# =
-  unsafeIOToPrim $ syncLockReleaseInt8ArrayIO mba# i#
+  unsafeIOToPrimal $ syncLockReleaseInt8ArrayIO mba# i#
 {-# INLINE releaseLockByteOffMutableByteArray #-}
 
 
-acquireLockByteOffAddr :: MonadPrim s m => Addr# -> Int# -> m ()
+acquireLockByteOffAddr :: Primal s m => Addr# -> Int# -> m ()
 acquireLockByteOffAddr addr# i# =
   let go = do
-        locked <- unsafeIOToPrim $ syncLockTestSetInt8AddrIO addr# i#
+        locked <- unsafeIOToPrimal $ syncLockTestSetInt8AddrIO addr# i#
         unless (locked == 0) $ yield >> go
    in go
 {-# INLINE acquireLockByteOffAddr #-}
 
-releaseLockByteOffAddr :: MonadPrim s m => Addr#-> Int# -> m ()
-releaseLockByteOffAddr addr# i# = unsafeIOToPrim $ syncLockReleaseInt8AddrIO addr# i#
+releaseLockByteOffAddr :: Primal s m => Addr#-> Int# -> m ()
+releaseLockByteOffAddr addr# i# = unsafeIOToPrimal $ syncLockReleaseInt8AddrIO addr# i#
 {-# INLINE releaseLockByteOffAddr #-}
 
 withLockMutableByteArray ::
-     forall e a m. (Unbox e, MonadUnliftPrim RW m)
+     forall e a m. (Unbox e, UnliftPrimal RW m)
   => MutableByteArray# RealWorld
   -> Int#
   -> (Atom e -> m (Atom e, a))
@@ -170,9 +170,9 @@ withLockMutableByteArray mba# i# f =
    in bracket_
         (acquireLockByteOffMutableByteArray mba# li0#)
         (releaseLockByteOffMutableByteArray mba# li0#) $ do
-      a <- prim (readByteOffMutableByteArray# mba# li#)
+      a <- primal (readByteOffMutableByteArray# mba# li#)
       (Atom a', b) <- f (Atom a)
-      b <$ prim_ (writeByteOffMutableByteArray# mba# li# a')
+      b <$ primal_ (writeByteOffMutableByteArray# mba# li# a')
 {-# INLINABLE withLockMutableByteArray #-}
 
 
@@ -180,13 +180,13 @@ withLockMutableByteArray mba# i# f =
 -- overwrite the contnts in the midst of reading, resulting in a value with contents
 -- from both values part before and part after the write.
 atomicReadAtomMutableByteArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => MutableByteArray# s
   -> Int#
   -> m (Atom e)
 atomicReadAtomMutableByteArray mba# i# =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffMutableByteArray mba# li#
         r :: e <- ST (readByteOffMutableByteArray# mba# (1# +# li#))
         coerce r <$ releaseLockByteOffMutableByteArray mba# li#
@@ -195,16 +195,16 @@ atomicReadAtomMutableByteArray mba# i# =
 -- | Values are no longer guaranteed to be one word in size, as such in order for writes
 -- to be atomic we require locking.
 atomicWriteAtomMutableByteArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => MutableByteArray# s
   -> Int#
   -> Atom e
   -> m ()
 atomicWriteAtomMutableByteArray mba# i# (Atom a) =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffMutableByteArray mba# li#
-        prim_ (writeByteOffMutableByteArray# mba# (1# +# li#) a)
+        primal_ (writeByteOffMutableByteArray# mba# (1# +# li#) a)
         releaseLockByteOffMutableByteArray mba# li# :: ST s ()
 {-# INLINABLE atomicWriteAtomMutableByteArray #-}
 
@@ -212,13 +212,13 @@ atomicWriteAtomMutableByteArray mba# i# (Atom a) =
 
 -- | Same as `atomicReadAtomMutableByteArray`, but for `Addr#` with offset
 atomicReadAtomOffAddr ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Addr#
   -> Int#
   -> m (Atom e)
 atomicReadAtomOffAddr mba# i# =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffAddr mba# li#
         r :: e <- ST (readOffAddr# mba# (1# +# li#))
         coerce r <$ releaseLockByteOffAddr mba# li#
@@ -226,7 +226,7 @@ atomicReadAtomOffAddr mba# i# =
 
 -- | Same as `atomicWriteAtomMutableByteArray`, but for `Addr#` with offset
 atomicWriteAtomOffAddr ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Addr#
   -> Int#
   -> Atom e
@@ -235,9 +235,9 @@ atomicWriteAtomOffAddr addr# i# (Atom a) =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       lockAddr# = addr# `plusAddr#` li#
       valAddr# = lockAddr# `plusAddr#` 1#
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffAddr lockAddr# 0#
-        prim_ (writeOffAddr# valAddr# 0# a)
+        primal_ (writeOffAddr# valAddr# 0# a)
         releaseLockByteOffAddr lockAddr# 0# :: ST s ()
 {-# INLINABLE atomicWriteAtomOffAddr #-}
 
@@ -255,21 +255,21 @@ withLockOffAddr addr# i# f =
    in bracket_
         (acquireLockByteOffAddr addr# li#)
         (releaseLockByteOffAddr addr# li#) $ do
-      a <- prim (readOffAddr# offAddr# 0#)
+      a <- primal (readOffAddr# offAddr# 0#)
       (Atom a', b) <- f (Atom a)
-      b <$ prim_ (writeOffAddr# offAddr# 0# a')
+      b <$ primal_ (writeOffAddr# offAddr# 0# a')
 {-# INLINABLE withLockOffAddr #-}
 
 
 atomicModifyAtomMutableByteArray ::
-     forall e a m s. (Unbox e, MonadPrim s m)
+     forall e a m s. (Unbox e, Primal s m)
   => MutableByteArray# s
   -> Int#
   -> (Atom e -> (# Atom e, a #))
   -> m a
 atomicModifyAtomMutableByteArray mba# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffMutableByteArray mba# li#
         r <- ST $ \s ->
           case readByteOffMutableByteArray# mba# (1# +# li#) s of
@@ -281,7 +281,7 @@ atomicModifyAtomMutableByteArray mba# i# f =
 {-# INLINE atomicModifyAtomMutableByteArray  #-}
 
 atomicModifyAtomOffAddr ::
-     forall e a m s. (Unbox e, MonadPrim s m)
+     forall e a m s. (Unbox e, Primal s m)
   => Addr#
   -> Int#
   -> (Atom e -> (# Atom e, a #))
@@ -289,7 +289,7 @@ atomicModifyAtomOffAddr ::
 atomicModifyAtomOffAddr addr# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       offAddr# = addr# `plusAddr#` (1# +# li#)
-   in uninterruptibleMaskPrimBase_ $ do
+   in uninterruptibleMaskPrimalState_ $ do
         acquireLockByteOffAddr addr# li#
         r <- ST $ \s ->
           case readOffAddr# offAddr# 0# s of

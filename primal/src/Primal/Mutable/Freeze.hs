@@ -144,7 +144,7 @@ instance MutFreeze (UMArray e) where
 --
 -- @since 1.0.0
 thaw ::
-     forall mut m s. (MutFreeze mut, MonadPrim s m)
+     forall mut m s. (MutFreeze mut, Primal s m)
   => Frozen mut
   -> m (mut s)
 thaw = liftST . thawST
@@ -160,7 +160,7 @@ thaw = liftST . thawST
 --
 -- @since 1.0.0
 freezeMut ::
-     forall mut m s. (MutFreeze mut, MonadPrim s m)
+     forall mut m s. (MutFreeze mut, Primal s m)
   => mut s
   -> m (Frozen mut)
 freezeMut = liftST . freezeMutST
@@ -171,7 +171,7 @@ freezeMut = liftST . freezeMutST
 --
 -- @since 1.0.0
 cloneMut ::
-     forall mut m s. (MutFreeze mut, MonadPrim s m)
+     forall mut m s. (MutFreeze mut, Primal s m)
   => mut s
   -> m (mut s)
 cloneMut = liftST . cloneMutST
@@ -182,7 +182,7 @@ cloneMut = liftST . cloneMutST
 --
 -- @since 1.0.0
 thawClone ::
-     forall mut m s. (MutFreeze mut, MonadPrim s m)
+     forall mut m s. (MutFreeze mut, Primal s m)
   => Frozen mut
   -> m (mut s)
 thawClone = liftST . thawCloneST
@@ -193,7 +193,7 @@ thawClone = liftST . thawCloneST
 --
 -- @since 1.0.0
 freezeCloneMut ::
-     forall mut m s. (MutFreeze mut, MonadPrim s m)
+     forall mut m s. (MutFreeze mut, Primal s m)
   => mut s
   -> m (Frozen mut)
 freezeCloneMut = liftST . freezeCloneMutST

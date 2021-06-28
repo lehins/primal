@@ -88,9 +88,9 @@ isSameMVar (MVar mvar1#) (MVar mvar2#) = isTrue# (sameMVar# mvar1# mvar2#)
 -- | Checks whether supplied `MVar` is empty.
 --
 -- @since 0.3.0
-isEmptyMVar :: forall a m s. MonadPrim s m => MVar a s -> m Bool
+isEmptyMVar :: forall a m s. Primal s m => MVar a s -> m Bool
 isEmptyMVar (MVar mvar#) =
-  prim $ \s ->
+  primal $ \s ->
     case isEmptyMVar# mvar# s of
       (# s', isEmpty# #) -> (# s', isTrue# isEmpty# #)
 {-# INLINE isEmptyMVar #-}
@@ -99,16 +99,16 @@ isEmptyMVar (MVar mvar#) =
 -- | Construct an `MVar` with initial value in it, which is evaluated to WHNF
 --
 -- @since 0.3.0
-newMVar :: forall a m s. MonadPrim s m => a -> m (MVar a s)
+newMVar :: forall a m s. Primal s m => a -> m (MVar a s)
 newMVar a = newEmptyMVar >>= \mvar -> mvar <$ putMVar mvar a
 {-# INLINE newMVar #-}
 
 -- | Construct an `MVar` with initial value in it.
 --
--- Same as `Control.Concurrent.MVar.newMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.newMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-newLazyMVar :: forall a m s. MonadPrim s m => a -> m (MVar a s)
+newLazyMVar :: forall a m s. Primal s m => a -> m (MVar a s)
 newLazyMVar a = newEmptyMVar >>= \mvar -> mvar <$ putLazyMVar mvar a
 {-# INLINE newLazyMVar #-}
 
@@ -116,19 +116,19 @@ newLazyMVar a = newEmptyMVar >>= \mvar -> mvar <$ putLazyMVar mvar a
 -- | Construct an `MVar` with initial value in it.
 --
 -- @since 0.3.0
-newDeepMVar :: forall a m s. (NFData a, MonadPrim s m) => a -> m (MVar a s)
+newDeepMVar :: forall a m s. (NFData a, Primal s m) => a -> m (MVar a s)
 newDeepMVar a = newEmptyMVar >>= \mvar -> mvar <$ putDeepMVar mvar a
 {-# INLINE newDeepMVar #-}
 
 
 -- | Construct an empty `MVar`.
 --
--- Same as `Control.Concurrent.MVar.newEmptyMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.newEmptyMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-newEmptyMVar :: forall a m s. MonadPrim s m => m (MVar a s)
+newEmptyMVar :: forall a m s. Primal s m => m (MVar a s)
 newEmptyMVar =
-  prim $ \s ->
+  primal $ \s ->
     case newMVar# s of
       (# s', mvar# #) -> (# s', MVar mvar# #)
 {-# INLINE newEmptyMVar #-}
@@ -139,25 +139,25 @@ newEmptyMVar =
 -- it.
 --
 -- @since 0.3.0
-putMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m ()
+putMVar :: forall a m s. Primal s m => MVar a s -> a -> m ()
 putMVar mvar x = putLazyMVar (x `seq` mvar) x
 {-# INLINE putMVar #-}
 
 
 -- | Same as `putMVar`, but allows to write a thunk into an MVar.
 --
--- Same as `Control.Concurrent.MVar.putMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.putMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-putLazyMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m ()
-putLazyMVar (MVar mvar#) x = prim_ (putMVar# mvar# x)
+putLazyMVar :: forall a m s. Primal s m => MVar a s -> a -> m ()
+putLazyMVar (MVar mvar#) x = primal_ (putMVar# mvar# x)
 {-# INLINE putLazyMVar #-}
 
 
 -- | Same as putMVar, but evaluates the argument to NF prior to writing it.
 --
 -- @since 0.3.0
-putDeepMVar :: forall a m s. (NFData a, MonadPrim s m) => MVar a s -> a -> m ()
+putDeepMVar :: forall a m s. (NFData a, Primal s m) => MVar a s -> a -> m ()
 putDeepMVar mvar x = putLazyMVar (x `deepseq` mvar) x
 {-# INLINE putDeepMVar #-}
 
@@ -168,18 +168,18 @@ putDeepMVar mvar x = putLazyMVar (x `deepseq` mvar) x
 -- attempting a write operation.
 --
 -- @since 0.3.0
-tryPutMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m Bool
+tryPutMVar :: forall a m s. Primal s m => MVar a s -> a -> m Bool
 tryPutMVar mvar x = tryPutLazyMVar (x `seq` mvar) x
 {-# INLINE tryPutMVar #-}
 
 -- | Same as `tryPutMVar`, but allows to put thunks into an `MVar`
 --
--- Same as `Control.Concurrent.MVar.tryPutMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.tryPutMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-tryPutLazyMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m Bool
+tryPutLazyMVar :: forall a m s. Primal s m => MVar a s -> a -> m Bool
 tryPutLazyMVar (MVar mvar#) x =
-  prim $ \s ->
+  primal $ \s ->
     case tryPutMVar# mvar# x s of
       (# s', b# #) -> (# s', isTrue# b# #)
 {-# INLINE tryPutLazyMVar #-}
@@ -189,7 +189,7 @@ tryPutLazyMVar (MVar mvar#) x =
 -- into the `MVar`
 --
 -- @since 0.3.0
-tryPutDeepMVar :: forall a m s. (NFData a, MonadPrim s m) => MVar a s -> a -> m Bool
+tryPutDeepMVar :: forall a m s. (NFData a, Primal s m) => MVar a s -> a -> m Bool
 tryPutDeepMVar mvar x = tryPutLazyMVar mvar $! force x
 {-# INLINE tryPutDeepMVar #-}
 
@@ -201,9 +201,9 @@ tryPutDeepMVar mvar x = tryPutLazyMVar mvar $! force x
 -- is evaluated to WHNF prior to clearing the contents of `MVar`
 --
 -- @since 0.3.0
-writeMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m ()
+writeMVar :: forall a m s. Primal s m => MVar a s -> a -> m ()
 writeMVar mvar a =
-  maskPrimBase_ $ do
+  maskPrimalState_ $ do
     clearMVar (a `seq` mvar)
     putLazyMVar mvar a :: ST s ()
 {-# INLINE writeMVar #-}
@@ -218,21 +218,21 @@ writeMVar mvar a =
 -- other words this operation is not atomic.
 --
 -- @since 0.3.0
-swapMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m a
+swapMVar :: forall a m s. Primal s m => MVar a s -> a -> m a
 swapMVar mvar new =
-  maskPrimBase_ $ do
+  maskPrimalState_ $ do
     old <- takeMVar (new `seq` mvar)
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapMVar #-}
 
 -- | Same as `swapMVar`, but allows writing thunks into the `MVar`.
 --
--- Same as `Control.Concurrent.MVar.swapMVar` from @base@, but works in any `MonadUnliftPrim`.
+-- Same as `Control.Concurrent.MVar.swapMVar` from @base@, but works in any `UnliftPrimal`.
 --
 -- @since 0.3.0
-swapLazyMVar :: forall a m s. MonadPrim s m => MVar a s -> a -> m a
+swapLazyMVar :: forall a m s. Primal s m => MVar a s -> a -> m a
 swapLazyMVar mvar new =
-  maskPrimBase_ $ do
+  maskPrimalState_ $ do
     old <- takeMVar mvar
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapLazyMVar #-}
@@ -241,9 +241,9 @@ swapLazyMVar mvar new =
 -- | Same as `swapMVar`, but evaluates the argument value to NF.
 --
 -- @since 0.3.0
-swapDeepMVar :: forall a m s. (NFData a, MonadPrim s m) => MVar a s -> a -> m a
+swapDeepMVar :: forall a m s. (NFData a, Primal s m) => MVar a s -> a -> m a
 swapDeepMVar mvar new =
-  maskPrimBase_ $ do
+  maskPrimalState_ $ do
     old <- takeMVar (new `deepseq` mvar)
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapDeepMVar #-}
@@ -252,11 +252,11 @@ swapDeepMVar mvar new =
 -- | Remove the value from `MVar` and return it. Blocks the cuurent thread if `MVar` is empty and
 -- waits until antoher thread fills it.
 --
--- Same as `Control.Concurrent.MVar.takeMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.takeMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-takeMVar :: forall a m s. MonadPrim s m => MVar a s -> m a
-takeMVar (MVar mvar#) = prim $ \ s# -> takeMVar# mvar# s#
+takeMVar :: forall a m s. Primal s m => MVar a s -> m a
+takeMVar (MVar mvar#) = primal $ \ s# -> takeMVar# mvar# s#
 {-# INLINE takeMVar #-}
 
 
@@ -264,12 +264,12 @@ takeMVar (MVar mvar#) = prim $ \ s# -> takeMVar# mvar# s#
 -- | Remove the value from `MVar` and return it immediately without blocking. `Nothing` is
 -- returned if `MVar` was empty.
 --
--- Same as `Control.Concurrent.MVar.tryTakeMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.tryTakeMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-tryTakeMVar :: forall a m s. MonadPrim s m => MVar a s -> m (Maybe a)
+tryTakeMVar :: forall a m s. Primal s m => MVar a s -> m (Maybe a)
 tryTakeMVar (MVar mvar#) =
-  prim $ \s ->
+  primal $ \s ->
     case tryTakeMVar# mvar# s of
       (# s', 0#, _ #) -> (# s', Nothing #)
       (# s', _, a #)  -> (# s', Just a #)
@@ -279,23 +279,23 @@ tryTakeMVar (MVar mvar#) =
 -- current thread if the `MVar` is currently empty and waits until another thread fills
 -- it with a value.
 --
--- Same as `Control.Concurrent.MVar.readMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.readMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-readMVar :: forall a m s. MonadPrim s m => MVar a s -> m a
-readMVar (MVar mvar#) = prim (readMVar# mvar#)
+readMVar :: forall a m s. Primal s m => MVar a s -> m a
+readMVar (MVar mvar#) = primal (readMVar# mvar#)
 {-# INLINE readMVar #-}
 
 
 -- | Get the value from `MVar` atomically without affecting its contents. It does not
 -- block and returns the immediately or `Nothing` if the supplied `MVar` was empty.
 --
--- Same as `Control.Concurrent.MVar.tryReadMVar` from @base@, but works in any `MonadPrim`.
+-- Same as `Control.Concurrent.MVar.tryReadMVar` from @base@, but works in any `Primal`.
 --
 -- @since 0.3.0
-tryReadMVar :: forall a m s. MonadPrim s m => MVar a s -> m (Maybe a)
+tryReadMVar :: forall a m s. Primal s m => MVar a s -> m (Maybe a)
 tryReadMVar (MVar mvar#) =
-  prim $ \s ->
+  primal $ \s ->
     case tryReadMVar# mvar# s of
       (# s', 0#, _ #) -> (# s', Nothing #)
       (# s', _, a #) -> (# s', Just a #)
@@ -306,9 +306,9 @@ tryReadMVar (MVar mvar#) =
 -- that another thread might have filled it with a different value.
 --
 -- @since 0.3.0
-clearMVar :: forall a m s. MonadPrim s m => MVar a s -> m ()
+clearMVar :: forall a m s. Primal s m => MVar a s -> m ()
 clearMVar (MVar mvar#) =
-  prim $ \s ->
+  primal $ \s ->
     case tryTakeMVar# mvar# s of
       (# s', _, _ #) -> (# s', () #)
 {-# INLINE clearMVar #-}
@@ -321,11 +321,11 @@ clearMVar (MVar mvar#) =
 -- `MVar`. In other words this is not an atomic operation, but it is exception safe, since
 -- the contents of `MVar` are restored regardless of the outcome of supplied action.
 --
--- Same as `Control.Concurrent.MVar.withMVar` from @base@, but works in `MonadUnliftPrim`
+-- Same as `Control.Concurrent.MVar.withMVar` from @base@, but works in `UnliftPrimal`
 -- with `RealWorld` state token.
 --
 -- @since 0.3.0
-withMVar :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m b) -> m b
+withMVar :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m b) -> m b
 withMVar mvar !action =
   mask $ \restore -> do
     a <- takeMVar mvar
@@ -338,10 +338,10 @@ withMVar mvar !action =
 -- but still interruptable.
 --
 -- Same as `Control.Concurrent.MVar.withMVarMasked` from @base@, but works in
--- `MonadUnliftPrim` with `RealWorld` state token.
+-- `UnliftPrimal` with `RealWorld` state token.
 --
 -- @since 0.3.0
-withMVarMasked :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m b) -> m b
+withMVarMasked :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m b) -> m b
 withMVarMasked mvar !action =
   mask_ $ do
     a <- takeMVar mvar
@@ -353,7 +353,7 @@ withMVarMasked mvar !action =
 
 
 -- | Internal modification function that does no masking or forcing
-modifyFetchLazyMVar :: MonadUnliftPrim RW m => (a -> a -> b) -> MVar a RW -> (a -> m a) -> m b
+modifyFetchLazyMVar :: UnliftPrimal RW m => (a -> a -> b) -> MVar a RW -> (a -> m a) -> m b
 modifyFetchLazyMVar select mvar action = do
   a <- takeMVar mvar
   a' <- action a `catchAny` \exc -> putLazyMVar mvar a >> throw exc
@@ -365,10 +365,10 @@ modifyFetchLazyMVar select mvar action = do
 -- guarantees as `withMVar`.
 --
 -- Same as `GHC.modifyMVar_` from @base@, but is strict with respect to result of the
--- action and works in `MonadUnliftPrim` with `RealWorld` state token.
+-- action and works in `UnliftPrimal` with `RealWorld` state token.
 --
 -- @since 0.3.0
-modifyMVar_ :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m ()
+modifyMVar_ :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m ()
 modifyMVar_ mvar = void . modifyFetchOldMVar mvar
 {-# INLINE modifyMVar_ #-}
 
@@ -376,10 +376,10 @@ modifyMVar_ mvar = void . modifyFetchOldMVar mvar
 -- | Same as `modifyMVarMAsked_`, but the supplied action has async exceptions masked.
 --
 -- Same as `GHC.modifyMVar` from @base@, except that it is strict in the new value and it
--- works in `MonadUnliftPrim` with `RealWorld` state token.
+-- works in `UnliftPrimal` with `RealWorld` state token.
 --
 -- @since 0.3.0
-modifyMVarMasked_ :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m ()
+modifyMVarMasked_ :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m ()
 modifyMVarMasked_ mvar !action =
   mask_ $ modifyFetchLazyMVar (\_ _ -> ()) mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyMVarMasked_ #-}
@@ -388,7 +388,7 @@ modifyMVarMasked_ mvar !action =
 -- | Same as `modifyMVar_`, but also returns the original value that was stored in the `MVar`
 --
 -- @since 0.3.0
-modifyFetchOldMVar :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchOldMVar :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchOldMVar mvar !action =
   mask $ \restore ->
     modifyFetchLazyMVar const mvar $ \a ->
@@ -401,7 +401,7 @@ modifyFetchOldMVar mvar !action =
 -- masked, but still interruptible
 --
 -- @since 0.3.0
-modifyFetchOldMVarMasked :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchOldMVarMasked :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchOldMVarMasked mvar !action =
   mask_ $ modifyFetchLazyMVar const mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyFetchOldMVarMasked #-}
@@ -410,7 +410,7 @@ modifyFetchOldMVarMasked mvar !action =
 -- i.e. the new value that got stored in the `MVar`.
 --
 -- @since 0.3.0
-modifyFetchNewMVar :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchNewMVar :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchNewMVar mvar !action =
   mask $ \restore ->
     modifyFetchLazyMVar (flip const) mvar $ \a ->
@@ -422,7 +422,7 @@ modifyFetchNewMVar mvar !action =
 -- masked, but still interruptible
 --
 -- @since 0.3.0
-modifyFetchNewMVarMasked :: forall a m. MonadUnliftPrim RW m => MVar a RW -> (a -> m a) -> m a
+modifyFetchNewMVarMasked :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchNewMVarMasked mvar !action =
   mask_ $ modifyFetchLazyMVar (flip const) mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyFetchNewMVarMasked #-}
@@ -433,10 +433,10 @@ modifyFetchNewMVarMasked mvar !action =
 -- guarantees as `withMVar`.
 --
 -- Same as `GHC.modifyMVar` from @base@, except that it is strict in the new value and it
--- works in `MonadUnliftPrim` with `RealWorld` state token.
+-- works in `UnliftPrimal` with `RealWorld` state token.
 --
 -- @since 0.3.0
-modifyMVar :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m (a, b)) -> m b
+modifyMVar :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m (a, b)) -> m b
 modifyMVar mvar action =
   mask $ \restore -> do
     a <- takeMVar mvar
@@ -451,10 +451,10 @@ modifyMVar mvar action =
 -- guarantees as `withMVar`.
 --
 -- Same as `GHC.modifyMVarMasked` from @base@, except that it is strict in the new value
--- and it works in `MonadUnliftPrim` with `RealWorld` state token.
+-- and it works in `UnliftPrimal` with `RealWorld` state token.
 --
 -- @since 0.3.0
-modifyMVarMasked :: forall a b m. MonadUnliftPrim RW m => MVar a RW -> (a -> m (a, b)) -> m b
+modifyMVarMasked :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m (a, b)) -> m b
 modifyMVarMasked mvar action =
   mask_ $ do
     a <- takeMVar mvar
@@ -467,18 +467,18 @@ modifyMVarMasked mvar action =
 
 -- | Create a `Weak` pointer associated with the supplied `MVar`.
 --
--- Same as `Control.Concurrent.MVar.mkWeakMVar` from @base@, but works in any `MonadPrim`
+-- Same as `Control.Concurrent.MVar.mkWeakMVar` from @base@, but works in any `Primal`
 -- with `RealWorld` state token.
 --
 -- @since 0.3.0
 mkWeakMVar ::
-     forall a b m. MonadUnliftPrim RW m
+     forall a b m. UnliftPrimal RW m
   => MVar a RW
   -> m b -- ^ An action that will get executed whenever `MVar` gets garbage collected by
          -- the runtime.
   -> m (Weak (MVar a RW))
 mkWeakMVar mvar@(MVar mvar#) !finalizer =
-  runInPrimBase finalizer $ \f# s ->
+  runInPrimalState finalizer $ \f# s ->
     case mkWeak# mvar# mvar f# s of
       (# s', weak# #) -> (# s', Weak weak# #)
 {-# INLINE mkWeakMVar #-}

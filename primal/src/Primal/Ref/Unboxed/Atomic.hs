@@ -44,11 +44,11 @@ import Primal.Ref.Unboxed
 --
 -- @since 1.0.0
 atomicModifyURef ::
-     forall e a m s. (Atomic e, MonadPrim s m)
+     forall e a m s. (Atomic e, Primal s m)
   => URef e s
   -> (e -> (e, a))
   -> m a
-atomicModifyURef (URef mba#) f = prim (atomicModifyMutableByteArray# mba# 0# g)
+atomicModifyURef (URef mba#) f = primal (atomicModifyMutableByteArray# mba# 0# g)
   where
     g e =
       case f e of
@@ -62,11 +62,11 @@ atomicModifyURef (URef mba#) f = prim (atomicModifyMutableByteArray# mba# 0# g)
 --
 -- @since 1.0.0
 atomicModifyURef_ ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s
   -> (e -> e)
   -> m ()
-atomicModifyURef_ (URef mba#) f = prim_ (atomicModifyMutableByteArray_# mba# 0# f)
+atomicModifyURef_ (URef mba#) f = primal_ (atomicModifyMutableByteArray_# mba# 0# f)
 {-# INLINE atomicModifyURef_ #-}
 
 
@@ -74,10 +74,10 @@ atomicModifyURef_ (URef mba#) f = prim_ (atomicModifyMutableByteArray_# mba# 0# 
 --
 -- @since 1.0.0
 atomicReadURef ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s
   -> m e
-atomicReadURef (URef mba#) = prim $ atomicReadMutableByteArray# mba# 0#
+atomicReadURef (URef mba#) = primal $ atomicReadMutableByteArray# mba# 0#
 {-# INLINE atomicReadURef #-}
 
 
@@ -85,11 +85,11 @@ atomicReadURef (URef mba#) = prim $ atomicReadMutableByteArray# mba# 0#
 --
 -- @since 1.0.0
 atomicWriteURef ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s
   -> e
   -> m ()
-atomicWriteURef (URef mba#) a = prim_ (atomicWriteMutableByteArray# mba# 0# a)
+atomicWriteURef (URef mba#) a = primal_ (atomicWriteMutableByteArray# mba# 0# a)
 {-# INLINE atomicWriteURef #-}
 
 
@@ -98,11 +98,11 @@ atomicWriteURef (URef mba#) a = prim_ (atomicWriteMutableByteArray# mba# 0# a)
 --
 -- @since 1.0.0
 atomicModifyFetchNewURef ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s
   -> (e -> e)
   -> m e
-atomicModifyFetchNewURef (URef mba#) f = prim $ atomicModifyFetchNewMutableByteArray# mba# 0# f
+atomicModifyFetchNewURef (URef mba#) f = primal $ atomicModifyFetchNewMutableByteArray# mba# 0# f
 {-# INLINE atomicModifyFetchNewURef #-}
 
 
@@ -111,11 +111,11 @@ atomicModifyFetchNewURef (URef mba#) f = prim $ atomicModifyFetchNewMutableByteA
 --
 -- @since 1.0.0
 atomicModifyFetchOldURef ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s
   -> (e -> e)
   -> m e
-atomicModifyFetchOldURef (URef mba#) f = prim $ atomicModifyFetchOldMutableByteArray# mba# 0# f
+atomicModifyFetchOldURef (URef mba#) f = primal $ atomicModifyFetchOldMutableByteArray# mba# 0# f
 {-# INLINE atomicModifyFetchOldURef #-}
 
 
@@ -124,12 +124,12 @@ atomicModifyFetchOldURef (URef mba#) f = prim $ atomicModifyFetchOldMutableByteA
 --
 -- @since 1.0.0
 casURef ::
-     forall e m s. (Atomic e, MonadPrim s m)
+     forall e m s. (Atomic e, Primal s m)
   => URef e s -- ^ Variable to mutate
   -> e -- ^ Old expected value
   -> e -- ^ New value
   -> m e -- ^ Old actual value
-casURef (URef mba#) old new = prim $ casMutableByteArray# mba# 0# old new
+casURef (URef mba#) old new = primal $ casMutableByteArray# mba# 0# old new
 {-# INLINE casURef #-}
 
 
@@ -138,11 +138,11 @@ casURef (URef mba#) old new = prim $ casMutableByteArray# mba# 0# old new
 --
 -- @since 1.0.0
 atomicAddFetchOldURef ::
-     forall e m s. (AtomicCount e, MonadPrim s m)
+     forall e m s. (AtomicCount e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicAddFetchOldURef (URef mba#) a = prim $ atomicAddFetchOldMutableByteArray# mba# 0# a
+atomicAddFetchOldURef (URef mba#) a = primal $ atomicAddFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicAddFetchOldURef #-}
 
 -- | Add two numbers, corresponds to @(`+`)@ done atomically. Returns the new value of
@@ -150,11 +150,11 @@ atomicAddFetchOldURef (URef mba#) a = prim $ atomicAddFetchOldMutableByteArray# 
 --
 -- @since 1.0.0
 atomicAddFetchNewURef ::
-     forall e m s. (AtomicCount e, MonadPrim s m)
+     forall e m s. (AtomicCount e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicAddFetchNewURef (URef mba#) a = prim $ atomicAddFetchNewMutableByteArray# mba# 0# a
+atomicAddFetchNewURef (URef mba#) a = primal $ atomicAddFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicAddFetchNewURef #-}
 
 
@@ -163,11 +163,11 @@ atomicAddFetchNewURef (URef mba#) a = prim $ atomicAddFetchNewMutableByteArray# 
 --
 -- @since 1.0.0
 atomicSubFetchOldURef ::
-     forall e m s. (AtomicCount e, MonadPrim s m)
+     forall e m s. (AtomicCount e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicSubFetchOldURef (URef mba#) a = prim $ atomicSubFetchOldMutableByteArray# mba# 0# a
+atomicSubFetchOldURef (URef mba#) a = primal $ atomicSubFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicSubFetchOldURef #-}
 
 
@@ -176,11 +176,11 @@ atomicSubFetchOldURef (URef mba#) a = prim $ atomicSubFetchOldMutableByteArray# 
 --
 -- @since 1.0.0
 atomicSubFetchNewURef ::
-     forall e m s. (AtomicCount e, MonadPrim s m)
+     forall e m s. (AtomicCount e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicSubFetchNewURef (URef mba#) a = prim $ atomicSubFetchNewMutableByteArray# mba# 0# a
+atomicSubFetchNewURef (URef mba#) a = primal $ atomicSubFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicSubFetchNewURef #-}
 
 
@@ -189,11 +189,11 @@ atomicSubFetchNewURef (URef mba#) a = prim $ atomicSubFetchNewMutableByteArray# 
 --
 -- @since 1.0.0
 atomicAndFetchOldURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicAndFetchOldURef (URef mba#) a = prim $ atomicAndFetchOldMutableByteArray# mba# 0# a
+atomicAndFetchOldURef (URef mba#) a = primal $ atomicAndFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicAndFetchOldURef #-}
 
 
@@ -202,11 +202,11 @@ atomicAndFetchOldURef (URef mba#) a = prim $ atomicAndFetchOldMutableByteArray# 
 --
 -- @since 1.0.0
 atomicAndFetchNewURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicAndFetchNewURef (URef mba#) a = prim $ atomicAndFetchNewMutableByteArray# mba# 0# a
+atomicAndFetchNewURef (URef mba#) a = primal $ atomicAndFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicAndFetchNewURef #-}
 
 
@@ -216,11 +216,11 @@ atomicAndFetchNewURef (URef mba#) a = prim $ atomicAndFetchNewMutableByteArray# 
 --
 -- @since 1.0.0
 atomicNandFetchOldURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicNandFetchOldURef (URef mba#) a = prim $ atomicNandFetchOldMutableByteArray# mba# 0# a
+atomicNandFetchOldURef (URef mba#) a = primal $ atomicNandFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicNandFetchOldURef #-}
 
 
@@ -230,11 +230,11 @@ atomicNandFetchOldURef (URef mba#) a = prim $ atomicNandFetchOldMutableByteArray
 --
 -- @since 1.0.0
 atomicNandFetchNewURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicNandFetchNewURef (URef mba#) a = prim $ atomicNandFetchNewMutableByteArray# mba# 0# a
+atomicNandFetchNewURef (URef mba#) a = primal $ atomicNandFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicNandFetchNewURef #-}
 
 
@@ -243,11 +243,11 @@ atomicNandFetchNewURef (URef mba#) a = prim $ atomicNandFetchNewMutableByteArray
 --
 -- @since 1.0.0
 atomicOrFetchOldURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicOrFetchOldURef (URef mba#) a = prim $ atomicOrFetchOldMutableByteArray# mba# 0# a
+atomicOrFetchOldURef (URef mba#) a = primal $ atomicOrFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicOrFetchOldURef #-}
 
 
@@ -256,11 +256,11 @@ atomicOrFetchOldURef (URef mba#) a = prim $ atomicOrFetchOldMutableByteArray# mb
 --
 -- @since 1.0.0
 atomicOrFetchNewURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicOrFetchNewURef (URef mba#) a = prim $ atomicOrFetchNewMutableByteArray# mba# 0# a
+atomicOrFetchNewURef (URef mba#) a = primal $ atomicOrFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicOrFetchNewURef #-}
 
 
@@ -269,11 +269,11 @@ atomicOrFetchNewURef (URef mba#) a = prim $ atomicOrFetchNewMutableByteArray# mb
 --
 -- @since 1.0.0
 atomicXorFetchOldURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicXorFetchOldURef (URef mba#) a = prim $ atomicXorFetchOldMutableByteArray# mba# 0# a
+atomicXorFetchOldURef (URef mba#) a = primal $ atomicXorFetchOldMutableByteArray# mba# 0# a
 {-# INLINE atomicXorFetchOldURef #-}
 
 
@@ -282,11 +282,11 @@ atomicXorFetchOldURef (URef mba#) a = prim $ atomicXorFetchOldMutableByteArray# 
 --
 -- @since 1.0.0
 atomicXorFetchNewURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> e
   -> m e
-atomicXorFetchNewURef (URef mba#) a = prim $ atomicXorFetchNewMutableByteArray# mba# 0# a
+atomicXorFetchNewURef (URef mba#) a = primal $ atomicXorFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicXorFetchNewURef #-}
 
 
@@ -295,10 +295,10 @@ atomicXorFetchNewURef (URef mba#) a = prim $ atomicXorFetchNewMutableByteArray# 
 --
 -- @since 1.0.0
 atomicNotFetchOldURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> m e
-atomicNotFetchOldURef (URef mba#) = prim $ atomicNotFetchOldMutableByteArray# mba# 0#
+atomicNotFetchOldURef (URef mba#) = primal $ atomicNotFetchOldMutableByteArray# mba# 0#
 {-# INLINE atomicNotFetchOldURef #-}
 
 
@@ -307,8 +307,8 @@ atomicNotFetchOldURef (URef mba#) = prim $ atomicNotFetchOldMutableByteArray# mb
 --
 -- @since 1.0.0
 atomicNotFetchNewURef ::
-     forall e m s. (AtomicBits e, MonadPrim s m)
+     forall e m s. (AtomicBits e, Primal s m)
   => URef e s
   -> m e
-atomicNotFetchNewURef (URef mba#) = prim $ atomicNotFetchNewMutableByteArray# mba# 0#
+atomicNotFetchNewURef (URef mba#) = primal $ atomicNotFetchNewMutableByteArray# mba# 0#
 {-# INLINE atomicNotFetchNewURef #-}

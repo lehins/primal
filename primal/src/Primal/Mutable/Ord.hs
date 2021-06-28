@@ -62,7 +62,7 @@ compareFrozen fa fb =
 
 
 compareMut ::
-     forall mut m s. (MutOrd mut, MonadPrim s m)
+     forall mut m s. (MutOrd mut, Primal s m)
   => mut s
   -> mut s
   -> m Ordering

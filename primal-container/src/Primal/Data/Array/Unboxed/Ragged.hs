@@ -233,29 +233,29 @@ indexRArray (RArray a#) (I# i#) = RArray (indexArrayArrayArray# a# i#)
 -- |
 --
 -- @since 0.1.0
-newRawRMArray :: MonadPrim s m => Size -> m (RMArray n e s)
+newRawRMArray :: Primal s m => Size -> m (RMArray n e s)
 newRawRMArray (Size (I# n#)) =
-  prim $ \s ->
+  primal $ \s ->
     case newArrayArray# n# s of
       (# s', ma# #) -> (# s', RMArray ma# #)
 {-# INLINE newRawRMArray #-}
 
 -- Better interface:
--- newRawRMArrayI :: (MArray (RMArray n) a, MonadPrim s m) => Size -> m (RMArray n a s)
+-- newRawRMArrayI :: (MArray (RMArray n) a, Primal s m) => Size -> m (RMArray n a s)
 -- newRawRMArrayI = newRawRMArray
 -- {-# INLINE newRawRMArrayI #-}
 
 
-thawRArray :: MonadPrim s m => RArray n e -> m (RMArray n e s)
+thawRArray :: Primal s m => RArray n e -> m (RMArray n e s)
 thawRArray (RArray a#) =
-  prim $ \s ->
+  primal $ \s ->
     case unsafeThawArrayArray# a# s of
       (# s', ma# #) -> (# s', RMArray ma# #)
 {-# INLINE thawRArray #-}
 
-freezeRMArray :: MonadPrim s m => RMArray n e s -> m (RArray n e)
+freezeRMArray :: Primal s m => RMArray n e s -> m (RArray n e)
 freezeRMArray (RMArray ma#) =
-  prim $ \s ->
+  primal $ \s ->
     case unsafeFreezeArrayArray# ma# s of
       (# s', a# #) -> (# s', RArray a# #)
 {-# INLINE freezeRMArray #-}
@@ -285,41 +285,41 @@ sizeOfRMArray (RMArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
 --
 -- @since 0.1.0
 readRMArray ::
-     (KnownNat n, 1 <= n, MonadPrim s m)
+     (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RMArray (n - 1) e s) s
   -> Int
   -> m (RMArray (n - 1) e s)
 readRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readMutableArrayArrayArray# ma# i# s of
       (# s', ma'# #) -> (# s', RMArray ma'# #)
 {-# INLINE readRMArray #-}
 
 -- readRMMArray ::
---      (KnownNat n, 1 <= n, MonadPrim s m)
+--      (KnownNat n, 1 <= n, Primal s m)
 --   => RMMArray n (RMMArray (n - 1) e) s
 --   -> Int
 --   -> m (RMMArray (n - 1) e s)
 -- readRMMArray (RMMArray ma#) (I# i#) =
---   prim $ \s ->
+--   primal $ \s ->
 --     case readMutableArrayArrayArray# ma# i# s of
 --       (# s', ma'# #) -> (# s', RMMArray ma'# #)
 -- {-# INLINE readRMMArray #-}
 
 -- readRMMArray' ::
---      (KnownNat n, 1 <= n, MonadPrim s m)
+--      (KnownNat n, 1 <= n, Primal s m)
 --   => RMMArray n (RMArray (n - 1) e) s
 --   -> Int
 --   -> m (RMArray (n - 1) e s)
 -- readRMMArray' (RMMArray ma#) (I# i#) =
---   prim $ \s ->
+--   primal $ \s ->
 --     case readMutableArrayArrayArray# ma# i# s of
 --       (# s', ma'# #) -> (# s', RMArray ma'# #)
 -- {-# INLINE readRMMArray' #-}
 
 
 readRMArray_ ::
-     (MArray (RMArray n) ma, MonadPrim s m)
+     (MArray (RMArray n) ma, Primal s m)
   => RMArray n ma s
   -> Int
   -> m ma
@@ -327,41 +327,41 @@ readRMArray_ = readMArray
 {-# INLINE readRMArray_ #-}
 
 readFrozenRMArray ::
-     (KnownNat n, 1 <= n, MonadPrim s m)
+     (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RArray (n - 1) e) s
   -> Int
   -> m (RArray (n - 1) e)
 readFrozenRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readArrayArrayArray# ma# i# s of
       (# s', a# #) -> (# s', RArray a# #)
 {-# INLINE readFrozenRMArray #-}
 
-readUnboxedRMArray :: MonadPrim s m => RMArray 0 e s -> Int -> m (UMArray e s)
+readUnboxedRMArray :: Primal s m => RMArray 0 e s -> Int -> m (UMArray e s)
 readUnboxedRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readMutableByteArrayArray# ma# i# s of
       (# s', mba# #) -> (# s', UMArray mba# #)
 {-# INLINE readUnboxedRMArray #-}
 
-readUnboxedFrozenRMArray :: MonadPrim s m => RMArray 0 b s -> Int -> m (UArray e)
+readUnboxedFrozenRMArray :: Primal s m => RMArray 0 b s -> Int -> m (UArray e)
 readUnboxedFrozenRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readByteArrayArray# ma# i# s of
       (# s', ba# #) -> (# s', UArray ba# #)
 {-# INLINE readUnboxedFrozenRMArray #-}
 
 
-readMBytesRMArray :: MonadPrim s m => RMArray 0 e s -> Int -> m (MBytes 'Inc s)
+readMBytesRMArray :: Primal s m => RMArray 0 e s -> Int -> m (MBytes 'Inc s)
 readMBytesRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readMutableByteArrayArray# ma# i# s of
       (# s', mba# #) -> (# s', fromMutableByteArray# mba# #)
 {-# INLINE readMBytesRMArray #-}
 
-readBytesRMArray :: MonadPrim s m => RMArray 0 b s -> Int -> m (Bytes 'Inc)
+readBytesRMArray :: Primal s m => RMArray 0 b s -> Int -> m (Bytes 'Inc)
 readBytesRMArray (RMArray ma#) (I# i#) =
-  prim $ \s ->
+  primal $ \s ->
     case readByteArrayArray# ma# i# s of
       (# s', ba# #) -> (# s', fromByteArray# ba# #)
 {-# INLINE readBytesRMArray #-}
@@ -398,50 +398,50 @@ readBytesRMArray (RMArray ma#) (I# i#) =
 --
 -- @since 0.1.0
 writeRMArray ::
-     (KnownNat n, 1 <= n, MonadPrim s m)
+     (KnownNat n, 1 <= n, Primal s m)
   => RMArray n e s
   -> Int
   -> RMArray (n - 1) e s
   -> m ()
 writeRMArray (RMArray ma#) (I# i#) (RMArray e#) =
-  prim_ (writeMutableArrayArrayArray# ma# i# e#)
+  primal_ (writeMutableArrayArrayArray# ma# i# e#)
 {-# INLINE writeRMArray #-}
 
 writeFrozenRMArray ::
-     (KnownNat n, 1 <= n, MonadPrim s m)
+     (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RArray (n - 1) e) s
   -> Int
   -> RArray (n - 1) e
   -> m ()
 writeFrozenRMArray (RMArray ma#) (I# i#) (RArray e#) =
-  prim_ (writeArrayArrayArray# ma# i# e#)
+  primal_ (writeArrayArrayArray# ma# i# e#)
 {-# INLINE writeFrozenRMArray #-}
 
 writeUnboxedRMArray ::
-     MonadPrim s m => RMArray 0 e s -> Int -> UMArray e s -> m ()
+     Primal s m => RMArray 0 e s -> Int -> UMArray e s -> m ()
 writeUnboxedRMArray (RMArray ma#) (I# i#) (UMArray mba#) =
-  prim_ (writeMutableByteArrayArray# ma# i# mba#)
+  primal_ (writeMutableByteArrayArray# ma# i# mba#)
 {-# INLINE writeUnboxedRMArray #-}
 
 
 writeUnboxedFrozenRMArray ::
-     MonadPrim s m => RMArray 0 b s -> Int -> UArray e -> m ()
+     Primal s m => RMArray 0 b s -> Int -> UArray e -> m ()
 writeUnboxedFrozenRMArray (RMArray ma#) (I# i#) (UArray ba#) =
-  prim_ (writeByteArrayArray# ma# i# ba#)
+  primal_ (writeByteArrayArray# ma# i# ba#)
 {-# INLINE writeUnboxedFrozenRMArray #-}
 
 
 writeMBytesRMArray ::
-     MonadPrim s m => RMArray 0 e s -> Int -> MBytes 'Inc s -> m ()
+     Primal s m => RMArray 0 e s -> Int -> MBytes 'Inc s -> m ()
 writeMBytesRMArray (RMArray ma#) (I# i#) mb =
-  prim_ (writeMutableByteArrayArray# ma# i# (toMutableByteArray# mb))
+  primal_ (writeMutableByteArrayArray# ma# i# (toMutableByteArray# mb))
 {-# INLINE writeMBytesRMArray #-}
 
 
 writeBytesRMArray ::
-     MonadPrim s m => RMArray 0 b s -> Int -> Bytes 'Inc -> m ()
+     Primal s m => RMArray 0 b s -> Int -> Bytes 'Inc -> m ()
 writeBytesRMArray (RMArray ma#) (I# i#) b =
-  prim_ (writeByteArrayArray# ma# i# (toByteArray# b))
+  primal_ (writeByteArrayArray# ma# i# (toByteArray# b))
 {-# INLINE writeBytesRMArray #-}
 
 
@@ -457,7 +457,7 @@ writeBytesRMArray (RMArray ma#) (I# i#) b =
 --
 -- @since 0.1.0
 copyRArray ::
-     MonadPrim s m
+     Primal s m
   => RArray n e -- ^ Source immutable array
   -> Int -- ^ Offset into the source immutable array
   -> RMArray n e s -- ^ Destination mutable array
@@ -465,7 +465,7 @@ copyRArray ::
   -> Size -- ^ Number of elements to copy over
   -> m ()
 copyRArray (RArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#)) =
-  prim_ (copyArrayArray# src# srcOff# dst# dstOff# n#)
+  primal_ (copyArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyRArray #-}
 
 -- | Copy a subsection of a mutable array into a subsection of another or the same
@@ -479,7 +479,7 @@ copyRArray (RArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#))
 --
 -- @since 0.1.0
 moveRMArray ::
-     MonadPrim s m
+     Primal s m
   => RMArray n e s -- ^ Source mutable array
   -> Int -- ^ Offset into the source mutable array
   -> RMArray n e s -- ^ Destination mutable array
@@ -487,6 +487,6 @@ moveRMArray ::
   -> Size -- ^ Number of elements to copy over
   -> m ()
 moveRMArray (RMArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#)) =
-  prim_ (copyMutableArrayArray# src# srcOff# dst# dstOff# n#)
+  primal_ (copyMutableArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveRMArray #-}
 

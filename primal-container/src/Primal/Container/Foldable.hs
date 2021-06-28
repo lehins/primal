@@ -87,16 +87,16 @@ instance Lift [] a where
 
 
 class Elt f a => MSingleton (f :: * -> * -> *) a where
-  msingleton :: MonadPrim s m => a -> m (f a s)
+  msingleton :: Primal s m => a -> m (f a s)
 
 class Elt f a => MLift (f :: * -> * -> *) a where
-  liftInSituM :: MonadPrim s m => (a -> m a) -> f a s -> m ()
+  liftInSituM :: Primal s m => (a -> m a) -> f a s -> m ()
 
-  mliftM :: (MonadPrim s m, MLift f b)
+  mliftM :: (Primal s m, MLift f b)
         => (a -> m b) -> f a s -> m (f b s)
-  mlift2M :: (MonadPrim s m, MLift f b, MLift f c)
+  mlift2M :: (Primal s m, MLift f b, MLift f c)
          => (a -> b -> m c) -> f a s -> f b s -> m (f c s)
-  mlift3M :: (MonadPrim s m, MLift f b, MLift f c, MLift f d)
+  mlift3M :: (Primal s m, MLift f b, MLift f c, MLift f d)
          => (a -> b -> c -> m d) -> f a s -> f b s -> f c s -> m (f d s)
 
 class Elt f e => ReduceInhab (f :: * -> *) e where
@@ -111,27 +111,27 @@ class Elt f e => Reduce (f :: * -> *) e where
   mapReduce :: Monoid a => (e -> a) -> f e -> a
   reducel :: (a -> e -> a) -> a -> f e -> a
   reducer :: (e -> a -> a) -> a -> f e -> a
-  reducel2 :: MonadThrow m => (a -> e -> c -> a) -> a -> f e -> f c -> m a
+  reducel2 :: Throws m => (a -> e -> c -> a) -> a -> f e -> f c -> m a
 
 class Elt f e => MutReduce (f :: * -> * -> *) e where
   reduceMut :: Monoid e => f e s -> m e
   mapReduceMut :: Monoid a => (e -> a) -> f e s -> m a
   mapReduceMutM :: Monoid a => (e -> m a) -> f e s -> m a
-  reducelMutM :: MonadPrim s m => (a -> e -> m a) -> a -> f e s -> m a
-  reducerMutM :: MonadPrim s m => (e -> a -> m a) -> a -> f e s -> m a
+  reducelMutM :: Primal s m => (a -> e -> m a) -> a -> f e s -> m a
+  reducerMutM :: Primal s m => (e -> a -> m a) -> a -> f e s -> m a
 
 
 class Elt f e => MReduce (f :: * -> * -> *) e where
   mreduceM :: Monoid e => f e s -> m e
   mmapReduceM :: Monoid a => (e -> a) -> f e s -> m a
-  mreducelM :: MonadPrim s m => (a -> e -> m a) -> a -> f e s -> m a
-  mreducerM :: MonadPrim s m => (e -> a -> m a) -> a -> f e s -> m a
+  mreducelM :: Primal s m => (a -> e -> m a) -> a -> f e s -> m a
+  mreducerM :: Primal s m => (e -> a -> m a) -> a -> f e s -> m a
 
-  mliftM_ :: MonadPrim s m
+  mliftM_ :: Primal s m
           => (e -> m b) -> f a s -> m ()
-  mlift2M_ :: (MonadPrim s m, MReduce f b)
+  mlift2M_ :: (Primal s m, MReduce f b)
            => (e -> b -> m c) -> f e s -> f b s -> m ()
-  mlift3M_ :: (MonadPrim s m, MReduce f b, MReduce f c)
+  mlift3M_ :: (Primal s m, MReduce f b, MReduce f c)
            => (e -> b -> c -> m d) -> f e s -> f b s -> f c s -> m ()
 
 
@@ -144,9 +144,9 @@ class Elt f e => Filter (f :: * -> *) e where
 
 
 class Elt f e => MFilter (f :: * -> * -> *) e where
-  mliftMaybeM :: MonadPrim s m => (e -> m (Maybe a)) -> f e s -> m (f a s)
+  mliftMaybeM :: Primal s m => (e -> m (Maybe a)) -> f e s -> m (f a s)
 
-  mfilterM :: MonadPrim s m => (e -> m Bool) -> f e s -> m (f e s)
+  mfilterM :: Primal s m => (e -> m Bool) -> f e s -> m (f e s)
   mfilterM f = mliftMaybeM (\x -> (\y -> if y then Just x else Nothing) <$> f x)
 
 -- instance FoldMut BRef e where
@@ -201,7 +201,7 @@ class MFunctor f a b => KeyMFunctor (f :: * -> * -> *) k a b | f -> k where
 -- class MFoldable (f :: * -> * -> *) e where
 
 class FoldMut (f :: * -> * -> *) e where
-  foldlMutM :: MonadPrim s m => (a -> e -> m a) -> a -> f e s -> m a
+  foldlMutM :: Primal s m => (a -> e -> m a) -> a -> f e s -> m a
 
 
 instance FoldMut BRef e where
@@ -219,8 +219,8 @@ instance Unbox e => FoldMut UMArray e where
     go initAcc 0
 
 
-foldlMut :: (FoldMut f e, MonadPrim s m) => (a -> e -> a) -> a -> f e s -> m a
+foldlMut :: (FoldMut f e, Primal s m) => (a -> e -> a) -> a -> f e s -> m a
 foldlMut f = foldlMutM (\a x -> pure $! f a x)
 
-toListMut :: (FoldMut f e, MonadPrim s m) => f e s -> m [e]
+toListMut :: (FoldMut f e, Primal s m) => f e s -> m [e]
 toListMut = foldlMut (flip (:)) []

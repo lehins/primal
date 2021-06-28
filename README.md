@@ -2,10 +2,9 @@
 
 **Warning** - it is still in experimental stage.
 
-A fully featured replacement for `primitive` package with many unique features that are
-not available anywhere else in Haskell ecosystem. More info will come in the future,
-packages in this repo are still under active development.
-
+`primal` is a ground up design of a new interface for mutable and effectful operations
+that uses industry best practices as well as novel approaches to improve usability and
+performance.
 
 ## Status
 

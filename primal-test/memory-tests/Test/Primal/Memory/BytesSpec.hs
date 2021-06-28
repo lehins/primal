@@ -120,10 +120,10 @@ primTypeSpec = do
   memSpec @MByteString @e
 
 
-primBaseTypeSpec ::
+primalStateTypeSpec ::
      forall e. (NFData e, Ord e, Show e, Unbox e, Arbitrary e, Typeable e)
   => Spec
-primBaseTypeSpec = do
+primalStateTypeSpec = do
   memSpec @(UMArray e) @e
   memSpec @(MAddr e) @e
   memSpec @(PMArray 'Inc e) @e
@@ -217,20 +217,20 @@ spec = do
   memBinarySpec @MArray
   memBinarySpec @MByteString
 
-  primBaseTypeSpec @Char
-  primBaseTypeSpec @Float
-  primBaseTypeSpec @Double
-  primBaseTypeSpec @Int
-  primBaseTypeSpec @Int8
-  primBaseTypeSpec @Int16
-  primBaseTypeSpec @Int32
-  primBaseTypeSpec @Int64
-  primBaseTypeSpec @Word
-  primBaseTypeSpec @Word8
-  primBaseTypeSpec @Word16
-  primBaseTypeSpec @Word32
-  primBaseTypeSpec @Word64
-  primBaseTypeSpec @(Ptr Char)
+  primalStateTypeSpec @Char
+  primalStateTypeSpec @Float
+  primalStateTypeSpec @Double
+  primalStateTypeSpec @Int
+  primalStateTypeSpec @Int8
+  primalStateTypeSpec @Int16
+  primalStateTypeSpec @Int32
+  primalStateTypeSpec @Int64
+  primalStateTypeSpec @Word
+  primalStateTypeSpec @Word8
+  primalStateTypeSpec @Word16
+  primalStateTypeSpec @Word32
+  primalStateTypeSpec @Word64
+  primalStateTypeSpec @(Ptr Char)
 
   primTypeSpec @(Atom Word16)
   primTypeSpec @(Identity Word)

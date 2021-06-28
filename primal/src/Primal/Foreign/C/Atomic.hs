@@ -28,7 +28,7 @@ import Primal.Foreign.C.LtGHC802
 -- | Helper function for converting casBool IO actions
 ioCBoolToBoolBase :: IO CBool -> State# s -> (# State# s, Bool #)
 ioCBoolToBoolBase m s =
-  case unsafePrimBase m s of
+  case unsafePrimalState m s of
     (# s', CBool (W8# w#) #) -> (# s', isTrue# (word2Int# w#) #)
 {-# INLINE ioCBoolToBoolBase #-}
 
@@ -36,7 +36,7 @@ ioCBoolToBoolBase m s =
 -- | [Memory barrier](https://en.wikipedia.org/wiki/Memory_barrier). This will
 -- ensure that the cache is fully updated before continuing.
 syncSynchronize# :: State# s -> State# s
-syncSynchronize# = unsafePrimBase_ syncSynchronize
+syncSynchronize# = unsafePrimalState_ syncSynchronize
 {-# INLINE syncSynchronize# #-}
 
 withMemBarrier# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)

@@ -55,7 +55,7 @@ import Primal.Mutable.Freeze
 --
 -- @since 0.1.0
 copyByteOffToPtrMem ::
-     forall e mr m s. (MonadPrim s m, MemRead mr, Unbox e)
+     forall e mr m s. (Primal s m, MemRead mr, Unbox e)
   => mr -- ^ /memSourceRead/ - Source from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset into source memory in number of bytes
@@ -93,7 +93,7 @@ copyByteOffToPtrMem src srcOff dst dstOff c =
 {-# INLINE copyByteOffToPtrMem #-}
 
 -- | Same as `compareByteOffMem`, but compare the read-only
--- memory region to a region addressed by a `Ptr` inside of a `MonadPrim`.
+-- memory region to a region addressed by a `Ptr` inside of a `Primal`.
 --
 -- [Unsafe] When any precondition for either of the offsets @memOff1@, @memOff2@, the
 -- pointer @memRead2@ or the element count @memCount@ is violated the result is either
@@ -101,7 +101,7 @@ copyByteOffToPtrMem src srcOff dst dstOff c =
 --
 -- @since 0.1.0
 compareByteOffToPtrMem ::
-     forall e mr m s. (MonadPrim s m, MemRead mr, Unbox e)
+     forall e mr m s. (Primal s m, MemRead mr, Unbox e)
   => mr -- ^ /memRead1/ - First memory region
   -> Off Word8
   -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
@@ -150,7 +150,7 @@ compareByteOffToPtrMem src srcOff dst dstOff c =
 --
 -- @since 0.1.0
 copyByteOffToMBytesMem ::
-     forall e mr p m s. (MonadPrim s m, MemRead mr, Unbox e)
+     forall e mr p m s. (Primal s m, MemRead mr, Unbox e)
   => mr -- ^ /memSourceRead/ - Source from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset into source memory in number of bytes
@@ -192,7 +192,7 @@ copyByteOffToMBytesMem src srcOff dst dstOff c =
 --
 -- @since 0.3.0
 readOffMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memRead/ - Memory region to read an element from
   -> Off e
   -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
@@ -218,7 +218,7 @@ readOffMutMem mw = liftST . readOffMutMemST mw
 --
 -- @since 0.3.0
 readByteOffMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memRead/ - Memory region to read an element from
   -> Off Word8
   -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
@@ -245,7 +245,7 @@ readByteOffMutMem mw = liftST . readByteOffMutMemST mw
 --
 -- @since 0.3.0
 writeOffMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memWrite/ - Memory region to write an element into
   -> Off e
   -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
@@ -272,7 +272,7 @@ writeOffMutMem mw off = liftST . writeOffMutMemST mw off
 --
 -- @since 0.3.0
 writeByteOffMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memWrite/ - Memory region to write an element into
   -> Off Word8
   -- ^ /off/ - Offset in number of bytes from the beginning of @memWrite@
@@ -303,7 +303,7 @@ writeByteOffMutMem mw off = liftST . writeByteOffMutMemST mw off
 --
 -- @since 0.3.0
 moveByteOffToMBytesMutMem ::
-     forall e mw p m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw p m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memSource/ - Source memory from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset in number of bytes into source memory
@@ -362,7 +362,7 @@ moveByteOffToMBytesMutMem src srcOff dst dstOff c =
 --
 -- @since 0.3.0
 moveByteOffToPtrMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memSource/ - Source memory from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset in number of bytes into source memory
@@ -422,7 +422,7 @@ moveByteOffToPtrMutMem src srcOff dst dstOff c =
 --
 -- @since 0.1.0
 copyByteOffMutMem ::
-     forall e mr mw m s. (MonadPrim s m, MemWrite mw, MemRead mr, Unbox e)
+     forall e mr mw m s. (Primal s m, MemWrite mw, MemRead mr, Unbox e)
   => mr -- ^ /memSourceRead/ - Read-only source memory region from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset into source memory in number of bytes
@@ -476,7 +476,7 @@ copyByteOffMutMem src srcOff dst dstOff c =
 --
 -- @since 0.3.0
 moveByteOffMutMem ::
-     forall e mw' mw m s. (MonadPrim s m, MemWrite mw, MemWrite mw', Unbox e)
+     forall e mw' mw m s. (Primal s m, MemWrite mw, MemWrite mw', Unbox e)
   => mw' s -- ^ /memSource/ - Source memory from where to copy
   -> Off Word8
   -- ^ /memSourceOff/ - Offset in number of bytes into source memory
@@ -530,7 +530,7 @@ moveByteOffMutMem src srcOff dst dstOff c =
 --
 -- @since 1.0.0
 setByteOffMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s
   -> Off Word8
   -> Count e
@@ -547,7 +547,7 @@ setByteOffMutMem mw off c = liftST . setByteOffMutMemST mw off c
 --
 -- @since 0.3.0
 setMutMem ::
-     forall e mw m s. (MonadPrim s m, MemWrite mw, Unbox e)
+     forall e mw m s. (Primal s m, MemWrite mw, Unbox e)
   => mw s -- ^ /memTarget/ - Target memory into where to write the element
   -> Off e
   -- ^ /memTargetOff/ - Offset into target memory in number of elements at which element
@@ -598,7 +598,7 @@ setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
 --
 -- @since 0.3.0
 getByteCountMutMem ::
-     forall ma m s. (MonadPrim s m, MemAlloc ma)
+     forall ma m s. (Primal s m, MemAlloc ma)
   => ma s
   -> m (Count Word8)
 getByteCountMutMem = liftST . getByteCountMutMemST
@@ -618,7 +618,7 @@ getByteCountMutMem = liftST . getByteCountMutMemST
 --
 -- @since 0.3.0
 allocMutMem ::
-     forall e ma m s. (MonadPrim s m, MemAlloc ma, Unbox e)
+     forall e ma m s. (Primal s m, MemAlloc ma, Unbox e)
   => Count e
   -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
@@ -653,7 +653,7 @@ allocMutMem = liftST . allocMutMemST
 --
 -- @since 0.3.0
 reallocMutMem ::
-     forall e ma m s. (MonadPrim s m, MemAlloc ma, Unbox e)
+     forall e ma m s. (Primal s m, MemAlloc ma, Unbox e)
   => ma s
   -- ^ /memSource/ - Source memory region to resize
   -> Count e
@@ -678,7 +678,7 @@ reallocMutMem ma = liftST . reallocMutMemST ma
 --
 -- @since 0.3.0
 modifyFetchOldMutMem ::
-     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+     forall e mw m s. (MemWrite mw, Primal s m, Unbox e)
   => mw s
   -> Off e
   -> (e -> e)
@@ -690,7 +690,7 @@ modifyFetchOldMutMem mem o f = modifyFetchOldMutMemM mem o (pure . f)
 --
 -- @since 0.3.0
 modifyFetchNewMutMem ::
-     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+     forall e mw m s. (MemWrite mw, Primal s m, Unbox e)
   => mw s
   -> Off e
   -> (e -> e)
@@ -702,7 +702,7 @@ modifyFetchNewMutMem mem o f = modifyFetchNewMutMemM mem o (pure . f)
 --
 -- @since 0.3.0
 modifyFetchOldMutMemM ::
-     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+     forall e mw m s. (MemWrite mw, Primal s m, Unbox e)
   => mw s
   -> Off e
   -> (e -> m e)
@@ -716,7 +716,7 @@ modifyFetchOldMutMemM mem o f = do
 --
 -- @since 0.3.0
 modifyFetchNewMutMemM ::
-     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+     forall e mw m s. (MemWrite mw, Primal s m, Unbox e)
   => mw s
   -> Off e
   -> (e -> m e)
@@ -815,7 +815,7 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 --
 -- @since 0.3.0
 allocZeroMutMem ::
-     forall e ma m s. (MemAlloc ma, MonadPrim s m, Unbox e)
+     forall e ma m s. (MemAlloc ma, Primal s m, Unbox e)
   => Count e
   -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
@@ -1001,7 +1001,7 @@ cloneMem = clone
 --
 -- @since 0.1.0
 copyMem ::
-     forall e mr mw m s. (MonadPrim s m, MemRead mr, MemWrite mw, Unbox e)
+     forall e mr mw m s. (Primal s m, MemRead mr, MemWrite mw, Unbox e)
   => mr -- ^ /memSourceRead/ - Read-only source memory region from which the data will
         -- copied
   -> Off e
@@ -1049,7 +1049,7 @@ copyMem src srcOff dst dstOff = copyByteOffMutMem src (toByteOff srcOff) dst (to
 --
 -- @since 0.3.0
 moveMutMem ::
-     forall e mw1 mw2 m s. (MonadPrim s m, MemWrite mw1, MemWrite mw2, Unbox e)
+     forall e mw1 mw2 m s. (Primal s m, MemWrite mw1, MemWrite mw2, Unbox e)
   => mw1 s -- ^ Source memory region
   -> Off e -- ^ Offset into the source in number of elements
   -> mw2 s -- ^ Destination memory region
@@ -1099,7 +1099,7 @@ concatMem xs = do
 --
 -- @since 0.1.0
 thawMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
+     forall ma m s. (MemAlloc ma, Primal s m)
   => Frozen ma
   -> m (ma s)
 thawMem = liftST . thawST
@@ -1115,7 +1115,7 @@ thawMem = liftST . thawST
 --
 -- @since 0.3.0
 freezeMutMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
+     forall ma m s. (MemAlloc ma, Primal s m)
   => ma s
   -> m (Frozen ma)
 freezeMutMem = liftST . freezeMutST
@@ -1142,7 +1142,7 @@ freezeMutMem = liftST . freezeMutST
 --
 -- @since 0.1.0
 thawCloneMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
+     forall ma m s. (MemAlloc ma, Primal s m)
   => Frozen ma
   -> m (ma s)
 thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
@@ -1171,7 +1171,7 @@ thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 --
 -- @since 0.1.0
 thawCopyMem ::
-     forall e ma m s. (Unbox e, MemAlloc ma, MonadPrim s m)
+     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
   => Frozen ma -- ^ /memSource/ - Read-only source memory region from which the data
                   -- will copied and thawed
   -> Off e
@@ -1201,7 +1201,7 @@ thawCopyMem a off c = do
 --
 -- @since 0.3.0
 freezeCopyMutMem ::
-     forall e ma m s. (Unbox e, MemAlloc ma, MonadPrim s m)
+     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
   => ma s
   -> Off e
   -> Count e
@@ -1229,7 +1229,7 @@ freezeCopyMutMem mem off c = freezeMut mem >>= \r -> thawCopyMem r off c >>= fre
 --
 -- @since 0.3.0
 freezeCloneMutMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
+     forall ma m s. (MemAlloc ma, Primal s m)
   => ma s
   -> m (Frozen ma)
 freezeCloneMutMem = freezeCloneMut
@@ -1318,7 +1318,7 @@ countRemMem = fromByteCountRem . byteCountMem
 -- Count {unCount = 12}
 --
 -- @since 0.3.0
-getCountMutMem :: forall e ma m s. (MemAlloc ma, MonadPrim s m, Unbox e) => ma s -> m (Count e)
+getCountMutMem :: forall e ma m s. (MemAlloc ma, Primal s m, Unbox e) => ma s -> m (Count e)
 getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 {-# INLINE getCountMutMem #-}
 
@@ -1340,7 +1340,7 @@ getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 --
 -- @since 0.3.0
 getCountRemMutMem ::
-     forall e ma m s. (MemAlloc ma, MonadPrim s m, Unbox e)
+     forall e ma m s. (MemAlloc ma, Primal s m, Unbox e)
   => ma s
   -> m (Count e, Count Word8)
 getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
@@ -1351,7 +1351,7 @@ getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
 --
 -- @since 0.3.0
 cloneMutMem ::
-     forall ma m s. (MemAlloc ma, MonadPrim s m)
+     forall ma m s. (MemAlloc ma, Primal s m)
   => ma s
   -> m (ma s)
 cloneMutMem = cloneMut
@@ -1651,7 +1651,7 @@ fromListZeroMemN_ !n = snd . fromListZeroMemN n
 
 
 loadListByteOffHelper ::
-     (MemWrite mw, MonadPrim s m, Unbox e)
+     (MemWrite mw, Primal s m, Unbox e)
   => [e]
   -> mw s
   -> Off Word8 -- ^ Offset
@@ -1697,7 +1697,7 @@ loadListByteOffHelper ys mw byteOff k step =
 --
 -- @since 0.2.0
 loadListByteOffMutMemN ::
-     (MemWrite mw, MonadPrim s m, Unbox e)
+     (MemWrite mw, Primal s m, Unbox e)
   => Count e
   -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
@@ -1758,7 +1758,7 @@ loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff
 --
 -- @since 0.3.0
 loadListByteOffMutMem ::
-     (MemAlloc ma, MonadPrim s m, Unbox e)
+     (MemAlloc ma, Primal s m, Unbox e)
   => [e] -- ^ /listSource/ - List with elements that should be loaded
   -> ma s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off Word8
@@ -1792,7 +1792,7 @@ loadListByteOffMutMem ys ma byteOff = do
 --
 -- @since 0.2.0
 loadListOffMutMemN ::
-     (MemWrite mw, MonadPrim s m, Unbox e)
+     (MemWrite mw, Primal s m, Unbox e)
   => Count e
   -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
@@ -1841,7 +1841,7 @@ loadListOffMutMemN count ys mw off =
 --
 -- @since 0.2.0
 loadListMutMemN ::
-     forall e mw m s. (MemWrite mw, MonadPrim s m, Unbox e)
+     forall e mw m s. (MemWrite mw, Primal s m, Unbox e)
   => Count e
   -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
@@ -1870,7 +1870,7 @@ loadListMutMemN count xs mw = loadListOffMutMemN count xs mw 0
 --
 -- @since 0.2.0
 loadListMutMemN_ ::
-     forall e mw m s. (Unbox e, MemWrite mw, MonadPrim s m)
+     forall e mw m s. (Unbox e, MemWrite mw, Primal s m)
   => Count e
   -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
@@ -1903,7 +1903,7 @@ loadListMutMemN_ (Count n) ys mb =
 --
 -- @since 0.3.0
 loadListOffMutMem ::
-     forall e ma m s. (Unbox e, MemAlloc ma, MonadPrim s m)
+     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
   => [e] -- ^ /listSource/ - List with elements that should be loaded
   -> ma s -- ^ /memTarget/ - Memory region where to load the elements into
   -> Off e
@@ -1944,7 +1944,7 @@ loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c 
 --
 -- @since 0.3.0
 loadListMutMem ::
-     forall e ma m s. (Unbox e, MemAlloc ma, MonadPrim s m)
+     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
   => [e] -- ^ /listSource/ - List with elements to load
   -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ([e], Count e)
@@ -1958,7 +1958,7 @@ loadListMutMem ys ma = getCountMutMem ma >>= \c -> loadListOffMutMemN (c `countF
 --
 -- @since 0.2.0
 loadListMutMem_ ::
-     forall e ma m s. (Unbox e, MemAlloc ma, MonadPrim s m)
+     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
   => [e] -- ^ /listSource/ - List with elements to load
   -> ma s -- ^ /memTarget/ - Mutable region where to load elements from the list
   -> m ()
@@ -2013,7 +2013,7 @@ imapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
 mapByteMemM ::
-     (MemRead mr, MemAlloc ma, MonadPrim s m, Unbox e)
+     (MemRead mr, MemAlloc ma, Primal s m, Unbox e)
   => (Word8 -> m e)
   -> mr
   -> m (Frozen ma)
@@ -2022,7 +2022,7 @@ mapByteMemM f = mapByteOffMemM (const f)
 
 -- @since 0.1.0
 mapByteOffMemM ::
-     forall e mr ma m s. (MemRead mr, MemAlloc ma, MonadPrim s m, Unbox e)
+     forall e mr ma m s. (MemRead mr, MemAlloc ma, Primal s m, Unbox e)
   => (Off Word8 -> Word8 -> m e)
   -> mr
   -> m (Frozen ma)
@@ -2042,7 +2042,7 @@ mapByteOffMemM f r = do
 
 -- | Iterate over a region of memory
 forByteOffMemM_ ::
-     (MemRead mr, MonadPrim s m, Unbox e)
+     (MemRead mr, Primal s m, Unbox e)
   => mr
   -> Off Word8
   -> Count e
@@ -2199,7 +2199,7 @@ foldlShortMem off count g f = ifoldlShortMem off count g (\a _ -> f a)
 
 -- -- | Iterate over a region of memory
 -- loopMemM_ ::
---      (MemRead mr, MonadPrim s m, Unbox e)
+--      (MemRead mr, Primal s m, Unbox e)
 --   => r
 --   -> Off Word8
 --   -> Count e
@@ -2229,7 +2229,7 @@ data MMemView a s = MMemView
   }
 
 izipWithByteOffMemM_ ::
-     (MemRead mr1, MemRead mr2, MonadPrim s m, Unbox e)
+     (MemRead mr1, MemRead mr2, Primal s m, Unbox e)
   => mr1
   -> Off Word8
   -> mr2
@@ -2251,7 +2251,7 @@ izipWithByteOffMemM_ r1 (Off byteOff1) r2 off2 c f =
 
 
 izipWithOffMemM_ ::
-     (MemRead mr1, MemRead mr2, MonadPrim s m, Unbox e1, Unbox e2)
+     (MemRead mr1, MemRead mr2, Primal s m, Unbox e1, Unbox e2)
   => mr1
   -> Off e1
   -> mr2
@@ -2268,19 +2268,19 @@ izipWithOffMemM_ r1 off1 r2 off2 nc f =
 
 
 -- class Mut f => MFunctor f where
---   mmap :: (Elt f a, Elt f b, MonadPrim s m) => (a -> b) -> f a s -> m (f b s)
+--   mmap :: (Elt f a, Elt f b, Primal s m) => (a -> b) -> f a s -> m (f b s)
 
 -- class Mut f => MTraverse f where
---   mmapM :: (Elt f a, Elt f b, MonadPrim s m) => (a -> m b) -> f a s -> m (f b s)
+--   mmapM :: (Elt f a, Elt f b, Primal s m) => (a -> m b) -> f a s -> m (f b s)
 
 -- class MFunctor f => MApplicative f where
---   pureMut :: (Elt f a, MonadPrim s m) => a -> m (f a s)
+--   pureMut :: (Elt f a, Primal s m) => a -> m (f a s)
 --   liftMut ::
---     (Elt f a, Elt f b, Elt f c, MonadPrim s m) => (a -> b -> m c) -> f a s -> f b s -> m (f c s)
+--     (Elt f a, Elt f b, Elt f c, Primal s m) => (a -> b -> m c) -> f a s -> f b s -> m (f c s)
 
 -- class MApplicative f => MMonad f where
 --   bindMut ::
---     (Elt f a, Elt f b, MonadPrim s m) => f a s -> (a -> m b) -> m (f b s)
+--     (Elt f a, Elt f b, Primal s m) => f a s -> (a -> m b) -> m (f b s)
 
 -- instance MFunctor MAddr where
 --   mmap f maddr = do
@@ -2378,7 +2378,7 @@ showsHexMem b = map toHex (toListMem b :: [Word8])
 -- @since 0.3.0
 withScrubbedMutMem ::
      forall e ma m a.
-     (MonadUnliftPrim RW m, Unbox e, MemAlloc ma, MemPtr ma)
+     (UnliftPrimal RW m, Unbox e, MemAlloc ma, MemPtr ma)
   => Count e
   -> (ma RW -> m a)
   -> m a

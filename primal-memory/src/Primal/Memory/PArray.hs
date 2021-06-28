@@ -185,42 +185,42 @@ sizePArray :: forall e p. Unbox e => PArray p e -> Size
 sizePArray = (coerce :: Count e -> Size) . countBytes . toBytesPArray
 {-# INLINE sizePArray #-}
 
-getSizeOfPMArray :: forall e p m s. (MonadPrim s m, Unbox e) => PMArray p e s -> m Size
+getSizeOfPMArray :: forall e p m s. (Primal s m, Unbox e) => PMArray p e s -> m Size
 getSizeOfPMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPMArray
 {-# INLINE getSizeOfPMArray #-}
 
 allocPMArray ::
-     forall e p m s . (Typeable p, Unbox e, MonadPrim s m) => Size -> m (PMArray p e s)
+     forall e p m s . (Typeable p, Unbox e, Primal s m) => Size -> m (PMArray p e s)
 allocPMArray sz = fromMBytesPMArray <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocPMArray #-}
 
-allocUnpinnedPMArray :: forall e m s . (MonadPrim s m, Unbox e) => Size -> m (PMArray 'Inc e s)
+allocUnpinnedPMArray :: forall e m s . (Primal s m, Unbox e) => Size -> m (PMArray 'Inc e s)
 allocUnpinnedPMArray sz = fromMBytesPMArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocUnpinnedPMArray #-}
 
-allocPinnedPMArray :: forall e m s . (MonadPrim s m, Unbox e) => Size -> m (PMArray 'Pin e s)
+allocPinnedPMArray :: forall e m s . (Primal s m, Unbox e) => Size -> m (PMArray 'Pin e s)
 allocPinnedPMArray sz = fromMBytesPMArray <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocPinnedPMArray #-}
 
 allocAlignedPMArray ::
-     (MonadPrim s m, Unbox e)
+     (Primal s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (PMArray 'Pin e s)
 allocAlignedPMArray = fmap fromMBytesPMArray . allocAlignedMBytes
 {-# INLINE allocAlignedPMArray #-}
 
-freezePMArray :: MonadPrim s m => PMArray p e s -> m (PArray p e)
+freezePMArray :: Primal s m => PMArray p e s -> m (PArray p e)
 freezePMArray = fmap fromBytesPArray . freezeMBytes . toMBytesPMArray
 {-# INLINE freezePMArray #-}
 
-thawPArray :: MonadPrim s m => PArray p e -> m (PMArray p e s)
+thawPArray :: Primal s m => PArray p e -> m (PMArray p e s)
 thawPArray = fmap fromMBytesPMArray . thawBytes . toBytesPArray
 {-# INLINE thawPArray #-}
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountPMArray`.
 shrinkPMArray ::
-     forall e p m s. (MonadPrim s m, Unbox e)
+     forall e p m s. (Primal s m, Unbox e)
   => PMArray p e s
   -> Size
   -> m ()
@@ -234,7 +234,7 @@ shrinkPMArray mba sz = shrinkMBytes (toMBytesPMArray mba) (coerce sz :: Count e)
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
 resizePMArray ::
-     forall e p m s. (MonadPrim s m, Unbox e)
+     forall e p m s. (Primal s m, Unbox e)
   => PMArray p e s
   -> Size
   -> m (PMArray 'Inc e s)
@@ -244,7 +244,7 @@ resizePMArray mba sz =
 {-# INLINE resizePMArray #-}
 
 reallocPMArray ::
-     forall e p m s. (MonadPrim s m, Typeable p,  Unbox e)
+     forall e p m s. (Primal s m, Typeable p,  Unbox e)
   => PMArray p e s
   -> Size
   -> m (PMArray p e s)
@@ -262,18 +262,18 @@ isPinnedPMArray :: PMArray p e s -> Bool
 isPinnedPMArray (PMArray mb) = isPinnedMBytes mb
 {-# INLINE isPinnedPMArray #-}
 
-readPMArray :: (MonadPrim s m, Unbox e) => PMArray p e s -> Int -> m e
+readPMArray :: (Primal s m, Unbox e) => PMArray p e s -> Int -> m e
 readPMArray (PMArray mb) = readOffMBytes mb . coerce
 {-# INLINE readPMArray #-}
 
-writePMArray :: (MonadPrim s m, Unbox e) => PMArray p e s -> Int -> e -> m ()
+writePMArray :: (Primal s m, Unbox e) => PMArray p e s -> Int -> e -> m ()
 writePMArray (PMArray mb) o = writeOffMBytes mb (coerce o)
 {-# INLINE writePMArray #-}
 
 
 
 setPMArray ::
-     forall e p m s. (MonadPrim s m, Unbox e)
+     forall e p m s. (Primal s m, Unbox e)
   => PMArray p e s -- ^ Chunk of memory to fill
   -> Int -- ^ Offset in number of elements
   -> Size -- ^ Number of cells to fill
@@ -283,7 +283,7 @@ setPMArray (PMArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
 {-# INLINE setPMArray #-}
 
 copyPArrayToPMArray ::
-     forall e p m s. (MonadPrim s m, Unbox e)
+     forall e p m s. (Primal s m, Unbox e)
   => PArray p e
   -> Int
   -> PMArray p e s
@@ -295,7 +295,7 @@ copyPArrayToPMArray ba srcOff mba dstOff sz =
 {-# INLINE copyPArrayToPMArray #-}
 
 movePMArrayToPMArray ::
-     forall e p m s. (MonadPrim s m, Unbox e)
+     forall e p m s. (Primal s m, Unbox e)
   => PMArray p e s
   -> Int
   -> PMArray p e s
@@ -318,24 +318,24 @@ movePMArrayToPMArray ba srcOff mba dstOff sz =
 
 -- -- | Pointer access to immutable `PArray` should be for read only purposes, but it is
 -- -- not enforced. Any mutation will break referential transparency
--- withPtrPArray :: MonadPrim s m => PArray Pin e -> (Ptr e -> m b) -> m b
+-- withPtrPArray :: Primal s m => PArray Pin e -> (Ptr e -> m b) -> m b
 -- withPtrPArray b f = do
 --   res <- f (toPtrPArray b)
 --   res <$ touch b
 -- {-# INLINE withPtrPArray #-}
 
 -- -- | Same as `withPtrPArray`, but is suitable for actions that don't terminate
--- withNoHaltPtrPArray :: MonadUnliftPrim s m => PArray Pin e -> (Ptr e -> m b) -> m b
+-- withNoHaltPtrPArray :: UnliftPrimal s m => PArray Pin e -> (Ptr e -> m b) -> m b
 -- withNoHaltPtrPArray b f = withAliveUnliftPrim b $ f (toPtrPArray b)
 -- {-# INLINE withNoHaltPtrPArray #-}
 
--- withPtrPMArray :: MonadPrim s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
+-- withPtrPMArray :: Primal s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
 -- withPtrPMArray mb f = do
 --   res <- f (toPtrPMArray mb)
 --   res <$ touch mb
 -- {-# INLINE withPtrPMArray #-}
 
--- withNoHaltPtrPMArray :: MonadUnliftPrim s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
+-- withNoHaltPtrPMArray :: UnliftPrimal s m => PMArray Pin e s -> (Ptr e -> m b) -> m b
 -- withNoHaltPtrPMArray mb f = withAliveUnliftPrim mb $ f (toPtrPMArray mb)
 -- {-# INLINE withNoHaltPtrPMArray #-}
 

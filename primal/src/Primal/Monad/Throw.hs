@@ -10,7 +10,7 @@
 -- Portability : non-portable
 --
 module Primal.Monad.Throw
-  ( MonadThrow(..)
+  ( Throws(..)
   ) where
 
 import Control.Exception
@@ -52,79 +52,79 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 -- === Note
 --
 -- This is an almost identical class to
--- [MonadThrow](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:MonadThrow)
+-- [Throws](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:Throws)
 -- from @exceptions@ package. The reason why it was copied, instead of a direct dependency
 -- on the aforementioned package is because @MonadCatch@ and @MonadMask@ are not right
 -- abstractions for exception handling in presence of concurrency and also because
 -- instances for such transformers as `MaybeT` and `ExceptT` are flawed.
-class Monad m => MonadThrow m where
+class Monad m => Throws m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
   -- "Primal.Exception"'s 'Primal.Exception.throw'.
   --
   throwM :: Exception e => e -> m a
 
-instance MonadThrow Maybe where
+instance Throws Maybe where
   throwM _ = Nothing
 
-instance e ~ SomeException => MonadThrow (Either e) where
+instance e ~ SomeException => Throws (Either e) where
   throwM = Left . toException
 
-instance MonadThrow IO where
+instance Throws IO where
   throwM = throwIO
 
-instance MonadThrow (ST s) where
+instance Throws (ST s) where
   throwM e = unsafeIOToST $ throwIO e
 
-instance MonadThrow STM where
+instance Throws STM where
   throwM e = STM $ raiseIO# (toException e)
 
 
-instance MonadThrow m => MonadThrow (ContT r m) where
+instance Throws m => Throws (ContT r m) where
   throwM = lift . throwM
 
-instance (e ~ SomeException, Monad m) => MonadThrow (ExceptT e m) where
+instance (e ~ SomeException, Monad m) => Throws (ExceptT e m) where
   throwM e = ExceptT (pure (Left (toException e)))
 
-instance MonadThrow m => MonadThrow (IdentityT m) where
+instance Throws m => Throws (IdentityT m) where
   throwM = lift . throwM
 
-instance Monad m => MonadThrow (MaybeT m) where
+instance Monad m => Throws (MaybeT m) where
   throwM _ = MaybeT (pure Nothing)
 
-instance MonadThrow m => MonadThrow (ReaderT r m) where
+instance Throws m => Throws (ReaderT r m) where
   throwM = lift . throwM
 
-instance (Monoid w, MonadThrow m) => MonadThrow (Lazy.RWST r w s m) where
+instance (Monoid w, Throws m) => Throws (Lazy.RWST r w s m) where
   throwM = lift . throwM
 
-instance (Monoid w, MonadThrow m) => MonadThrow (Strict.RWST r w s m) where
+instance (Monoid w, Throws m) => Throws (Strict.RWST r w s m) where
   throwM = lift . throwM
 
-instance MonadThrow m => MonadThrow (Lazy.StateT s m) where
+instance Throws m => Throws (Lazy.StateT s m) where
   throwM = lift . throwM
 
-instance MonadThrow m => MonadThrow (Strict.StateT s m) where
+instance Throws m => Throws (Strict.StateT s m) where
   throwM = lift . throwM
 
-instance (Monoid w, MonadThrow m) => MonadThrow (Lazy.WriterT w m) where
+instance (Monoid w, Throws m) => Throws (Lazy.WriterT w m) where
   throwM = lift . throwM
 
-instance (Monoid w, MonadThrow m) => MonadThrow (Strict.WriterT w m) where
+instance (Monoid w, Throws m) => Throws (Strict.WriterT w m) where
   throwM = lift . throwM
 
 #if MIN_VERSION_transformers(0, 5, 3)
 
-instance (Monoid w, MonadThrow m) => MonadThrow (AccumT w m) where
+instance (Monoid w, Throws m) => Throws (AccumT w m) where
   throwM = lift . throwM
-instance MonadThrow m => MonadThrow (SelectT r m) where
+instance Throws m => Throws (SelectT r m) where
   throwM = lift . throwM
 
 #if MIN_VERSION_transformers(0, 5, 6)
 
-instance MonadThrow m => MonadThrow (CPS.RWST r w st m) where
+instance Throws m => Throws (CPS.RWST r w st m) where
   throwM = lift . throwM
-instance MonadThrow m => MonadThrow (CPS.WriterT w m) where
+instance Throws m => Throws (CPS.WriterT w m) where
   throwM = lift . throwM
 
 #endif

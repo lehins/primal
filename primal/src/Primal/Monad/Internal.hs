@@ -21,26 +21,26 @@ module Primal.Monad.Internal
   ( RW
   , RealWorld
   , MonadIO
-  , MonadPrim(..)
-  , MonadPrimBase(..)
+  , Primal(..)
+  , PrimalState(..)
   , MonadUnliftIO
-  , MonadUnliftPrim(..)
+  , UnliftPrimal(..)
   , ST
   , unIO
   , unIO_
   , unST
   , unST_
   , runST
-  , prim_
-  , primBase_
+  , primal_
+  , primalState_
   , withRunInIO
-  , withRunInPrimBase
-  , runInPrimBase
+  , withRunInPrimalState
+  , runInPrimalState
   , liftIO
   , liftST
-  , liftPrimBase
-  , primBaseToIO
-  , primBaseToST
+  , liftPrimalState
+  , primalStateToIO
+  , primalStateToST
   ) where
 
 import GHC.Exts
@@ -73,233 +73,233 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 -- | A shorter synonym for the magical `RealWorld`
 type RW = RealWorld
 
-type MonadIO m = MonadPrim RW m
+type MonadIO m = Primal RW m
 
-type MonadUnliftIO m = MonadUnliftPrim RW m
+type MonadUnliftIO m = UnliftPrimal RW m
 
-class MonadThrow m => MonadPrim s m | m -> s where
-  -- | Construct a primitive action
-  prim :: (State# s -> (# State# s, a #)) -> m a
+class Throws m => Primal s m | m -> s where
+  -- | Construct a primal action from a state passing function.
+  primal :: (State# s -> (# State# s, a #)) -> m a
 
 
-class MonadPrim s m => MonadUnliftPrim s m where
+class Primal s m => UnliftPrimal s m where
 
   withRunInST :: ((forall a. m a -> ST s a) -> ST s b) -> m b
 
-  runInPrimBase1 ::
+  runInPrimalState1 ::
        (a -> m b)
     -> ( (a -> State# s -> (# State# s, b #)) -> State# s -> (# State# s, c #) )
     -> m c
-  runInPrimBase1 m f# = runInPrimBase2 (\_ -> pure ()) m (\_ -> f#)
-  {-# INLINE runInPrimBase1 #-}
+  runInPrimalState1 m f# = runInPrimalState2 (\_ -> pure ()) m (\_ -> f#)
+  {-# INLINE runInPrimalState1 #-}
 
-  runInPrimBase2 ::
+  runInPrimalState2 ::
        (a -> m b)
     -> (c -> m d)
     -> ( (a -> State# s -> (# State# s, b #))
       -> (c -> State# s -> (# State# s, d #))
       -> State# s -> (# State# s, e #)   )
     -> m e
-  runInPrimBase2 m1 m2 f# =
+  runInPrimalState2 m1 m2 f# =
     withRunInST $ \run ->
       ST (f# (\a -> unST (run (m1 a))) (\c -> unST (run (m2 c))))
-  {-# INLINE runInPrimBase2 #-}
+  {-# INLINE runInPrimalState2 #-}
 
 
-class MonadUnliftPrim s m => MonadPrimBase s m where
-  -- | Unwrap a primitive action
-  primBase :: m a -> State# s -> (# State# s, a #)
+class UnliftPrimal s m => PrimalState s m where
+  -- | Get the state passing function from the primal action
+  primalState :: m a -> State# s -> (# State# s, a #)
 
 
-instance MonadPrimBase RealWorld IO where
-  primBase (IO m) = m
-  {-# INLINE primBase #-}
+instance PrimalState RealWorld IO where
+  primalState (IO m) = m
+  {-# INLINE primalState #-}
 
-instance MonadPrimBase s (ST s) where
-  primBase (ST m) = m
-  {-# INLINE primBase #-}
+instance PrimalState s (ST s) where
+  primalState (ST m) = m
+  {-# INLINE primalState #-}
 
-instance MonadPrimBase s m => MonadPrimBase s (IdentityT m) where
-  primBase (IdentityT m) = primBase m
-  {-# INLINE primBase #-}
+instance PrimalState s m => PrimalState s (IdentityT m) where
+  primalState (IdentityT m) = primalState m
+  {-# INLINE primalState #-}
 
-runInPrimBase ::
-     forall s m a b. MonadUnliftPrim s m
+runInPrimalState ::
+     forall s m a b. UnliftPrimal s m
   => m a
   -> ((State# s -> (# State# s, a #)) -> State# s -> (# State# s, b #))
   -> m b
-runInPrimBase f g# = runInPrimBase1 (const f) (\f# -> g# (f# ()))
-{-# INLINE runInPrimBase #-}
+runInPrimalState f g# = runInPrimalState1 (const f) (\f# -> g# (f# ()))
+{-# INLINE runInPrimalState #-}
 
 
 
 withRunInIO ::
-     forall m b. MonadUnliftPrim RW m
+     forall m b. UnliftPrimal RW m
   => ((forall a. m a -> IO a) -> IO b)
   -> m b
-withRunInIO f = withRunInST $ \run -> coerce (f (\m -> coerce (run m)))
+withRunInIO f = withRunInST $ \run -> coerce (f (coerce . run))
 {-# INLINE withRunInIO #-}
 
 
-withRunInPrimBase ::
-     (MonadUnliftPrim s m, MonadPrimBase s n)
+withRunInPrimalState ::
+     (UnliftPrimal s m, PrimalState s n)
   => ((forall a. m a -> n a) -> n b)
   -> m b
-withRunInPrimBase inner =
-  withRunInST $ \run -> liftPrimBase (inner (liftST . run))
-{-# INLINE withRunInPrimBase #-}
+withRunInPrimalState inner =
+  withRunInST $ \run -> liftPrimalState (inner (liftST . run))
+{-# INLINE withRunInPrimalState #-}
 
 
 
-instance MonadUnliftPrim RealWorld IO where
-  withRunInST inner = coerce (inner liftPrimBase)
+instance UnliftPrimal RealWorld IO where
+  withRunInST inner = coerce (inner liftPrimalState)
   {-# INLINE withRunInST #-}
-  runInPrimBase1 io f# = IO (f# (\e -> unIO (io e)))
-  {-# INLINE runInPrimBase1 #-}
-  runInPrimBase2 io1 io2 f# = IO (f# (\e -> unIO (io1 e)) (\e -> unIO (io2 e)))
-  {-# INLINE runInPrimBase2 #-}
+  runInPrimalState1 io f# = IO (f# (\e -> unIO (io e)))
+  {-# INLINE runInPrimalState1 #-}
+  runInPrimalState2 io1 io2 f# = IO (f# (\e -> unIO (io1 e)) (\e -> unIO (io2 e)))
+  {-# INLINE runInPrimalState2 #-}
 
-instance MonadUnliftPrim s (ST s) where
-  withRunInST inner = inner liftPrimBase
+instance UnliftPrimal s (ST s) where
+  withRunInST inner = inner liftPrimalState
   {-# INLINE withRunInST #-}
-  runInPrimBase1 st f# = ST (f# (\e -> unST (st e)))
-  {-# INLINE runInPrimBase1 #-}
-  runInPrimBase2 st1 st2 f# = ST (f# (\e -> unST (st1 e)) (\e -> unST (st2 e)))
-  {-# INLINE runInPrimBase2 #-}
+  runInPrimalState1 st f# = ST (f# (\e -> unST (st e)))
+  {-# INLINE runInPrimalState1 #-}
+  runInPrimalState2 st1 st2 f# = ST (f# (\e -> unST (st1 e)) (\e -> unST (st2 e)))
+  {-# INLINE runInPrimalState2 #-}
 
-instance MonadUnliftPrim s m => MonadUnliftPrim s (IdentityT m) where
+instance UnliftPrimal s m => UnliftPrimal s (IdentityT m) where
   withRunInST inner = IdentityT $ withRunInST $ \run -> inner (run . runIdentityT)
   {-# INLINE withRunInST #-}
-  runInPrimBase1 im f# = IdentityT $ runInPrimBase1 (runIdentityT . im) f#
-  {-# INLINE runInPrimBase1 #-}
-  runInPrimBase2 im1 im2 f# =
-    IdentityT $ runInPrimBase2 (runIdentityT . im1) (runIdentityT . im2) f#
-  {-# INLINE runInPrimBase2 #-}
+  runInPrimalState1 im f# = IdentityT $ runInPrimalState1 (runIdentityT . im) f#
+  {-# INLINE runInPrimalState1 #-}
+  runInPrimalState2 im1 im2 f# =
+    IdentityT $ runInPrimalState2 (runIdentityT . im1) (runIdentityT . im2) f#
+  {-# INLINE runInPrimalState2 #-}
 
-instance MonadUnliftPrim s m => MonadUnliftPrim s (ReaderT r m) where
+instance UnliftPrimal s m => UnliftPrimal s (ReaderT r m) where
   withRunInST inner = ReaderT $ \r -> withRunInST $ \run -> inner (run . flip runReaderT r)
   {-# INLINE withRunInST #-}
-  runInPrimBase1 rm f# =
-    ReaderT $ \r -> runInPrimBase1 (\x -> runReaderT (rm x) r) f#
-  {-# INLINE runInPrimBase1 #-}
-  runInPrimBase2 rm1 rm2 f# =
-    ReaderT $ \r -> runInPrimBase2 (\x -> runReaderT (rm1 x) r) (\x -> runReaderT (rm2 x) r) f#
-  {-# INLINE runInPrimBase2 #-}
+  runInPrimalState1 rm f# =
+    ReaderT $ \r -> runInPrimalState1 (\x -> runReaderT (rm x) r) f#
+  {-# INLINE runInPrimalState1 #-}
+  runInPrimalState2 rm1 rm2 f# =
+    ReaderT $ \r -> runInPrimalState2 (\x -> runReaderT (rm1 x) r) (\x -> runReaderT (rm2 x) r) f#
+  {-# INLINE runInPrimalState2 #-}
 
 
-instance MonadPrim RealWorld IO where
-  prim = IO
-  {-# INLINE prim #-}
+instance Primal RealWorld IO where
+  primal = IO
+  {-# INLINE primal #-}
 
-instance MonadPrim s (ST s) where
-  prim = ST
-  {-# INLINE prim #-}
-
-
-instance MonadPrim s m => MonadPrim s (ContT r m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-
-instance (e ~ SomeException, MonadPrim s m) => MonadPrim s (ExceptT e m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-
-instance MonadPrim s m => MonadPrim s (IdentityT m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-
-instance MonadPrim s m => MonadPrim s (MaybeT m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-
-instance MonadPrim s m => MonadPrim s (ReaderT r m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance Primal s (ST s) where
+  primal = ST
+  {-# INLINE primal #-}
 
 
-instance (Monoid w, MonadPrim s m) => MonadPrim s (Lazy.RWST r w st m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-instance (Monoid w, MonadPrim s m) => MonadPrim s (Strict.RWST r w st m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance Primal s m => Primal s (ContT r m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
 
-instance MonadPrim s m => MonadPrim s (Lazy.StateT st m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-instance MonadPrim s m => MonadPrim s (Strict.StateT st m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance (e ~ SomeException, Primal s m) => Primal s (ExceptT e m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
 
-instance (Monoid w, MonadPrim s m) => MonadPrim s (Lazy.WriterT w m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-instance (Monoid w, MonadPrim s m) => MonadPrim s (Strict.WriterT w m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance Primal s m => Primal s (IdentityT m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+
+instance Primal s m => Primal s (MaybeT m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+
+instance Primal s m => Primal s (ReaderT r m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+
+
+instance (Monoid w, Primal s m) => Primal s (Lazy.RWST r w st m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+instance (Monoid w, Primal s m) => Primal s (Strict.RWST r w st m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+
+instance Primal s m => Primal s (Lazy.StateT st m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+instance Primal s m => Primal s (Strict.StateT st m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+
+instance (Monoid w, Primal s m) => Primal s (Lazy.WriterT w m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+instance (Monoid w, Primal s m) => Primal s (Strict.WriterT w m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
 
 
 #if MIN_VERSION_transformers(0, 5, 3)
 
-instance (Monoid w, MonadPrim s m) => MonadPrim s (AccumT w m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-instance MonadPrim s m => MonadPrim s (SelectT r m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance (Monoid w, Primal s m) => Primal s (AccumT w m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+instance Primal s m => Primal s (SelectT r m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
 
 #if MIN_VERSION_transformers(0, 5, 6)
 
-instance MonadPrim s m => MonadPrim s (CPS.RWST r w st m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
-instance MonadPrim s m => MonadPrim s (CPS.WriterT w m) where
-  prim = lift . prim
-  {-# INLINE prim #-}
+instance Primal s m => Primal s (CPS.RWST r w st m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
+instance Primal s m => Primal s (CPS.WriterT w m) where
+  primal = lift . primal
+  {-# INLINE primal #-}
 
 #endif
 #endif
 
-primBase_ :: MonadPrimBase s m => m () -> State# s -> State# s
-primBase_ m s = case primBase m s of
+primalState_ :: PrimalState s m => m () -> State# s -> State# s
+primalState_ m s = case primalState m s of
                   (# s', () #) -> s'
-{-# INLINE primBase_ #-}
+{-# INLINE primalState_ #-}
 
 -- | Construct a primitive action that does not return anything.
-prim_ :: MonadPrim s m => (State# s -> State# s) -> m ()
-prim_ f = prim $ \s -> (# f s, () #)
-{-# INLINE prim_ #-}
+primal_ :: Primal s m => (State# s -> State# s) -> m ()
+primal_ f = primal $ \s -> (# f s, () #)
+{-# INLINE primal_ #-}
 
--- | Lift an `IO` action to `MonadPrim` with the `RealWorld` state token. Type restricted
--- synonym for `liftPrimBase`
-liftIO :: MonadPrim RW m => IO a -> m a
-liftIO (IO m) = prim m
+-- | Lift an `IO` action to `Primal` with the `RealWorld` state token. Type restricted
+-- synonym for `liftPrimalState`
+liftIO :: Primal RW m => IO a -> m a
+liftIO (IO m) = primal m
 {-# INLINE liftIO #-}
 
--- | Lift an `ST` action to `MonadPrim` with the same state token. Type restricted synonym
--- for `liftPrimBase`
-liftST :: MonadPrim s m => ST s a -> m a
-liftST (ST m) = prim m
+-- | Lift an `ST` action to `Primal` with the same state token. Type restricted synonym
+-- for `liftPrimalState`
+liftST :: Primal s m => ST s a -> m a
+liftST (ST m) = primal m
 {-# INLINE liftST #-}
 
--- | Lift an action from the `MonadPrimBase` to another `MonadPrim` with the same state
+-- | Lift an action from the `PrimalState` to another `Primal` with the same state
 -- token.
-liftPrimBase :: (MonadPrimBase s n, MonadPrim s m) => n a -> m a
-liftPrimBase m = prim (primBase m)
-{-# INLINE[0] liftPrimBase #-}
+liftPrimalState :: (PrimalState s n, Primal s m) => n a -> m a
+liftPrimalState m = primal (primalState m)
+{-# INLINE[0] liftPrimalState #-}
 {-# RULES
- "liftPrimBase/id" liftPrimBase = id
+ "liftPrimalState/id" liftPrimalState = id
  #-}
 
--- | Restrict a `MonadPrimBase` action that works with `RealWorld` to `IO`.
-primBaseToIO :: MonadPrimBase RealWorld m => m a -> IO a
-primBaseToIO = liftPrimBase
-{-# INLINE primBaseToIO #-}
+-- | Restrict a `PrimalState` action that works with `RealWorld` to `IO`.
+primalStateToIO :: PrimalState RealWorld m => m a -> IO a
+primalStateToIO = liftPrimalState
+{-# INLINE primalStateToIO #-}
 
--- | Restrict a `MonadPrimBase` action that works in `ST`.
-primBaseToST :: MonadPrimBase s m => m a -> ST s a
-primBaseToST = liftPrimBase
-{-# INLINE primBaseToST #-}
+-- | Restrict a `PrimalState` action that works in `ST`.
+primalStateToST :: PrimalState s m => m a -> ST s a
+primalStateToST = liftPrimalState
+{-# INLINE primalStateToST #-}
 
 
 -- | Unwrap `ST`

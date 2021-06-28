@@ -38,7 +38,7 @@ newtype Unpack e =
 
 
 instance Unbox e => Unbox (Unpack e) where
-  type PrimBase (Unpack e) = Unpack e
+  type PrimalState (Unpack e) = Unpack e
   type SizeOf (Unpack e) = SizeOf e
   type Alignment (Unpack e) = Alignment e
 

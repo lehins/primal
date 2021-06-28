@@ -57,7 +57,7 @@ module Primal.Array.Boxed
   , freezeCopyBMArray
   , casBMArray
   -- * Re-export
-  , MonadPrim
+  , Primal
   ) where
 
 import Data.Functor.Classes
@@ -290,7 +290,7 @@ cloneSliceBArray (BArray a#) (I# i#) (Size (I# n#)) = BArray (cloneArray# a# i# 
 --
 -- @since 0.3.0
 copyBArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -330,7 +330,7 @@ copyBArray ::
   -- > dstStartIx + unSize sz < unSize dstSize
   -> m ()
 copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#)) =
-  prim_ (copyArray# src# srcOff# dst# dstOff# n#)
+  primal_ (copyArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyBArray #-}
 
 
@@ -362,11 +362,11 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 --
 -- @since 0.3.0
 thawBArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BArray e
   -- ^ /array/ - Source immutable array that will be thawed
   -> m (BMArray e s)
-thawBArray (BArray a#) = prim $ \s ->
+thawBArray (BArray a#) = primal $ \s ->
   case unsafeThawArray# a# s of
     (# s', ma# #) -> (# s', BMArray ma# #)
 {-# INLINE thawBArray #-}
@@ -404,7 +404,7 @@ thawBArray (BArray a#) = prim $ \s ->
 --
 -- @since 0.3.0
 thawCopyBArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -428,7 +428,7 @@ thawCopyBArray ::
   -- Should be less then the actual available memory
   -> m (BMArray e s)
   -- ^ /dstMutArray/ - Newly created destination mutable boxed array
-thawCopyBArray (BArray a#) (I# i#) (Size (I# n#)) = prim $ \s ->
+thawCopyBArray (BArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case thawArray# a# i# n# s of
     (# s', ma# #) -> (# s', BMArray ma# #)
 {-# INLINE thawCopyBArray #-}
@@ -570,11 +570,11 @@ isSameBMArray (BMArray ma1#) (BMArray ma2#) =
 --
 -- @since 0.3.0
 getSizeOfBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s
   -> m Size
 getSizeOfBMArray (BMArray ma#) = --pure $! Size (I# (sizeofMutableArray# ma#))
-  prim $ \s ->
+  primal $ \s ->
     case getSizeofMutableArray# ma# s of
       (# s', n# #) -> (# s', coerce (I# n#) #)
 {-# INLINE getSizeOfBMArray #-}
@@ -594,7 +594,7 @@ getSizeOfBMArray (BMArray ma#) = --pure $! Size (I# (sizeofMutableArray# ma#))
 --
 -- @since 0.1.0
 readBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
@@ -605,7 +605,7 @@ readBMArray ::
   --
   -- > ix < unSize (sizeOfMBArray srcMutArray)
   -> m e
-readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
+readBMArray (BMArray ma#) (I# i#) = primal (readArray# ma# i#)
 {-# INLINE readBMArray #-}
 
 
@@ -647,7 +647,7 @@ readBMArray (BMArray ma#) (I# i#) = prim (readArray# ma# i#)
 --
 -- @since 0.3.0
 writeBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /dstMutArray/ - An array to have the element written to
   -> Int
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
@@ -698,12 +698,12 @@ expected: Just *** Exception: divide by zero
 --
 -- @since 0.3.0
 writeLazyBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s
   -> Int
   -> e
   -> m ()
-writeLazyBMArray (BMArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
+writeLazyBMArray (BMArray ma#) (I# i#) a = primal_ (writeArray# ma# i# a)
 {-# INLINE writeLazyBMArray #-}
 
 
@@ -714,7 +714,7 @@ writeLazyBMArray (BMArray ma#) (I# i#) a = prim_ (writeArray# ma# i# a)
 --
 -- @since 0.3.0
 writeDeepBMArray ::
-     forall e m s. (MonadPrim s m, NFData e)
+     forall e m s. (Primal s m, NFData e)
   => BMArray e s
   -> Int
   -> e
@@ -740,7 +740,7 @@ writeDeepBMArray ma i !x =
 --
 -- @since 0.3.0
 newBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => Size
   -- ^ /sz/ - Size of the array
   --
@@ -763,12 +763,12 @@ newBMArray sz x = x `seq` newLazyBMArray sz x
 --
 -- @since 0.3.0
 newLazyBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => Size
   -> e
   -> m (BMArray e s)
 newLazyBMArray (Size (I# n#)) a =
-  prim $ \s ->
+  primal $ \s ->
     case newArray# n# a s of
       (# s', ma# #) -> (# s', BMArray ma# #)
 {-# INLINE newLazyBMArray #-}
@@ -794,7 +794,7 @@ newLazyBMArray (Size (I# n#)) a =
 --
 -- @since 0.3.0
 newRawBMArray ::
-     forall e m s. (HasCallStack, MonadPrim s m)
+     forall e m s. (HasCallStack, Primal s m)
   => Size
   -> m (BMArray e s)
 newRawBMArray sz = newLazyBMArray sz (uninitialized "Primal.Array.Boxed" "newRawBMArray")
@@ -819,7 +819,7 @@ newRawBMArray sz = newLazyBMArray sz (uninitialized "Primal.Array.Boxed" "newRaw
 --
 -- @since 0.3.0
 makeBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => Size
   -> (Int -> m e)
   -> m (BMArray e s)
@@ -839,10 +839,10 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 --
 -- @since 0.3.0
 freezeBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s
   -> m (BArray e)
-freezeBMArray (BMArray ma#) = prim $ \s ->
+freezeBMArray (BMArray ma#) = primal $ \s ->
   case unsafeFreezeArray# ma# s of
     (# s', a# #) -> (# s', BArray a# #)
 {-# INLINE freezeBMArray #-}
@@ -860,7 +860,7 @@ freezeBMArray (BMArray ma#) = prim $ \s ->
 --
 -- @since 0.3.0
 freezeCopyBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -883,7 +883,7 @@ freezeCopyBMArray ::
   --
   -- Should be less then actual available memory
   -> m (BArray e)
-freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
+freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case freezeArray# ma# i# n# s of
     (# s', a# #) -> (# s', BArray a# #)
 {-# INLINE freezeCopyBMArray #-}
@@ -904,7 +904,7 @@ freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = prim $ \s ->
 --
 -- @since 1.0.0
 cloneSliceBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -928,7 +928,7 @@ cloneSliceBMArray ::
   -- Should be less then actual available memory
   -> m (BMArray e s)
 cloneSliceBMArray (BMArray ma#) (I# i#) (Size (I# n#)) =
-  prim $ \s ->
+  primal $ \s ->
     case cloneMutableArray# ma# i# n# s of
       (# s', ma'# #) -> (# s', BMArray ma'# #)
 {-# INLINE cloneSliceBMArray #-}
@@ -943,7 +943,7 @@ cloneSliceBMArray (BMArray ma#) (I# i#) (Size (I# n#)) =
 --
 -- 0.3.0
 shrinkBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -956,7 +956,7 @@ shrinkBMArray ::
   -- > sz <= curSize
   -> m ()
 shrinkBMArray (BMArray ma#) (Size (I# sz#)) =
-  prim_ (shrinkMutableArray# ma# sz#)
+  primal_ (shrinkMutableArray# ma# sz#)
 {-# INLINE shrinkBMArray #-}
 
 
@@ -973,7 +973,7 @@ shrinkBMArray (BMArray ma#) (Size (I# sz#)) =
 --
 -- 0.3.0
 resizeBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -988,7 +988,7 @@ resizeBMArray ::
   -- ^ /elt/ - Element to write into extra space at the end when growing the array.
   -> m (BMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
 resizeBMArray (BMArray ma#) (Size (I# sz#)) e =
-  prim $ \s ->
+  primal $ \s ->
     case resizeMutableArray# ma# sz# e s of
       (# s', ma'# #) -> (# s', BMArray ma'# #)
 {-# INLINE resizeBMArray #-}
@@ -1004,7 +1004,7 @@ resizeBMArray (BMArray ma#) (Size (I# sz#)) e =
 --
 -- 0.3.0
 resizeRawBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -1032,7 +1032,7 @@ resizeRawBMArray ma sz = resizeBMArray ma sz (uninitialized "Primal.Array.Boxed"
 --
 -- @since 0.3.0
 moveBMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => BMArray e s -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
@@ -1068,7 +1068,7 @@ moveBMArray ::
   --
   -> m ()
 moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#)) =
-  prim_ (copyMutableArray# src# srcOff# dst# dstOff# n#)
+  primal_ (copyMutableArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveBMArray #-}
 
 
@@ -1121,7 +1121,7 @@ moveBMArray (BMArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#
 --
 -- @since 1.0.0
 casBMArray ::
-     MonadPrim s m
+     Primal s m
   => BMArray e s
   -- ^ /dstMutArray/ - Mutable array that will have an atomic swap operation applied to
   -> Int
@@ -1136,7 +1136,7 @@ casBMArray ::
   -> e -- ^ /elt/ - New value to update the cell with
   -> m (Bool, e)
 casBMArray (BMArray ma#) (I# i#) expected new =
-  prim $ \s ->
+  primal $ \s ->
     case casArray# ma# i# expected new s of
       (# s', failed#, actual #) -> (# s', (isTrue# (failed# ==# 0#), actual) #)
 {-# INLINE casBMArray #-}

@@ -17,7 +17,7 @@ module Primal.Unbox
   , Atomic
   , AtomicCount
   , AtomicBits
-  , MonadPrim
+  , Primal
   , RW
   , RealWorld
   , ST
@@ -409,20 +409,20 @@ countMinusOff c o = Count (coerce c - coerce o)
 {-# INLINE countMinusOff #-}
 
 
-prefetchValue0 :: MonadPrim s m => a -> m ()
-prefetchValue0 a = prim_ (prefetchValue0# a)
+prefetchValue0 :: Primal s m => a -> m ()
+prefetchValue0 a = primal_ (prefetchValue0# a)
 {-# INLINE prefetchValue0 #-}
 
-prefetchValue1 :: MonadPrim s m => a -> m ()
-prefetchValue1 a = prim_ (prefetchValue1# a)
+prefetchValue1 :: Primal s m => a -> m ()
+prefetchValue1 a = primal_ (prefetchValue1# a)
 {-# INLINE prefetchValue1 #-}
 
-prefetchValue2 :: MonadPrim s m => a -> m ()
-prefetchValue2 a = prim_ (prefetchValue2# a)
+prefetchValue2 :: Primal s m => a -> m ()
+prefetchValue2 a = primal_ (prefetchValue2# a)
 {-# INLINE prefetchValue2 #-}
 
-prefetchValue3 :: MonadPrim s m => a -> m ()
-prefetchValue3 a = prim_ (prefetchValue3# a)
+prefetchValue3 :: Primal s m => a -> m ()
+prefetchValue3 a = primal_ (prefetchValue3# a)
 {-# INLINE prefetchValue3 #-}
 
 

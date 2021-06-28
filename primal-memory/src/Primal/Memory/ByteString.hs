@@ -199,7 +199,7 @@ fromByteStringBytes bs =
 
 
 
-withNoHaltPtrByteString :: MonadUnliftPrim s m => BS.ByteString -> (Ptr a -> m b) -> m b
+withNoHaltPtrByteString :: UnliftPrimal s m => BS.ByteString -> (Ptr a -> m b) -> m b
 #if MIN_VERSION_bytestring(0,11,0)
 withNoHaltPtrByteString (BS.BS (ForeignPtr addr# ptrContents) _) f = do
 #else

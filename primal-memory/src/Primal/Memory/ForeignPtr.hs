@@ -173,7 +173,7 @@ toMForeignPtrMBytes (MBytes mba#) =
 -- the logic that runs after the action and GC will happen before the action get's a chance
 -- to finish resulting in corrupt memory. Whenever you have an action that runs an infinite
 -- loop or ends in an exception throwing, make sure to use `withNoHaltForeignPtr` instead.
-withForeignPtr :: MonadPrim RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
+withForeignPtr :: Primal RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withForeignPtr (ForeignPtr addr# ptrContents) f = do
   r <- f (Ptr addr#)
   r <$ touch ptrContents
@@ -184,7 +184,7 @@ withForeignPtr (ForeignPtr addr# ptrContents) f = do
 --
 -- @since 0.1.0
 withNoHaltForeignPtr ::
-     MonadUnliftPrim RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
+     UnliftPrimal RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltForeignPtr #-}
@@ -198,7 +198,7 @@ withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
 -- the logic that runs after the action and GC will happen before the action get's a chance
 -- to finish resulting in corrupt memory. Whenever you have an action that runs an infinite
 -- loop or ends in an exception throwing, make sure to use `withNoHaltForeignPtr` instead.
-withMForeignPtr :: MonadPrim s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
+withMForeignPtr :: Primal s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
 withMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f = do
   r <- f (Ptr addr#)
   r <$ touch ptrContents
@@ -209,7 +209,7 @@ withMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f = do
 --
 -- @since 1.0.0
 withNoHaltMForeignPtr ::
-     MonadUnliftPrim s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
+     UnliftPrimal s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
 withNoHaltMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f =
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltMForeignPtr #-}
@@ -217,83 +217,83 @@ withNoHaltMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f =
 
 
 -- | Lifted version of `GHC.touchForeignPtr`.
-touchForeignPtr :: MonadPrim s m => ForeignPtr e -> m ()
+touchForeignPtr :: Primal s m => ForeignPtr e -> m ()
 touchForeignPtr (ForeignPtr _ contents) = touch contents
 
 -- | Lifted version of `GHC.newForeignPtr`.
-newForeignPtr :: MonadPrim RW m => FinalizerPtr e -> Ptr e -> m (ForeignPtr e)
-newForeignPtr fin = liftPrimBase . GHC.newForeignPtr fin
+newForeignPtr :: Primal RW m => FinalizerPtr e -> Ptr e -> m (ForeignPtr e)
+newForeignPtr fin = liftPrimalState . GHC.newForeignPtr fin
 
 -- | Lifted version of `GHC.newForeignPtrEnv`.
-newForeignPtrEnv :: MonadPrim RW m => FinalizerEnvPtr env e -> Ptr env -> Ptr e -> m (ForeignPtr e)
-newForeignPtrEnv finEnv envPtr = liftPrimBase . GHC.newForeignPtrEnv finEnv envPtr
+newForeignPtrEnv :: Primal RW m => FinalizerEnvPtr env e -> Ptr env -> Ptr e -> m (ForeignPtr e)
+newForeignPtrEnv finEnv envPtr = liftPrimalState . GHC.newForeignPtrEnv finEnv envPtr
 
 
 -- | Lifted version of `GHC.newForeignPtr_`.
-newForeignPtr_ :: MonadPrim RW m => Ptr e -> m (ForeignPtr e)
-newForeignPtr_ = liftPrimBase . GHC.newForeignPtr_
+newForeignPtr_ :: Primal RW m => Ptr e -> m (ForeignPtr e)
+newForeignPtr_ = liftPrimalState . GHC.newForeignPtr_
 
 -- | Similar to `GHC.mallocForeignPtr`, except it operates on `Prim`, instead of `Storable`.
-mallocForeignPtr :: forall e m . (MonadPrim RW m, Unbox e) => m (ForeignPtr e)
+mallocForeignPtr :: forall e m . (Primal RW m, Unbox e) => m (ForeignPtr e)
 mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 
 
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
 -- use `Prim`.
-mallocCountForeignPtr :: (MonadPrim RW m, Unbox e) => Count e -> m (ForeignPtr e)
-mallocCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . unCountBytes
+mallocCountForeignPtr :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
+mallocCountForeignPtr = liftPrimalState . GHC.mallocForeignPtrBytes . unCountBytes
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
-mallocCountForeignPtrAligned :: (MonadPrim RW m, Unbox e) => Count e -> m (ForeignPtr e)
+mallocCountForeignPtrAligned :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtrAligned count =
-  liftPrimBase $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
+  liftPrimalState $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
 
 -- | Lifted version of `GHC.mallocForeignPtrBytes`.
-mallocByteCountForeignPtr :: MonadPrim RW m => Count Word8 -> m (ForeignPtr e)
-mallocByteCountForeignPtr = liftPrimBase . GHC.mallocForeignPtrBytes . coerce
+mallocByteCountForeignPtr :: Primal RW m => Count Word8 -> m (ForeignPtr e)
+mallocByteCountForeignPtr = liftPrimalState . GHC.mallocForeignPtrBytes . coerce
 
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
 mallocByteCountForeignPtrAligned ::
-     MonadPrim RW m
+     Primal RW m
   => Count Word8 -- ^ Number of bytes to allocate
   -> Int -- ^ Alignment in bytes
   -> m (ForeignPtr e)
 mallocByteCountForeignPtrAligned count =
-  liftPrimBase . GHC.mallocForeignPtrAlignedBytes (coerce count)
+  liftPrimalState . GHC.mallocForeignPtrAlignedBytes (coerce count)
 
 
 -- | Lifted version of `GHC.addForeignPtrFinalizer`
-addForeignPtrFinalizer :: MonadPrim RW m => FinalizerPtr e -> ForeignPtr e -> m ()
-addForeignPtrFinalizer fin = liftPrimBase . GHC.addForeignPtrFinalizer fin
+addForeignPtrFinalizer :: Primal RW m => FinalizerPtr e -> ForeignPtr e -> m ()
+addForeignPtrFinalizer fin = liftPrimalState . GHC.addForeignPtrFinalizer fin
 
 
 -- | Lifted version of `GHC.addForeignPtrFinalizerEnv`
 addForeignPtrFinalizerEnv ::
-     MonadPrim RW m => FinalizerEnvPtr env e -> Ptr env -> ForeignPtr e -> m ()
-addForeignPtrFinalizerEnv fin envPtr = liftPrimBase . GHC.addForeignPtrFinalizerEnv fin envPtr
+     Primal RW m => FinalizerEnvPtr env e -> Ptr env -> ForeignPtr e -> m ()
+addForeignPtrFinalizerEnv fin envPtr = liftPrimalState . GHC.addForeignPtrFinalizerEnv fin envPtr
 
 
 -- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Prim` and
 -- we are not restricted to `IO`, since finalizers are not possible with `PlaintPtr`
 mallocPlainForeignPtr ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => m (ForeignPtr e)
 mallocPlainForeignPtr = mallocCountPlainForeignPtr (1 :: Count e)
 {-# INLINE mallocPlainForeignPtr #-}
 
 -- | Similar to `Foreign.ForeignPtr.mallocPlainForeignPtrArray`, except instead of `Storable` we
 -- use `Prim`.
-mallocCountPlainForeignPtr :: (MonadPrim s m, Unbox e) => Count e -> m (ForeignPtr e)
+mallocCountPlainForeignPtr :: (Primal s m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountPlainForeignPtr = mallocByteCountPlainForeignPtr . toByteCount
 {-# INLINE mallocCountPlainForeignPtr #-}
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
 mallocCountPlainForeignPtrAligned ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => Count e
   -> m (ForeignPtr e)
 mallocCountPlainForeignPtrAligned c =
-  prim $ \s ->
+  primal $ \s ->
     let a# = alignment# (proxy# :: Proxy# e)
      in case newAlignedPinnedByteArray# (unCountBytes# c) a# s of
           (# s', mba# #) ->
@@ -302,9 +302,9 @@ mallocCountPlainForeignPtrAligned c =
 {-# INLINE mallocCountPlainForeignPtrAligned #-}
 
 -- | Lifted version of `GHC.mallocForeignPtrBytes`.
-mallocByteCountPlainForeignPtr :: MonadPrim s m => Count Word8 -> m (ForeignPtr e)
+mallocByteCountPlainForeignPtr :: Primal s m => Count Word8 -> m (ForeignPtr e)
 mallocByteCountPlainForeignPtr (Count (I# c#)) =
-  prim $ \s ->
+  primal $ \s ->
     case newPinnedByteArray# c# s of
       (# s', mba# #) ->
         (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
@@ -313,12 +313,12 @@ mallocByteCountPlainForeignPtr (Count (I# c#)) =
 
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
 mallocByteCountPlainForeignPtrAligned ::
-     MonadPrim s m
+     Primal s m
   => Count Word8 -- ^ Number of bytes to allocate
   -> Int -- ^ Alignment in bytes
   -> m (ForeignPtr e)
 mallocByteCountPlainForeignPtrAligned (Count (I# c#)) (I# a#) =
-  prim $ \s ->
+  primal $ \s ->
     case newAlignedPinnedByteArray# c# a# s of
       (# s', mba# #) ->
         (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
@@ -327,19 +327,19 @@ mallocByteCountPlainForeignPtrAligned (Count (I# c#)) (I# a#) =
 
 
 -- | Unlifted version of `GHC.newConcForeignPtr`
-newConcForeignPtr :: MonadUnliftPrim RW m => Ptr e -> m () -> m (ForeignPtr e)
+newConcForeignPtr :: UnliftPrimal RW m => Ptr e -> m () -> m (ForeignPtr e)
 newConcForeignPtr ptr fin =
-  withRunInIO $ \run -> liftPrimBase (GHC.newConcForeignPtr ptr (run fin))
+  withRunInIO $ \run -> liftPrimalState (GHC.newConcForeignPtr ptr (run fin))
 
 
 -- | Unlifted version of `GHC.addForeignPtrConcFinalizer`
-addForeignPtrConcFinalizer :: MonadUnliftPrim RW m => ForeignPtr a -> m () -> m ()
+addForeignPtrConcFinalizer :: UnliftPrimal RW m => ForeignPtr a -> m () -> m ()
 addForeignPtrConcFinalizer fp fin =
-  withRunInIO $ \run -> liftPrimBase (GHC.addForeignPtrConcFinalizer fp (run fin))
+  withRunInIO $ \run -> liftPrimalState (GHC.addForeignPtrConcFinalizer fp (run fin))
 
 -- | Lifted version of `GHC.finalizeForeignPtr`.
-finalizeForeignPtr :: MonadPrim RW m => ForeignPtr e -> m ()
-finalizeForeignPtr = liftPrimBase . GHC.finalizeForeignPtr
+finalizeForeignPtr :: Primal RW m => ForeignPtr e -> m ()
+finalizeForeignPtr = liftPrimalState . GHC.finalizeForeignPtr
 
 -- | Advances the given address by the given offset in number of elemeents. This operation
 -- does not affect associated finalizers in any way.

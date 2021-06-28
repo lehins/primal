@@ -93,7 +93,7 @@ instance (Typeable p, Unbox e, Arbitrary e) => Arbitrary (PArray p e) where
     Mem (_ :: [e]) b <- arbitrary
     pure b
 
-getZeroElement :: forall e m s. (MonadPrim s m, Unbox e) => m e
+getZeroElement :: forall e m s. (Primal s m, Unbox e) => m e
 getZeroElement = do
   z :: MBytes 'Inc s <- allocZeroMBytes (1 :: Count e)
   readOffMutMem z (0 :: Off e)
@@ -432,11 +432,11 @@ prop_setByteOffMutMem (Mem _ fm) e =
       n :: Count e <- getCountMutMem m
       setByteOffMutMem m o c e
       let (pref, r) = fromByteCountRem (offToCount o) :: (Count e, Count Word8)
-      -- ensure begining of memory is not affected (likely excluding one element)
+      -- ensure begining of memory is not affected (likely excluding one partially updated element)
       loopM_ 0 pref $ \i -> readOffMutMem m i `shouldReturn` indexOffMem fm i
       loopByteOffM_ o c $ \i -> readByteOffMutMem m i `shouldReturn` e
       let suff = Off (unCount pref + 2 * signum (unCount r) + unCount c)
-      -- ensure tail of memory is not affected (potentiallylikely
+      -- ensure tail of memory is not affected (likely excluding one partially updated element)
       loopM_ suff (n - offToCount suff) $ \i -> readOffMutMem m i `shouldReturn` indexOffMem fm i
 
 asProxyTypeOf1 :: f a -> proxy a -> f a

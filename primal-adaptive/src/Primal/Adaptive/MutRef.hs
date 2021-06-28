@@ -66,11 +66,11 @@ instance AdaptAtomicMRef e => AtomicMRef AMRef e where
   casMRef (AMRef mut) old new = coerce <$> casMRef mut (wrap old) (wrap new)
   {-# INLINE casMRef #-}
 
-newAMRef :: (MonadPrim s m, AdaptMRef e) => e -> m (AMRef e s)
+newAMRef :: (Primal s m, AdaptMRef e) => e -> m (AMRef e s)
 newAMRef = newMRef
 
 
-foo :: (MonadPrim s m, AdaptAtomicMRef b) => b -> m b
-foo i = do
+bar :: (Primal s m, AdaptAtomicMRef b) => b -> m b
+bar i = do
   ref <- newAMRef i
   atomicReadMRef ref

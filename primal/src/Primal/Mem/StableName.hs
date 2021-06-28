@@ -70,18 +70,18 @@ showPrecStableName n sname =
 
 -- | Makes a 'StableName' for an arbitrary object.  The object passed as
 -- the first argument is not evaluated by 'makeStableName'.
-makeStableName :: MonadPrim RW m => a -> m (StableName a)
+makeStableName :: Primal RW m => a -> m (StableName a)
 makeStableName a =
-  prim $ \s ->
+  primal $ \s ->
     case makeStableName# a s of
       (# s', sn #) -> (# s', StableName sn #)
 
 -- | Similar to
 -- [`makeDynamicStableName`](http://hackage.haskell.org/package/stable-maps/docs/System-Mem-StableName-Dynamic.html),
--- but returns `StableName` `Any` and is generalized to `MonadPrim`
-makeAnyStableName :: MonadPrim RW m => a -> m (StableName Any)
+-- but returns `StableName` `Any` and is generalized to `Primal`
+makeAnyStableName :: Primal RW m => a -> m (StableName Any)
 makeAnyStableName a =
-  prim $ \s ->
+  primal $ \s ->
     case makeStableName# a s of
       (# s', sn# #) -> (# s', StableName (unsafeCoerce# sn#) #)
 

@@ -422,7 +422,7 @@ instance AtomicBitsMutArray SBMArray
 --
 -- @since 0.1.0
 casMutArray ::
-     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
   => ma e s -- ^ Array to be mutated
   -> Int
   -- ^ Offset into the array
@@ -440,7 +440,7 @@ casMutArray mut i x = liftST . casMutArrayST mut i x
 --
 -- @since 0.1.0
 atomicReadMutArray ::
-  forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, MonadPrim s m)
+  forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
   => ma e s -- ^ Mutable array to read an element from
   -> Int
   -- ^ Offset into the array
@@ -456,7 +456,7 @@ atomicReadMutArray mut = liftST . atomicReadMutArrayST mut
 --
 -- @since 0.1.0
 atomicWriteMutArray ::
-     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
   => ma e s -- ^ Mutable array to write an element into
   -> Int
   -- ^ Offset into the array
@@ -471,7 +471,7 @@ atomicWriteMutArray mut i = liftST . atomicWriteMutArrayST mut i
 --
 -- @since 0.1.0
 atomicModifyMutArray ::
-     forall ma e b m s. (AtomicMutArray ma, AtomicElt ma e, MonadPrim s m)
+     forall ma e b m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
   => ma e s -- ^ Array to be mutated
   -> Int -- ^ Offset into the array
   -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
@@ -482,7 +482,7 @@ atomicModifyMutArray mut i = liftST . atomicModifyMutArrayST mut i
 
 
 atomicAddFetchOldMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -491,7 +491,7 @@ atomicAddFetchOldMutArray mut i = liftST . atomicAddFetchOldMutArrayST mut i
 {-# INLINE atomicAddFetchOldMutArray #-}
 
 atomicAddFetchNewMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -500,7 +500,7 @@ atomicAddFetchNewMutArray mut i = liftST . atomicAddFetchNewMutArrayST mut i
 {-# INLINE atomicAddFetchNewMutArray #-}
 
 atomicSubFetchOldMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -509,7 +509,7 @@ atomicSubFetchOldMutArray mut i = liftST . atomicSubFetchOldMutArrayST mut i
 {-# INLINE atomicSubFetchOldMutArray #-}
 
 atomicSubFetchNewMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -519,7 +519,7 @@ atomicSubFetchNewMutArray mut i = liftST . atomicSubFetchNewMutArrayST mut i
 
 
 atomicAndFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -528,7 +528,7 @@ atomicAndFetchOldMutArray mut i = liftST . atomicAndFetchOldMutArrayST mut i
 {-# INLINE atomicAndFetchOldMutArray #-}
 
 atomicAndFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -537,7 +537,7 @@ atomicAndFetchNewMutArray mut i = liftST . atomicAndFetchNewMutArrayST mut i
 {-# INLINE atomicAndFetchNewMutArray #-}
 
 atomicNandFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -546,7 +546,7 @@ atomicNandFetchOldMutArray mut i = liftST . atomicNandFetchOldMutArrayST mut i
 {-# INLINE atomicNandFetchOldMutArray #-}
 
 atomicNandFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -555,7 +555,7 @@ atomicNandFetchNewMutArray mut i = liftST . atomicNandFetchNewMutArrayST mut i
 {-# INLINE atomicNandFetchNewMutArray #-}
 
 atomicOrFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -564,7 +564,7 @@ atomicOrFetchOldMutArray mut i = liftST . atomicOrFetchOldMutArrayST mut i
 {-# INLINE atomicOrFetchOldMutArray #-}
 
 atomicOrFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -573,7 +573,7 @@ atomicOrFetchNewMutArray mut i = liftST . atomicOrFetchNewMutArrayST mut i
 {-# INLINE atomicOrFetchNewMutArray #-}
 
 atomicXorFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -582,7 +582,7 @@ atomicXorFetchOldMutArray mut i = liftST . atomicXorFetchOldMutArrayST mut i
 {-# INLINE atomicXorFetchOldMutArray #-}
 
 atomicXorFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -591,7 +591,7 @@ atomicXorFetchNewMutArray mut i = liftST . atomicXorFetchNewMutArrayST mut i
 {-# INLINE atomicXorFetchNewMutArray #-}
 
 atomicNotFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> m e
@@ -599,7 +599,7 @@ atomicNotFetchOldMutArray mut = liftST . atomicNotFetchOldMutArrayST mut
 {-# INLINE atomicNotFetchOldMutArray #-}
 
 atomicNotFetchNewMutArray ::
-  forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, MonadPrim s m)
+  forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> m e

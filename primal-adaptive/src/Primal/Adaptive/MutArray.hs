@@ -87,11 +87,11 @@ instance AdaptMArray e => MArray AMArray e where
   {-# INLINE setMArray #-}
 
 
-newAMArray :: (MonadPrim s m, AdaptMArray e) => Size -> e -> m (AMArray e s)
+newAMArray :: (Primal s m, AdaptMArray e) => Size -> e -> m (AMArray e s)
 newAMArray = newMArray
 
 createAArrayM ::
-     (MonadPrim s m, AdaptMArray e)
+     (Primal s m, AdaptMArray e)
   => Size
   -> (AMArray e s -> m b)
   -> m (b, AArray e)

@@ -7,7 +7,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Eval
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -26,10 +26,10 @@ module Primal.Eval
     -- * Normal Form
   , deepeval
   , deepevalM
-  , module Control.DeepSeq
   , rnfMut
   , MutNFData(..)
   , BNF(..)
+  , module Control.DeepSeq
   ) where
 
 import Control.DeepSeq
@@ -51,12 +51,12 @@ touch# a = GHC.unsafeCoerce# (GHC.touch# a)
 --
 -- Make sure not to use it after some computation that doesn't return, like after
 -- `forever` for example, otherwise touch will simply be removed by ghc and bad things
--- will happen. If you have a case like that, make sure to use `withAlivePrimBase` or
+-- will happen. If you have a case like that, make sure to use `withAlivePrimalState` or
 -- `keepAlive` instead.
 --
 -- @since 0.1.0
-touch :: MonadPrim s m => a -> m ()
-touch x = prim_ (touch# x)
+touch :: Primal s m => a -> m ()
+touch x = primal_ (touch# x)
 {-# INLINE touch #-}
 
 
@@ -90,32 +90,32 @@ keepAlive# a m s =
 --
 -- @since 0.3.0
 keepAlive ::
-     MonadUnliftPrim s m
+     UnliftPrimal s m
   => a
   -- ^ The value to preserve
   -> m b
   -- ^ Action to run in which the value will be preserved
   -> m b
-keepAlive a m = runInPrimBase m (keepAlive# a)
+keepAlive a m = runInPrimalState m (keepAlive# a)
 {-# INLINE keepAlive #-}
 
 
 
 -- | An action that evaluates a value to Weak Head Normal Form (WHNF). Same as
--- `Control.Exception.evaluate`, except it works in `MonadPrim`. This function provides
+-- `Control.Exception.evaluate`, except it works in `Primal`. This function provides
 -- stronger guarantees than `seq` with respect to ordering of operations, but it does have a
 -- slightly higher overhead.
 --
 -- @since 0.3.0
-eval :: MonadPrim s m => a -> m a
-eval a = prim (GHC.seq# a)
+eval :: Primal s m => a -> m a
+eval a = primal (GHC.seq# a)
 {-# INLINE eval #-}
 
 -- | Run the action and then use `eval` to ensure its result is evaluated to Weak Head
 -- Normal Form (WHNF)
 --
 -- @since 0.3.0
-evalM :: MonadPrim s m => m a -> m a
+evalM :: Primal s m => m a -> m a
 evalM m = eval =<< m
 {-# INLINE evalM #-}
 
@@ -127,7 +127,7 @@ evalM m = eval =<< m
 -- guarantees than `deepseq` with respect to ordering of operations.
 --
 -- @since 0.3.0
-deepeval :: (MonadPrim s m, NFData a) => a -> m a
+deepeval :: (Primal s m, NFData a) => a -> m a
 deepeval = eval . force
 {-# INLINE deepeval #-}
 
@@ -135,7 +135,7 @@ deepeval = eval . force
 -- (NF)
 --
 -- @since 0.3.0
-deepevalM :: (MonadPrim s m, NFData a) => m a -> m a
+deepevalM :: (Primal s m, NFData a) => m a -> m a
 deepevalM m = eval . force =<< m
 {-# INLINE deepevalM #-}
 
@@ -158,6 +158,6 @@ class MutNFData mut where
   rnfMutST :: mut s -> ST s ()
 
 -- | Force the mutable type to Normal Form
-rnfMut :: (MutNFData mut, MonadPrim s m) => mut s -> m ()
+rnfMut :: (MutNFData mut, Primal s m) => mut s -> m ()
 rnfMut = liftST . rnfMutST
 {-# INLINE rnfMut #-}

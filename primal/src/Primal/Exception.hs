@@ -51,10 +51,10 @@ module Primal.Exception
   , ubracketOnError
   , mask
   , mask_
-  , maskPrimBase_
+  , maskPrimalState_
   , uninterruptibleMask
   , uninterruptibleMask_
-  , uninterruptibleMaskPrimBase_
+  , uninterruptibleMaskPrimalState_
   , maskAsyncExceptions
   , unmaskAsyncExceptions
   , maskUninterruptible
@@ -120,10 +120,10 @@ isAsyncException exc =
     Nothing                         -> False
 {-# INLINE isAsyncException #-}
 
--- | This is the same as `throwIO`, but works with any `MonadPrim` without restriction on
+-- | This is the same as `throwIO`, but works with any `Primal` without restriction on
 -- `RealWorld`.
-throw :: (GHC.Exception e, MonadPrim s m) => e -> m a
-throw e = unsafePrim (raiseIO# (GHC.toException e))
+throw :: (GHC.Exception e, Primal s m) => e -> m a
+throw e = unsafePrimal (raiseIO# (GHC.toException e))
 -- {-# INLINEABLE throw #-}
 
 
@@ -139,23 +139,23 @@ impureThrow e = raise# (GHC.toException e)
 -- `SomeAsyncException`. This is necessary, because receiving thread will get the exception in
 -- an asynchronous manner and without proper wrapping it will not be able to distinguish it
 -- from a regular synchronous exception
-throwTo :: (MonadPrim s m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
+throwTo :: (Primal s m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
 throwTo tid e =
-  unsafeIOToPrim $
+  unsafeIOToPrimal $
   GHC.throwTo tid $
   if isAsyncException e
     then GHC.toException e
     else GHC.toException $ GHC.SomeAsyncException e
 -- {-# INLINEABLE throwTo #-}
 
--- | Behaves exactly as `catch`, except that it works in any `MonadUnliftPrim`.
+-- | Behaves exactly as `catch`, except that it works in any `UnliftPrimal`.
 catch ::
-     forall e a m. (GHC.Exception e, MonadUnliftPrim RW m)
+     forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
   -> (e -> m a)
   -> m a
 catch action handler =
-  runInPrimBase2 (const action) handler $ \action# handler# ->
+  runInPrimalState2 (const action) handler $ \action# handler# ->
     let handler'# :: GHC.SomeException -> (State# RW -> (# State# RW, a #))
         handler'# someExc =
           case GHC.fromException someExc of
@@ -166,19 +166,19 @@ catch action handler =
 --{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
 
 catchAny ::
-     forall a m. MonadUnliftPrim RW m
+     forall a m. UnliftPrimal RW m
   => m a
   -> (GHC.SomeException -> m a)
   -> m a
 catchAny action handler =
-  runInPrimBase2 (const action) handler $ \action# handler# ->
+  runInPrimalState2 (const action) handler $ \action# handler# ->
     catch# (action# ()) handler#
 -- {-# INLINEABLE catchAny #-}
 --{-# SPECIALIZE catchAny :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
 
 
 catchAnySync ::
-     forall a m. MonadUnliftPrim RW m
+     forall a m. UnliftPrimal RW m
   => m a
   -> (GHC.SomeException -> m a)
   -> m a
@@ -188,19 +188,19 @@ catchAnySync action handler =
 -- {-# INLINEABLE catchAnySync #-}
 
 catchAll ::
-     forall a m. MonadUnliftPrim RW m
+     forall a m. UnliftPrimal RW m
   => m a
   -> (forall e . GHC.Exception e => e -> m a)
   -> m a
 catchAll action handler =
-  runInPrimBase2
+  runInPrimalState2
     (const action)
     (\(GHC.SomeException e) -> handler e)
     (\action# handler# -> catch# (action# ()) handler#)
 -- {-# INLINEABLE catchAll #-}
 
 catchAllSync ::
-     forall a m. MonadUnliftPrim RW m
+     forall a m. UnliftPrimal RW m
   => m a
   -> (forall e . GHC.Exception e => e -> m a)
   -> m a
@@ -210,16 +210,16 @@ catchAllSync action handler =
 -- {-# INLINEABLE catchAllSync #-}
 
 
-try :: (GHC.Exception e, MonadUnliftPrim RW m) => m a -> m (Either e a)
+try :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 try f = catch (fmap Right f) (pure . Left)
 -- {-# INLINEABLE try #-}
 --{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
 
-tryAny :: MonadUnliftPrim RW m => m a -> m (Either GHC.SomeException a)
+tryAny :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAny f = catchAny (Right <$> f) (pure . Left)
 -- {-# INLINEABLE tryAny #-}
 
-tryAnySync :: MonadUnliftPrim RW m => m a -> m (Either GHC.SomeException a)
+tryAnySync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAnySync f = catchAnySync (Right <$> f) (pure . Left)
 
 
@@ -233,7 +233,7 @@ tryAnySync f = catchAnySync (Right <$> f) (pure . Left)
 --
 -- @since 0.3.0
 withException ::
-     (MonadUnliftPrim RW m, GHC.Exception e) => m a -> (e -> m b) -> m a
+     (UnliftPrimal RW m, GHC.Exception e) => m a -> (e -> m b) -> m a
 withException action handler =
   mask $ \restore -> do
     catch
@@ -245,7 +245,7 @@ withException action handler =
 -- exceptions.
 --
 -- @since 0.3.0
-withAnyException :: MonadUnliftPrim RW m => m a -> (GHC.SomeException -> m b) -> m a
+withAnyException :: UnliftPrimal RW m => m a -> (GHC.SomeException -> m b) -> m a
 withAnyException thing after =
   mask $ \restore -> do
     catchAny
@@ -255,13 +255,13 @@ withAnyException thing after =
 -- | Async safe version of 'EUnsafe.onException'.
 --
 -- @since 0.1.0.0
-onException :: MonadUnliftPrim RW m => m a -> m b -> m a
+onException :: UnliftPrimal RW m => m a -> m b -> m a
 onException thing after = withAnyException thing (const after)
 
 
 --
 -- @since 0.3.0
-bracket :: MonadUnliftPrim RW m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracket :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracket acquire cleanup action =
   mask $ \restore -> do
     resource <- acquire
@@ -272,7 +272,7 @@ bracket acquire cleanup action =
     result <$ cleanup resource
 {-# INLINEABLE bracket #-}
 
-bracketOnError :: MonadUnliftPrim RW m => m a -> (a -> m b) -> (a -> m c) -> m c
+bracketOnError :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracketOnError acquire cleanup action =
   mask $ \restore -> do
     resource <- acquire
@@ -280,7 +280,7 @@ bracketOnError acquire cleanup action =
       catchAnySync (void $ cleanup resource) $ \_ -> pure ()
       throw exc
 
-finally :: MonadUnliftPrim RW m => m a -> m b -> m a
+finally :: UnliftPrimal RW m => m a -> m b -> m a
 finally action cleanup =
   mask $ \restore -> do
     result <-
@@ -293,11 +293,11 @@ finally action cleanup =
 
 --
 -- @since 0.3.0
-bracket_ :: MonadUnliftPrim RW m => m a -> m b -> m c -> m c
+bracket_ :: UnliftPrimal RW m => m a -> m b -> m c -> m c
 bracket_ acquire cleanup action = bracket acquire (const cleanup) (const action)
 
 
-ubracket :: MonadUnliftPrim RW m => m a -> (a -> m b) -> (a -> m c) -> m c
+ubracket :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
 ubracket acquire cleanup action =
   uninterruptibleMask $ \restore ->
     bracket (restore acquire) cleanup (restore . action)
@@ -305,16 +305,16 @@ ubracket acquire cleanup action =
 
 --
 -- @since 0.3.0
-ubracket_ :: MonadUnliftPrim RW m => m a -> m b -> m c -> m c
+ubracket_ :: UnliftPrimal RW m => m a -> m b -> m c -> m c
 ubracket_ acquire cleanup action = ubracket acquire (const cleanup) (const action)
 
 
-ubracketOnError :: MonadUnliftPrim RW m => m a -> (a -> m b) -> (a -> m c) -> m c
+ubracketOnError :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
 ubracketOnError acquire cleanup action =
   uninterruptibleMask $ \restore ->
     bracketOnError (restore acquire) cleanup (restore . action)
 
-ufinally :: MonadUnliftPrim RW m => m a -> m b -> m a
+ufinally :: UnliftPrimal RW m => m a -> m b -> m a
 ufinally action cleanup =
   uninterruptibleMask $ \restore -> finally (restore action) cleanup
 
@@ -326,20 +326,20 @@ ufinally action cleanup =
 -- `ST` monad.
 --
 -- @since 0.3.0
-mask_ :: forall a m s. MonadUnliftPrim s m => m a -> m a
+mask_ :: forall a m s. UnliftPrimal s m => m a -> m a
 mask_ action =
-  unsafeIOToPrim getMaskingState >>= \case
-    GHC.Unmasked -> runInPrimBase action maskAsyncExceptionsInternal#
+  unsafeIOToPrimal getMaskingState >>= \case
+    GHC.Unmasked -> runInPrimalState action maskAsyncExceptionsInternal#
     _ -> action
 {-# INLINEABLE mask_  #-}
 
 
-maskPrimBase_ :: forall a n m s. (MonadPrim s m, MonadPrimBase s n) => n a -> m a
-maskPrimBase_ action =
-  unsafeIOToPrim getMaskingState >>= \case
-    GHC.Unmasked -> prim (maskAsyncExceptionsInternal# (primBase action))
-    _ -> liftPrimBase action
-{-# INLINEABLE maskPrimBase_  #-}
+maskPrimalState_ :: forall a n m s. (Primal s m, PrimalState s n) => n a -> m a
+maskPrimalState_ action =
+  unsafeIOToPrimal getMaskingState >>= \case
+    GHC.Unmasked -> primal (maskAsyncExceptionsInternal# (primalState action))
+    _ -> liftPrimalState action
+{-# INLINEABLE maskPrimalState_  #-}
 
 -- | Mask all asychronous exceptions, but keep it interruptible, unless the inherited state
 -- was uninterruptible already, in which case this action has no affect. Same as
@@ -349,17 +349,17 @@ maskPrimBase_ action =
 --
 -- @since 0.3.0
 mask ::
-     forall a m s. MonadUnliftPrim s m
+     forall a m s. UnliftPrimal s m
   => ((forall b. m b -> m b) -> m a)
   -> m a
 mask action = do
-  unsafeIOToPrim getMaskingState >>= \case
+  unsafeIOToPrimal getMaskingState >>= \case
     GHC.Unmasked ->
-      runInPrimBase
-        (action (`runInPrimBase` unmaskAsyncExceptionsInternal#))
+      runInPrimalState
+        (action (`runInPrimalState` unmaskAsyncExceptionsInternal#))
         maskAsyncExceptionsInternal#
     GHC.MaskedInterruptible ->
-      action (`runInPrimBase` maskAsyncExceptionsInternal#)
+      action (`runInPrimalState` maskAsyncExceptionsInternal#)
     GHC.MaskedUninterruptible -> action uninterruptibleMask_
 {-# INLINEABLE mask #-}
 --{-# SPECIALIZE mask :: ((forall a. IO a -> IO a) -> IO b) -> IO b #-}
@@ -371,17 +371,17 @@ mask action = do
 --
 -- @since 0.3.0
 uninterruptibleMask ::
-     forall a m s. MonadUnliftPrim s m
+     forall a m s. UnliftPrimal s m
   => ((forall b. m b -> m b) -> m a)
   -> m a
 uninterruptibleMask action = do
-  unsafeIOToPrim getMaskingState >>= \case
+  unsafeIOToPrimal getMaskingState >>= \case
     GHC.Unmasked ->
-      runInPrimBase
-        (action (`runInPrimBase` unmaskAsyncExceptionsInternal#))
+      runInPrimalState
+        (action (`runInPrimalState` unmaskAsyncExceptionsInternal#))
         maskAsyncExceptionsInternal#
     GHC.MaskedInterruptible ->
-      action (`runInPrimBase` maskAsyncExceptionsInternal#)
+      action (`runInPrimalState` maskAsyncExceptionsInternal#)
     GHC.MaskedUninterruptible -> action uninterruptibleMask_
 {-# INLINEABLE uninterruptibleMask #-}
 
@@ -395,31 +395,31 @@ uninterruptibleMask action = do
 -- in a concurrent setting.
 --
 -- @since 0.3.0
-uninterruptibleMask_ :: forall a m s. MonadUnliftPrim s m => m a -> m a
-uninterruptibleMask_ action = runInPrimBase action maskUninterruptibleInternal#
+uninterruptibleMask_ :: forall a m s. UnliftPrimal s m => m a -> m a
+uninterruptibleMask_ action = runInPrimalState action maskUninterruptibleInternal#
 {-# INLINEABLE uninterruptibleMask_ #-}
 
-uninterruptibleMaskPrimBase_ :: forall a n m s. (MonadPrimBase s n, MonadPrim s m) => n a -> m a
-uninterruptibleMaskPrimBase_ action = prim (maskUninterruptibleInternal# (primBase action))
-{-# INLINEABLE uninterruptibleMaskPrimBase_ #-}
+uninterruptibleMaskPrimalState_ :: forall a n m s. (PrimalState s n, Primal s m) => n a -> m a
+uninterruptibleMaskPrimalState_ action = primal (maskUninterruptibleInternal# (primalState action))
+{-# INLINEABLE uninterruptibleMaskPrimalState_ #-}
 
 
 -- | A direct wrapper around `maskAsyncExceptions#` primop. This is different and more
 -- dangerous than `mask_` because it can turn uninterrubtable state into interruptable.
-maskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
-maskAsyncExceptions action = runInPrimBase action maskAsyncExceptions#
+maskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
+maskAsyncExceptions action = runInPrimalState action maskAsyncExceptions#
 {-# INLINEABLE maskAsyncExceptions  #-}
 
 
 -- | A direct wrapper around `unmaskAsyncExceptions#` primop.
-unmaskAsyncExceptions :: forall a m. MonadUnliftPrim RW m => m a -> m a
-unmaskAsyncExceptions action = runInPrimBase action unmaskAsyncExceptions#
+unmaskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
+unmaskAsyncExceptions action = runInPrimalState action unmaskAsyncExceptions#
 {-# INLINEABLE unmaskAsyncExceptions  #-}
 
 
 -- | A direct wrapper around `maskUninterruptible#` primop.
-maskUninterruptible :: forall a m. MonadUnliftPrim RW m => m a -> m a
-maskUninterruptible action = runInPrimBase action maskUninterruptible#
+maskUninterruptible :: forall a m. UnliftPrimal RW m => m a -> m a
+maskUninterruptible action = runInPrimalState action maskUninterruptible#
 {-# INLINEABLE maskUninterruptible #-}
 
 maskAsyncExceptionsInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
@@ -434,10 +434,10 @@ unmaskAsyncExceptionsInternal# :: (State# s -> (# State# s, b #)) -> State# s ->
 unmaskAsyncExceptionsInternal# = unsafeCoerce# unmaskAsyncExceptions#
 {-# INLINEABLE unmaskAsyncExceptionsInternal# #-}
 
--- | Same as `GHC.getMaskingState`, but generalized to `MonadPrim`
+-- | Same as `GHC.getMaskingState`, but generalized to `Primal`
 --
 -- @since 0.3.0
-getMaskingState :: MonadPrim RW m => m GHC.MaskingState
+getMaskingState :: Primal RW m => m GHC.MaskingState
 getMaskingState = liftIO GHC.getMaskingState
 {-# INLINEABLE getMaskingState #-}
 

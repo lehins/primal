@@ -198,11 +198,11 @@ fromPMArray (PMArray mb) = UMArray (toMutableByteArray# mb)
 
 
 
-thawCopyUArray :: (Prim e, MonadPrim s m) => UArray e -> Int -> Size -> m (UMArray e s)
+thawCopyUArray :: (Prim e, Primal s m) => UArray e -> Int -> Size -> m (UMArray e s)
 thawCopyUArray = I.thawCopyArray
 {-# INLINE thawCopyUArray #-}
 
-freezeCopyUMArray :: (Prim e, MonadPrim s m) => UMArray e s -> Int -> Size -> m (UArray e)
+freezeCopyUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UArray e)
 freezeCopyUMArray = I.freezeCopyMArray
 {-# INLINE freezeCopyUMArray #-}
 
@@ -237,7 +237,7 @@ cloneUArray = I.cloneArray
 -- array minus the offset.
 --
 -- @since 0.1.0
-cloneUMArray :: (Prim e, MonadPrim s m) => UMArray e s -> Int -> Size -> m (UMArray e s)
+cloneUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UMArray e s)
 cloneUMArray = I.cloneMArray
 {-# INLINE cloneUMArray #-}
 
@@ -251,21 +251,21 @@ makeUArray :: Prim e => Size -> (Int -> e) -> UArray e
 makeUArray = I.makeArray
 {-# INLINE makeUArray #-}
 
-makeUArrayM :: (Prim e, MonadPrim s m) => Size -> (Int -> m e) -> m (UArray e)
+makeUArrayM :: (Prim e, Primal s m) => Size -> (Int -> m e) -> m (UArray e)
 makeUArrayM = I.makeArrayM
 {-# INLINE makeUArrayM #-}
 
-createUArrayM :: (Prim e, MonadPrim s m) => Size -> (UMArray e s -> m b) -> m (b, UArray e)
+createUArrayM :: (Prim e, Primal s m) => Size -> (UMArray e s -> m b) -> m (b, UArray e)
 createUArrayM = I.createArrayM
 {-# INLINE createUArrayM #-}
 
-createUArrayM_ :: (Prim e, MonadPrim s m) => Size -> (UMArray e s -> m b) -> m (UArray e)
+createUArrayM_ :: (Prim e, Primal s m) => Size -> (UMArray e s -> m b) -> m (UArray e)
 createUArrayM_ = I.createArrayM_
 {-# INLINE createUArrayM_ #-}
 
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
-traverseUArray :: (Prim e, Prim b, MonadPrim s m) => (e -> m b) -> UArray e -> m (UArray b)
+traverseUArray :: (Prim e, Prim b, Primal s m) => (e -> m b) -> UArray e -> m (UArray b)
 traverseUArray = I.traverseArray
 {-# INLINE traverseUArray #-}

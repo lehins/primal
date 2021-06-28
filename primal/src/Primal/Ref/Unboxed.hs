@@ -98,7 +98,7 @@ isSameURef (URef ref1#) (URef ref2#) = isTrue# (isSameMutableByteArray# ref1# re
 -- 218
 --
 -- @since 1.0.0
-newURef :: (MonadPrim s m, Unbox e) => e -> m (URef e s)
+newURef :: (Primal s m, Unbox e) => e -> m (URef e s)
 newURef v = do
   pvar <- newRawURef
   pvar <$ writeURef pvar v
@@ -109,10 +109,10 @@ newURef v = do
 --
 -- @since 1.0.0
 newRawURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => m (URef e s)
 newRawURef =
-  prim $ \s# ->
+  primal $ \s# ->
     case newByteArray# (unCountBytes# (1 :: Count e)) s# of
       (# s'#, mba# #) -> (# s'#, URef mba# #)
 {-# INLINE newRawURef #-}
@@ -121,7 +121,7 @@ newRawURef =
 -- | Create a mutable variable in pinned memory with an initial value.
 --
 -- @since 1.0.0
-newPinnedURef :: (MonadPrim s m, Unbox e) => e -> m (URef e s)
+newPinnedURef :: (Primal s m, Unbox e) => e -> m (URef e s)
 newPinnedURef e = do
   pvar <- newRawPinnedURef
   pvar <$ writeURef pvar e
@@ -132,10 +132,10 @@ newPinnedURef e = do
 --
 -- @since 2.0.0
 newRawPinnedURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => m (URef e s)
 newRawPinnedURef =
-  prim $ \s# ->
+  primal $ \s# ->
     case newPinnedByteArray# (unCountBytes# (1 :: Count e)) s# of
       (# s'#, mba# #) -> (# s'#, URef mba# #)
 {-# INLINE newRawPinnedURef #-}
@@ -146,7 +146,7 @@ newRawPinnedURef =
 --
 -- @since 1.0.0
 newAlignedPinnedURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => e
   -> m (URef e s)
 newAlignedPinnedURef v = do
@@ -160,10 +160,10 @@ newAlignedPinnedURef v = do
 --
 -- @since 1.0.0
 newRawAlignedPinnedURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => m (URef e s)
 newRawAlignedPinnedURef =
-  prim $ \s# ->
+  primal $ \s# ->
     let c# = unCountBytes# (1 :: Count e)
         a# = alignment# (proxy# :: Proxy# e)
      in case newAlignedPinnedByteArray# c# a# s# of
@@ -175,10 +175,10 @@ newRawAlignedPinnedURef =
 --
 -- @since 1.0.0
 zeroURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> m ()
-zeroURef (URef mba#) = prim_ (setByteArray# mba# 0# (unCountBytes# (1 :: Count e)) 0#)
+zeroURef (URef mba#) = primal_ (setByteArray# mba# 0# (unCountBytes# (1 :: Count e)) 0#)
 {-# INLINE zeroURef #-}
 
 
@@ -197,10 +197,10 @@ zeroURef (URef mba#) = prim_ (setByteArray# mba# 0# (unCountBytes# (1 :: Count e
 --
 -- @since 1.0.0
 readURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> m e
-readURef (URef mba#) = prim (readMutableByteArray# mba# 0#)
+readURef (URef mba#) = primal (readMutableByteArray# mba# 0#)
 {-# INLINE readURef #-}
 
 
@@ -216,7 +216,7 @@ readURef (URef mba#) = prim (readMutableByteArray# mba# 0#)
 --
 -- @since 1.0.0
 writeFetchOldURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s -- ^ Mutable variable to write a new value into
   -> e -- ^ New value to write into the variable
   -> m e -- ^ Returns the old value
@@ -234,15 +234,15 @@ writeFetchOldURef ref e = readURef ref <* writeURef ref e
 -- 10
 --
 -- @since 1.0.0
-writeURef :: (MonadPrim s m, Unbox e) => URef e s -> e -> m ()
-writeURef (URef mba#) v = prim_ (writeMutableByteArray# mba# 0# v)
+writeURef :: (Primal s m, Unbox e) => URef e s -> e -> m ()
+writeURef (URef mba#) v = primal_ (writeMutableByteArray# mba# 0# v)
 {-# INLINE writeURef #-}
 
 
 -- | Swap contents of two mutable variables. Returns their old values.
 --
 -- @since 1.0.0
-swapURefs :: forall e m s. (MonadPrim s m, Unbox e) => URef e s -> URef e s -> m (e, e)
+swapURefs :: forall e m s. (Primal s m, Unbox e) => URef e s -> URef e s -> m (e, e)
 swapURefs ref1 ref2 = do
   a1 <- readURef ref1
   a2 <- readURef ref2
@@ -254,7 +254,7 @@ swapURefs ref1 ref2 = do
 -- | Swap contents of two mutable variables.
 --
 -- @since 1.0.0
-swapURefs_ :: forall e m s. (MonadPrim s m, Unbox e) => URef e s -> URef e s -> m ()
+swapURefs_ :: forall e m s. (Primal s m, Unbox e) => URef e s -> URef e s -> m ()
 swapURefs_ ref1 ref2 = void $ swapURefs ref1 ref2
 {-# INLINE swapURefs_ #-}
 
@@ -270,7 +270,7 @@ swapURefs_ ref1 ref2 = void $ swapURefs ref1 ref2
 --
 -- @since 1.0.0
 modifyURef ::
-     forall e a m s. (MonadPrim s m, Unbox e)
+     forall e a m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> (e, a))
   -> m a
@@ -281,7 +281,7 @@ modifyURef ref f = modifyURefM ref (pure . f)
 --
 -- @since 1.0.0
 modifyURef_ ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m ()
@@ -292,7 +292,7 @@ modifyURef_ ref f = modifyURefM_ ref (pure . f)
 --
 -- @since 1.0.0
 modifyFetchNewURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m e
@@ -313,7 +313,7 @@ modifyFetchNewURef ref f = modifyFetchNewURefM ref (pure . f)
 --
 -- @since 1.0.0
 modifyFetchOldURef ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m e
@@ -330,7 +330,7 @@ modifyFetchOldURef ref f = modifyFetchOldURefM ref (pure . f)
 --
 --
 -- @since 1.0.0
-modifyURefM :: forall e a m s. (MonadPrim s m, Unbox e) => URef e s -> (e -> m (e, a)) -> m a
+modifyURefM :: forall e a m s. (Primal s m, Unbox e) => URef e s -> (e -> m (e, a)) -> m a
 modifyURefM ref f = do
   (a, b) <- f =<< readURef ref
   b <$ writeURef ref a
@@ -349,7 +349,7 @@ modifyURefM ref f = do
 --
 -- @since 1.0.0
 modifyURefM_ ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m ()
@@ -372,7 +372,7 @@ modifyURefM_ ref f = readURef ref >>= f >>= writeURef ref
 --
 -- @since 1.0.0
 modifyFetchOldURefM ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m e
@@ -386,7 +386,7 @@ modifyFetchOldURefM ref f = do
 --
 -- @since 1.0.0
 modifyFetchNewURefM ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m e
@@ -399,18 +399,18 @@ modifyFetchNewURefM ref f = do
 
 -- | Create a `Weak` pointer associated with the supplied `URef`.
 --
--- Same as `Data.IORef.mkWeakRef` from @base@, but for `URef` and works in any `MonadUnliftPrim`
+-- Same as `Data.IORef.mkWeakRef` from @base@, but for `URef` and works in any `UnliftPrimal`
 -- with `RealWorld` state token.
 --
 -- @since 1.0.0
 mkWeakURef ::
-     forall a b m. MonadUnliftPrim RW m
+     forall a b m. UnliftPrimal RW m
   => URef a RW
   -> m b -- ^ An action that will get executed whenever `URef` gets garbage collected by
          -- the runtime.
   -> m (Weak (URef a RW))
 mkWeakURef ref@(URef ref#) !finalizer =
-  runInPrimBase finalizer $ \f# s ->
+  runInPrimalState finalizer $ \f# s ->
     case mkWeak# ref# ref f# s of
       (# s', weak# #) -> (# s', Weak weak# #)
 {-# INLINE mkWeakURef #-}

@@ -63,7 +63,7 @@ import Primal.Foreign
 -- operations in a concurrent environment.
 --
 -- @since 1.0.0
-atomicWriteBRef :: MonadPrim s m => BRef e s -> e -> m ()
+atomicWriteBRef :: Primal s m => BRef e s -> e -> m ()
 atomicWriteBRef ref !x = atomicModifyBRef_ ref (const x)
 {-# INLINE atomicWriteBRef #-}
 
@@ -73,13 +73,13 @@ atomicWriteBRef ref !x = atomicModifyBRef_ ref (const x)
 -- because it implies a memory barrier.
 --
 -- @since 1.0.0
-atomicReadBRef :: MonadPrim s m => BRef e s -> m e
+atomicReadBRef :: Primal s m => BRef e s -> m e
 atomicReadBRef ref = atomicModifyFetchOldBRef ref id
 
 -- | Same as `atomicWriteBRef`, but also returns the old value.
 --
 -- @since 1.0.0
-atomicSwapBRef :: MonadPrim s m => BRef e s -> e -> m e
+atomicSwapBRef :: Primal s m => BRef e s -> e -> m e
 atomicSwapBRef ref x = atomicModifyFetchOldBRef ref (const x)
 {-# INLINE atomicSwapBRef #-}
 
@@ -96,7 +96,7 @@ numTriesCAS = 35
 -- >>> 
 --
 -- @since 1.0.0
-atomicModifyBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
+atomicModifyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 atomicModifyBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -112,22 +112,22 @@ atomicModifyBRef ref f = readBRef ref >>= loop (0 :: Int)
 
 
 
-atomicModifyBRef2 :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
+atomicModifyBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 atomicModifyBRef2 (BRef ref#) f =
 #if __GLASGOW_HASKELL__ <= 806
   let g prev =
         case f prev of
           r@(!_new, _result) -> r
-   in prim (atomicModifyMutVar# ref# g)
+   in primal (atomicModifyMutVar# ref# g)
 #else
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar2# ref# f s of
       (# s', _old, (!_new, result) #) -> (# s', result #)
 #endif
 {-# INLINE atomicModifyBRef2 #-}
 
 
-atomicModifyBRef_ :: MonadPrim s m => BRef a s -> (a -> a) -> m ()
+atomicModifyBRef_ :: Primal s m => BRef a s -> (a -> a) -> m ()
 atomicModifyBRef_ ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -137,14 +137,14 @@ atomicModifyBRef_ ref f = readBRef ref >>= loop (0 :: Int)
       | otherwise = atomicModifyBRef2_ ref f
 {-# INLINE atomicModifyBRef_ #-}
 
-atomicModifyBRef2_ :: MonadPrim s m => BRef a s -> (a -> a) -> m ()
+atomicModifyBRef2_ :: Primal s m => BRef a s -> (a -> a) -> m ()
 atomicModifyBRef2_ (BRef ref#) f =
-  prim_ $ \s ->
+  primal_ $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, !_cur #) -> s'
 {-# INLINE atomicModifyBRef2_ #-}
 
-atomicModifyFetchOldBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchOldBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchOldBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -156,15 +156,15 @@ atomicModifyFetchOldBRef ref f = readBRef ref >>= loop (0 :: Int)
       | otherwise = atomicModifyFetchOldBRef2 ref f
 {-# INLINE atomicModifyFetchNewBRef #-}
 
-atomicModifyFetchOldBRef2 :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchOldBRef2 :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchOldBRef2 (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, !_cur #) -> (# s', _prev #)
 {-# INLINE atomicModifyFetchOldBRef2 #-}
 
 
-atomicModifyFetchNewBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchNewBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchNewBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -176,16 +176,16 @@ atomicModifyFetchNewBRef ref f = readBRef ref >>= loop (0 :: Int)
       | otherwise = atomicModifyFetchNewBRef2 ref f
 {-# INLINE atomicModifyFetchOldBRef #-}
 
-atomicModifyFetchNewBRef2 :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchNewBRef2 :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchNewBRef2 (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, !cur #) -> (# s', cur #)
 {-# INLINE atomicModifyFetchNewBRef2 #-}
 
 
 
-atomicModifyFetchBothBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m (a, a)
+atomicModifyFetchBothBRef :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -198,9 +198,9 @@ atomicModifyFetchBothBRef ref f = readBRef ref >>= loop (0 :: Int)
 {-# INLINE atomicModifyFetchBothBRef #-}
 
 
-atomicModifyFetchBothBRef2 :: MonadPrim s m => BRef a s -> (a -> a) -> m (a, a)
+atomicModifyFetchBothBRef2 :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothBRef2 (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', prev, !cur #) -> (# s', (prev, cur) #)
 {-# INLINE atomicModifyFetchBothBRef2 #-}
@@ -208,7 +208,7 @@ atomicModifyFetchBothBRef2 (BRef ref#) f =
 -- | Apply a function to the value in mutable `BRef` atomically
 --
 -- @since 1.0.0
-atomicModifyFetchBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
 atomicModifyFetchBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
@@ -229,7 +229,7 @@ atomicModifyFetchBRef ref f = readBRef ref >>= loop (0 :: Int)
 -- will increment the 'IOBRef' and then throw an exception in the calling
 -- thread.
 
-atomicModifyFetchBRef2 :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
 atomicModifyFetchBRef2 ref f =
   atomicModifyFetchLazyBRef ref $ \current ->
     case f current of
@@ -237,12 +237,12 @@ atomicModifyFetchBRef2 ref f =
 {-# INLINE atomicModifyFetchBRef2 #-}
 
 
--- atomicModifyBRef2 :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
+-- atomicModifyBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
 -- (BRef ref#) f =
 --   let g a =
 --         case f a of
 --           t@(a', _) -> a' `seq` t
---    in prim $ \s ->
+--    in primal $ \s ->
 --         case atomicModifyMutVar2# ref# g s of
 --           (# s', old, (new, b) #) ->
 --             case seq# new s' of
@@ -250,9 +250,9 @@ atomicModifyFetchBRef2 ref f =
 --                 case seq# b s'' of
 --                   (# s''', b' #) -> (# s''', (old, new', b') #)
 
--- atomicModifyBRef2 :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
+-- atomicModifyBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 -- atomicModifyBRef2 (BRef ref#) f =
---   prim $ \s ->
+--   primal $ \s ->
 --     case atomicModifyMutVar2# ref# f s of
 --       (# s', _old, res #) -> (# s', res #)
 -- {-# INLINE atomicModifyBRef2 #-}
@@ -262,54 +262,54 @@ atomicModifyFetchBRef2 ref f =
 
 
 
-atomicModifyFetchBothLazyBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m (a, a)
+atomicModifyFetchBothLazyBRef :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothLazyBRef (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', prev, cur #) -> (# s', (prev, cur) #)
 {-# INLINE atomicModifyFetchBothLazyBRef #-}
 
 
-casBRef :: MonadPrim s m => BRef a s -> a -> a -> m (Bool, a)
+casBRef :: Primal s m => BRef a s -> a -> a -> m (Bool, a)
 casBRef (BRef ref#) expOld new =
-  prim $ \s ->
+  primal $ \s ->
     case casMutVar# ref# expOld new s of
       (# s', failed#, actualOld #) ->
         (# s', (isTrue# (failed# ==# 0#), actualOld) #)
 {-# INLINE casBRef #-}
 
-atomicModifyFetchLazyBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
+atomicModifyFetchLazyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
 atomicModifyFetchLazyBRef (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar2# ref# f s of
       (# s', old, ~(new, res) #) -> (# s', (old, new, res) #)
 {-# INLINE atomicModifyFetchLazyBRef #-}
 
 
-atomicModifyLazyBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
-atomicModifyLazyBRef (BRef ref#) f = prim (atomicModifyMutVar# ref# f)
+atomicModifyLazyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
+atomicModifyLazyBRef (BRef ref#) f = primal (atomicModifyMutVar# ref# f)
 {-# INLINE atomicModifyLazyBRef #-}
 
-atomicModifyLazyBRef_ :: MonadPrim s m => BRef a s -> (a -> a) -> m ()
+atomicModifyLazyBRef_ :: Primal s m => BRef a s -> (a -> a) -> m ()
 atomicModifyLazyBRef_ (BRef ref#) f =
-  prim_ $ \s ->
+  primal_ $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, _cur #) -> s'
 {-# INLINE atomicModifyLazyBRef_ #-}
 
-atomicModifyFetchOldLazyBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchOldLazyBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchOldLazyBRef (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', prev, _cur #) -> (# s', prev #)
 
-atomicModifyFetchNewLazyBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+atomicModifyFetchNewLazyBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchNewLazyBRef (BRef ref#) f =
-  prim $ \s ->
+  primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', _prev, cur #) -> (# s', cur #)
 
-atomicWriteLazyBRef :: MonadPrim s m => BRef b s -> b -> m ()
+atomicWriteLazyBRef :: Primal s m => BRef b s -> b -> m ()
 atomicWriteLazyBRef ref x = atomicModifyLazyBRef_ ref (const x)
 
 

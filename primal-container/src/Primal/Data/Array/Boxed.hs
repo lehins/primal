@@ -71,10 +71,10 @@ import Primal.Data.Array
 
 
 
-atomicModifyBMArray# :: MonadPrim s m => BMArray e s -> Int -> (e -> (# e, b #)) -> m b
+atomicModifyBMArray# :: Primal s m => BMArray e s -> Int -> (e -> (# e, b #)) -> m b
 atomicModifyBMArray# ma@(BMArray ma#) i@(I# i#) f = do
   current0 <- readBMArray ma i
-  prim $
+  primal $
     let go expected s =
           case f expected of
             (# new, artifact #) ->
@@ -85,14 +85,14 @@ atomicModifyBMArray# ma@(BMArray ma#) i@(I# i#) f = do
 {-# INLINE atomicModifyBMArray# #-}
 
 
-atomicModifyFetchNewBMArray :: MonadPrim s m => BMArray e s -> Int -> (e -> e) -> m e
+atomicModifyFetchNewBMArray :: Primal s m => BMArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchNewBMArray ma i f =
   atomicModifyBMArray# ma i (\a -> let a' = f a in (# a', a' #))
 {-# INLINE atomicModifyFetchNewBMArray #-}
 
 -- atomicModifyFetchNewBMArray ma@(BMArray ma#) i@(I# i#) f = do
 --   current0 <- readBMArray ma i
---   prim $ \s0 ->
+--   primal $ \s0 ->
 --     let go expected s =
 --           case casBArray# ma# i# expected (f expected) s of
 --             (# s', 0#, actual #) -> go actual s'
@@ -104,7 +104,7 @@ atomicModifyFetchNewBMArray ma i f =
   --         (_, current) -> go current
   --  in readBMArray ma i >>= go
 
-atomicModifyFetchOldBMArray :: MonadPrim s m => BMArray e s -> Int -> (e -> e) -> m e
+atomicModifyFetchOldBMArray :: Primal s m => BMArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchOldBMArray ma i f =
   atomicModifyBMArray# ma i (\a -> (# f a, a #))
 {-# INLINE atomicModifyFetchOldBMArray #-}
@@ -116,7 +116,7 @@ atomicModifyFetchOldBMArray ma i f =
 
 
 
-atomicModifyBMArray :: MonadPrim s m => BMArray e s -> Int -> (e -> (e, b)) -> m b
+atomicModifyBMArray :: Primal s m => BMArray e s -> Int -> (e -> (e, b)) -> m b
 atomicModifyBMArray ma i f =
   atomicModifyBMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
 {-# INLINE atomicModifyBMArray #-}
@@ -128,13 +128,13 @@ atomicModifyBMArray ma i f =
   --  in readBMArray ma i >>= go
 
 
-atomicModifyBMArray_ :: MonadPrim s m => BMArray e s -> Int -> (e -> e) -> m ()
+atomicModifyBMArray_ :: Primal s m => BMArray e s -> Int -> (e -> e) -> m ()
 atomicModifyBMArray_ ma i f =
   atomicModifyBMArray# ma i (\a -> let a' = f a in (# a', () #))
 {-# INLINE atomicModifyBMArray_ #-}
 
 
-atomicModifyBMArray2 :: MonadPrim s m => BMArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
+atomicModifyBMArray2 :: Primal s m => BMArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
 atomicModifyBMArray2 ma i f =
   atomicModifyBMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
 {-# INLINE atomicModifyBMArray2 #-}
@@ -151,15 +151,15 @@ makeBArray :: Size -> (Int -> e) -> BArray e
 makeBArray = I.makeArray
 {-# INLINE makeBArray #-}
 
-makeBArrayM :: MonadPrim s m => Size -> (Int -> m e) -> m (BArray e)
+makeBArrayM :: Primal s m => Size -> (Int -> m e) -> m (BArray e)
 makeBArrayM = I.makeArrayM
 {-# INLINE makeBArrayM #-}
 
-createBArrayM :: MonadPrim s m => Size -> (BMArray e s -> m b) -> m (b, BArray e)
+createBArrayM :: Primal s m => Size -> (BMArray e s -> m b) -> m (b, BArray e)
 createBArrayM = I.createArrayM
 {-# INLINE createBArrayM #-}
 
-createBArrayM_ :: MonadPrim s m => Size -> (BMArray e s -> m b) -> m (BArray e)
+createBArrayM_ :: Primal s m => Size -> (BMArray e s -> m b) -> m (BArray e)
 createBArrayM_ = I.createArrayM_
 {-# INLINE createBArrayM_ #-}
 
@@ -167,6 +167,6 @@ createBArrayM_ = I.createArrayM_
 -- | Traverse an array with a monadic action.
 --
 -- @since 0.1.0
-traverseBArray :: MonadPrim s m => (e -> m b) -> BArray e -> m (BArray b)
+traverseBArray :: Primal s m => (e -> m b) -> BArray e -> m (BArray b)
 traverseBArray = I.traverseArray
 {-# INLINE traverseBArray #-}

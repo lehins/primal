@@ -127,7 +127,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread32"
 
 readWord8ArrayAsWideChar# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Char# #)
 readWord8ArrayAsWideChar# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsWideCharIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsWideCharIO# mb# i#) s of
     (# s', C# c# #) -> (# s', c# #)
 {-# INLINE readWord8ArrayAsWideChar# #-}
 
@@ -135,7 +135,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32"
   writeWord8ArrayAsWideCharIO# :: MutableByteArray# d -> Int# -> Char# -> IO ()
 
 writeWord8ArrayAsWideChar# :: MutableByteArray# d -> Int# -> Char# -> State# d -> State# d
-writeWord8ArrayAsWideChar# mb# i# c# = unsafePrimBase_ (writeWord8ArrayAsWideCharIO# mb# i# c#)
+writeWord8ArrayAsWideChar# mb# i# c# = unsafePrimalState_ (writeWord8ArrayAsWideCharIO# mb# i# c#)
 {-# INLINE writeWord8ArrayAsWideChar# #-}
 
 -- Addr#
@@ -166,12 +166,12 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32
 
 readWord8ArrayAsAddr# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Addr# #)
 readWord8ArrayAsAddr# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsPtrIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsPtrIO# mb# i#) s of
     (# s', Ptr addr# #) -> (# s', addr# #)
 {-# INLINE readWord8ArrayAsAddr# #-}
 
 writeWord8ArrayAsAddr# :: MutableByteArray# d -> Int# -> Addr# -> State# d -> State# d
-writeWord8ArrayAsAddr# mb# i# addr# = unsafePrimBase_ (writeWord8ArrayAsAddrIO# mb# i# addr#)
+writeWord8ArrayAsAddr# mb# i# addr# = unsafePrimalState_ (writeWord8ArrayAsAddrIO# mb# i# addr#)
 {-# INLINE writeWord8ArrayAsAddr# #-}
 
 -- StablePtr#
@@ -200,12 +200,12 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32
 
 readWord8ArrayAsStablePtr# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, StablePtr# a #)
 readWord8ArrayAsStablePtr# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsStablePtrIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsStablePtrIO# mb# i#) s of
     (# s', StablePtr addr# #) -> (# s', addr# #)
 {-# INLINE readWord8ArrayAsStablePtr# #-}
 
 writeWord8ArrayAsStablePtr# :: MutableByteArray# d -> Int# -> StablePtr# a -> State# d -> State# d
-writeWord8ArrayAsStablePtr# mb# i# addr# = unsafePrimBase_ (writeWord8ArrayAsStablePtrIO# mb# i# addr#)
+writeWord8ArrayAsStablePtr# mb# i# addr# = unsafePrimalState_ (writeWord8ArrayAsStablePtrIO# mb# i# addr#)
 {-# INLINE writeWord8ArrayAsStablePtr# #-}
 
 
@@ -219,7 +219,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread_float"
 
 readWord8ArrayAsFloat# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Float# #)
 readWord8ArrayAsFloat# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsFloatIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsFloatIO# mb# i#) s of
     (# s', F# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsFloat# #-}
 
@@ -227,7 +227,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite_float"
   writeWord8ArrayAsFloatIO# :: MutableByteArray# d -> Int# -> Float -> IO ()
 
 writeWord8ArrayAsFloat# :: MutableByteArray# d -> Int# -> Float# -> State# d -> State# d
-writeWord8ArrayAsFloat# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsFloatIO# mb# i# (F# a#))
+writeWord8ArrayAsFloat# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsFloatIO# mb# i# (F# a#))
 {-# INLINE writeWord8ArrayAsFloat# #-}
 
 -- Double#
@@ -240,7 +240,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread_double"
 
 readWord8ArrayAsDouble# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Double# #)
 readWord8ArrayAsDouble# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsDoubleIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsDoubleIO# mb# i#) s of
     (# s', D# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsDouble# #-}
 
@@ -248,7 +248,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite_double"
   writeWord8ArrayAsDoubleIO# :: MutableByteArray# d -> Int# -> Double# -> IO ()
 
 writeWord8ArrayAsDouble# :: MutableByteArray# d -> Int# -> Double# -> State# d -> State# d
-writeWord8ArrayAsDouble# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsDoubleIO# mb# i# a#)
+writeWord8ArrayAsDouble# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsDoubleIO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsDouble# #-}
 
 -- Int16#
@@ -266,7 +266,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread16"
 
 readWord8ArrayAsInt16# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Int# #)
 readWord8ArrayAsInt16# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsInt16IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsInt16IO# mb# i#) s of
     (# s', I16# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsInt16# #-}
 
@@ -274,7 +274,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite16"
   writeWord8ArrayAsInt16IO# :: MutableByteArray# d -> Int# -> Int16 -> IO ()
 
 writeWord8ArrayAsInt16# :: MutableByteArray# d -> Int# -> Int# -> State# d -> State# d
-writeWord8ArrayAsInt16# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsInt16IO# mb# i# (I16# a#))
+writeWord8ArrayAsInt16# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsInt16IO# mb# i# (I16# a#))
 {-# INLINE writeWord8ArrayAsInt16# #-}
 
 
@@ -294,7 +294,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread32"
 
 readWord8ArrayAsInt32# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Int# #)
 readWord8ArrayAsInt32# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsInt32IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsInt32IO# mb# i#) s of
     (# s', I32# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsInt32# #-}
 
@@ -302,7 +302,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32"
   writeWord8ArrayAsInt32IO# :: MutableByteArray# d -> Int# -> Int32 -> IO ()
 
 writeWord8ArrayAsInt32# :: MutableByteArray# d -> Int# -> Int# -> State# d -> State# d
-writeWord8ArrayAsInt32# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsInt32IO# mb# i# (I32# a#))
+writeWord8ArrayAsInt32# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsInt32IO# mb# i# (I32# a#))
 {-# INLINE writeWord8ArrayAsInt32# #-}
 
 
@@ -331,11 +331,11 @@ writeWord8ArrayAsInt64# :: MutableByteArray# d -> Int# -> Int64# -> State# d -> 
 #endif
 
 readWord8ArrayAsInt64# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsInt64IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsInt64IO# mb# i#) s of
     (# s', I64# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsInt64# #-}
 
-writeWord8ArrayAsInt64# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsInt64IO# mb# i# a#)
+writeWord8ArrayAsInt64# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsInt64IO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsInt64# #-}
 
 -- Int#
@@ -362,12 +362,12 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32"
 
 readWord8ArrayAsInt# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Int# #)
 readWord8ArrayAsInt# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsIntIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsIntIO# mb# i#) s of
     (# s', I# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsInt# #-}
 
 writeWord8ArrayAsInt# :: MutableByteArray# d -> Int# -> Int# -> State# d -> State# d
-writeWord8ArrayAsInt# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsIntIO# mb# i# a#)
+writeWord8ArrayAsInt# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsIntIO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsInt# #-}
 
 -- Word16#
@@ -380,7 +380,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread16"
 
 readWord8ArrayAsWord16# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Word# #)
 readWord8ArrayAsWord16# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsWord16IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsWord16IO# mb# i#) s of
     (# s', W16# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsWord16# #-}
 
@@ -388,7 +388,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite16"
   writeWord8ArrayAsWord16IO# :: MutableByteArray# d -> Int# -> Word# -> IO ()
 
 writeWord8ArrayAsWord16# :: MutableByteArray# d -> Int# -> Word# -> State# d -> State# d
-writeWord8ArrayAsWord16# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsWord16IO# mb# i# a#)
+writeWord8ArrayAsWord16# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsWord16IO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsWord16# #-}
 
 -- Word32#
@@ -401,7 +401,7 @@ foreign import ccall unsafe "primal_compat.c primal_memread32"
 
 readWord8ArrayAsWord32# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Word# #)
 readWord8ArrayAsWord32# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsWord32IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsWord32IO# mb# i#) s of
     (# s', W32# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsWord32# #-}
 
@@ -409,7 +409,7 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32"
   writeWord8ArrayAsWord32IO# :: MutableByteArray# d -> Int# -> Word# -> IO ()
 
 writeWord8ArrayAsWord32# :: MutableByteArray# d -> Int# -> Word# -> State# d -> State# d
-writeWord8ArrayAsWord32# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsWord32IO# mb# i# a#)
+writeWord8ArrayAsWord32# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsWord32IO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsWord32# #-}
 
 
@@ -438,10 +438,10 @@ writeWord8ArrayAsWord64# :: MutableByteArray# d -> Int# -> Word64# -> State# d -
 #endif
 
 readWord8ArrayAsWord64# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsWord64IO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsWord64IO# mb# i#) s of
     (# s', W64# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsWord64# #-}
-writeWord8ArrayAsWord64# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsWord64IO# mb# i# a#)
+writeWord8ArrayAsWord64# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsWord64IO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsWord64# #-}
 
 -- Word#
@@ -468,12 +468,12 @@ foreign import ccall unsafe "primal_compat.c primal_memwrite32"
 
 readWord8ArrayAsWord# :: MutableByteArray# d -> Int# -> State# d -> (# State# d, Word# #)
 readWord8ArrayAsWord# mb# i# s =
-  case unsafePrimBase (readWord8ArrayAsWordIO# mb# i#) s of
+  case unsafePrimalState (readWord8ArrayAsWordIO# mb# i#) s of
     (# s', W# a# #) -> (# s', a# #)
 {-# INLINE readWord8ArrayAsWord# #-}
 
 writeWord8ArrayAsWord# :: MutableByteArray# d -> Int# -> Word# -> State# d -> State# d
-writeWord8ArrayAsWord# mb# i# a# = unsafePrimBase_ (writeWord8ArrayAsWordIO# mb# i# a#)
+writeWord8ArrayAsWord# mb# i# a# = unsafePrimalState_ (writeWord8ArrayAsWordIO# mb# i# a#)
 {-# INLINE writeWord8ArrayAsWord# #-}
 
 #endif /* __GLASGOW_HASKELL__ < 806 */

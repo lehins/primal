@@ -54,17 +54,17 @@ import Primal.Foreign
 import qualified GHC.Conc as GHC
 import qualified System.Timeout as GHC
 
-spark :: MonadPrim s m => a -> m a
-spark a = prim (spark# a)
+spark :: Primal s m => a -> m a
+spark a = primal (spark# a)
 
-numSparks :: MonadPrim s m => m Int
+numSparks :: Primal s m => m Int
 numSparks =
-  prim $ \s ->
+  primal $ \s ->
     case numSparks# s of
       (# s', n# #) -> (# s', I# n# #)
 
-runSparks :: MonadPrim s m => m ()
-runSparks = prim_ loop
+runSparks :: Primal s m => m ()
+runSparks = primal_ loop
   where
     loop s =
       case getSpark# s of
@@ -75,48 +75,48 @@ runSparks = prim_ loop
 
 -- | Wrapper for `delay#`. Sleep specified number of microseconds. Not designed for
 -- threaded runtime: __Errors when compiled with @-threaded@__
-delay :: MonadPrim s m => Int -> m ()
-delay (I# i#) = prim_ (delay# i#)
+delay :: Primal s m => Int -> m ()
+delay (I# i#) = primal_ (delay# i#)
 
 -- | Wrapper for `waitRead#`. Block and wait for input to become available on the
 -- `Fd`. Not designed for threaded runtime: __Errors out when compiled with @-threaded@__
-waitRead :: MonadPrim s m => Fd -> m ()
+waitRead :: Primal s m => Fd -> m ()
 waitRead !fd =
   case fromIntegral fd of
-    I# i# -> prim_ (waitRead# i#)
+    I# i# -> primal_ (waitRead# i#)
 
 
 -- | Wrapper for `waitWrite#`. Block and wait until output is possible on the `Fd`.
 -- Not designed for threaded runtime: __Errors out when compiled with @-threaded@__
-waitWrite :: MonadPrim s m => Fd -> m ()
+waitWrite :: Primal s m => Fd -> m ()
 waitWrite !fd =
   case fromIntegral fd of
-    I# i# -> prim_ (waitWrite# i#)
+    I# i# -> primal_ (waitWrite# i#)
 
 -- | Wrapper around `fork#`. Unlike `Control.Concurrent.forkIO` it does not install
 -- any exception handlers on the action, so you need make sure to do it yourself.
-fork :: MonadUnliftPrim RW m => m () -> m GHC.ThreadId
+fork :: UnliftPrimal RW m => m () -> m GHC.ThreadId
 fork action =
-  runInPrimBase action $ \action# s ->
+  runInPrimalState action $ \action# s ->
     case fork# (IO action#) s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 -- | Spawn a thread and run an action in it. Any exception raised by the new thread will
 -- be passed to the supplied exception handler, which itself will be run in a masked state
-forkFinally :: MonadUnliftPrim RW m => m a -> (Either SomeException a -> m ()) -> m GHC.ThreadId
+forkFinally :: UnliftPrimal RW m => m a -> (Either SomeException a -> m ()) -> m GHC.ThreadId
 forkFinally action handler =
   mask $ \restore -> fork $ tryAny (restore action) >>= handler
 
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
-forkOn :: MonadUnliftPrim RW m => Int -> m () -> m GHC.ThreadId
+forkOn :: UnliftPrimal RW m => Int -> m () -> m GHC.ThreadId
 forkOn (I# cap#) action =
-  runInPrimBase action $ \action# s ->
+  runInPrimalState action $ \action# s ->
     case forkOn# cap# (IO action#) s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 forkOnFinally ::
-     MonadUnliftPrim RW m
+     UnliftPrimal RW m
   => Int
   -> m a
   -> (Either SomeException a -> m ())
@@ -125,30 +125,30 @@ forkOnFinally cap action handler =
   mask $ \restore -> forkOn cap $ tryAny (restore action) >>= handler
 
 
-forkOS :: MonadUnliftPrim RW m => m () -> m GHC.ThreadId
+forkOS :: UnliftPrimal RW m => m () -> m GHC.ThreadId
 forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
 
 
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
-killThread :: MonadPrim RW m => GHC.ThreadId -> m ()
+killThread :: Primal RW m => GHC.ThreadId -> m ()
 killThread !tid = throwTo tid GHC.ThreadKilled
 
 -- | Lifted version of `GHC.threadDelay`
-threadDelay :: MonadPrim RW m => Int -> m ()
+threadDelay :: Primal RW m => Int -> m ()
 threadDelay = liftIO . GHC.threadDelay
 
 -- | Lifted version of `GHC.timeout`
 --
 -- @since 0.3.0
-timeout :: MonadUnliftPrim RW m => Int -> m a -> m (Maybe a)
+timeout :: UnliftPrimal RW m => Int -> m a -> m (Maybe a)
 timeout !n !action = withRunInIO $ \run -> GHC.timeout n (run action)
 
 -- | Same as `timeout`, but ignores the outcome
 --
 -- @since 0.3.0
-timeout_ :: MonadUnliftPrim RW m => Int -> m a -> m ()
+timeout_ :: UnliftPrimal RW m => Int -> m a -> m ()
 timeout_ n = void . timeout n
 
 
@@ -159,40 +159,40 @@ timeout_ n = void . timeout n
 -- respect to other threads, which is not relevant for the state thread monad anyways.
 --
 -- @since 0.3.0
-yield :: forall m s. MonadPrim s m => m ()
-yield = prim_ (unsafeCoerce# yield# :: State# s -> State# s)
+yield :: forall m s. Primal s m => m ()
+yield = primal_ (unsafeCoerce# yield# :: State# s -> State# s)
 
 -- | Wrapper around `myThreadId#`.
-myThreadId :: MonadPrim RW m => m GHC.ThreadId
+myThreadId :: Primal RW m => m GHC.ThreadId
 myThreadId =
-  prim $ \s ->
+  primal $ \s ->
     case myThreadId# s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
 -- | Pointer should refer to UTF8 encoded string of bytes
-labelThread :: MonadPrim RW m => GHC.ThreadId -> Ptr a -> m ()
-labelThread (GHC.ThreadId tid#) (Ptr addr#) = prim_ (labelThread# tid# addr#)
+labelThread :: Primal RW m => GHC.ThreadId -> Ptr a -> m ()
+labelThread (GHC.ThreadId tid#) (Ptr addr#) = primal_ (labelThread# tid# addr#)
 
 -- | Check if current thread was spawned with `forkOn#`
 --
 -- @since 0.3.0
-isCurrentThreadBound :: MonadPrim RW m => m Bool
+isCurrentThreadBound :: Primal RW m => m Bool
 isCurrentThreadBound =
-  prim $ \s ->
+  primal $ \s ->
     case isCurrentThreadBound# s of
       (# s', bool# #) -> (# s', isTrue# bool# #)
 
-threadStatus :: MonadPrim RW m => GHC.ThreadId -> m GHC.ThreadStatus
-threadStatus = liftPrimBase . GHC.threadStatus
+threadStatus :: Primal RW m => GHC.ThreadId -> m GHC.ThreadStatus
+threadStatus = liftPrimalState . GHC.threadStatus
 
-threadCapability :: MonadPrim RW m => GHC.ThreadId -> m (Int, Bool)
-threadCapability = liftPrimBase . GHC.threadCapability
+threadCapability :: Primal RW m => GHC.ThreadId -> m (Int, Bool)
+threadCapability = liftPrimalState . GHC.threadCapability
 
-getNumCapabilities :: MonadPrim RW m => m Int
-getNumCapabilities = liftPrimBase GHC.getNumCapabilities
+getNumCapabilities :: Primal RW m => m Int
+getNumCapabilities = liftPrimalState GHC.getNumCapabilities
 
-setNumCapabilities :: MonadPrim RW m => Int -> m ()
-setNumCapabilities = liftPrimBase . GHC.setNumCapabilities
+setNumCapabilities :: Primal RW m => Int -> m ()
+setNumCapabilities = liftPrimalState . GHC.setNumCapabilities
 
 
 

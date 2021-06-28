@@ -101,7 +101,7 @@ ensurePinnedText t = runST $ do
   freezeMutMem . toIncMText =<< ensurePinnedMText =<< thawMem t
 {-# INLINE ensurePinnedText #-}
 
-ensurePinnedMText :: (Typeable p, MonadPrim s m) => MText p s -> m (MText 'Pin s)
+ensurePinnedMText :: (Typeable p, Primal s m) => MText p s -> m (MText 'Pin s)
 ensurePinnedMText (MText mb o k) =
   case toPinnedMBytes mb of
     Just mbPin -> pure (MText mbPin o k)

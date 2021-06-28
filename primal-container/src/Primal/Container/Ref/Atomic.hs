@@ -422,7 +422,7 @@ instance AtomicBitsMutRef SBMArray where
 
 
 atomicReadMutRef ::
-  (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+  (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Mutable variable to read an element from
   -> m e
 atomicReadMutRef = liftST . atomicReadMutRefST
@@ -430,7 +430,7 @@ atomicReadMutRef = liftST . atomicReadMutRefST
 
 -- | Write an element into `MutableByteArray#` atomically. Implies full memory barrier.
 atomicWriteMutRef ::
-     (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+     (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Mutable variable to write an element into
   -> e -- ^ Element to write
   -> m ()
@@ -443,7 +443,7 @@ atomicWriteMutRef mut = liftST . atomicWriteMutRefST mut
 -- supplied. Returns the actual old value, which if compared to supplied expected one
 -- will tell us whether atomic swap occured or not.
 casMutRef ::
-     (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+     (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Variable to be mutated
   -> e -- ^ Expected old value
   -> e -- ^ New value
@@ -455,7 +455,7 @@ casMutRef mut x = liftST . casMutRefST mut x
 --
 -- @since 0.1.0
 atomicModifyMutRef ::
-     (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+     (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Variable to be mutated
   -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
   -> m b
@@ -467,7 +467,7 @@ atomicModifyMutRef mut = liftST . atomicModifyMutRefST mut
 --
 -- @since 0.1.0
 atomicModifyFetchOldMutRef ::
-     (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+     (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Variable to be mutated
   -> (e -> e) -- ^ Function to be applied atomically to the element
   -> m e
@@ -479,7 +479,7 @@ atomicModifyFetchOldMutRef mut = liftST . atomicModifyFetchOldMutRefST mut
 --
 -- @since 0.1.0
 atomicModifyFetchNewMutRef ::
-     (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m)
+     (AtomicMutRef mr, AtomicElt mr e, Primal s m)
   => mr e s -- ^ Variable to be mutated
   -> (e -> e) -- ^ Function to be applied atomically to the element
   -> m e
@@ -488,7 +488,7 @@ atomicModifyFetchNewMutRef mut = liftST . atomicModifyFetchNewMutRefST mut
 
 
 atomicAddFetchOldMutRef ::
-     (AtomicCountMutRef mr, AtomicCountElt mr e, MonadPrim s m)
+     (AtomicCountMutRef mr, AtomicCountElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -496,7 +496,7 @@ atomicAddFetchOldMutRef mut = liftST . atomicAddFetchOldMutRefST mut
 {-# INLINE atomicAddFetchOldMutRef #-}
 
 atomicAddFetchNewMutRef ::
-     (AtomicCountMutRef mr, AtomicCountElt mr e, MonadPrim s m)
+     (AtomicCountMutRef mr, AtomicCountElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -504,7 +504,7 @@ atomicAddFetchNewMutRef mut = liftST . atomicAddFetchNewMutRefST mut
 {-# INLINE atomicAddFetchNewMutRef #-}
 
 atomicSubFetchOldMutRef ::
-     (AtomicCountMutRef mr, AtomicCountElt mr e, MonadPrim s m)
+     (AtomicCountMutRef mr, AtomicCountElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -512,7 +512,7 @@ atomicSubFetchOldMutRef mut = liftST . atomicSubFetchOldMutRefST mut
 {-# INLINE atomicSubFetchOldMutRef #-}
 
 atomicSubFetchNewMutRef ::
-     (AtomicCountMutRef mr, AtomicCountElt mr e, MonadPrim s m)
+     (AtomicCountMutRef mr, AtomicCountElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -520,7 +520,7 @@ atomicSubFetchNewMutRef mut = liftST . atomicSubFetchNewMutRefST mut
 {-# INLINE atomicSubFetchNewMutRef #-}
 
 atomicAndFetchOldMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -528,7 +528,7 @@ atomicAndFetchOldMutRef mut = liftST . atomicAndFetchOldMutRefST mut
 {-# INLINE atomicAndFetchOldMutRef #-}
 
 atomicAndFetchNewMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -536,7 +536,7 @@ atomicAndFetchNewMutRef mut = liftST . atomicAndFetchNewMutRefST mut
 {-# INLINE atomicAndFetchNewMutRef #-}
 
 atomicNandFetchOldMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -544,7 +544,7 @@ atomicNandFetchOldMutRef mut = liftST . atomicNandFetchOldMutRefST mut
 {-# INLINE atomicNandFetchOldMutRef #-}
 
 atomicNandFetchNewMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -552,7 +552,7 @@ atomicNandFetchNewMutRef mut = liftST . atomicNandFetchNewMutRefST mut
 {-# INLINE atomicNandFetchNewMutRef #-}
 
 atomicOrFetchOldMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -560,7 +560,7 @@ atomicOrFetchOldMutRef mut = liftST . atomicOrFetchOldMutRefST mut
 {-# INLINE atomicOrFetchOldMutRef #-}
 
 atomicOrFetchNewMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -568,7 +568,7 @@ atomicOrFetchNewMutRef mut = liftST . atomicOrFetchNewMutRefST mut
 {-# INLINE atomicOrFetchNewMutRef #-}
 
 atomicXorFetchOldMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -576,7 +576,7 @@ atomicXorFetchOldMutRef mut = liftST . atomicXorFetchOldMutRefST mut
 {-# INLINE atomicXorFetchOldMutRef #-}
 
 atomicXorFetchNewMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m)
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m)
   => mr e s
   -> e
   -> m e
@@ -584,12 +584,12 @@ atomicXorFetchNewMutRef mut =  liftST . atomicXorFetchNewMutRefST mut
 {-# INLINE atomicXorFetchNewMutRef #-}
 
 atomicNotFetchOldMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m) => mr e s -> m e
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m) => mr e s -> m e
 atomicNotFetchOldMutRef = liftST . atomicNotFetchOldMutRefST
 {-# INLINE atomicNotFetchOldMutRef #-}
 
 atomicNotFetchNewMutRef ::
-     (AtomicBitsMutRef mr, AtomicBitsElt mr e, MonadPrim s m) => mr e s -> m e
+     (AtomicBitsMutRef mr, AtomicBitsElt mr e, Primal s m) => mr e s -> m e
 atomicNotFetchNewMutRef = liftST . atomicNotFetchNewMutRefST
 {-# INLINE atomicNotFetchNewMutRef #-}
 
@@ -597,6 +597,6 @@ atomicNotFetchNewMutRef = liftST . atomicNotFetchNewMutRefST
 
 
 
-atomicModifyMutRef_ :: (AtomicMutRef mr, AtomicElt mr e, MonadPrim s m) => mr e s -> (e -> e) -> m ()
+atomicModifyMutRef_ :: (AtomicMutRef mr, AtomicElt mr e, Primal s m) => mr e s -> (e -> e) -> m ()
 atomicModifyMutRef_ ref f = atomicModifyMutRef ref $ \e -> (f e, ())
 {-# INLINE atomicModifyMutRef_ #-}

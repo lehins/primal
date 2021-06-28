@@ -125,19 +125,19 @@ instance MutRef UMArray where
   {-# INLINE newMutRefST #-}
 
 modifyMutRef ::
-     (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> (e -> (e, a)) -> m a
+     (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> (e, a)) -> m a
 modifyMutRef ref f = modifyMutRefM ref (pure . f)
 {-# INLINE modifyMutRef #-}
 
 
-modifyMutRef_ :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> (e -> e) -> m ()
+modifyMutRef_ :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> e) -> m ()
 modifyMutRef_ ref f = modifyMutRefM_ ref (pure . f)
 {-# INLINE modifyMutRef_ #-}
 
 
 
 modifyFetchOldMutRef ::
-     (MutRef mr, Elt mr e, MonadPrim s m)
+     (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> e)
   -> m e
@@ -149,7 +149,7 @@ modifyFetchOldMutRef ref f = modifyFetchOldMutRefM ref (pure . f)
 --
 -- @since 0.1.0
 modifyFetchNewMutRef ::
-     (MutRef mr, Elt mr e, MonadPrim s m)
+     (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> e)
   -> m e
@@ -170,7 +170,7 @@ modifyFetchNewMutRef ref f = modifyFetchNewMutRefM ref (pure . f)
 -- Nothing
 --
 -- @since 0.1.0
-modifyMutRefM_ :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> (e -> m e) -> m ()
+modifyMutRefM_ :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> m e) -> m ()
 modifyMutRefM_ ref f = readMutRef ref >>= f >>= writeMutRef ref
 {-# INLINE modifyMutRefM_ #-}
 
@@ -184,7 +184,7 @@ modifyMutRefM_ ref f = readMutRef ref >>= f >>= writeMutRef ref
 -- ==== __Examples__
 --
 modifyMutRefM ::
-     (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> (e -> m (e, a)) -> m a
+     (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> m (e, a)) -> m a
 modifyMutRefM ref f = do
   a <- readMutRef ref
   (a', b) <- f a
@@ -208,7 +208,7 @@ modifyMutRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchOldMutRefM ::
-     (MutRef mr, Elt mr e, MonadPrim s m)
+     (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> m e)
   -> m e
@@ -222,7 +222,7 @@ modifyFetchOldMutRefM ref f = do
 --
 -- @since 0.1.0
 modifyFetchNewMutRefM ::
-     (MutRef mr, Elt mr e, MonadPrim s m)
+     (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> m e)
   -> m e
@@ -234,19 +234,19 @@ modifyFetchNewMutRefM ref f = do
 
 
 
-newMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => e -> m (mr e s)
+newMutRef :: (MutRef mr, Elt mr e, Primal s m) => e -> m (mr e s)
 newMutRef = liftST . newMutRefST
 {-# INLINE newMutRef #-}
 
-newRawMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => m (mr e s)
+newRawMutRef :: (MutRef mr, Elt mr e, Primal s m) => m (mr e s)
 newRawMutRef = liftST newRawMutRefST
 {-# INLINE newRawMutRef #-}
 
-readMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> m e
+readMutRef :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> m e
 readMutRef = liftST . readMutRefST
 {-# INLINE readMutRef #-}
 
-writeMutRef :: (MutRef mr, Elt mr e, MonadPrim s m) => mr e s -> e -> m ()
+writeMutRef :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> e -> m ()
 writeMutRef mr = liftST . writeMutRefST mr
 {-# INLINE writeMutRef #-}
 

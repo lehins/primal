@@ -66,7 +66,7 @@ module Primal.Array.Unboxed
   , fromTextMArray
   , toTextMArray
   -- * Re-export
-  , MonadPrim
+  , Primal
   , Unbox
   ) where
 
@@ -269,7 +269,7 @@ cloneSliceUArray arr off sz = runST $ thawCopyUArray arr off sz >>= freezeUMArra
 --
 -- @since 0.3.0
 copyUArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -310,7 +310,7 @@ copyUArray ::
   -> m ()
 copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
   withPrimOffsets (undefined :: e) srcOff dstOff n $ \ srcOff# dstOff# n# ->
-    prim_ (copyByteArray# src# srcOff# dst# dstOff# n#)
+    primal_ (copyByteArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyUArray #-}
 
 
@@ -341,9 +341,9 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 -- UArray [100000,2,3,4,5]
 --
 -- @since 0.3.0
-thawUArray :: forall e m s. MonadPrim s m => UArray e -> m (UMArray e s)
+thawUArray :: forall e m s. Primal s m => UArray e -> m (UMArray e s)
 thawUArray (UArray a#) =
-  prim $ \s ->
+  primal $ \s ->
     case unsafeThawByteArray# a# s of
       (# s', ma# #) -> (# s', UMArray ma# #)
 {-# INLINE thawUArray #-}
@@ -373,7 +373,7 @@ thawUArray (UArray a#) =
 --
 -- @since 1.0.0
 thawCopyUArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -514,11 +514,11 @@ isPinnedUMArray (UMArray mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 --
 -- @since 0.3.0
 getSizeOfUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s
   -> m Size
 getSizeOfUMArray (UMArray ma#) =
-  prim $ \s ->
+  primal $ \s ->
     case getSizeofMutableByteArray# ma# s of
       (# s', n# #) -> (# s', coerce (fromByteCount (Count (I# n#)) :: Count e) #)
 {-# INLINE getSizeOfUMArray #-}
@@ -540,7 +540,7 @@ getSizeOfUMArray (UMArray ma#) =
 --
 -- @since 0.3.0
 readUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
@@ -552,7 +552,7 @@ readUMArray ::
   -- > srcSize <- getSizeOfMUArray srcMutArray
   -- > ix < unSize srcSize
   -> m e
-readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
+readUMArray (UMArray ma#) (I# i#) = primal (readMutableByteArray# ma# i#)
 {-# INLINE readUMArray #-}
 
 
@@ -573,12 +573,12 @@ readUMArray (UMArray ma#) (I# i#) = prim (readMutableByteArray# ma# i#)
 --
 -- @since 0.3.0
 writeUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s
   -> Int
   -> e
   -> m ()
-writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
+writeUMArray (UMArray ma#) (I# i#) a = primal_ (writeMutableByteArray# ma# i# a)
 {-# INLINE writeUMArray #-}
 
 -- prop> newUMArray sz a === makeUMArray sz (const (pure a))
@@ -601,7 +601,7 @@ writeUMArray (UMArray ma#) (I# i#) a = prim_ (writeMutableByteArray# ma# i# a)
 --
 -- @since 0.3.0
 newUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -627,7 +627,7 @@ newUMArray n e = newRawUMArray n >>= \ma -> ma <$ setUMArray ma 0 n e
 --
 -- @since 0.3.0
 newPinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> e
   -> m (UMArray e s)
@@ -642,7 +642,7 @@ newPinnedUMArray n e = newRawPinnedUMArray n >>= \ma -> ma <$ setUMArray ma 0 n 
 --
 -- @since 0.3.0
 newAlignedPinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> e
   -> m (UMArray e s)
@@ -669,7 +669,7 @@ newAlignedPinnedUMArray n e = newRawAlignedPinnedUMArray n >>= \ma -> ma <$ setU
 --
 -- @since 0.3.0
 makeUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -683,7 +683,7 @@ makeUMArray = makeMutWith newRawUMArray writeUMArray
 --
 -- @since 0.3.0
 makePinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -696,7 +696,7 @@ makePinnedUMArray = makeMutWith newRawPinnedUMArray writeUMArray
 --
 -- @since 0.3.0
 makeAlignedPinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (UMArray e s)
@@ -725,7 +725,7 @@ makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 --
 -- @since 0.3.0
 newRawUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -741,7 +741,7 @@ newRawUMArray ::
   -- amount of available memory
   -> m (UMArray e s)
 newRawUMArray n =
-  prim $ \s ->
+  primal $ \s ->
     case newByteArray# (unCountBytes# (coerce n :: Count e)) s of
       (# s', ma# #) -> (# s', UMArray ma# #)
 {-# INLINE newRawUMArray #-}
@@ -754,11 +754,11 @@ newRawUMArray n =
 --
 -- @since 0.3.0
 newRawPinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> m (UMArray e s)
 newRawPinnedUMArray n =
-  prim $ \s ->
+  primal $ \s ->
     case newPinnedByteArray# (unCountBytes# (coerce n :: Count e)) s of
       (# s', ma# #) -> (# s', UMArray ma# #)
 {-# INLINE newRawPinnedUMArray #-}
@@ -772,11 +772,11 @@ newRawPinnedUMArray n =
 --
 -- @since 0.3.0
 newRawAlignedPinnedUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => Size
   -> m (UMArray e s)
 newRawAlignedPinnedUMArray n =
-  prim $ \s ->
+  primal $ \s ->
     let c# = unCountBytes# (coerce n :: Count e)
         a# = alignment# (proxy# :: Proxy# e)
      in case newAlignedPinnedByteArray# c# a# s of
@@ -796,7 +796,7 @@ newRawAlignedPinnedUMArray n =
 --
 -- @since 0.3.0
 moveUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
@@ -832,7 +832,7 @@ moveUMArray ::
   -> m ()
 moveUMArray (UMArray src#) srcOff (UMArray dst#) dstOff n =
   withPrimOffsets (undefined :: e) srcOff dstOff n $ \ srcOff# dstOff# n# ->
-    prim_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
+    primal_ (copyMutableByteArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveUMArray #-}
 
 withPrimOffsets :: forall e a. Unbox e => e -> Int -> Int -> Size -> (Int# -> Int# -> Int# -> a) -> a
@@ -850,7 +850,7 @@ withPrimOffsets _ srcOff dstOff n f =
 --
 -- @since 0.3.0
 setUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s -- ^ /dstMutArray/ - Mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the mutable array
@@ -873,7 +873,7 @@ setUMArray ::
   -> e -- ^ /elt/ - Value to overwrite the cells with in the specified block
   -> m ()
 setUMArray (UMArray ma#) (I# o#) (Size (I# n#)) a =
-  prim_ (setMutableByteArray# ma# o# n# a)
+  primal_ (setMutableByteArray# ma# o# n# a)
 {-# INLINE setUMArray #-}
 
 
@@ -885,7 +885,7 @@ setUMArray (UMArray ma#) (I# o#) (Size (I# n#)) a =
 --
 -- 0.3.0
 shrinkUMArray ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => UMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -898,7 +898,7 @@ shrinkUMArray ::
   -- > sz <= curSize
   -> m ()
 shrinkUMArray (UMArray mb#) sz =
-  prim_ (shrinkMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)))
+  primal_ (shrinkMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)))
 {-# INLINE shrinkUMArray #-}
 
 -- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array. Shrinking happens
@@ -916,7 +916,7 @@ shrinkUMArray (UMArray mb#) sz =
 --
 -- 0.3.0
 resizeUMArray ::
-     forall e m s. (MonadPrim s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => UMArray e s -- ^ /srcMutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
@@ -933,7 +933,7 @@ resizeUMArray ::
   -- amount of available memory
   -> m (UMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
 resizeUMArray (UMArray mb#) sz =
-  prim $ \s ->
+  primal $ \s ->
     case resizeMutableByteArray# mb# (unCountBytes# (coerce sz :: Count e)) s of
       (# s', mb'# #) -> (# s', UMArray mb'# #)
 {-# INLINE resizeUMArray #-}
@@ -952,10 +952,10 @@ resizeUMArray (UMArray mb#) sz =
 --
 -- @since 0.3.0
 freezeUMArray ::
-     forall e m s. MonadPrim s m
+     forall e m s. Primal s m
   => UMArray e s
   -> m (UArray e)
-freezeUMArray (UMArray ma#) = prim $ \s ->
+freezeUMArray (UMArray ma#) = primal $ \s ->
   case unsafeFreezeByteArray# ma# s of
     (# s', a# #) -> (# s', UArray a# #)
 {-# INLINE freezeUMArray #-}
@@ -972,7 +972,7 @@ freezeUMArray (UMArray ma#) = prim $ \s ->
 --
 -- @since 0.3.0
 freezeCopyUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1011,7 +1011,7 @@ freezeCopyUMArray marr off sz = cloneSliceUMArray marr off sz >>= freezeUMArray
 --
 -- @since 1.0.0
 cloneSliceUMArray ::
-     forall e m s. (Unbox e, MonadPrim s m)
+     forall e m s. (Unbox e, Primal s m)
   => UMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1072,14 +1072,14 @@ cloneSliceUMArray marr off sz = freezeUMArray marr >>= \arr -> thawCopyUArray ar
 --
 -- @since 1.0.0
 casUMArray ::
-     (Atomic e, MonadPrim s m)
+     (Atomic e, Primal s m)
   => UMArray e s -- ^ Mutable array to mutate
   -> Int -- ^ Index at which the cell should be set to the new value
   -> e -- ^ Reference to the expected boxed value
   -> e -- ^ New value to update the cell with
   -> m (Bool, e)
 casUMArray (UMArray mba#) (I# i#) expected new =
-  prim $ \s ->
+  primal $ \s ->
     case casBoolMutableByteArray# mba# i# expected new s of
       (# s', True #) -> (# s', (True, new) #)
       (# s', False #) ->

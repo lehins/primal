@@ -63,7 +63,7 @@ import qualified GHC.IORef as IO
 import qualified GHC.STRef as ST
 
 -- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
--- with type arguments flipped and is generalized to work in `MonadPrim`. It only stores a
+-- with type arguments flipped and is generalized to work in `Primal`. It only stores a
 -- reference to the value which means it works on boxed values. If the type can be unboxed
 -- with `Primal.Prim.Class` class, consider using
 -- [@PVar@](https://hackage.haskell.org/package/pvar) package instead.
@@ -103,7 +103,7 @@ isSameBRef (BRef ref1#) (BRef ref2#) = isTrue# (sameMutVar# ref1# ref2#)
 -- 218
 --
 -- @since 1.0.0
-newBRef :: MonadPrim s m => a -> m (BRef a s)
+newBRef :: Primal s m => a -> m (BRef a s)
 newBRef a = a `seq` newLazyBRef a
 {-# INLINE newBRef #-}
 
@@ -121,7 +121,7 @@ newBRef a = a `seq` newLazyBRef a
 -- Just 217
 --
 -- @since 1.0.0
-newDeepBRef :: (NFData a, MonadPrim s m) => a -> m (BRef a s)
+newDeepBRef :: (NFData a, Primal s m) => a -> m (BRef a s)
 newDeepBRef a = a `deepseq` newLazyBRef a
 {-# INLINE newDeepBRef #-}
 
@@ -139,9 +139,9 @@ newDeepBRef a = a `deepseq` newLazyBRef a
 -- 1025
 --
 -- @since 1.0.0
-newLazyBRef :: MonadPrim s m => a -> m (BRef a s)
+newLazyBRef :: Primal s m => a -> m (BRef a s)
 newLazyBRef a =
-  prim $ \s ->
+  primal $ \s ->
     case newMutVar# a s of
       (# s', ref# #) -> (# s', BRef ref# #)
 {-# INLINE newLazyBRef #-}
@@ -160,8 +160,8 @@ newLazyBRef a =
 -- "Hello World!"
 --
 -- @since 1.0.0
-readBRef :: MonadPrim s m => BRef a s -> m a
-readBRef (BRef ref#) = prim (readMutVar# ref#)
+readBRef :: Primal s m => BRef a s -> m a
+readBRef (BRef ref#) = primal (readMutVar# ref#)
 {-# INLINE readBRef #-}
 
 
@@ -177,7 +177,7 @@ readBRef (BRef ref#) = prim (readMutVar# ref#)
 -- Right "Last"
 --
 -- @since 1.0.0
-writeFetchOldBRef :: MonadPrim s m => BRef a s -> a -> m a
+writeFetchOldBRef :: Primal s m => BRef a s -> a -> m a
 writeFetchOldBRef ref a = readBRef ref <* writeBRef ref a
 {-# INLINE writeFetchOldBRef #-}
 
@@ -195,7 +195,7 @@ writeFetchOldBRef ref a = readBRef ref <* writeBRef ref a
 -- "Different"
 --
 -- @since 1.0.0
-writeFetchOldLazyBRef :: MonadPrim s m => BRef a s -> a -> m a
+writeFetchOldLazyBRef :: Primal s m => BRef a s -> a -> m a
 writeFetchOldLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
 {-# INLINE writeFetchOldLazyBRef #-}
 
@@ -206,13 +206,13 @@ writeFetchOldLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
 -- ==== __Examples__
 --
 -- >>> ref <- newBRef (Just "Initial")
--- >>> writeFetchOldDeepBRef ref (Just (errorWithoutStackTrace "foo"))
--- *** Exception: foo
+-- >>> writeFetchOldDeepBRef ref (Just (errorWithoutStackTrace "bar"))
+-- *** Exception: bar
 -- >>> readBRef ref
 -- Just "Initial"
 --
 -- @since 1.0.0
-writeFetchOldDeepBRef :: (NFData a, MonadPrim s m) => BRef a s -> a -> m a
+writeFetchOldDeepBRef :: (NFData a, Primal s m) => BRef a s -> a -> m a
 writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 {-# INLINE writeFetchOldDeepBRef #-}
 
@@ -233,7 +233,7 @@ writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 -- "New total value"
 --
 -- @since 1.0.0
-writeBRef :: MonadPrim s m => BRef a s -> a -> m ()
+writeBRef :: Primal s m => BRef a s -> a -> m ()
 writeBRef ref !a = writeLazyBRef ref a
 {-# INLINE writeBRef #-}
 
@@ -242,7 +242,7 @@ writeBRef ref !a = writeLazyBRef ref a
 -- to the `BRef`
 --
 -- @since 1.0.0
-writeDeepBRef :: (NFData a, MonadPrim s m) => BRef a s -> a -> m ()
+writeDeepBRef :: (NFData a, Primal s m) => BRef a s -> a -> m ()
 writeDeepBRef ref a = a `deepseq` writeLazyBRef ref a
 {-# INLINE writeDeepBRef #-}
 
@@ -261,8 +261,8 @@ writeDeepBRef ref a = a `deepseq` writeLazyBRef ref a
 -- New string
 --
 -- @since 1.0.0
-writeLazyBRef :: MonadPrim s m => BRef a s -> a -> m ()
-writeLazyBRef (BRef ref#) a = prim_ (writeMutVar# ref# a)
+writeLazyBRef :: Primal s m => BRef a s -> a -> m ()
+writeLazyBRef (BRef ref#) a = primal_ (writeMutVar# ref# a)
 {-# INLINE writeLazyBRef #-}
 
 
@@ -279,28 +279,28 @@ writeLazyBRef (BRef ref#) a = prim_ (writeMutVar# ref# a)
 -- `modifyLazyBRef` and for strict evaluation to normal form see `modifyDeepBRef`.
 --
 -- @since 1.0.0
-modifyBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
+modifyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 modifyBRef ref f = modifyBRefM ref (pure . f)
 {-# INLINE modifyBRef #-}
 
 -- | Same as `modifyBRef`, except it will evaluate result of computation to normal form.
 --
 -- @since 1.0.0
-modifyDeepBRef :: (NFData a, MonadPrim s m) => BRef a s -> (a -> (a, b)) -> m b
+modifyDeepBRef :: (NFData a, Primal s m) => BRef a s -> (a -> (a, b)) -> m b
 modifyDeepBRef ref f = modifyDeepBRefM ref (pure . f)
 {-# INLINE modifyDeepBRef #-}
 
 -- | Apply a pure function to the contents of a mutable variable strictly.
 --
 -- @since 1.0.0
-modifyBRef_ :: MonadPrim s m => BRef a s -> (a -> a) -> m ()
+modifyBRef_ :: Primal s m => BRef a s -> (a -> a) -> m ()
 modifyBRef_ ref f = modifyBRefM_ ref (pure . f)
 {-# INLINE modifyBRef_ #-}
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the new value.
 --
 -- @since 1.0.0
-modifyFetchNewBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+modifyFetchNewBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 modifyFetchNewBRef ref f = modifyFetchNewBRefM ref (pure . f)
 {-# INLINE modifyFetchNewBRef #-}
 
@@ -317,7 +317,7 @@ modifyFetchNewBRef ref f = modifyFetchNewBRefM ref (pure . f)
 -- 2010
 --
 -- @since 1.0.0
-modifyFetchOldBRef :: MonadPrim s m => BRef a s -> (a -> a) -> m a
+modifyFetchOldBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 modifyFetchOldBRef ref f = modifyFetchOldBRefM ref (pure . f)
 {-# INLINE modifyFetchOldBRef #-}
 
@@ -326,7 +326,7 @@ modifyFetchOldBRef ref f = modifyFetchOldBRefM ref (pure . f)
 -- artifact produced by the modifying function.
 --
 -- @since 1.0.0
-modifyLazyBRef :: MonadPrim s m => BRef a s -> (a -> (a, b)) -> m b
+modifyLazyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 modifyLazyBRef ref f = modifyLazyBRefM ref (pure . f)
 {-# INLINE modifyLazyBRef #-}
 
@@ -338,7 +338,7 @@ modifyLazyBRef ref f = modifyLazyBRefM ref (pure . f)
 --
 -- ==== __Examples__
 --
-modifyBRefM :: MonadPrim s m => BRef a s -> (a -> m (a, b)) -> m b
+modifyBRefM :: Primal s m => BRef a s -> (a -> m (a, b)) -> m b
 modifyBRefM ref f = do
   (a, b) <- f =<< readBRef ref
   b <$ writeBRef ref a
@@ -347,7 +347,7 @@ modifyBRefM ref f = do
 
 -- | Same as `modifyBRefM`, except evaluates new value to normal form prior ot it being
 -- written to the mutable ref.
-modifyDeepBRefM :: (NFData a, MonadPrim s m) => BRef a s -> (a -> m (a, b)) -> m b
+modifyDeepBRefM :: (NFData a, Primal s m) => BRef a s -> (a -> m (a, b)) -> m b
 modifyDeepBRefM ref f = do
   (a', b) <- f =<< readBRef ref
   b <$ writeDeepBRef ref a'
@@ -365,7 +365,7 @@ modifyDeepBRefM ref f = do
 -- Nothing
 --
 -- @since 1.0.0
-modifyBRefM_ :: MonadPrim s m => BRef a s -> (a -> m a) -> m ()
+modifyBRefM_ :: Primal s m => BRef a s -> (a -> m a) -> m ()
 modifyBRefM_ ref f = readBRef ref >>= f >>= writeBRef ref
 {-# INLINE modifyBRefM_ #-}
 
@@ -384,7 +384,7 @@ modifyBRefM_ ref f = readBRef ref >>= f >>= writeBRef ref
 -- Leo
 --
 -- @since 1.0.0
-modifyFetchOldBRefM :: MonadPrim s m => BRef a s -> (a -> m a) -> m a
+modifyFetchOldBRefM :: Primal s m => BRef a s -> (a -> m a) -> m a
 modifyFetchOldBRefM ref f = do
   a <- readBRef ref
   a <$ (writeBRef ref =<< f a)
@@ -394,7 +394,7 @@ modifyFetchOldBRefM ref f = do
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the new value.
 --
 -- @since 1.0.0
-modifyFetchNewBRefM :: MonadPrim s m => BRef a s -> (a -> m a) -> m a
+modifyFetchNewBRefM :: Primal s m => BRef a s -> (a -> m a) -> m a
 modifyFetchNewBRefM ref f = do
   a <- readBRef ref
   a' <- f a
@@ -404,7 +404,7 @@ modifyFetchNewBRefM ref f = do
 -- | Same as `modifyBRefM`, but do not evaluate the new value written into the `BRef`.
 --
 -- @since 1.0.0
-modifyLazyBRefM :: MonadPrim s m => BRef a s -> (a -> m (a, b)) -> m b
+modifyLazyBRefM :: Primal s m => BRef a s -> (a -> m (a, b)) -> m b
 modifyLazyBRefM ref f = do
   a <- readBRef ref
   (a', b) <- f a
@@ -444,18 +444,18 @@ fromIORef = fromSTRef . coerce
 
 -- | Create a `Weak` pointer associated with the supplied `BRef`.
 --
--- Same as `Data.IORef.mkWeakRef` from @base@, but works in any `MonadUnliftPrim` with
+-- Same as `Data.IORef.mkWeakRef` from @base@, but works in any `UnliftPrimal` with
 -- `RealWorld` state token.
 --
 -- @since 1.0.0
 mkWeakBRef ::
-     forall a b m. MonadUnliftPrim RW m
+     forall a b m. UnliftPrimal RW m
   => BRef a RW
   -> m b -- ^ An action that will get executed whenever `BRef` gets garbage collected by
          -- the runtime.
   -> m (Weak (BRef a RW))
 mkWeakBRef ref@(BRef ref#) !finalizer =
-  runInPrimBase finalizer $ \f# s ->
+  runInPrimalState finalizer $ \f# s ->
     case mkWeak# ref# ref f# s of
       (# s', weak# #) -> (# s', Weak weak# #)
 {-# INLINE mkWeakBRef #-}
