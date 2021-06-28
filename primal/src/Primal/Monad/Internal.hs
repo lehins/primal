@@ -43,23 +43,23 @@ module Primal.Monad.Internal
   , primalStateToST
   ) where
 
-import GHC.Exts
-import GHC.IO hiding (liftIO)
-import GHC.ST hiding (liftST)
 import Control.Exception (SomeException)
-import Primal.Monad.Throw
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Except (ExceptT)
 import Control.Monad.Trans.Identity (IdentityT(..))
 import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Trans.Reader (ReaderT(..))
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
+import Control.Monad.Trans.Reader (ReaderT(..))
 import Control.Monad.Trans.State.Lazy as Lazy (StateT)
 import Control.Monad.Trans.State.Strict as Strict (StateT)
 import Control.Monad.Trans.Writer.Lazy as Lazy (WriterT)
 import Control.Monad.Trans.Writer.Strict as Strict (WriterT)
+import GHC.Exts
+import GHC.IO hiding (liftIO)
+import GHC.ST hiding (liftST)
+import Primal.Monad.Throw
 
 #if MIN_VERSION_transformers(0, 5, 3)
 import Control.Monad.Trans.Accum (AccumT)
@@ -105,7 +105,13 @@ class Primal s m => UnliftPrimal s m where
       ST (f# (\a -> unST (run (m1 a))) (\c -> unST (run (m2 c))))
   {-# INLINE runInPrimalState2 #-}
 
-
+-- | This type class provides a way to get the underlying state token passing function
+-- from the monadic action. There are only two sensible monads that can have an instance:
+-- `IO` and `ST` monads, or any other newtype wrapper around it, like @`IdentityT` `IO`@
+-- for example.
+--
+-- prop> primal (primalState m) === m
+--
 class UnliftPrimal s m => PrimalState s m where
   -- | Get the state passing function from the primal action
   primalState :: m a -> State# s -> (# State# s, a #)
@@ -260,12 +266,20 @@ instance Primal s m => Primal s (CPS.WriterT w m) where
 #endif
 #endif
 
+
+-- | Get out the inner state token passing function from the `PrimalState` monad action.
+--
+-- @since 1.0.0
 primalState_ :: PrimalState s m => m () -> State# s -> State# s
-primalState_ m s = case primalState m s of
-                  (# s', () #) -> s'
+primalState_ m s =
+  case primalState m s of
+    (# s', () #) -> s'
 {-# INLINE primalState_ #-}
 
--- | Construct a primitive action that does not return anything.
+-- | Construct a primitive action that returns unit. Useful for working with effectful
+-- primops.
+--
+-- @since 1.0.0
 primal_ :: Primal s m => (State# s -> State# s) -> m ()
 primal_ f = primal $ \s -> (# f s, () #)
 {-# INLINE primal_ #-}
@@ -282,8 +296,8 @@ liftST :: Primal s m => ST s a -> m a
 liftST (ST m) = primal m
 {-# INLINE liftST #-}
 
--- | Lift an action from the `PrimalState` to another `Primal` with the same state
--- token.
+-- | Lift an action from the `PrimalState` monad to a different `Primal` monad with the
+-- same state token.
 liftPrimalState :: (PrimalState s n, Primal s m) => n a -> m a
 liftPrimalState m = primal (primalState m)
 {-# INLINE[0] liftPrimalState #-}
