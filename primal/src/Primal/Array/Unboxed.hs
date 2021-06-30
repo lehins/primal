@@ -75,8 +75,8 @@ import qualified Data.List.NonEmpty as NE (toList)
 import qualified Data.Text.Array as T
 import Primal.Array.Internal
 import Primal.Eval
-import Primal.Exception
 import Primal.Foreign
+import Primal.Monad
 import Primal.Unbox
 import Primal.Unbox.Atomic
 import Primal.Unbox.Class

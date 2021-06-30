@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,7 +25,9 @@ module Primal.Exception
     module Primal.Monad.Throw
   , throw
   , throwTo
-  , impureThrow
+  , raise
+  , raiseLeft
+  , ImpreciseException(..)
   -- * Catching
   , catch
   , catchAny
@@ -90,11 +93,12 @@ module Primal.Exception
   , prettyCallStack
   , SrcLoc(..)
   , prettySrcLoc
-  , module Primal.Monad
+  --, module Primal.Monad
   ) where
 
 import qualified Control.Exception as GHC
-import Primal.Monad
+import Control.Monad
+import Primal.Monad.Internal
 import Primal.Monad.Throw
 import Primal.Monad.Unsafe
 import qualified GHC.Conc as GHC
@@ -120,28 +124,51 @@ isAsyncException exc =
     Nothing                         -> False
 {-# INLINE isAsyncException #-}
 
--- | This is the same as `throwIO`, but works with any `Primal` without restriction on
--- `RealWorld`.
+-- | This is the same as `throwIO`, but works in any `Primal` action without
+-- restriction on `RealWorld`.
 throw :: (GHC.Exception e, Primal s m) => e -> m a
 throw e = unsafePrimal (raiseIO# (GHC.toException e))
 -- {-# INLINEABLE throw #-}
 
 
--- | Raise an impure exception from pure code. Returns a thunk, which will result in a
--- supplied exceptionn being thrown when evaluated.
+data ImpreciseException =
+  ImpreciseException GHC.SomeException CallStack
+
+instance Show ImpreciseException where
+  showsPrec _ (ImpreciseException exc cStack) =
+    ("ImpreciseException '" ++) .
+    (GHC.displayException exc ++) .
+    ("' was raised:\n" ++) . (prettyCallStack cStack ++)
+
+instance GHC.Exception ImpreciseException
+
+
+-- | Create a value of some type, which is when evaluated to WHNF will raise an
+-- `ImpreciseException`. Returns a thunk, which will result in a supplied
+-- exceptionn being thrown when evaluated.
 --
--- @since 0.3.0
-impureThrow :: GHC.Exception e => e -> a
-impureThrow e = raise# (GHC.toException e)
+-- @since 1.0.0
+raise :: HasCallStack => GHC.Exception e => e -> a
+raise e = raise# (GHC.toException (ImpreciseException (GHC.toException e) ?callStack))
 
+-- | Convert the Left exception into a thunk that will a result in an
+-- `ImpreciseException`. Right value is returned unmodified and unevaluated.
+--
+-- @since 1.0.0
+raiseLeft :: (HasCallStack, GHC.Exception e) => Either e a -> a
+raiseLeft =
+  \case
+    Left exc -> raise exc
+    Right res -> res
+{-# INLINE raiseLeft #-}
 
--- | Similar to `throwTo`, except that it wraps any known non-async exception with
+-- | Similar to `GHC.throwTo`, except that it wraps any known non-async exception with
 -- `SomeAsyncException`. This is necessary, because receiving thread will get the exception in
 -- an asynchronous manner and without proper wrapping it will not be able to distinguish it
 -- from a regular synchronous exception
-throwTo :: (Primal s m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
+throwTo :: (Primal RW m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
 throwTo tid e =
-  unsafeIOToPrimal $
+  liftIO $
   GHC.throwTo tid $
   if isAsyncException e
     then GHC.toException e

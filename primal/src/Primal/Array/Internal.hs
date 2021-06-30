@@ -32,6 +32,7 @@ module Primal.Array.Internal
   , liftShowsPrecArray
   ) where
 
+import Control.Monad
 import Primal.Exception
 import qualified Data.Foldable as F
 import Primal.Unbox
@@ -57,9 +58,7 @@ uninitialized ::
   => String -- ^ Module name
   -> String -- ^ Function name
   -> a
-uninitialized mname fname =
-  impureThrow $
-  UndefinedElement $ mname ++ "." ++ fname ++ "\n" ++ prettyCallStack callStack
+uninitialized mname fname = raise $ UndefinedElement $ mname ++ "." ++ fname
 {-# NOINLINE uninitialized #-}
 
 -- | Convert a list to a mutable array

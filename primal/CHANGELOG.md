@@ -1,5 +1,9 @@
 # Changelog for `primal`
 
+## 1.0.0
+
+**Complete overhaul**
+
 ## 0.3.0
 
 * Addition of `eval`, `evalM`, `deepeval` and `deepevalM`
