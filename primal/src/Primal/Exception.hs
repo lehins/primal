@@ -41,6 +41,7 @@ module Primal.Exception
   , catchAllSync
   , catchAllAsync
   , try
+  , tryJust
   , trySync
   , tryAsync
   , tryAll
@@ -345,6 +346,10 @@ try :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 try f = catch (Right <$> f) (pure . Left)
 -- {-# INLINEABLE try #-}
 --{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
+
+tryJust :: (GHC.Exception e, UnliftPrimal RW m) => (e -> Maybe b) -> m a -> m (Either b a)
+tryJust g f = catchJust g (Right <$> f) (pure . Left)
+
 
 trySync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 trySync f = catchSync (Right <$> f) (pure . Left)
