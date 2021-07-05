@@ -13,14 +13,10 @@ import Primal.Ref
 import Primal.Unbox
 import System.Mem (performGC)
 import Test.Hspec
+import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
 
 instance Typeable a => Show (BRef a RW) where
   show _ = "BRef " ++ showsType (Proxy :: Proxy a) " RW"
-
-data BRefException =
-  BRefException
-  deriving (Show, Eq)
-instance Exception BRefException
 
 
 spec :: Spec
@@ -36,21 +32,21 @@ spec = do
     it "newBRef" $ do
       ref <- newBRef 'h'
       readBRef ref `shouldReturn` 'h'
-      newBRef (impureThrow BRefException) `shouldThrow` (== BRefException)
-      n :: BRef (Maybe Integer) RW <- newBRef (Just (impureThrow BRefException))
+      newBRef (raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
+      n :: BRef (Maybe Integer) RW <- newBRef (Just (raiseImprecise ExpectedException))
       mRes <- readBRef n
       mRes `shouldSatisfy` isJust
-      deepeval mRes `shouldThrow` (== BRefException)
+      deepeval mRes `shouldThrow` impreciseExpectedException
     it "newLazyBRef" $ do
       ref <- newLazyBRef 'h'
       readBRef ref `shouldReturn` 'h'
-      n <- newLazyBRef (impureThrow BRefException)
-      evalM (readBRef n) `shouldThrow` (== BRefException)
+      n <- newLazyBRef (raiseImprecise ExpectedException)
+      evalM (readBRef n) `shouldThrow` impreciseExpectedException
     it "newDeepBRef" $ do
       ref <- newDeepBRef 'h'
       readBRef ref `shouldReturn` 'h'
-      newDeepBRef (impureThrow BRefException :: Int) `shouldThrow` (== BRefException)
-      newDeepBRef (Just (impureThrow BRefException :: Integer)) `shouldThrow` (== BRefException)
+      newDeepBRef (raiseImprecise ExpectedException :: Int) `shouldThrow` impreciseExpectedException
+      newDeepBRef (Just (raiseImprecise ExpectedException :: Integer)) `shouldThrow` impreciseExpectedException
     it "readBRef" $ do
       ref <- newBRef "Hello"
       readBRef ref `shouldReturn` "Hello"
@@ -62,49 +58,49 @@ spec = do
     it "writeFetchOldBRef" $ do
       ref <- newBRef "Hello"
       writeFetchOldBRef ref "World" `shouldReturn` "Hello"
-      writeFetchOldBRef ref (impureThrow BRefException) `shouldThrow` (== BRefException)
+      writeFetchOldBRef ref (raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
       readBRef ref `shouldReturn` "World"
     it "writeFetchOldLazyBRef" $ do
       ref <- newBRef "Hello"
       writeFetchOldLazyBRef ref "World" `shouldReturn` "Hello"
       readBRef ref `shouldReturn` "World"
-      writeFetchOldLazyBRef ref (impureThrow BRefException) `shouldReturn` "World"
+      writeFetchOldLazyBRef ref (raiseImprecise ExpectedException) `shouldReturn` "World"
       res <- readBRef ref
-      eval res `shouldThrow` (== BRefException)
+      eval res `shouldThrow` impreciseExpectedException
     it "writeFetchOldDeepBRef" $ do
       ref <- newBRef "Hello"
       writeFetchOldDeepBRef ref "World" `shouldReturn` "Hello"
       writeFetchOldDeepBRef ref
-        ("Booyah" ++ impureThrow BRefException) `shouldThrow` (== BRefException)
+        ("Booyah" ++ raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
       readBRef ref `shouldReturn` "World"
     it "modifyBRef" $ do
       ref <- newBRef "Hello"
       modifyBRef ref (\x -> (x ++ " World", length x)) `shouldReturn` 5
-      flip shouldThrow (== BRefException) $ modifyBRef ref $ \x -> (impureThrow BRefException, x)
+      flip shouldThrow impreciseExpectedException $ modifyBRef ref $ \x -> (raiseImprecise ExpectedException, x)
       readBRef ref `shouldReturn` "Hello World"
-      _ <- modifyBRef ref $ \x -> (x ++ "!!!", impureThrow BRefException)
+      _ <- modifyBRef ref $ \x -> (x ++ "!!!", raiseImprecise ExpectedException)
       readBRef ref `shouldReturn` "Hello World!!!"
     -- it "modifyFetchOldBRef" $ do
     --   ref <- newBRef "Hello"
     --   modifyBRef ref (++ " World") `shouldReturn` "Hello"
-    --   flip shouldThrow (== BRefException) $ modifyBRef ref $ \_ -> impureThrow BRefException
+    --   flip shouldThrow impreciseExpectedException $ modifyBRef ref $ \_ -> raiseImprecise ExpectedException
     --   readBRef ref `shouldReturn` "Hello World"
     it "modifyBRefM_" $ do
       ref <- newBRef "Hello"
       modifyBRefM_ ref $ \x -> do
         x `shouldBe` "Hello"
         pure $ x ++ " World"
-      flip shouldThrow (== BRefException) $ modifyBRefM_ ref $ \x -> do
+      flip shouldThrow impreciseExpectedException $ modifyBRefM_ ref $ \x -> do
         x `shouldBe` "Hello World"
-        pure $ impureThrow BRefException
+        pure $ raiseImprecise ExpectedException
       readBRef ref `shouldReturn` "Hello World"
 
     --   -- Verify value restoration on WHNF evaluation error
     --   modifyBRef_ ref (\x -> do
     --     isEmptyBRef ref  `shouldReturn` True
     --     x `shouldBe` "Hello World"
-    --     pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --     pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   readBRef ref `shouldReturn` "Hello World"
 
     --   -- check that it is interruptible and that the value is overwritten
@@ -115,7 +111,7 @@ spec = do
     --    -- overwritten
     --   timeout 50000 (modifyBRef_ ref (\_ -> do
     --                                 putBRef ref "Goodbye"
-    --                                 "World" <$ throw BRefException
+    --                                 "World" <$ throw ExpectedException
     --                             )) `shouldReturn` Nothing
     --   takeBRef ref `shouldReturn` "Goodbye"
 
@@ -134,8 +130,8 @@ spec = do
     --   modifyBRefMasked_ ref (\x -> do
     --     isEmptyBRef ref  `shouldReturn` True
     --     x `shouldBe` "Hello World"
-    --     pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --     pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   readBRef ref `shouldReturn` "Hello World"
 
     --   -- check that it is interruptible and that the value is overwritten
@@ -147,7 +143,7 @@ spec = do
     --    -- overwritten
     --   timeout 50000 (modifyBRefMasked_ ref (\_ -> do
     --                                 putBRef ref "Goodbye"
-    --                                 "World" <$ throw BRefException
+    --                                 "World" <$ throw ExpectedException
     --                             )) `shouldReturn` Nothing
     --   takeBRef ref `shouldReturn` "Goodbye"
 
@@ -157,29 +153,29 @@ spec = do
     --   ref <- newBRef "Hello"
     --   modifyFetchOldBRef ref (pure . (++ " World")) `shouldReturn` "Hello"
     --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldBRef ref (\ _ -> pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --   modifyFetchOldBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   takeBRef ref `shouldReturn` "Hello World"
     -- it "modifyFetchOldBRefMasked" $ do
     --   ref <- newBRef "Hello"
     --   modifyFetchOldBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello"
     --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldBRefMasked ref (\ _ -> pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --   modifyFetchOldBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   takeBRef ref `shouldReturn` "Hello World"
     -- it "modifyFetchNewBRef" $ do
     --   ref <- newBRef "Hello"
     --   modifyFetchNewBRef ref (pure . (++ " World")) `shouldReturn` "Hello World"
     --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewBRef ref (\ _ -> pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --   modifyFetchNewBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   takeBRef ref `shouldReturn` "Hello World"
     -- it "modifyFetchNewBRefMasked" $ do
     --   ref <- newBRef "Hello"
     --   modifyFetchNewBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello World"
     --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewBRefMasked ref (\ _ -> pure $ impureThrow BRefException)
-    --     `shouldThrow` (==BRefException)
+    --   modifyFetchNewBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
+    --     `shouldThrow` impreciseExpectedException
     --   takeBRef ref `shouldReturn` "Hello World"
     -- -- xit "modifyBRef" (pure () :: IO ())
     -- -- xit "modifyBRefMasked" (pure () :: IO ())

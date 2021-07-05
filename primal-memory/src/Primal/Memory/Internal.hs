@@ -37,6 +37,7 @@ import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 import Primal.Mutable.Freeze
+import Primal.Monad
 
 --TODO: implement:
 -- - cloneSliceMutMem, cloneByteOffSliceMutMem

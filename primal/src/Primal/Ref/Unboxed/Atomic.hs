@@ -16,18 +16,26 @@ module Primal.Ref.Unboxed.Atomic
   , atomicModifyFetchNewURef
   , atomicReadURef
   , atomicWriteURef
+  , atomicSwapURef
+  , atomicAddURef_
   , atomicAddFetchOldURef
   , atomicAddFetchNewURef
+  , atomicSubURef_
   , atomicSubFetchOldURef
   , atomicSubFetchNewURef
+  , atomicAndURef_
   , atomicAndFetchOldURef
   , atomicAndFetchNewURef
+  , atomicNandURef_
   , atomicNandFetchOldURef
   , atomicNandFetchNewURef
+  , atomicOrURef_
   , atomicOrFetchOldURef
   , atomicOrFetchNewURef
+  , atomicXorURef_
   , atomicXorFetchOldURef
   , atomicXorFetchNewURef
+  , atomicNotURef_
   , atomicNotFetchOldURef
   , atomicNotFetchNewURef
   , casURef
@@ -81,6 +89,14 @@ atomicReadURef (URef mba#) = primal $ atomicReadMutableByteArray# mba# 0#
 {-# INLINE atomicReadURef #-}
 
 
+-- | Same as `atomicWriteBRef`, but also returns the old value.
+--
+-- @since 1.0.0
+atomicSwapURef :: forall e m s. (Atomic e, Primal s m) => URef e s -> e -> m e
+atomicSwapURef ref x = atomicModifyFetchOldURef ref (const x)
+{-# INLINE atomicSwapURef #-}
+
+
 -- | Write a value into an `URef` atomically. Implies a full memory barrier.
 --
 -- @since 1.0.0
@@ -132,6 +148,16 @@ casURef ::
 casURef (URef mba#) old new = primal $ casMutableByteArray# mba# 0# old new
 {-# INLINE casURef #-}
 
+-- | Add two numbers, corresponds to @(`+`)@ done atomically. Implies a full memory barrier.
+--
+-- @since 1.0.0
+atomicAddURef_ ::
+     forall e m s. (AtomicCount e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicAddURef_ ref = void . atomicAddFetchOldURef ref
+{-# INLINE atomicAddURef_ #-}
 
 -- | Add two numbers, corresponds to @(`+`)@ done atomically. Returns the previous value of
 -- the mutable variable. Implies a full memory barrier.
@@ -157,6 +183,16 @@ atomicAddFetchNewURef ::
 atomicAddFetchNewURef (URef mba#) a = primal $ atomicAddFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicAddFetchNewURef #-}
 
+-- | Subtract two numbers, corresponds to @(`-`)@ done atomically. Implies a full memory barrier.
+--
+-- @since 1.0.0
+atomicSubURef_ ::
+     forall e m s. (AtomicCount e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicSubURef_ ref = void . atomicSubFetchOldURef ref
+{-# INLINE atomicSubURef_ #-}
 
 -- | Subtract two numbers, corresponds to @(`-`)@ done atomically. Returns the
 -- previous value of the mutable variable. Implies a full memory barrier.
@@ -184,6 +220,18 @@ atomicSubFetchNewURef (URef mba#) a = primal $ atomicSubFetchNewMutableByteArray
 {-# INLINE atomicSubFetchNewURef #-}
 
 
+-- | Binary conjuction (AND), corresponds to @(`Data.Bits..&.`)@ done
+-- atomically. Implies a full memory barrier.
+--
+-- @since 1.0.0
+atomicAndURef_ ::
+     forall e m s. (AtomicBits e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicAndURef_ ref = void . atomicAndFetchOldURef ref
+{-# INLINE atomicAndURef_ #-}
+
 -- | Binary conjuction (AND), corresponds to @(`Data.Bits..&.`)@ done atomically. Returns
 -- the previous value of the mutable variable. Implies a full memory barrier.
 --
@@ -208,6 +256,19 @@ atomicAndFetchNewURef ::
   -> m e
 atomicAndFetchNewURef (URef mba#) a = primal $ atomicAndFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicAndFetchNewURef #-}
+
+
+-- | Binary negation of conjuction (NAND), corresponds to @\\x y -> `Data.Bits.complement` (x
+-- `Data.Bits..&.` y)@ done atomically. Implies a full memory barrier.
+--
+-- @since 1.0.0
+atomicNandURef_ ::
+     forall e m s. (AtomicBits e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicNandURef_ ref = void  . atomicNandFetchOldURef ref
+{-# INLINE atomicNandURef_ #-}
 
 
 -- | Binary negation of conjuction (NAND), corresponds to @\\x y -> `Data.Bits.complement` (x
@@ -238,6 +299,19 @@ atomicNandFetchNewURef (URef mba#) a = primal $ atomicNandFetchNewMutableByteArr
 {-# INLINE atomicNandFetchNewURef #-}
 
 
+-- | Binary disjunction (OR), corresponds to @(`Data.Bits..|.`)@ done atomically. Implies a full
+-- memory barrier.
+--
+-- @since 1.0.0
+atomicOrURef_ ::
+     forall e m s. (AtomicBits e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicOrURef_ ref = void . atomicOrFetchOldURef ref
+{-# INLINE atomicOrURef_ #-}
+
+
 -- | Binary disjunction (OR), corresponds to @(`Data.Bits..|.`)@ done atomically. Returns the previous
 -- value of the mutable variable. Implies a full memory barrier.
 --
@@ -264,6 +338,18 @@ atomicOrFetchNewURef (URef mba#) a = primal $ atomicOrFetchNewMutableByteArray# 
 {-# INLINE atomicOrFetchNewURef #-}
 
 
+-- | Binary exclusive disjunction (XOR), corresponds to @`Data.Bits.xor`@ done atomically. Implies a
+-- full memory barrier.
+--
+-- @since 1.0.0
+atomicXorURef_ ::
+     forall e m s. (AtomicBits e, Primal s m)
+  => URef e s
+  -> e
+  -> m ()
+atomicXorURef_ ref = void . atomicXorFetchOldURef ref
+{-# INLINE atomicXorURef_ #-}
+
 -- | Binary exclusive disjunction (XOR), corresponds to @`Data.Bits.xor`@ done atomically. Returns the
 -- previous value of the mutable variable. Implies a full memory barrier.
 --
@@ -289,6 +375,17 @@ atomicXorFetchNewURef ::
 atomicXorFetchNewURef (URef mba#) a = primal $ atomicXorFetchNewMutableByteArray# mba# 0# a
 {-# INLINE atomicXorFetchNewURef #-}
 
+
+-- | Binary negation (NOT), corresponds to ones' @`Data.Bits.complement`@ done atomically. Implies a
+-- full memory barrier.
+--
+-- @since 1.0.0
+atomicNotURef_ ::
+     forall e m s. (AtomicBits e, Primal s m)
+  => URef e s
+  -> m ()
+atomicNotURef_ = void . atomicNotFetchOldURef
+{-# INLINE atomicNotURef_ #-}
 
 -- | Binary negation (NOT), corresponds to ones' @`Data.Bits.complement`@ done atomically. Returns the
 -- previous value of the mutable variable. Implies a full memory barrier.

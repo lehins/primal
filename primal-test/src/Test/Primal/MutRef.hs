@@ -18,7 +18,7 @@ module Test.Primal.MutRef where
 
 import Data.Foldable as F
 import Control.Concurrent.Async
-import Primal.Exception (impureThrow)
+import Primal.Exception (raiseImprecise)
 import Primal.Monad
 import Primal.Unbox
 import Data.Bits
@@ -63,7 +63,7 @@ expectWriteReadMutRef mut e' = do
   -- ensure roundtrip
   readMutRef mut `shouldReturn` e'
   -- ensure argument is strict
-  shouldThrow (writeMutRef mut (impureThrow ExpectedException)) (ExpectedException ==)
+  shouldThrow (writeMutRef mut (raiseImprecise ExpectedException)) impreciseExpectedException
   -- ensure survival of previous value
   readMutRef mut `shouldReturn` e'
 
@@ -89,7 +89,7 @@ expectWriteReadAtomicMutRef mut e' = do
   -- ensure roundtrip
   atomicReadMutRef mut `shouldReturn` e'
   -- ensure argument is strict
-  shouldThrow (atomicWriteMutRef mut (impureThrow ExpectedException)) (ExpectedException ==)
+  shouldThrow (atomicWriteMutRef mut (raiseImprecise ExpectedException)) impreciseExpectedException
   -- ensure survival of previous value
   readMutRef mut `shouldReturn` e'
 
@@ -107,7 +107,7 @@ prop_opFetchOldMutRef opMutRef op x =
     x' `shouldBe` e
     readMutRef ref `shouldReturn` y
     -- ensure argument is strict
-    shouldThrow (opMutRef ref (impureThrow ExpectedException)) (ExpectedException ==)
+    shouldThrow (opMutRef ref (raiseImprecise ExpectedException)) impreciseExpectedException
     -- ensure survival of previous value
     readMutRef ref `shouldReturn` y
 
@@ -124,7 +124,7 @@ prop_opFetchNewMutRef opMutRef op x =
     x' `shouldBe` y
     readMutRef ref `shouldReturn` y
     -- ensure argument is strict
-    shouldThrow (opMutRef ref (impureThrow ExpectedException)) (ExpectedException ==)
+    shouldThrow (opMutRef ref (raiseImprecise ExpectedException)) impreciseExpectedException
     -- ensure survival of previous value
     readMutRef ref `shouldReturn` y
 

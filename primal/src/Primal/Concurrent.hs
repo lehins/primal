@@ -105,7 +105,7 @@ fork action =
 -- be passed to the supplied exception handler, which itself will be run in a masked state
 forkFinally :: UnliftPrimal RW m => m a -> (Either SomeException a -> m ()) -> m GHC.ThreadId
 forkFinally action handler =
-  mask $ \restore -> fork $ tryAny (restore action) >>= handler
+  mask $ \restore -> fork $ tryAll (restore action) >>= handler
 
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
@@ -122,7 +122,7 @@ forkOnFinally ::
   -> (Either SomeException a -> m ())
   -> m GHC.ThreadId
 forkOnFinally cap action handler =
-  mask $ \restore -> forkOn cap $ tryAny (restore action) >>= handler
+  mask $ \restore -> forkOn cap $ tryAll (restore action) >>= handler
 
 
 forkOS :: UnliftPrimal RW m => m () -> m GHC.ThreadId
@@ -133,7 +133,7 @@ forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
 killThread :: Primal RW m => GHC.ThreadId -> m ()
-killThread !tid = throwTo tid GHC.ThreadKilled
+killThread !tid = raiseTo tid GHC.ThreadKilled
 
 -- | Lifted version of `GHC.threadDelay`
 threadDelay :: Primal RW m => Int -> m ()

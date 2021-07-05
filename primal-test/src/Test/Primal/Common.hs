@@ -3,10 +3,11 @@ module Test.Primal.Common
   , propIO
   , assertException
   , assertExceptionIO
-  , assertSomeException
-  , assertSomeExceptionIO
+  , assertAnySyncException
+  , assertAnySyncExceptionIO
   , toStringException
   , ExpectedException(..)
+  , impreciseExpectedException
   , assertExpectedException
   , assertExpectedExceptionIO
   ) where
@@ -27,7 +28,7 @@ import Test.Hspec.QuickCheck as X
 import Test.QuickCheck as X hiding ((.&.))
 import Test.QuickCheck.Function as X
 import Test.QuickCheck.Monadic as X
-import UnliftIO.Exception (Exception(..), SomeException, catch, catchAny)
+import Primal.Exception
 
 
 propIO :: Testable a => IO a -> Property
@@ -42,8 +43,8 @@ assertException ::
 assertException isExc = assertExceptionIO isExc . pure
 
 
-assertSomeException :: NFData a => a -> Property
-assertSomeException = assertSomeExceptionIO . pure
+assertAnySyncException :: NFData a => a -> Property
+assertAnySyncException = assertAnySyncExceptionIO . pure
 
 
 assertExceptionIO ::
@@ -59,11 +60,11 @@ assertExceptionIO isExc action =
         res `deepseq` return (counterexample "Did not receive an exception" False))
     (\exc -> displayException exc `deepseq` return (property (isExc exc)))
 
-assertSomeExceptionIO :: NFData a => IO a -> Property
-assertSomeExceptionIO action =
+assertAnySyncExceptionIO :: NFData a => IO a -> Property
+assertAnySyncExceptionIO action =
   monadicIO $
   run $
-  catchAny
+  catchAllSync
     (do res <- action
         res `deepseq` return (counterexample "Did not receive an exception" False))
     (\exc -> displayException exc `deepseq` return (property True))
@@ -83,6 +84,10 @@ assertExpectedException ::
   => a -- ^ Value that should throw `ExpectedException`, when fully evaluated
   -> Property
 assertExpectedException = assertException (==ExpectedException)
+
+impreciseExpectedException :: ImpreciseException -> Bool
+impreciseExpectedException (ImpreciseException exc _) =
+  fromException exc == Just ExpectedException
 
 data ExpectedException = ExpectedException deriving (Show, Eq)
 

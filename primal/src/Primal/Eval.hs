@@ -162,7 +162,7 @@ evalM = (>>= eval)
 -- @since 1.0.0
 evalMaybe :: a -> Maybe a
 evalMaybe e = unsafeInlineIO $ do
-  tryAnySync (eval e) >>= \case
+  tryAllSync (eval e) >>= \case
     Left _ -> pure Nothing
     Right val -> pure $ Just val
 {-# INLINE evalMaybe #-}
@@ -207,7 +207,7 @@ deepevalM m = eval . force =<< m
 deepevalMaybe :: NFData a => a -> Maybe a
 deepevalMaybe e =
   unsafeInlineIO $ do
-    tryAnySync (deepeval e) >>= \case
+    tryAllSync (deepeval e) >>= \case
       Left _ -> pure Nothing
       Right val -> pure $ Just val
 {-# INLINE deepevalMaybe #-}

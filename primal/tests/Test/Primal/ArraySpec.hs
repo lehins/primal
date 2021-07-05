@@ -1,17 +1,28 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
-module Test.Primal.ArraySpec (spec) where
+module Test.Primal.ArraySpec (spec, impreciseExpectedException, ExpectedException(..)) where
 
-import Primal.Unbox
-import Primal.Foreign (IsList(..))
-import Primal.Exception
 import Primal.Array
+import Primal.Exception
+import Primal.Eval
+import Primal.Foreign (IsList(..))
 import Primal.Mutable.Freeze
-import Test.QuickCheck
-import Test.QuickCheck.Monadic
-import Test.QuickCheck.Classes.Base
+import Primal.Unbox
 import Test.Hspec
 import Test.Hspec.QuickCheck
+import Test.QuickCheck
+import Test.QuickCheck.Classes.Base
+import Test.QuickCheck.Monadic
+
+data ExpectedException =
+  ExpectedException
+  deriving (Show, Eq)
+
+instance Exception ExpectedException
+
+impreciseExpectedException :: ImpreciseException -> Bool
+impreciseExpectedException (ImpreciseException exc _) =
+  fromException exc == Just ExpectedException
 
 lawsSpec :: Laws -> Spec
 lawsSpec Laws {..} =
@@ -64,22 +75,22 @@ arrayLawsSpec px = do
   lawsSpec $ semigroupLaws px
   lawsSpec $ semigroupMonoidLaws px
 
-prop_writeBArrayException :: Integer -> Property
+prop_writeBArrayException :: HasCallStack => Integer -> Property
 prop_writeBArrayException x = monadicIO $ run $ do
   ma <- newBMArray 4 (Nothing :: Maybe Integer)
   writeBMArray ma 2 (Just x)
   a <- freezeCloneMut ma
   a `shouldBe` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
-  writeBMArray ma 2 (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
+  writeBMArray ma 2 (raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
   freezeCloneMut ma `shouldReturn` fromListBArray [Nothing,Nothing,Just x,Nothing]
 
-  writeBMArray ma 3 (Just (x `div` 0))
-  deepevalM (readBMArray ma 3) `shouldThrow` (== DivideByZero)
-  deepevalM (freezeBMArray ma) `shouldThrow` (== DivideByZero)
+  writeBMArray ma 3 (Just (raiseImprecise ExpectedException))
+  deepevalM (readBMArray ma 3) `shouldThrow` impreciseExpectedException
+  deepevalM (freezeBMArray ma) `shouldThrow` impreciseExpectedException
 
 
-prop_shrinkBMArray :: BArray Integer -> NonNegative Size -> Property
+prop_shrinkBMArray :: HasCallStack => BArray Integer -> NonNegative Size -> Property
 prop_shrinkBMArray a (NonNegative k) = monadicIO $ run $ do
   ma <- thawBArray a
   n <- getSizeOfBMArray ma
@@ -92,21 +103,21 @@ prop_shrinkBMArray a (NonNegative k) = monadicIO $ run $ do
   sizeOfBArray a' `shouldBe` k'
 
 
-prop_writeSBArrayException :: Integer -> Property
+prop_writeSBArrayException :: HasCallStack => Integer -> Property
 prop_writeSBArrayException x = monadicIO $ run $ do
   ma <- newSBMArray 4 (Nothing :: Maybe Integer)
   writeSBMArray ma 2 (Just x)
   a <- freezeCloneMut ma
   a `shouldBe` fromListSBArray [Nothing,Nothing,Just x,Nothing]
 
-  writeSBMArray ma 2 (impureThrow DivideByZero) `shouldThrow` (== DivideByZero)
+  writeSBMArray ma 2 (raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
   freezeCloneMut ma `shouldReturn` fromListSBArray [Nothing,Nothing,Just x,Nothing]
 
-  writeSBMArray ma 3 (Just (x `div` 0))
-  deepevalM (readSBMArray ma 3) `shouldThrow` (== DivideByZero)
-  deepevalM (freezeSBMArray ma) `shouldThrow` (== DivideByZero)
+  writeSBMArray ma 3 (Just (raiseImprecise ExpectedException))
+  deepevalM (readSBMArray ma 3) `shouldThrow` impreciseExpectedException
+  deepevalM (freezeSBMArray ma) `shouldThrow` impreciseExpectedException
 
-prop_shrinkSBMArray :: SBArray Integer -> NonNegative Size -> Property
+prop_shrinkSBMArray :: HasCallStack => SBArray Integer -> NonNegative Size -> Property
 prop_shrinkSBMArray a (NonNegative k) = monadicIO $ run $ do
   ma <- thawSBArray a
   n <- getSizeOfSBMArray ma
@@ -126,13 +137,13 @@ spec = do
     arrayLawsSpec (Proxy :: Proxy (BArray Char))
     lawsSpec $ functorLaws (Proxy :: Proxy BArray)
     lawsSpec $ foldableLaws (Proxy :: Proxy BArray)
-    prop "prop_writeBArrayException" prop_writeBArrayException
+    prop "writeBArrayException" prop_writeBArrayException
     prop "shrinkBMArray" prop_shrinkBMArray
   describe "SBArray" $ do
     arrayLawsSpec (Proxy :: Proxy (SBArray Char))
     lawsSpec $ functorLaws (Proxy :: Proxy SBArray)
     lawsSpec $ foldableLaws (Proxy :: Proxy SBArray)
-    prop "prop_writeSBArrayException" prop_writeSBArrayException
+    prop "writeSBArrayException" prop_writeSBArrayException
     prop "shrinkSBMArray" prop_shrinkSBMArray
   describe "UArray" $ do
     arrayLawsSpec (Proxy :: Proxy (UArray Char))

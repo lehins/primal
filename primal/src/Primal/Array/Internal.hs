@@ -58,7 +58,7 @@ uninitialized ::
   => String -- ^ Module name
   -> String -- ^ Function name
   -> a
-uninitialized mname fname = raise $ UndefinedElement $ mname ++ "." ++ fname
+uninitialized mname fname = raiseImprecise $ UndefinedElement $ mname ++ "." ++ fname
 {-# NOINLINE uninitialized #-}
 
 -- | Convert a list to a mutable array

@@ -3,6 +3,7 @@
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -13,7 +14,7 @@
 #endif
 -- |
 -- Module      : Primal.Exception
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -21,22 +22,29 @@
 --
 module Primal.Exception
   (
-  -- * Throwing
+  -- * Raising
     module Primal.Monad.Throw
-  , throw
-  , throwTo
   , raise
   , raiseLeft
+  , raiseTo
+  , raiseImprecise
+  , raiseLeftImprecise
   , ImpreciseException(..)
   -- * Catching
   , catch
-  , catchAny
-  , catchAnySync
+  , catchSync
+  , catchAsync
+  -- , catchAny
+  -- , catchAnySync
   , catchAll
   , catchAllSync
+  , catchAllAsync
   , try
-  , tryAny
-  , tryAnySync
+  , trySync
+  , tryAsync
+  , tryAll
+  , tryAllSync
+  , tryAllAsync
   , onException
   -- TODO: Implement:
   -- , onAsyncException
@@ -93,7 +101,6 @@ module Primal.Exception
   , prettyCallStack
   , SrcLoc(..)
   , prettySrcLoc
-  --, module Primal.Monad
   ) where
 
 import qualified Control.Exception as GHC
@@ -113,10 +120,16 @@ import GHC.SrcLoc
 
 ----- Exceptions
 
+-- | Check if it is a synchronous exception.
+--
+-- @since 1.0.0
 isSyncException :: GHC.Exception e => e -> Bool
 isSyncException = not . isAsyncException
 {-# INLINE isSyncException #-}
 
+-- | Check if it is an asynchronous exception.
+--
+-- @since 1.0.0
 isAsyncException :: GHC.Exception e => e -> Bool
 isAsyncException exc =
   case GHC.fromException (GHC.toException exc) of
@@ -124,58 +137,88 @@ isAsyncException exc =
     Nothing                         -> False
 {-# INLINE isAsyncException #-}
 
--- | This is the same as `throwIO`, but works in any `Primal` action without
+-- | This is the same as `GHC.throwIO`, but works in any `Primal` action without
 -- restriction on `RealWorld`.
-throw :: (GHC.Exception e, Primal s m) => e -> m a
-throw e = unsafePrimal (raiseIO# (GHC.toException e))
--- {-# INLINEABLE throw #-}
+raise :: (GHC.Exception e, Primal s m) => e -> m a
+raise e = unsafePrimal (raiseIO# (GHC.toException e))
+-- {-# INLINEABLE raise #-}
+
+
+-- | Raise an exception when it is supplied with Left or return a value unmodified upon Right.
+--
+-- @since 1.0.0
+raiseLeft :: (GHC.Exception e, Primal s m) => Either e a -> m a
+raiseLeft =
+  \case
+    Left exc -> raise exc
+    Right res -> pure res
 
 
 data ImpreciseException =
-  ImpreciseException GHC.SomeException CallStack
+  ImpreciseException
+    { impreciseException :: GHC.SomeException
+    , impreciseCallStack :: CallStack
+    }
 
 instance Show ImpreciseException where
-  showsPrec _ (ImpreciseException exc cStack) =
+  showsPrec _ ImpreciseException {impreciseException, impreciseCallStack} =
     ("ImpreciseException '" ++) .
-    (GHC.displayException exc ++) .
-    ("' was raised:\n" ++) . (prettyCallStack cStack ++)
+    (GHC.displayException impreciseException ++) .
+    ("' was raised:\n" ++) . (prettyCallStack impreciseCallStack ++)
 
 instance GHC.Exception ImpreciseException
 
 
--- | Create a value of some type, which is when evaluated to WHNF will raise an
--- `ImpreciseException`. Returns a thunk, which will result in a supplied
--- exceptionn being thrown when evaluated.
+-- | Create a thunk, which, upon evaluation to WHNF, will cause an exception
+-- being raised. The actual exception that will be thrown is the
+-- `ImpreciseException`, which will contain the supplied exception as well as the
+-- callstack.
 --
 -- @since 1.0.0
-raise :: HasCallStack => GHC.Exception e => e -> a
-raise e = raise# (GHC.toException (ImpreciseException (GHC.toException e) ?callStack))
+raiseImprecise :: (HasCallStack, GHC.Exception e) => e -> a
+raiseImprecise e = raise# (GHC.toException (ImpreciseException (GHC.toException e) ?callStack))
 
 -- | Convert the Left exception into a thunk that will a result in an
 -- `ImpreciseException`. Right value is returned unmodified and unevaluated.
 --
 -- @since 1.0.0
-raiseLeft :: (HasCallStack, GHC.Exception e) => Either e a -> a
-raiseLeft =
+raiseLeftImprecise :: (HasCallStack, GHC.Exception e) => Either e a -> a
+raiseLeftImprecise =
   \case
-    Left exc -> raise exc
+    Left exc -> raiseImprecise exc
     Right res -> res
-{-# INLINE raiseLeft #-}
+{-# INLINE raiseLeftImprecise #-}
 
--- | Similar to `GHC.throwTo`, except that it wraps any known non-async exception with
--- `SomeAsyncException`. This is necessary, because receiving thread will get the exception in
--- an asynchronous manner and without proper wrapping it will not be able to distinguish it
--- from a regular synchronous exception
-throwTo :: (Primal RW m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
-throwTo tid e =
+-- | Similar to `GHC.throwTo`, except that it wraps any known non-async
+-- exception with `GHC.SomeAsyncException`. This is necessary, because the
+-- receiving thread gets the exception in an asynchronous manner and without
+-- proper wrapping it will not be able to distinguish it from a regular
+-- synchronous exception.
+--
+-- ====__Examples__
+--
+-- >>> import Primal.Concurrent
+-- >>> import Primal.Exception
+-- >>> (`raiseTo` DivideByZero) =<< forkFinally (threadDelay 100000) (either (print . isAsyncException) print)
+-- True
+-- >>> import qualified Control.Exception as GHC
+-- >>> (`GHC.throwTo` DivideByZero) =<< forkFinally (threadDelay 100000) (either (print . isAsyncException) print)
+-- False
+--
+-- @since 1.0.0
+raiseTo :: (Primal RW m, GHC.Exception e) => GHC.ThreadId -> e -> m ()
+raiseTo tid e =
   liftIO $
-  GHC.throwTo tid $
   if isAsyncException e
-    then GHC.toException e
-    else GHC.toException $ GHC.SomeAsyncException e
--- {-# INLINEABLE throwTo #-}
+    then GHC.throwTo tid e
+    else GHC.throwTo tid $ GHC.SomeAsyncException e
+-- {-# INLINEABLE raiseTo #-}
 
--- | Behaves exactly as `catch`, except that it works in any `UnliftPrimal`.
+-- | Behaves exactly as `GHC.catch`, except that it works in any `UnliftPrimal`
+-- monad. It will catch an exception of any type, regardless how it was thrown
+-- asynchonously or synchronously.
+--
+-- @since 0.3.0
 catch ::
      forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
@@ -192,65 +235,118 @@ catch action handler =
 -- {-# INLINEABLE catch #-}
 --{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
 
-catchAny ::
-     forall a m. UnliftPrimal RW m
+-- | Catch an exception of some type, but only if it was thrown sy
+catchSync ::
+     forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
-  -> (GHC.SomeException -> m a)
+  -> (e -> m a)
   -> m a
-catchAny action handler =
-  runInPrimalState2 (const action) handler $ \action# handler# ->
-    catch# (action# ()) handler#
--- {-# INLINEABLE catchAny #-}
---{-# SPECIALIZE catchAny :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
+catchSync action = catch action . syncHandler
 
-
-catchAnySync ::
-     forall a m. UnliftPrimal RW m
+catchAsync ::
+     forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
-  -> (GHC.SomeException -> m a)
+  -> (e -> m a)
   -> m a
-catchAnySync action handler =
-  catchAny action $ \exc ->
-    when (isAsyncException exc) (throw exc) >> handler exc
--- {-# INLINEABLE catchAnySync #-}
+catchAsync action = catch action . asyncHandler
 
+syncHandler :: (GHC.Exception e, Primal s m) => (e -> m a) -> e -> m a
+syncHandler handler exc =
+  if isAsyncException exc
+    then raise exc
+    else handler exc
+
+asyncHandler :: (GHC.Exception e, Primal s m) => (e -> m a) -> e -> m a
+asyncHandler handler exc =
+  if isAsyncException exc
+    then handler exc
+    else raise exc
+
+-- | Catch all synchronous and asynchronous exceptions. Make sure to rethrow
+-- asynchronous exceptions, since it is very rare that you want to recover from
+-- exceptions originated from another thread.
+--
+-- @since 1.0.0
 catchAll ::
      forall a m. UnliftPrimal RW m
   => m a
-  -> (forall e . GHC.Exception e => e -> m a)
+  -> (GHC.SomeException -> m a)
   -> m a
 catchAll action handler =
-  runInPrimalState2
-    (const action)
-    (\(GHC.SomeException e) -> handler e)
-    (\action# handler# -> catch# (action# ()) handler#)
+  runInPrimalState2 (const action) handler $ \action# handler# ->
+    catch# (action# ()) handler#
 -- {-# INLINEABLE catchAll #-}
+--{-# SPECIALIZE catchAll :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
 
+-- | Catch all synchronous exceptions.
+--
+-- @since 1.0.0
 catchAllSync ::
      forall a m. UnliftPrimal RW m
   => m a
-  -> (forall e . GHC.Exception e => e -> m a)
+  -> (GHC.SomeException -> m a)
   -> m a
-catchAllSync action handler =
+catchAllSync action = catchAll action . syncHandler
+
+-- | Catch all synchronous exceptions.
+--
+-- @since 1.0.0
+catchAllAsync ::
+     forall a m. UnliftPrimal RW m
+  => m a
+  -> (GHC.SomeException -> m a)
+  -> m a
+catchAllAsync action handler =
   catchAll action $ \exc ->
-    when (isAsyncException exc) (throw exc) >> handler exc
--- {-# INLINEABLE catchAllSync #-}
+    unless (isAsyncException exc) (raise exc) >> handler exc
+
+
+-- catchAny ::
+--      forall a m. UnliftPrimal RW m
+--   => m a
+--   -> (forall e. GHC.Exception e => e -> m a)
+--   -> m a
+-- catchAny action handler =
+--   runInPrimalState2
+--     (const action)
+--     (\(GHC.SomeException e) -> handler e)
+--     (\action# handler# -> catch# (action# ()) handler#)
+-- -- {-# INLINEABLE catchAny #-}
+
+-- catchAnySync ::
+--      forall a m. UnliftPrimal RW m
+--   => m a
+--   -> (forall e. GHC.Exception e => e -> m a)
+--   -> m a
+-- catchAnySync action handler =
+--   catchAny action $ \exc ->
+--     when (isAsyncException exc) (raise exc) >> handler exc
+-- -- {-# INLINEABLE catchAnySync #-}
 
 
 try :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
-try f = catch (fmap Right f) (pure . Left)
+try f = catch (Right <$> f) (pure . Left)
 -- {-# INLINEABLE try #-}
 --{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
 
-tryAny :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
-tryAny f = catchAny (Right <$> f) (pure . Left)
--- {-# INLINEABLE tryAny #-}
+trySync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
+trySync f = catchSync (Right <$> f) (pure . Left)
 
-tryAnySync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
-tryAnySync f = catchAnySync (Right <$> f) (pure . Left)
+tryAsync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
+tryAsync f = catchAsync (Right <$> f) (pure . Left)
+
+tryAll :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
+tryAll f = catchAll (Right <$> f) (pure . Left)
+-- {-# INLINEABLE tryAll #-}
+
+tryAllSync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
+tryAllSync f = catchAllSync (Right <$> f) (pure . Left)
+
+tryAllAsync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
+tryAllAsync f = catchAllAsync (Right <$> f) (pure . Left)
 
 
--- | Run an action, while invoking an exception handler if that action fails for some
+-- | Run an action, while invoking an exception handler when that action fails for some
 -- reason. Exception handling function has async exceptions masked, but it is still
 -- interruptible, which can be undesired in some scenarios. If you are sure that the
 -- cleanup action does not deadlock and you do need hard guarantees that it gets executed
@@ -265,7 +361,7 @@ withException action handler =
   mask $ \restore -> do
     catch
       (restore action)
-      (\exc -> catchAnySync (void $ handler exc) (\_ -> pure ()) >> throw exc)
+      (\exc -> catchAllSync (void $ handler exc) (\_ -> pure ()) >> raise exc)
 
 
 -- | Same as `withException`, but will invoke exception handling function on all
@@ -275,13 +371,13 @@ withException action handler =
 withAnyException :: UnliftPrimal RW m => m a -> (GHC.SomeException -> m b) -> m a
 withAnyException thing after =
   mask $ \restore -> do
-    catchAny
+    catchAll
       (restore thing)
-      (\exc -> catchAnySync (void $ after exc) (\_ -> pure ()) >> throw exc)
+      (\exc -> catchAllSync (void $ after exc) (\_ -> pure ()) >> raise exc)
 
--- | Async safe version of 'EUnsafe.onException'.
+-- | Async safe version of 'GHC.onException'.
 --
--- @since 0.1.0.0
+-- @since 1.0.0
 onException :: UnliftPrimal RW m => m a -> m b -> m a
 onException thing after = withAnyException thing (const after)
 
@@ -293,9 +389,9 @@ bracket acquire cleanup action =
   mask $ \restore -> do
     resource <- acquire
     result <-
-      catchAny (restore (action resource)) $ \exc -> do
-        catchAnySync (void $ cleanup resource) $ \_ -> pure ()
-        throw exc
+      catchAll (restore (action resource)) $ \exc -> do
+        catchAllSync (void $ cleanup resource) $ \_ -> pure ()
+        raise exc
     result <$ cleanup resource
 {-# INLINEABLE bracket #-}
 
@@ -303,17 +399,17 @@ bracketOnError :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
 bracketOnError acquire cleanup action =
   mask $ \restore -> do
     resource <- acquire
-    catchAny (restore (action resource)) $ \exc -> do
-      catchAnySync (void $ cleanup resource) $ \_ -> pure ()
-      throw exc
+    catchAll (restore (action resource)) $ \exc -> do
+      catchAllSync (void $ cleanup resource) $ \_ -> pure ()
+      raise exc
 
 finally :: UnliftPrimal RW m => m a -> m b -> m a
 finally action cleanup =
   mask $ \restore -> do
     result <-
-      catchAny (restore action) $ \exc -> do
-        catchAnySync (void cleanup) $ \_ -> pure ()
-        throw exc
+      catchAll (restore action) $ \exc -> do
+        catchAllSync (void cleanup) $ \_ -> pure ()
+        raise exc
     result <$ cleanup
 
 

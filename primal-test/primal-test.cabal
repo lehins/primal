@@ -40,8 +40,8 @@ library
                      , primal-memory
                      , primal-container
                      , hspec
-                     , QuickCheck                     , genvalidity
-                     , unliftio
+                     , QuickCheck
+                     , genvalidity
 
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-orphans
