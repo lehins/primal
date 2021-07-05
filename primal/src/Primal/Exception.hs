@@ -32,6 +32,7 @@ module Primal.Exception
   , ImpreciseException(..)
   -- * Catching
   , catch
+  , catchJust
   , catchSync
   , catchAsync
   -- , catchAny
@@ -235,7 +236,23 @@ catch action handler =
 -- {-# INLINEABLE catch #-}
 --{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
 
--- | Catch an exception of some type, but only if it was thrown sy
+-- | Same as `catch`, but allows to select which particular exception we care
+-- about with the help of a modifying predicate.
+--
+-- @since 1.0.0
+catchJust ::
+     (UnliftPrimal RW m, GHC.Exception e)
+  => (e -> Maybe b)
+  -> m a
+  -> (b -> m a)
+  -> m a
+catchJust p action handler =
+  catchAll action $ \e ->
+    case GHC.fromException e >>= p of
+      Nothing -> raise e
+      Just b -> handler b
+
+-- | Catch a synchronous exception.
 catchSync ::
      forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
@@ -243,12 +260,14 @@ catchSync ::
   -> m a
 catchSync action = catch action . syncHandler
 
+-- | Catch an asynchronous exception.
 catchAsync ::
      forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
   -> (e -> m a)
   -> m a
 catchAsync action = catch action . asyncHandler
+--catchAsync = catchJust GHC.asyncExceptionFromException
 
 syncHandler :: (GHC.Exception e, Primal s m) => (e -> m a) -> e -> m a
 syncHandler handler exc =
@@ -296,9 +315,7 @@ catchAllAsync ::
   => m a
   -> (GHC.SomeException -> m a)
   -> m a
-catchAllAsync action handler =
-  catchAll action $ \exc ->
-    unless (isAsyncException exc) (raise exc) >> handler exc
+catchAllAsync action = catchAll action . asyncHandler
 
 
 -- catchAny ::
