@@ -368,11 +368,11 @@ tryAllAsync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAllAsync f = catchAllAsync (Right <$> f) (pure . Left)
 
 
--- | Run an action, while invoking an exception handler when that action fails for some
--- reason. Exception handling function has async exceptions masked, but it is still
--- interruptible, which can be undesired in some scenarios. If you are sure that the
--- cleanup action does not deadlock and you do need hard guarantees that it gets executed
--- you can run it as uninterruptible:
+-- | Run an action, while invoking an exception handler when that action fails
+-- for some reason. Exception handling function has async exceptions masked, but
+-- it is still interruptible, which can be undesired in some scenarios. If you
+-- are sure that the cleanup action does not deadlock and you do need hard
+-- guarantees that it gets executed you can run it as uninterruptible:
 --
 -- > uninterruptibleMask $ \restore -> withException (restore action) handler
 --
