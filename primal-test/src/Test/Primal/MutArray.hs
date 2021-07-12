@@ -17,7 +17,6 @@
 --
 module Test.Primal.MutArray where
 
-import Primal.Exception
 import Primal.Array
 import Primal.Container.Array
 import Primal.Container.Ref

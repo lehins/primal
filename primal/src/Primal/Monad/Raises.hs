@@ -1,16 +1,18 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
--- Module      : Primal.Monad.Throw
+-- Module      : Primal.Monad.Raises
 -- Copyright   : (c) Alexey Kuleshevich 2020
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Monad.Throw
-  ( Throws(..)
+module Primal.Monad.Raises
+  ( Raises(..)
+  , raiseLeft
   ) where
 
 import Control.Exception
@@ -44,7 +46,7 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 --
 -- Instances should obey the following law:
 --
--- > throwM e >> x = throwM e
+-- > raiseM e >> x = raiseM e
 --
 -- In other words, throwing an exception short-circuits the rest of the monadic
 -- computation.
@@ -52,80 +54,90 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 -- === Note
 --
 -- This is an almost identical class to
--- [Throws](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:Throws)
+-- [MonadThrow](https://hackage.haskell.org/package/exceptions/docs/Control-Monad-Catch.html#t:MonadThrow)
 -- from @exceptions@ package. The reason why it was copied, instead of a direct dependency
 -- on the aforementioned package is because @MonadCatch@ and @MonadMask@ are not right
 -- abstractions for exception handling in presence of concurrency and also because
 -- instances for such transformers as `MaybeT` and `ExceptT` are flawed.
-class Monad m => Throws m where
+class Monad m => Raises m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
   -- "Primal.Exception"'s 'Primal.Exception.throw'.
   --
-  throwM :: Exception e => e -> m a
+  raiseM :: Exception e => e -> m a
 
-instance Throws Maybe where
-  throwM _ = Nothing
+instance Raises Maybe where
+  raiseM _ = Nothing
 
-instance e ~ SomeException => Throws (Either e) where
-  throwM = Left . toException
+instance e ~ SomeException => Raises (Either e) where
+  raiseM = Left . toException
 
-instance Throws IO where
-  throwM = throwIO
+instance Raises IO where
+  raiseM = throwIO
 
-instance Throws (ST s) where
-  throwM e = unsafeIOToST $ throwIO e
+instance Raises (ST s) where
+  raiseM e = unsafeIOToST $ throwIO e
 
-instance Throws STM where
-  throwM e = STM $ raiseIO# (toException e)
+instance Raises STM where
+  raiseM e = STM $ raiseIO# (toException e)
 
 
-instance Throws m => Throws (ContT r m) where
-  throwM = lift . throwM
+instance Raises m => Raises (ContT r m) where
+  raiseM = lift . raiseM
 
-instance (e ~ SomeException, Monad m) => Throws (ExceptT e m) where
-  throwM e = ExceptT (pure (Left (toException e)))
+instance (e ~ SomeException, Monad m) => Raises (ExceptT e m) where
+  raiseM e = ExceptT (pure (Left (toException e)))
 
-instance Throws m => Throws (IdentityT m) where
-  throwM = lift . throwM
+instance Raises m => Raises (IdentityT m) where
+  raiseM = lift . raiseM
 
-instance Monad m => Throws (MaybeT m) where
-  throwM _ = MaybeT (pure Nothing)
+instance Monad m => Raises (MaybeT m) where
+  raiseM _ = MaybeT (pure Nothing)
 
-instance Throws m => Throws (ReaderT r m) where
-  throwM = lift . throwM
+instance Raises m => Raises (ReaderT r m) where
+  raiseM = lift . raiseM
 
-instance (Monoid w, Throws m) => Throws (Lazy.RWST r w s m) where
-  throwM = lift . throwM
+instance (Monoid w, Raises m) => Raises (Lazy.RWST r w s m) where
+  raiseM = lift . raiseM
 
-instance (Monoid w, Throws m) => Throws (Strict.RWST r w s m) where
-  throwM = lift . throwM
+instance (Monoid w, Raises m) => Raises (Strict.RWST r w s m) where
+  raiseM = lift . raiseM
 
-instance Throws m => Throws (Lazy.StateT s m) where
-  throwM = lift . throwM
+instance Raises m => Raises (Lazy.StateT s m) where
+  raiseM = lift . raiseM
 
-instance Throws m => Throws (Strict.StateT s m) where
-  throwM = lift . throwM
+instance Raises m => Raises (Strict.StateT s m) where
+  raiseM = lift . raiseM
 
-instance (Monoid w, Throws m) => Throws (Lazy.WriterT w m) where
-  throwM = lift . throwM
+instance (Monoid w, Raises m) => Raises (Lazy.WriterT w m) where
+  raiseM = lift . raiseM
 
-instance (Monoid w, Throws m) => Throws (Strict.WriterT w m) where
-  throwM = lift . throwM
+instance (Monoid w, Raises m) => Raises (Strict.WriterT w m) where
+  raiseM = lift . raiseM
 
 #if MIN_VERSION_transformers(0, 5, 3)
 
-instance (Monoid w, Throws m) => Throws (AccumT w m) where
-  throwM = lift . throwM
-instance Throws m => Throws (SelectT r m) where
-  throwM = lift . throwM
+instance (Monoid w, Raises m) => Raises (AccumT w m) where
+  raiseM = lift . raiseM
+instance Raises m => Raises (SelectT r m) where
+  raiseM = lift . raiseM
 
 #if MIN_VERSION_transformers(0, 5, 6)
 
-instance Throws m => Throws (CPS.RWST r w st m) where
-  throwM = lift . throwM
-instance Throws m => Throws (CPS.WriterT w m) where
-  throwM = lift . throwM
+instance Raises m => Raises (CPS.RWST r w st m) where
+  raiseM = lift . raiseM
+instance Raises m => Raises (CPS.WriterT w m) where
+  raiseM = lift . raiseM
 
 #endif
 #endif
+
+
+-- | Raise an exception when it is supplied with Left or return a value unmodified upon Right.
+--
+-- @since 1.0.0
+raiseLeft :: (Exception e, Raises m) => Either e a -> m a
+raiseLeft =
+  \case
+    Left exc -> raiseM exc
+    Right res -> pure res

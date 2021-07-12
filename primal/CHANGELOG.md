@@ -8,7 +8,6 @@
 
 * Addition of `eval`, `evalM`, `deepeval` and `deepevalM`
 * Addittion of `whenM` and `unlessM`
-
 * Whole bunch of concurrency and exception functionality
 * Addition of `Ref` adnd `MVar`
 * Addition of basic array functionality:

@@ -23,9 +23,8 @@
 module Primal.Exception
   (
   -- * Raising
-    module Primal.Monad.Throw
+    module Primal.Monad.Raises
   , raise
-  , raiseLeft
   , raiseTo
   , raiseImprecise
   , raiseLeftImprecise
@@ -108,7 +107,7 @@ module Primal.Exception
 import qualified Control.Exception as GHC
 import Control.Monad
 import Primal.Monad.Internal
-import Primal.Monad.Throw
+import Primal.Monad.Raises
 import Primal.Monad.Unsafe
 import qualified GHC.Conc as GHC
 import GHC.Exts
@@ -117,7 +116,6 @@ import GHC.Stack
 import Data.List (intercalate)
 import GHC.SrcLoc
 #endif
---import GHC.IO (IO(..))
 
 
 ----- Exceptions
@@ -144,16 +142,6 @@ isAsyncException exc =
 raise :: (GHC.Exception e, Primal s m) => e -> m a
 raise e = unsafePrimal (raiseIO# (GHC.toException e))
 -- {-# INLINEABLE raise #-}
-
-
--- | Raise an exception when it is supplied with Left or return a value unmodified upon Right.
---
--- @since 1.0.0
-raiseLeft :: (GHC.Exception e, Primal s m) => Either e a -> m a
-raiseLeft =
-  \case
-    Left exc -> raise exc
-    Right res -> pure res
 
 
 data ImpreciseException =

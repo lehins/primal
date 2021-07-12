@@ -40,7 +40,7 @@ library
                      , Primal.Eval
                      , Primal.Exception
                      , Primal.Monad
-                     , Primal.Monad.Throw
+                     , Primal.Monad.Raises
                      , Primal.Monad.Unsafe
                      , Primal.Mutable.Freeze
                      , Primal.Mutable.Eq

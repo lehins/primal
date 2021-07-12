@@ -59,7 +59,7 @@ import Control.Monad.Trans.Writer.Strict as Strict (WriterT)
 import GHC.Exts
 import GHC.IO hiding (liftIO)
 import GHC.ST hiding (liftST)
-import Primal.Monad.Throw
+import Primal.Monad.Raises
 
 #if MIN_VERSION_transformers(0, 5, 3)
 import Control.Monad.Trans.Accum (AccumT)
@@ -77,7 +77,7 @@ type MonadIO m = Primal RW m
 
 type MonadUnliftIO m = UnliftPrimal RW m
 
-class Throws m => Primal s m | m -> s where
+class Raises m => Primal s m | m -> s where
   -- | Construct a primal action from a state passing function.
   primal :: (State# s -> (# State# s, a #)) -> m a
 

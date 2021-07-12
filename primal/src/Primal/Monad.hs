@@ -17,11 +17,13 @@ module Primal.Monad
   , unlessM
   -- * Re-export
   , module Control.Monad
+  , module Primal.Monad.Raises
   ) where
 
 import GHC.Exts
 import Primal.Eval
 import Primal.Monad.Internal
+import Primal.Monad.Raises
 import Control.Monad
 
 

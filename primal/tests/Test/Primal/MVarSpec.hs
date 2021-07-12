@@ -200,7 +200,7 @@ spec = do
       -- check restoration of value on exception
       withMVar m (\_ -> do
         isEmptyMVar m `shouldReturn` True
-        throwM ExpectedException)
+        raiseM ExpectedException)
         `shouldThrow` (== ExpectedException)
       readMVar m `shouldReturn` "Hello"
 
@@ -212,7 +212,7 @@ spec = do
        -- overwritten
       timeout 50000 (withMVar m (\_ -> do
                                     putMVar m "Goodbye"
-                                    () <$ throwM ExpectedException
+                                    () <$ raiseM ExpectedException
                                 )) `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
