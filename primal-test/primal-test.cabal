@@ -56,6 +56,7 @@ test-suite memory-tests-O1
                     , Test.Primal.Memory.BytesSpec
                     , Test.Primal.Memory.BytesExtraSpec
                     , Test.Primal.Memory.PtrSpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -79,6 +80,7 @@ test-suite memory-tests-O0
                     , Test.Primal.Memory.BytesSpec
                     , Test.Primal.Memory.BytesExtraSpec
                     , Test.Primal.Memory.PtrSpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -101,6 +103,7 @@ test-suite mutable-tests-O1
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Primal.MutArraySpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -123,6 +126,7 @@ test-suite mutable-tests-O0
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Primal.MutArraySpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq

@@ -50,6 +50,7 @@ import Data.Type.Equality
 import Data.Kind
 import Foreign.C.Error (Errno(..))
 import Primal.Foreign hiding (Any)
+import qualified Primal.Exception as Exception (errorWithoutStackTrace)
 import GHC.Conc
 import GHC.Stable
 import GHC.Real
@@ -1675,10 +1676,5 @@ setAddrLoop# addr# n# a = go 0#
 
 errorImpossible :: String -> String -> a
 errorImpossible fname msg =
-#if __GLASGOW_HASKELL__ < 800
-  error
-#else
-  errorWithoutStackTrace
-#endif
-  $ "Impossible <" ++ fname ++ ">:" ++ msg
+  Exception.errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
 {-# NOINLINE errorImpossible #-}

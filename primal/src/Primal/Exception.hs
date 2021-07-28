@@ -29,6 +29,7 @@ module Primal.Exception
   , raiseImprecise
   , raiseLeftImprecise
   , ImpreciseException(..)
+  , errorWithoutStackTrace
   -- * Catching
   , catch
   , catchJust
@@ -603,4 +604,9 @@ prettyCallStackLines cs = case getCallStack cs of
        : map (("  " ++) . prettyCallSite) stk
   where
     prettyCallSite (f, loc) = f ++ ", called at " ++ prettySrcLoc loc
+#endif
+
+#if __GLASGOW_HASKELL__ < 800
+errorWithoutStackTrace :: String -> a
+errorWithoutStackTrace = error
 #endif

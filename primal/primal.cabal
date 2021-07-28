@@ -118,6 +118,7 @@ test-suite tests
                     , Test.Primal.MVarSpec
                     , Test.Primal.BRefSpec
                     , Test.Primal.URefSpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      QuickCheck
                     , async
                     , base
