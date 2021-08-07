@@ -203,7 +203,7 @@ indexUArray ::
   -> Int
   -- ^ /ix/ - Position of the element within the @array@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -545,7 +545,7 @@ readUMArray ::
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --

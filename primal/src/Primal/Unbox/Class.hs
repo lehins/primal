@@ -14,7 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Primal.Unbox.Class
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -207,13 +207,13 @@ class Unbox a where
   default writeByteOffMutableByteArray# ::
     Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
   writeByteOffMutableByteArray# mba# i# a =
-    writeByteOffMutableByteArray# mba# i# (toUnboxIso a :: UnboxIso a)
+    writeByteOffMutableByteArray# mba# i# (toUnboxIso a)
   {-# INLINE writeByteOffMutableByteArray# #-}
 
   writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeMutableByteArray# ::
     Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toUnboxIso a :: UnboxIso a)
+  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toUnboxIso a)
   {-# INLINE writeMutableByteArray# #-}
 
   writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s

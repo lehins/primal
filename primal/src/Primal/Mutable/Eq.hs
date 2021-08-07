@@ -1,6 +1,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 -- |
 -- Module      : Primal.Mutable.Eq
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -13,6 +14,8 @@ module Primal.Mutable.Eq
   ( MutEq(..)
   , eqMut
   , eqFrozen
+  -- * Helpers
+  , eqMutWithST
   ) where
 
 import qualified Data.Text.Array as T
@@ -20,6 +23,7 @@ import Primal.Array
 import Primal.Monad
 import Primal.Mutable.Freeze
 import Primal.Ref
+
 
 class MutEq mut where
   eqMutST :: mut s -> mut s -> ST s Bool
@@ -46,6 +50,14 @@ instance Eq e => MutEq (SBMArray e) where
 
 instance (Unbox e, Eq e) => MutEq (UMArray e) where
   eqMutST m1 m2 = eqWithST isSameUMArray getSizeOfUMArray readUMArray m1 m2
+  {-# INLINE eqMutST #-}
+
+instance (Unlift e, Eq e) => MutEq (UBMArray e) where
+  eqMutST m1 m2 = eqWithST isSameUBMArray getSizeOfUBMArray readUBMArray m1 m2
+  {-# INLINE eqMutST #-}
+
+instance (MutUnlift e, MutEq e) => MutEq (UBMArray e) where
+  eqMutST m1 m2 = eqMutWithST isSameUBMArray getSizeOfUBMArray readMutUBMArray m1 m2
   {-# INLINE eqMutST #-}
 
 instance MutEq T.MArray where
@@ -75,3 +87,35 @@ eqFrozen fa fb =
     mb <- thaw fb
     eqMutST ma mb
 {-# INLINE eqFrozen #-}
+
+
+
+-- | Check for equality of two mutable arrays with mutable contents
+--
+-- @since 1.0.0
+eqMutWithST ::
+     MutEq e
+  => (a e s -> a e s -> Bool) -- ^ Pointer equality
+  -> (a e s -> ST s Size) -- ^ Get the size of array
+  -> (a e s -> Int -> ST s (e s)) -- ^ Read an element from the mutable array
+  -> a e s -- ^ First array
+  -> a e s -- ^ Second array
+  -> ST s Bool
+eqMutWithST isSameMut getSizeOfMut readMut ma1 ma2
+  | isSameMut ma1 ma2 = pure True
+  | otherwise = do
+    sz1@(Size n) <- getSizeOfMut ma1
+    sz2 <- getSizeOfMut ma2
+    let loop i
+          | i < n = do
+            x1 <- readMut ma1 i
+            x2 <- readMut ma2 i
+            eltEq <- eqMutST x1 x2
+            if eltEq
+              then loop (i + 1)
+              else pure False
+          | otherwise = pure True
+    if sz1 /= sz2
+      then pure False
+      else loop 0
+{-# INLINE eqMutWithST #-}

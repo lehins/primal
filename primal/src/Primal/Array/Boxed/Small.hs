@@ -11,14 +11,14 @@
   {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 #endif
 -- |
--- Module      : Primal.Array.SmallBoxed
+-- Module      : Primal.Array.Boxed.Small
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Array.SmallBoxed
+module Primal.Array.Boxed.Small
   ( Size(..)
     -- * Small Boxed Array
     -- ** Immutable
@@ -212,7 +212,7 @@ indexSBArray ::
   -> Int
   -- ^ /ix/ - Position of the element within the @array@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -635,7 +635,7 @@ readSBMArray ::
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -688,7 +688,7 @@ writeSBMArray ::
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
   -- @elt@ will be written to.
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --

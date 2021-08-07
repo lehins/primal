@@ -9,7 +9,8 @@
 module Primal.Array
   ( -- $arrays
     module Primal.Array.Boxed
-  , module Primal.Array.SmallBoxed
+  , module Primal.Array.Boxed.Small
+  , module Primal.Array.Boxed.Unlifted
   , module Primal.Array.Unboxed
   , Size(..)
     -- * Helper functions
@@ -30,7 +31,8 @@ module Primal.Array
   ) where
 
 import Primal.Array.Boxed
-import Primal.Array.SmallBoxed
+import Primal.Array.Boxed.Small
+import Primal.Array.Boxed.Unlifted
 import Primal.Array.Unboxed
 import Primal.Array.Internal
 

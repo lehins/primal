@@ -222,7 +222,7 @@ indexBArray ::
   -> Int
   -- ^ /ix/ - Position of the element within the @array@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -600,7 +600,7 @@ readBMArray ::
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -654,7 +654,7 @@ writeBMArray ::
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
   -- @elt@ will be written to.
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --
@@ -1128,7 +1128,7 @@ casBMArray ::
   -> Int
   -- ^ /ix/ - Index of a cell which should be set to the new value
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- > 0 <= ix
   --

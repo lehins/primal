@@ -946,7 +946,7 @@ createZeroMemST_ ::
   -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
-  -- /__Precoditions:__/
+  -- /__Preconditions:__/
   --
   -- Size should be non-negative, but smaller than amount of available memory. Note that the
   -- second condition simply describes overflow.

@@ -20,6 +20,9 @@ module Primal.Foreign.Cmm
   , getSizeofMutableArray#
   , shrinkMutableArray#
   , resizeMutableArray#
+  , getSizeofMutableArrayArray#
+  , shrinkMutableArrayArray#
+  , resizeMutableArrayArray#
 #if __GLASGOW_HASKELL__ < 810
   , getSizeofSmallMutableArray#
   , shrinkSmallMutableArray#
@@ -67,6 +70,12 @@ getSizeofMutableArray# sma# s# = (# s#, sizeofMutableArray# sma# #)
 foreign import prim "primal_stg_shrinkMutableArrayzh"
   shrinkMutableArrayCmm# :: MutableArray# s a -> Int# -> State# s -> (# State# s, Int# #)
 
+shrinkMutableArrayArray# :: MutableArrayArray# s -> Int# -> State# s -> State# s
+shrinkMutableArrayArray# ma# i# s =
+  case shrinkMutableArrayCmm# (unsafeCoerce# ma#) i# s of
+    (# s', _ #) -> s'
+{-# INLINE shrinkMutableArrayArray# #-}
+
 shrinkMutableArray# :: MutableArray# s a -> Int# -> State# s -> State# s
 shrinkMutableArray# ma# i# s =
   case shrinkMutableArrayCmm# ma# i# s of
@@ -93,6 +102,29 @@ resizeMutableArray# arr0 szNew a s0 =
                           s3 -> (# s3, arr1 #)
                else (# s1, arr0 #)
 {-# INLINE resizeMutableArray# #-}
+
+getSizeofMutableArrayArray# :: MutableArrayArray# s -> State# s -> (# State# s, Int# #)
+getSizeofMutableArrayArray# arr# s = (# s, sizeofMutableArrayArray# arr# #)
+{-# NOINLINE getSizeofMutableArrayArray# #-}
+
+resizeMutableArrayArray# ::
+     MutableArrayArray# s -- ^ Array to resize
+  -> Int# -- ^ New size of array
+  -> State# s
+  -> (# State# s, MutableArrayArray# s #)
+resizeMutableArrayArray# arr0 szNew s0 =
+  case getSizeofMutableArrayArray# arr0 s0 of
+    (# s1, szOld #) ->
+      if isTrue# (szNew <# szOld)
+        then case shrinkMutableArrayCmm# (unsafeCoerce# arr0) szNew s1 of
+               (# s2, _ #) -> (# s2, arr0 #)
+        else if isTrue# (szNew ># szOld)
+               then case newArrayArray# szNew s1 of
+                      (# s2, arr1 #) ->
+                        case copyMutableArrayArray# arr0 0# arr1 0# szOld s2 of
+                          s3 -> (# s3, arr1 #)
+               else (# s1, arr0 #)
+{-# INLINE resizeMutableArrayArray# #-}
 
 
 #if __GLASGOW_HASKELL__ < 810

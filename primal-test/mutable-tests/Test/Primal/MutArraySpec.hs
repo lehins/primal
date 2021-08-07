@@ -7,7 +7,7 @@ module Test.Primal.MutArraySpec
   ) where
 
 import Primal.Array.Boxed
-import Primal.Array.SmallBoxed
+import Primal.Array.Boxed.Small
 import Primal.Array.Unboxed
 import Primal.Memory.Addr
 import Primal.Memory.Bytes

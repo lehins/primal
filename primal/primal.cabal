@@ -27,12 +27,14 @@ tested-with:         GHC == 7.10.2
                    , GHC == 8.8.3
                    , GHC == 8.8.4
                    , GHC == 8.10.1
+                   , GHC == 9.0.1
 
 library
   hs-source-dirs:      src
   exposed-modules:     Primal.Array
                      , Primal.Array.Boxed
-                     , Primal.Array.SmallBoxed
+                     , Primal.Array.Boxed.Small
+                     , Primal.Array.Boxed.Unlifted
                      , Primal.Array.Unboxed
 
                      , Primal.Concurrent
@@ -42,8 +44,8 @@ library
                      , Primal.Monad
                      , Primal.Monad.Raises
                      , Primal.Monad.Unsafe
-                     , Primal.Mutable.Freeze
                      , Primal.Mutable.Eq
+                     , Primal.Mutable.Freeze
                      , Primal.Mutable.Ord
                      --, Primal.Mutable.Show
 
@@ -51,10 +53,12 @@ library
                      , Primal.Unbox.Atom
                      , Primal.Unbox.Atomic
                      , Primal.Unbox.Class
+                     , Primal.Unlift
 
                      , Primal.Ref
                      , Primal.Ref.Boxed
                      , Primal.Ref.Boxed.Atomic
+                     -- , Primal.Ref.Boxed.Unlifted
                      , Primal.Ref.Unboxed
                      , Primal.Ref.Unboxed.Atomic
 
