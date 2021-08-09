@@ -114,6 +114,17 @@ instance MutRef SBMArray where
   {-# INLINE newMutRefST #-}
 
 
+instance MutRef UBMArray where
+  newRawMutRefST = newRawUBMArray 1
+  {-# INLINE newRawMutRefST #-}
+  readMutRefST mba = readUBMArray mba 0
+  {-# INLINE readMutRefST #-}
+  writeMutRefST mba = writeUBMArray mba 0
+  {-# INLINE writeMutRefST #-}
+  newMutRefST = newUBMArray 1
+  {-# INLINE newMutRefST #-}
+
+
 instance MutRef UMArray where
   newRawMutRefST = newRawUMArray 1
   {-# INLINE newRawMutRefST #-}

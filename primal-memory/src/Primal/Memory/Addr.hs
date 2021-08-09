@@ -20,6 +20,7 @@
 module Primal.Memory.Addr
   ( -- * Immutable Addr
     Addr(..)
+  , isSameAddr
   , castAddr
   , fromBytesAddr
   , curOffAddr
@@ -27,6 +28,8 @@ module Primal.Memory.Addr
   , countAddr
   , plusOffAddr
   , plusByteOffAddr
+  , minusCountAddr
+  , minusByteCountAddr
   , indexAddr
   , indexOffAddr
   , indexByteOffAddr
@@ -41,6 +44,7 @@ module Primal.Memory.Addr
 
    -- * Mutable MAddr
   , MAddr(..)
+  , isSameMAddr
   , castMAddr
   , newMAddr
   , allocMAddr
@@ -58,6 +62,9 @@ module Primal.Memory.Addr
   , getCountMAddr
   , plusOffMAddr
   , plusByteOffMAddr
+  -- TODO:
+  -- , minusCountMAddr
+  -- , minusByteCountMAddr
   , readMAddr
   , readOffMAddr
   , readByteOffMAddr
@@ -256,9 +263,11 @@ castStateMAddr = unsafeCoerce
 
 isSameAddr :: Addr e -> Addr e -> Bool
 isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
+{-# INLINE isSameAddr #-}
 
 isSameMAddr :: MAddr e s -> MAddr e s -> Bool
 isSameMAddr (MAddr a1# _) (MAddr a2# _) = isTrue# (a1# `eqAddr#` a2#)
+{-# INLINE isSameMAddr #-}
 
 instance NFData (Addr e) where
   rnf (Addr _ _) = ()
@@ -324,45 +333,65 @@ reallocMAddr maddr c = do
       maddr' <- allocMAddr newByteCount
       castMAddr maddr' <$
         copyAddrToMAddr (castAddr addr) 0 maddr' 0 oldByteCount
-{-# INLINABLE reallocMAddr #-}
+{-# INLINE reallocMAddr #-}
 
 
 plusOffAddr :: Unbox e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
+{-# INLINE plusOffAddr #-}
 
 plusByteOffAddr :: Addr e -> Off Word8 -> Addr e
 plusByteOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
+{-# INLINE plusByteOffAddr #-}
 
 plusOffMAddr :: Unbox e => MAddr e s -> Off e -> MAddr e s
 plusOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
+{-# INLINE plusOffMAddr #-}
 
 plusByteOffMAddr :: MAddr e s -> Off Word8 -> MAddr e s
 plusByteOffMAddr (MAddr addr# mb) off = MAddr (addr# `plusAddr#` unOffBytes# off) mb
+{-# INLINE plusByteOffMAddr #-}
+
+minusCountAddr :: Unbox e => Addr e -> Addr e -> Count e
+minusCountAddr a1 a2 = fromByteCount $ minusByteCountAddr a1 a2
+{-# INLINE minusCountAddr #-}
+
+minusByteCountAddr :: Addr e1 -> Addr e2 -> Count Word8
+minusByteCountAddr (Addr addr1# _) (Addr addr2# _) = Count (I# (addr1# `minusAddr#` addr2#))
+{-# INLINE minusByteCountAddr #-}
+
 
 curOffAddr :: Unbox e => Addr e -> Off e
 curOffAddr a@(Addr addr# b) = (Ptr addr# `minusOffPtr` toPtrBytes b) `offForProxyTypeOf` a
+{-# INLINE curOffAddr #-}
 
 curByteOffAddr :: Addr e -> Off Word8
 curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b
+{-# INLINE curByteOffAddr #-}
 
 countAddr ::
      forall e. Unbox e
   => Addr e
   -> Count e
 countAddr addr@(Addr _ b) = countBytes b - coerce (curOffAddr addr)
+{-# INLINE countAddr #-}
 
 byteCountAddr :: Addr e -> Count Word8
 byteCountAddr = countAddr . castAddr
+{-# INLINE byteCountAddr #-}
 
 getCountMAddr :: (Primal s m, Unbox e) => MAddr e s -> m (Count e)
 getCountMAddr maddr@(MAddr _ mb) =
   subtract (coerce (curOffMAddr maddr)) <$> getCountMBytes mb
+{-# INLINE getCountMAddr #-}
 
 getSizeOfMAddr :: (Primal s m, Unbox e) => MAddr e s -> m Size
 getSizeOfMAddr maddr = coerce <$> getCountMAddr maddr
+{-# INLINE getSizeOfMAddr #-}
 
 getByteCountMAddr :: Primal s m => MAddr e s -> m (Count Word8)
 getByteCountMAddr = getCountMAddr . castMAddr
+{-# INLINE getByteCountMAddr #-}
 
 indexAddr :: Unbox e => Addr e -> e
 indexAddr addr = indexOffAddr addr 0
@@ -370,11 +399,12 @@ indexAddr addr = indexOffAddr addr 0
 
 indexOffAddr :: Unbox e => Addr e -> Off e -> e
 indexOffAddr addr (Off (I# off#)) =
-  unsafeInlineIO $ withAddrAddr# addr $ \addr# -> pure $ indexOffAddr# addr# off#
+  unsafeInlineIO $ withAddrAddr# addr $ \addr# -> pure $! indexOffAddr# addr# off#
 {-# INLINE indexOffAddr #-}
 
 indexByteOffAddr :: Unbox e => Addr e -> Off Word8 -> e
 indexByteOffAddr addr off = unsafeInlineIO $ readByteOffAddr addr off
+{-# INLINE indexByteOffAddr #-}
 
 withPtrAddr :: Primal s m => Addr e -> (Ptr e -> m b) -> m b
 withPtrAddr addr f = withAddrAddr# addr $ \addr# -> f (Ptr addr#)
@@ -392,9 +422,11 @@ withNoHaltPtrAddr (Addr addr# b) f = keepAlive b $ f (Ptr addr#)
 
 curOffMAddr :: forall e s . Unbox e => MAddr e s -> Off e
 curOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusOffPtr` toPtrMBytes mb
+{-# INLINE curOffMAddr #-}
 
 curByteOffMAddr :: forall e s . MAddr e s -> Off Word8
 curByteOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusByteOffPtr` toPtrMBytes mb
+{-# INLINE curByteOffMAddr #-}
 
 withPtrMAddr :: Primal s m => MAddr e s -> (Ptr e -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
@@ -480,9 +512,9 @@ instance MemRead (Addr e) where
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountAddr
   {-# INLINE byteCountMem #-}
-  indexOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readOffPtr (Ptr addr#) i
+  indexOffMem a = indexOffAddr (castAddr a)
   {-# INLINE indexOffMem #-}
-  indexByteOffMem a i = unsafeInlineIO $ withAddrAddr# a $ \addr# -> readByteOffPtr (Ptr addr#) i
+  indexByteOffMem a = indexByteOffAddr (castAddr a)
   {-# INLINE indexByteOffMem #-}
   copyByteOffToMBytesMemST a si mb di c =
     withPtrAddr a $ \ptr -> copyByteOffPtrToMBytes (castPtr ptr) si mb di c

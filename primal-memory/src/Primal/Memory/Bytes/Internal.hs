@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -466,7 +467,8 @@ writeOffMBytes (MBytes mba#) (Off (I# i#)) a = primal_ (writeMutableByteArray# m
 {-# INLINE writeOffMBytes #-}
 
 writeByteOffMBytes :: (Primal s m, Unbox e) => MBytes p s -> Off Word8 -> e -> m ()
-writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a = primal_ (writeByteOffMutableByteArray# mba# i# a)
+writeByteOffMBytes (MBytes mba#) (Off (I# i#)) a =
+  primal_ (writeByteOffMutableByteArray# mba# i# a)
 {-# INLINE writeByteOffMBytes #-}
 
 isPinnedBytes :: Bytes p -> Bool
@@ -1336,7 +1338,7 @@ withPtrByteString :: Primal s m => ByteString -> (Ptr a -> m b) -> m b
 withPtrByteString (BS (ForeignPtr addr# ptrContents) _) f = do
 #else
 withPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
-  let addr# = addr'# `plusAddr#` o#
+  let !addr# = addr'# `plusAddr#` o#
 #endif
   r <- f (Ptr addr#)
   r <$ touch ptrContents
@@ -1352,9 +1354,11 @@ instance MemRead BS.ByteString where
   {-# INLINE isSameMem #-}
   byteCountMem = Count . BS.length
   {-# INLINE byteCountMem #-}
-  indexOffMem bs i = unsafeInlineST $ withPtrByteString bs (`readOffPtr` i)
+  indexOffMem bs i =
+    unsafeInlineST $ withPtrByteString bs (\ptr -> pure $! indexOffPtr ptr i)
   {-# INLINE indexOffMem #-}
-  indexByteOffMem bs i = unsafeInlineST $ withPtrByteString bs (`readByteOffPtr` i)
+  indexByteOffMem bs i =
+    unsafeInlineST $ withPtrByteString bs (\ptr -> pure $! indexByteOffPtr ptr i)
   {-# INLINE indexByteOffMem #-}
   copyByteOffToMBytesMemST bs srcOff mb dstOff c =
     withPtrByteString bs $ \srcPtr ->

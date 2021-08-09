@@ -21,6 +21,7 @@
 module Primal.Memory.Internal
   ( module Primal.Memory.Internal
   , module Primal.Memory.Bytes.Internal
+  , Frozen
   ) where
 
 import Data.Foldable as Foldable

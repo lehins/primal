@@ -33,6 +33,8 @@ type instance Elt BArray e = ()
 type instance Elt BMArray e = ()
 type instance Elt SBArray e = ()
 type instance Elt SBMArray e = ()
+type instance Elt UBArray e = Unlift e
+type instance Elt UBMArray e = Unlift e
 type instance Elt UArray e = Unbox e
 type instance Elt UMArray e = Unbox e
 

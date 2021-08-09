@@ -18,6 +18,7 @@
 --
 module Primal.Memory.Ptr
   ( module GHC.Ptr
+  , isSamePtr
   , plusOffPtr
   , plusByteOffPtr
   , minusOffPtr
@@ -26,6 +27,9 @@ module Primal.Memory.Ptr
   , minusByteCountPtr
   , plusCountPtr
   , plusByteCountPtr
+  , indexPtr
+  , indexOffPtr
+  , indexByteOffPtr
   , readPtr
   , readOffPtr
   , readByteOffPtr
@@ -97,6 +101,9 @@ import Primal.Unbox
 import Primal.Unbox.Atomic
 import Primal.Unbox.Class
 
+isSamePtr :: Ptr e -> Ptr e -> Bool
+isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)
+{-# INLINE isSamePtr #-}
 
 
 setOffPtr ::
@@ -140,6 +147,18 @@ writeByteOffPtr ptr (Off i) a =
   case ptr `plusPtr` i of
     Ptr addr# -> primal_ (writeOffAddr# addr# 0# a)
 {-# INLINE writeByteOffPtr #-}
+
+indexPtr :: Unbox e => Ptr e -> e
+indexPtr (Ptr addr#) = indexOffAddr# addr# 0#
+{-# INLINE indexPtr #-}
+
+indexOffPtr :: Unbox e => Ptr e -> Off e -> e
+indexOffPtr (Ptr addr#) (Off (I# off#)) = indexOffAddr# addr# off#
+{-# INLINE indexOffPtr #-}
+
+indexByteOffPtr :: Unbox e => Ptr e -> Off Word8 -> e
+indexByteOffPtr (Ptr addr#) (Off (I# off#)) = indexOffAddr# (addr# `plusAddr#` off#) 0#
+{-# INLINE indexByteOffPtr #-}
 
 readPtr :: (Primal s m, Unbox e) => Ptr e -> m e
 readPtr (Ptr addr#) = primal (readOffAddr# addr# 0#)

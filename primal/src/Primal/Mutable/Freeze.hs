@@ -84,6 +84,8 @@ class MutFreeze mut where
   freezeCloneMutST = cloneMutST >=> freezeMutST
   {-# INLINE freezeCloneMutST #-}
 
+
+
 type instance Frozen (BMArray e) = BArray e
 
 instance MutFreeze (BMArray e) where
