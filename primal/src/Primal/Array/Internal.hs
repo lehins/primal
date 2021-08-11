@@ -30,6 +30,7 @@ module Primal.Array.Internal
   , liftEqWith
   , liftCompareWith
   , liftShowsPrecArray
+  , module Data.Semigroup
   ) where
 
 import Control.Monad
@@ -37,7 +38,7 @@ import Primal.Exception
 import qualified Data.Foldable as F
 import Primal.Unbox
 import Primal.Unbox.Class
-
+import Data.Semigroup
 
 -- | Number of elements contained in the data structure
 --

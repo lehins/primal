@@ -72,19 +72,15 @@ module Primal.Unbox
   , module Data.Coerce
   , (#.)
   , (.#)
-  , module Data.Semigroup
-  , module Data.Monoid
   ) where
 
 import Control.DeepSeq
 import Primal.Monad
 import Data.Coerce
 import Data.Int
-import Data.Monoid hiding (First(..), Last(..), (<>))
 import Primal.Unbox.Atom
 import Primal.Unbox.Atomic
 import Primal.Unbox.Class
-import Data.Semigroup
 import Data.Typeable
 import Data.Word
 import Foreign.ForeignPtr (ForeignPtr)

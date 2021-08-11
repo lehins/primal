@@ -64,8 +64,6 @@ import Primal.Eval
 import Primal.Exception
 import Primal.Foreign
 import Primal.Monad
-import Primal.Unbox
-
 
 -----------------------
 -- Small Boxed Array --

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
@@ -48,6 +49,22 @@ import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 import Primal.Monad
 import Primal.Mutable.Freeze
+import Primal.Mutable.Eq
+import Primal.Mutable.Ord
+
+-- | Mutable version of a `ShortByteString`
+newtype MShortByteString s = MShortByteString (MBytes 'Inc s)
+  deriving (MemWrite, MemAlloc, MutEq, MutOrd)
+
+type instance Frozen MShortByteString = ShortByteString
+
+instance MutFreeze MShortByteString where
+  thawST = coerce . thawST . fromShortByteStringBytes
+  {-# INLINE thawST #-}
+  thawCloneST = coerce . thawCloneST . fromShortByteStringBytes
+  {-# INLINE thawCloneST #-}
+  freezeMutST (MShortByteString mb) = toShortByteStringBytes <$> freezeMutST mb
+  {-# INLINE freezeMutST #-}
 
 -- | Mutable version of a `ByteString`
 newtype MByteString s = MByteString BS.ByteString

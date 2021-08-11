@@ -13,7 +13,7 @@ module Primal.Memory.Fold where
 
 import Primal.Unbox
 import Primal.Memory.Internal
-
+import Data.Semigroup
 
 foldlMem ::
      forall e a mr. (Unbox e, MemRead mr)

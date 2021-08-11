@@ -61,7 +61,6 @@ import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
 import Primal.Unlift
-import Data.Semigroup
 
 --------------------------
 -- Unlifted Boxed Array --
