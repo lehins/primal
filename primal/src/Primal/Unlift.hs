@@ -16,18 +16,12 @@
 module Primal.Unlift
   ( Unlift(..)
   , MutUnlift(..)
-
-
-  -- , NArray(..)
-  -- , NMArray(..)
-  -- , indexNArray
-  -- , readNMArray
-  -- , writeNMArray
-  -- , readNMArrayMut
-  -- , writeNMArrayMut
   ) where
 
+import Data.ByteString.Short
 import Data.Kind
+import qualified Data.Text.Array as T
+import Data.Word
 import GHC.Exts
 import Primal.Array.Unboxed
 import Primal.Ref.Unboxed
@@ -112,40 +106,58 @@ class MutUnlift (me :: Type -> Type) where
     writeMutMutableArrayArray# maa# i# (toMutUnliftIso ma)
   {-# INLINE writeMutMutableArrayArray# #-}
 
+
 instance Unlift (UArray e) where
   type UnliftIso (UArray e) = UArray e
 
   indexArrayArray# aa# i# = UArray (indexByteArrayArray# aa# i#)
   {-# INLINE indexArrayArray# #-}
-
   readMutableArrayArray# maa# i# s = case readByteArrayArray# maa# i# s of
                                       (# s', ba# #) -> (# s', UArray ba# #)
   {-# INLINE readMutableArrayArray# #-}
-
   writeMutableArrayArray# maa# i# (UArray ba#) = writeByteArrayArray# maa# i# ba#
   {-# INLINE writeMutableArrayArray# #-}
+
+instance Unlift T.Array where
+  type UnliftIso T.Array = UArray Word8
+  toUnliftIso = fromTextArray
+  {-# INLINE toUnliftIso #-}
+  fromUnliftIso = toTextArray
+  {-# INLINE fromUnliftIso #-}
+
+
+instance Unlift ShortByteString where
+  type UnliftIso ShortByteString = UArray Word8
+  toUnliftIso = fromShortByteString
+  {-# INLINE toUnliftIso #-}
+  fromUnliftIso = toShortByteString
+  {-# INLINE fromUnliftIso #-}
 
 
 instance MutUnlift (UMArray e) where
   type MutUnliftIso (UMArray e) = UMArray e
-
   readMutMutableArrayArray# maa# i# s = case readMutableByteArrayArray# maa# i# s of
                                           (# s', ba# #) -> (# s', UMArray ba# #)
   {-# INLINE readMutMutableArrayArray# #-}
-
   writeMutMutableArrayArray# maa# i# (UMArray ba#) = writeMutableByteArrayArray# maa# i# ba#
   {-# INLINE writeMutMutableArrayArray# #-}
 
 
 instance MutUnlift (URef e) where
   type MutUnliftIso (URef e) = URef e
-
   readMutMutableArrayArray# maa# i# s = case readMutableByteArrayArray# maa# i# s of
                                           (# s', ba# #) -> (# s', URef ba# #)
   {-# INLINE readMutMutableArrayArray# #-}
-
   writeMutMutableArrayArray# maa# i# (URef ba#) = writeMutableByteArrayArray# maa# i# ba#
   {-# INLINE writeMutMutableArrayArray# #-}
+
+
+instance MutUnlift T.MArray where
+  type MutUnliftIso T.MArray = UMArray Word8
+  toMutUnliftIso = fromTextMArray
+  {-# INLINE toMutUnliftIso #-}
+  fromMutUnliftIso = toTextMArray
+  {-# INLINE fromMutUnliftIso #-}
 
 
 

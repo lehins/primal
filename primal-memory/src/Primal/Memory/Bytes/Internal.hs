@@ -11,7 +11,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Memory.Bytes.Internal
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -125,6 +125,7 @@ import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
 import Primal.Unbox.Class
+import Primal.Unlift
 import Unsafe.Coerce
 #if MIN_VERSION_base(4,14,0)
 import Data.IORef
@@ -162,6 +163,21 @@ data Pinned
 data Bytes (p :: Pinned) = Bytes ByteArray#
 type role Bytes nominal
 
+
+instance NFData (Bytes p) where
+  rnf (Bytes _) = ()
+
+instance Unlift (Bytes p) where
+  type UnliftIso (Bytes p) = Bytes p
+  indexArrayArray# aa# i# = Bytes (indexByteArrayArray# aa# i#)
+  {-# INLINE indexArrayArray# #-}
+  readMutableArrayArray# maa# i# s = case readByteArrayArray# maa# i# s of
+                                      (# s', ba# #) -> (# s', Bytes ba# #)
+  {-# INLINE readMutableArrayArray# #-}
+  writeMutableArrayArray# maa# i# (Bytes ba#) = writeByteArrayArray# maa# i# ba#
+  {-# INLINE writeMutableArrayArray# #-}
+
+
 -- | Mutable region of memory which is allocated either as pinned or unpinned.
 --
 -- Constructor is not exported for safety. Violating type level `Pinned` kind is very
@@ -173,14 +189,20 @@ data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes nominal nominal
 
 
-instance NFData (Bytes p) where
-  rnf (Bytes _) = ()
-
 instance NFData (MBytes p s) where
   rnf (MBytes _) = ()
 
 instance MutNFData (MBytes p) where
   rnfMutST (MBytes _) = pure ()
+
+instance MutUnlift (MBytes p) where
+  type MutUnliftIso (MBytes p) = MBytes p
+  readMutMutableArrayArray# maa# i# s = case readMutableByteArrayArray# maa# i# s of
+                                          (# s', ba# #) -> (# s', MBytes ba# #)
+  {-# INLINE readMutMutableArrayArray# #-}
+  writeMutMutableArrayArray# maa# i# (MBytes ba#) = writeMutableByteArrayArray# maa# i# ba#
+  {-# INLINE writeMutMutableArrayArray# #-}
+
 
 type instance Frozen (MBytes p) = Bytes p
 

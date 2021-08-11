@@ -51,6 +51,7 @@ import Primal.Monad
 import Primal.Mutable.Freeze
 import Primal.Mutable.Eq
 import Primal.Mutable.Ord
+import Primal.Unlift
 
 -- | Mutable version of a `ShortByteString`
 newtype MShortByteString s = MShortByteString (MBytes 'Inc s)
@@ -65,6 +66,10 @@ instance MutFreeze MShortByteString where
   {-# INLINE thawCloneST #-}
   freezeMutST (MShortByteString mb) = toShortByteStringBytes <$> freezeMutST mb
   {-# INLINE freezeMutST #-}
+
+instance MutUnlift MShortByteString where
+  type MutUnliftIso MShortByteString = MBytes 'Inc
+
 
 -- | Mutable version of a `ByteString`
 newtype MByteString s = MByteString BS.ByteString

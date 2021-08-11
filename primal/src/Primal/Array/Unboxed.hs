@@ -61,6 +61,8 @@ module Primal.Array.Unboxed
   -- * Conversion
   , fromBaseUArray
   , toBaseUArray
+  , fromShortByteString
+  , toShortByteString
   , fromTextArray
   , toTextArray
   , fromTextMArray
@@ -71,6 +73,7 @@ module Primal.Array.Unboxed
   ) where
 
 import qualified Data.Array.Base as A
+import qualified Data.ByteString.Short.Internal as SBS
 import qualified Data.List.NonEmpty as NE (toList)
 import qualified Data.Text.Array as T
 import Primal.Array.Internal
@@ -1119,6 +1122,21 @@ toBaseUArray a@(UArray ba#) =
   let Size n = sizeOfUArray a
   in A.UArray 0 (max 0 (n - 1)) n ba#
 
+-- | /O(1)/ - Cast an immutable `SBS.ShortByteString` from @bytestring@ package to
+-- an unboxed immutable array.
+--
+-- @since 1.0.0
+fromShortByteString :: SBS.ShortByteString -> UArray Word8
+fromShortByteString (SBS.SBS ba#) = UArray ba#
+{-# INLINE fromShortByteString #-}
+
+-- | /O(1)/ - Cast an immutable unboxed array to an immutable `SBS.ShortByteString`
+-- from @bytestring@ package
+--
+-- @since 1.0.0
+toShortByteString :: UArray e -> SBS.ShortByteString
+toShortByteString (UArray ba#) = SBS.SBS ba#
+{-# INLINE toShortByteString #-}
 
 -- | /O(1)/ - Cast an immutable array from @text@ package to an unboxed immutable array
 --

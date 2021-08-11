@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Memory.PArray
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -65,12 +65,15 @@ import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
 import Primal.Unbox
+import Primal.Unlift
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
 type role PArray nominal nominal
 
+instance Unlift (PArray p e) where
+  type UnliftIso (PArray p e) = Bytes p
 
 instance (Unbox e, Eq e) => Eq (PArray p e) where
   (==) = eqMem @e
@@ -92,6 +95,11 @@ instance (Unbox e, Ord e) => MutOrd (PMArray p e) where
 newtype PMArray (p :: Pinned) e s = PMArray (MBytes p s)
   deriving (NFData, MutNFData, MutFreeze, MemWrite)
 type role PMArray nominal nominal nominal
+
+
+instance MutUnlift (PMArray p e) where
+  type MutUnliftIso (PMArray p e) = MBytes p
+
 
 type instance Frozen (PMArray p e) = PArray p e
 

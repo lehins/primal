@@ -134,30 +134,49 @@ instance MutFreeze (UMArray e) where
   {-# INLINE freezeMutST #-}
 
 
-type instance Frozen (UBMArray e) = UBArray (Frozen e)
 
-instance (MutFreeze e, MutUnlift e, Unlift (Frozen e)) => MutFreeze (UBMArray e) where
-  thawST a = makeMutUBMArray (sizeOfUBArray a) (thawST . indexUBArray a)
+type instance Frozen (UBMArray e) = UBArray e
+
+instance (Unlift e) => MutFreeze (UBMArray e) where
+  thawST = thawUBArray
   {-# INLINE thawST #-}
-  thawCloneST a = makeMutUBMArray (sizeOfUBArray a) (thawCloneST . indexUBArray a)
+  thawCloneST a = thawCopyUBArray a 0 (sizeOfUBArray a)
   {-# INLINE thawCloneST #-}
-  freezeMutST ma = do
-    sz <- getSizeOfUBMArray ma
-    ma' <- makeUBMArray sz (readMutUBMArray ma >=> freezeMutST)
-    freezeUBMArray ma'
+  freezeMutST = freezeUBMArray
   {-# INLINE freezeMutST #-}
-  freezeCloneMutST ma = do
-    sz <- getSizeOfUBMArray ma
-    ma' <- makeUBMArray sz (readMutUBMArray ma >=> freezeCloneMutST)
-    freezeUBMArray ma'
+  freezeCloneMutST ma = getSizeOfUBMArray ma >>= freezeCopyUBMArray ma 0
   {-# INLINE freezeCloneMutST #-}
-  clone a =
-    runST (makeUBMArray (sizeOfUBArray a) (pure . clone . indexUBArray a) >>= freezeUBMArray)
-  {-# INLINE clone #-}
-  cloneMutST ma = do
-    sz <- getSizeOfUBMArray ma
-    makeMutUBMArray sz (readMutUBMArray ma)
+  cloneMutST ma = getSizeOfUBMArray ma >>= cloneSliceUBMArray ma 0
   {-# INLINE cloneMutST #-}
+
+
+
+-- TODO: move to primal-containers since it is only applicable to nested mutable arrays
+
+-- type instance Frozen (UBMArray e) = UBArray (Frozen e)
+
+-- instance (MutFreeze e, MutUnlift e, Unlift (Frozen e)) => MutDeepFreeze (UBMArray e) where
+--   thawST a = makeMutUBMArray (sizeOfUBArray a) (thawST . indexUBArray a)
+--   {-# INLINE thawST #-}
+--   thawCloneST a = makeMutUBMArray (sizeOfUBArray a) (thawCloneST . indexUBArray a)
+--   {-# INLINE thawCloneST #-}
+--   freezeMutST ma = do
+--     sz <- getSizeOfUBMArray ma
+--     ma' <- makeUBMArray sz (readMutUBMArray ma >=> freezeMutST)
+--     freezeUBMArray ma'
+--   {-# INLINE freezeMutST #-}
+--   freezeCloneMutST ma = do
+--     sz <- getSizeOfUBMArray ma
+--     ma' <- makeUBMArray sz (readMutUBMArray ma >=> freezeCloneMutST)
+--     freezeUBMArray ma'
+--   {-# INLINE freezeCloneMutST #-}
+--   clone a =
+--     runST (makeUBMArray (sizeOfUBArray a) (pure . clone . indexUBArray a) >>= freezeUBMArray)
+--   {-# INLINE clone #-}
+--   cloneMutST ma = do
+--     sz <- getSizeOfUBMArray ma
+--     makeMutUBMArray sz (readMutUBMArray ma)
+--   {-# INLINE cloneMutST #-}
 
 
 -- | Convert a pure immutable type into the corresponding mutable one. Most likely
