@@ -133,9 +133,7 @@ readOffPtr (Ptr addr#) (Off (I# i#)) = primal (readOffAddr# addr# i#)
 
 
 readByteOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off Word8 -> m e
-readByteOffPtr ptr (Off i) =
-  case ptr `plusPtr` i of
-    Ptr addr# -> primal (readOffAddr# addr# 0#)
+readByteOffPtr (Ptr addr#) (Off (I# i#)) = primal (readByteOffAddr# addr# i#)
 {-# INLINE readByteOffPtr #-}
 
 writeOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off e -> e -> m ()
@@ -143,9 +141,7 @@ writeOffPtr (Ptr addr#) (Off (I# i#)) a = primal_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
 
 writeByteOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off Word8 -> e -> m ()
-writeByteOffPtr ptr (Off i) a =
-  case ptr `plusPtr` i of
-    Ptr addr# -> primal_ (writeOffAddr# addr# 0# a)
+writeByteOffPtr (Ptr addr#) (Off (I# i#)) a = primal_ (writeByteOffAddr# addr# i# a)
 {-# INLINE writeByteOffPtr #-}
 
 indexPtr :: Unbox e => Ptr e -> e
@@ -157,7 +153,7 @@ indexOffPtr (Ptr addr#) (Off (I# off#)) = indexOffAddr# addr# off#
 {-# INLINE indexOffPtr #-}
 
 indexByteOffPtr :: Unbox e => Ptr e -> Off Word8 -> e
-indexByteOffPtr (Ptr addr#) (Off (I# off#)) = indexOffAddr# (addr# `plusAddr#` off#) 0#
+indexByteOffPtr (Ptr addr#) (Off (I# off#)) = indexByteOffAddr# addr# off#
 {-# INLINE indexByteOffPtr #-}
 
 readPtr :: (Primal s m, Unbox e) => Ptr e -> m e

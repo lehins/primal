@@ -1377,10 +1377,10 @@ instance MemRead BS.ByteString where
   byteCountMem = Count . BS.length
   {-# INLINE byteCountMem #-}
   indexOffMem bs i =
-    unsafeInlineST $ withPtrByteString bs (\ptr -> pure $! indexOffPtr ptr i)
+    unsafeInlineST $ withPtrByteString bs (\ptr -> readOffPtr ptr i)
   {-# INLINE indexOffMem #-}
   indexByteOffMem bs i =
-    unsafeInlineST $ withPtrByteString bs (\ptr -> pure $! indexByteOffPtr ptr i)
+    unsafeInlineST $ withPtrByteString bs (\ptr -> readByteOffPtr ptr i)
   {-# INLINE indexByteOffMem #-}
   copyByteOffToMBytesMemST bs srcOff mb dstOff c =
     withPtrByteString bs $ \srcPtr ->

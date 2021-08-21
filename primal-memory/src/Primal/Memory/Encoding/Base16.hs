@@ -113,11 +113,11 @@ lookupTableBase16 = Ptr "000102030405060708090a0b0c0d0e0f\
                         \f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"#
 {-# NOINLINE lookupTableBase16 #-}
 
-data DecodeException = DecodeInvalidLength | DecodeInvalidValue !(Off Word8)
+data DecodeError = DecodeInvalidLength | DecodeInvalidValue !(Off Word8)
   deriving (Show, Eq)
-instance Exception DecodeException
+instance Exception DecodeError
 
-instance NFData DecodeException where
+instance NFData DecodeError where
   rnf = (`seq` ())
 
 
@@ -137,9 +137,9 @@ decodeBase16MutMemST mr = do
               !w = w4hi .|. w4lo
               raiseInvalid off = raise $ DecodeInvalidValue (Off i + off)
               {-# NOINLINE raiseInvalid #-}
-          when (w == 0xff) $ do
-            when (w4hi == 0xff) $ raiseInvalid 0
-            when (w4lo == 0xff) $ raiseInvalid 1
+          -- when (w == 0xff) $ do
+          when (w4hi == 0xff) $ raiseInvalid 0
+          when (w4lo == 0xff) $ raiseInvalid 1
           writeByteOffMutMemST m o w
           go (i + 2) (o + 1)
   go 0 0
@@ -149,11 +149,11 @@ decodeBase16MutMemST mr = do
 decodeBase16Mem ::
      forall mr ma. (MemRead mr, MemAlloc ma)
   => mr
-  -> Either DecodeException (Frozen ma)
+  -> Either DecodeError (Frozen ma)
 decodeBase16Mem mr = tryST $ decodeBase16MutMemST mr >>= freezeMutST
 {-# INLINE decodeBase16Mem #-}
 
-decodeBase16 :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> Either DecodeException a
+decodeBase16 :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> Either DecodeError a
 decodeBase16 = decodeBase16Mem
 {-# INLINE decodeBase16 #-}
 
@@ -207,7 +207,7 @@ decodeBase16Addr mr' = runST $ do
   freezeMAddr m
 {-# INLINE decodeBase16Addr #-}
 
-decodeBase16Addr' :: Addr Word16 -> Either DecodeException (Addr Word8)
+decodeBase16Addr' :: Addr Word16 -> Either DecodeError (Addr Word8)
 decodeBase16Addr' mr' = tryST $ do
   let mr = castAddr mr'
       Count c = byteCountAddr mr
@@ -226,9 +226,9 @@ decodeBase16Addr' mr' = tryST $ do
               raiseInvalid off =
                 raise $ DecodeInvalidValue (countToOff (minusByteCountAddr i mr) + off)
               {-# NOINLINE raiseInvalid #-}
-          when (w == 0xff) $ do
-            when (w4hi == 0xff) $ raiseInvalid 0
-            when (w4lo == 0xff) $ raiseInvalid 1
+          -- when (w == 0xff) $ do
+          when (w4hi == 0xff) $ raiseInvalid 0
+          when (w4lo == 0xff) $ raiseInvalid 1
           writeMAddr o w
           go (i `plusByteOffAddr` 2) (o `plusByteOffMAddr` 1)
   go mr m

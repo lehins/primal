@@ -138,6 +138,7 @@ benchmark base16
   type:                exitcode-stdio-1.0
   hs-source-dirs:      bench
   main-is:             Base16.hs
+  other-modules:       Base16Copy
   ghc-options:         -Wall
                        -threaded
                        -O2
@@ -145,6 +146,7 @@ benchmark base16
                      , criterion
                      , primal
                      , primal-memory
+                     , memory
                      , bytestring
                      , base16-bytestring
                      , random

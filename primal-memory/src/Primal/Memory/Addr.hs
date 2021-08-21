@@ -609,7 +609,7 @@ readOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
 
 readByteOffMAddr :: (Primal s m, Unbox e) => MAddr e s -> Off Word8 -> m e
 readByteOffMAddr (MAddr addr# mb) (Off (I# off#)) = do
-  a <- primal (readOffAddr# (addr# `plusAddr#` off#) 0#)
+  a <- primal (readByteOffAddr# addr# off#)
   a <$ touch mb
 {-# INLINE readByteOffMAddr #-}
 
@@ -625,7 +625,7 @@ writeOffMAddr (MAddr addr# mb) (Off (I# off#)) e =
 
 writeByteOffMAddr :: (Primal s m, Unbox e) => MAddr e s -> Off Word8 -> e -> m ()
 writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
-  primal_ $ \s -> touch# mb (writeOffAddr# (addr# `plusAddr#` off#) 0# a s)
+  primal_ $ \s -> touch# mb (writeByteOffAddr# addr# off# a s)
 {-# INLINE writeByteOffMAddr #-}
 
 

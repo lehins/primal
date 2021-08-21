@@ -180,6 +180,9 @@ class Unbox a where
   indexOffAddr# addr# i# = fromUnboxIso (indexOffAddr# addr# i# :: UnboxIso a)
   {-# INLINE indexOffAddr# #-}
 
+  indexByteOffAddr# :: Addr# -> Int# -> a
+  indexByteOffAddr# addr# i# = indexOffAddr# (addr# `plusAddr#` i#) 0#
+  {-# INLINE indexByteOffAddr# #-}
 
   readByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   default readByteOffMutableByteArray# ::
@@ -202,6 +205,9 @@ class Unbox a where
                               (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readOffAddr# #-}
 
+  readByteOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
+  readByteOffAddr# addr# i# = readOffAddr# (addr# `plusAddr#` i#) 0#
+  {-# INLINE readByteOffAddr# #-}
 
   writeByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
   default writeByteOffMutableByteArray# ::
@@ -220,6 +226,10 @@ class Unbox a where
   default writeOffAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a -> State# s -> State# s
   writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toUnboxIso a)
   {-# INLINE writeOffAddr# #-}
+
+  writeByteOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
+  writeByteOffAddr# addr# i# = writeOffAddr# (addr# `plusAddr#` i#) 0#
+  {-# INLINE writeByteOffAddr# #-}
 
   -- | Set the region of MutableByteArray to the same value. Offset is in number of bytes.
   setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
@@ -349,6 +359,8 @@ instance Unbox Int8 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = I8# (indexInt8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
+  indexByteOffAddr# addr# i# = I8# (indexInt8OffAddr# addr# i#)
+  {-# INLINE indexByteOffAddr# #-}
   readByteOffMutableByteArray# mba# i# s = case readInt8Array# mba# i# s of
                                              (# s', a# #) -> (# s', I8# a# #)
   {-# INLINE readByteOffMutableByteArray# #-}
@@ -525,6 +537,8 @@ instance Unbox Word8 where
   {-# INLINE indexByteArray# #-}
   indexOffAddr# addr# i# = W8# (indexWord8OffAddr# addr# i#)
   {-# INLINE indexOffAddr# #-}
+  indexByteOffAddr# addr# i# = W8# (indexWord8OffAddr# addr# i#)
+  {-# INLINE indexByteOffAddr# #-}
   readByteOffMutableByteArray# mba# i# s = case readWord8Array# mba# i# s of
                                              (# s', a# #) -> (# s', W8# a# #)
   {-# INLINE readByteOffMutableByteArray# #-}
@@ -534,12 +548,17 @@ instance Unbox Word8 where
   readOffAddr# mba# i# s = case readWord8OffAddr# mba# i# s of
                              (# s', a# #) -> (# s', W8# a# #)
   {-# INLINE readOffAddr# #-}
+  readByteOffAddr# mba# i# s = case readWord8OffAddr# mba# i# s of
+                                 (# s', a# #) -> (# s', W8# a# #)
+  {-# INLINE readByteOffAddr# #-}
   writeByteOffMutableByteArray# mba# i# (W8# a#) = writeWord8Array# mba# i# a#
   {-# INLINE writeByteOffMutableByteArray# #-}
   writeMutableByteArray# mba# i# (W8# a#) = writeWord8Array# mba# i# a#
   {-# INLINE writeMutableByteArray# #-}
   writeOffAddr# mba# i# (W8# a#) = writeWord8OffAddr# mba# i# a#
   {-# INLINE writeOffAddr# #-}
+  writeByteOffAddr# mba# i# (W8# a#) = writeWord8OffAddr# mba# i# a#
+  {-# INLINE writeByteOffAddr# #-}
   setByteOffMutableByteArray# mba# i# n# (W8# a#) = setByteArray# mba# i# n# (word2Int# a#)
   {-# INLINE setByteOffMutableByteArray# #-}
   setAddr# addr# n# (W8# a#) = setWord8Addr# addr# n# a#
