@@ -19,6 +19,7 @@ module Primal.Monad.Unsafe
   , unsafePrimalStateToPrimal
   , unsafePrimalStateToIO
   , unsafePrimalStateToST
+  , unsafeIOToST
   , unsafeIOToPrimal
   , unsafeSTToPrimal
   , unsafeLiftPrimalState

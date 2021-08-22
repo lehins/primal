@@ -79,6 +79,8 @@ newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)
 
 
 instance MemWrite (MForeignPtr e) where
+  accessMutMemST fptr _ g o = withMForeignPtr fptr $ \(Ptr addr#) -> g addr# o
+  {-# INLINE accessMutMemST #-}
   isSameMutMem (MForeignPtr (ForeignPtr a1# _)) (MForeignPtr (ForeignPtr a2# _)) =
     isTrue# (a1# `eqAddr#` a2#)
   {-# INLINE isSameMutMem #-}

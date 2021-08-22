@@ -508,6 +508,9 @@ instance MemAlloc (MAddr e) where
 
 
 instance MemRead (Addr e) where
+  accessMem addr _ g o =
+    unsafeInlineST $ withAddrAddr# addr $ \addr# -> pure $! g addr# o
+  {-# INLINE accessMem #-}
   isSameMem = isSameAddr
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountAddr
@@ -535,6 +538,8 @@ instance MemRead (Addr e) where
   {-# INLINE compareByteOffMem #-}
 
 instance MemWrite (MAddr e) where
+  accessMutMemST maddr _ g o = withAddrMAddr# maddr $ \addr# -> g addr# o
+  {-# INLINE accessMutMemST #-}
   isSameMutMem = isSameMAddr
   {-# INLINE isSameMutMem #-}
   readOffMutMemST a = readOffMAddr (castMAddr a)

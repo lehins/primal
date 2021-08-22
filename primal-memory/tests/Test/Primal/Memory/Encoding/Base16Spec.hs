@@ -8,7 +8,7 @@ module Test.Primal.Memory.Encoding.Base16Spec (spec) where
 
 import Data.ByteString.Base16 as Base16
 import Primal.Exception
-import Primal.Memory.Encoding.Base16
+import Primal.Memory.Encoding
 import Test.Primal.Memory.Common
 
 
@@ -22,6 +22,39 @@ roundTripBase16 mem =
         [ mem === raiseLeftImprecise (decodeBase16Mem hex)
         , encodeBase16Mem mem === Base16.encode (convertMem mem)
         ]
+
+decodeFailureBase16 ::
+     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemAlloc ma)
+  => m
+  -> Int
+  -> Word8
+  -> Property
+decodeFailureBase16 mem i' w =
+  (byteCountMem mem /= 0 && w `notElem` validBytes) ==>
+  conjoin
+    [ decodeBase16 invalidHexMem === Left (DecodeInvalidValue o)
+    , decodeBase16 invalidLengthHexMem === Left DecodeInvalidLength
+    ]
+  where
+    hex = encodeBase16 mem
+    validBytes =
+      [ fromIntegral (fromEnum x)
+      | x <- ['0' .. '9'] ++ ['a' .. 'f'] ++ ['A' .. 'F']
+      ]
+    (o, invalidHexMem) =
+      runST $ do
+        hexMut <- thawCloneMem hex
+        Count c <- getByteCountMutMem hexMut
+        let i = Off (i' `mod` c)
+        writeByteOffMutMem hexMut i w
+        (,) i <$> freezeMutMem hexMut
+    invalidLengthHexMem =
+      runST $ do
+        hexMut <- thawCloneMem hex
+        c <- getByteCountMutMem hexMut
+        freezeMutMem =<< reallocMutMem hexMut (c - 1)
+
+
 
 spec :: Spec
 spec = do
@@ -38,3 +71,10 @@ spec = do
       prop "PArray 'Inc Word8" $ roundTripBase16 @(PArray 'Inc Word8)
       prop "ByteString" $ roundTripBase16 @ByteString
       prop "ShortByteString" $ roundTripBase16 @ShortByteString
+    describe "failure" $ do
+      prop "Bytes 'Pin" $ decodeFailureBase16 @(Bytes 'Pin)
+      prop "Bytes 'Inc" $ decodeFailureBase16 @(Bytes 'Inc)
+      prop "Addr Word8" $ decodeFailureBase16 @(Addr Word8)
+      prop "PArray 'Inc Word8" $ decodeFailureBase16 @(PArray 'Inc Word8)
+      prop "ByteString" $ decodeFailureBase16 @ByteString
+      prop "ShortByteString" $ decodeFailureBase16 @ShortByteString

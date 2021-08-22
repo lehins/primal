@@ -90,6 +90,8 @@ instance MutFreeze MByteString where
 
 
 instance MemWrite MByteString where
+  accessMutMemST (MByteString bs) _ g o = withPtrByteString bs (\(Ptr addr#) -> g addr# o)
+  {-# INLINE accessMutMemST #-}
   isSameMutMem (MByteString bs1) (MByteString bs2) = isSameMem bs1 bs2
   {-# INLINE isSameMutMem #-}
   readOffMutMemST (MByteString mbs) i = withPtrByteString mbs (`readOffPtr` i)

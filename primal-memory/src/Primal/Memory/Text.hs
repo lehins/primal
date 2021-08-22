@@ -54,6 +54,8 @@ instance MutFreeze (MText 'Inc) where
   {-# INLINE freezeMutST #-}
 
 instance MemWrite (MText p) where
+  accessMutMemST (MText a o _) f g i = accessMutMemST a f g (toByteOff o + i)
+  {-# INLINE accessMutMemST #-}
   isSameMutMem (MText a1 o1 n1) (MText a2 o2 n2) = isSameMutMem a1 a2 && o1 == o2 && n1 == n2
   {-# INLINE isSameMutMem #-}
   readByteOffMutMemST (MText a o _) i = readByteOffMutMemST a (toByteOff o + i)

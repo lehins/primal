@@ -30,7 +30,7 @@ library
                      , Primal.Memory.Addr
                      , Primal.Memory.ByteString
                      , Primal.Memory.Bytes
-                     , Primal.Memory.Encoding.Base16
+                     , Primal.Memory.Encoding
                      , Primal.Memory.ForeignPtr
                      , Primal.Memory.Fold
                      , Primal.Memory.PArray
@@ -38,6 +38,7 @@ library
                      , Primal.Memory.Text
                      , Primal.Memory.Internal
   other-modules:       Primal.Memory.Bytes.Internal
+                     , Primal.Memory.Encoding.Base16
   build-depends:       base >= 4.9 && < 5
                      , bytestring >= 0.10.4
                      , deepseq
@@ -46,6 +47,7 @@ library
 
   default-language:    Haskell2010
   ghc-options:         -Wall
+  c-sources: cbits/primal_memory.c
 
 test-suite doctests
   type:             exitcode-stdio-1.0
@@ -138,7 +140,6 @@ benchmark base16
   type:                exitcode-stdio-1.0
   hs-source-dirs:      bench
   main-is:             Base16.hs
-  other-modules:       Base16Copy
   ghc-options:         -Wall
                        -threaded
                        -O2

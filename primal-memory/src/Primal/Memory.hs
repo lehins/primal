@@ -47,15 +47,17 @@ module Primal.Memory
   -- ** Convert
   , convertMem                -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   -- *** To list
+  , toStringMem
+  , toByteListMem             -- DOC: [x], DOCTEST [x], TEST: [x]
   , toListMem                 -- DOC: [x], DOCTEST [x], TEST: [x]
   , toListSlackMem            -- DOC: [x], DOCTEST [x], TEST: [x]
-  , toByteListMem             -- DOC: [x], DOCTEST [x], TEST: [x]
   , foldrCountMem             -- DOC: [x], DOCTEST [-], TEST: [-]
   , showsHexMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
 
   -- *** From list
-  , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [x]
+  , fromStringMem
   , fromByteListMem           -- DOC: [x], DOCTEST [x], TEST: [x]
+  , fromListMem               -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListMemN              -- DOC: [x], DOCTEST [x], TEST: [x]
   , fromListZeroMemN          -- DOC: [x], DOCTEST [x], TEST: [ ]
   , fromListZeroMemN_         -- DOC: [x], DOCTEST [x], TEST: [ ]

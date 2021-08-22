@@ -813,6 +813,8 @@ defaultReallocMutMem mem c = liftST $ do
 -- read-only access to its underlying memory
 class MemRead mr where
 
+  accessMem :: mr -> (ByteArray# -> Off Word8 -> a) -> (Addr# -> Off Word8 -> a) -> Off Word8 -> a
+
   -- | Check if two read only regions refer to the exact same region of memory
   --
   -- @since 0.3.0
@@ -996,6 +998,12 @@ class MemRead mr where
 -- and write access to memory
 class MemWrite mw where
 
+  accessMutMemST :: mw s
+                 -> (MutableByteArray# s -> Off Word8 -> ST s a)
+                 -> (Addr# -> Off Word8 -> ST s a)
+                 -> Off Word8
+                 -> ST s a
+
   -- | Check if two mutable regions refer to the exact same region of memory
   --
   -- @since 0.3.0
@@ -1128,6 +1136,8 @@ class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
 
 
 instance MemRead (Bytes p) where
+  accessMem (Bytes ba#) f _ = f ba#
+  {-# INLINE accessMem #-}
   isSameMem = isSameBytes
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountBytes
@@ -1152,6 +1162,8 @@ instance MemRead (Bytes p) where
 
 
 instance MemWrite (MBytes p) where
+  accessMutMemST (MBytes mba#) f _ = f mba#
+  {-# INLINE accessMutMemST #-}
   isSameMutMem = isSameMBytes
   {-# INLINE isSameMutMem #-}
   readOffMutMemST = readOffMBytes
@@ -1187,6 +1199,8 @@ instance Typeable p => MemAlloc (MBytes p) where
 
 
 instance MemRead (UArray e) where
+  accessMem (UArray ba#) f _ = f ba#
+  {-# INLINE accessMem #-}
   isSameMem = isSameUArray
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountMem . fromUArrayBytes
@@ -1207,6 +1221,8 @@ instance MemRead (UArray e) where
   {-# INLINE copyByteOffToPtrMemST #-}
 
 instance MemWrite (UMArray e) where
+  accessMutMemST (UMArray mba#) f _ = f mba#
+  {-# INLINE accessMutMemST #-}
   isSameMutMem = isSameUMArray
   {-# INLINE isSameMutMem #-}
   readOffMutMemST = readOffMutMemST . fromUMArrayMBytes
@@ -1273,6 +1289,8 @@ toTextMArrayMBytes (MBytes ba#) = T.MArray ba#
 
 
 instance MemRead T.Array where
+  accessMem (T.Array ba#) f _ = f ba#
+  {-# INLINE accessMem #-}
   isSameMem a1 a2 = isSameMem (fromTextArrayBytes a1) (fromTextArrayBytes a2)
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountMem . fromTextArrayBytes
@@ -1294,6 +1312,8 @@ instance MemRead T.Array where
 
 
 instance MemWrite T.MArray where
+  accessMutMemST (T.MArray mba#) f _ = f mba#
+  {-# INLINE accessMutMemST #-}
   isSameMutMem ma1 ma2 = isSameMutMem (fromTextMArrayMBytes ma1) (fromTextMArrayMBytes ma2)
   {-# INLINE isSameMutMem #-}
   readOffMutMemST = readOffMBytes . fromTextMArrayMBytes
@@ -1328,6 +1348,8 @@ instance MemAlloc T.MArray where
 
 
 instance MemRead T.Text where
+  accessMem (T.Text a o _) f g i = accessMem a f g (toByteOff (Off o :: Off Word16) + i)
+  {-# INLINE accessMem #-}
   isSameMem (T.Text a1 o1 n1) (T.Text a2 o2 n2) = isSameMem a1 a2 && o1 == o2 && n1 == n2
   {-# INLINE isSameMem #-}
   byteCountMem (T.Text _ _ n) = toByteCount (Count n :: Count Word16)
@@ -1368,6 +1390,8 @@ withPtrByteString (PS (ForeignPtr addr'# ptrContents) (I# o#) _) f = do
 
 
 instance MemRead BS.ByteString where
+  accessMem bs _ g o = unsafeInlineST $ withPtrByteString bs (\(Ptr addr#) -> pure $! g addr# o)
+  {-# INLINE accessMem #-}
   isSameMem bs1 bs2 =
     unsafeInlineIO $
     withPtrByteString bs1 $ \ptr1 ->
@@ -1421,6 +1445,8 @@ fromShortByteStringBytes (SBS ba#) = Bytes ba#
 {-# INLINE fromShortByteStringBytes #-}
 
 instance MemRead ShortByteString where
+  accessMem (SBS ba#) f _ = f ba#
+  {-# INLINE accessMem #-}
   isSameMem sbs1 sbs2 = isSameMem (fromShortByteStringBytes sbs1) (fromShortByteStringBytes sbs2)
   {-# INLINE isSameMem #-}
   byteCountMem = byteCountMem . fromShortByteStringBytes
