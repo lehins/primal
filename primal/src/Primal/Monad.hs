@@ -81,7 +81,7 @@ tryST ::
   => (forall s. ST s a)
   -> Either e a
 tryST action = runST (unsafeIOToST (trySync (unsafeSTToIO action)))
-
+{-# INLINE tryST #-}
 
 -- | Same as `trySync`, but for `ST`.
 --

@@ -13,6 +13,7 @@
 module Primal.Monad.Raises
   ( Raises(..)
   , raiseLeft
+  , handleExceptT
   ) where
 
 import Control.Exception
@@ -22,7 +23,7 @@ import GHC.Conc.Sync (STM(..))
 import GHC.Exts
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
-import Control.Monad.Trans.Except (ExceptT(..))
+import Control.Monad.Trans.Except (ExceptT(..), throwE, catchE)
 import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad.Trans.Reader (ReaderT(..))
@@ -41,6 +42,17 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 #endif
 #endif
 
+-- | Handle an exception of a specific type and re-raise any other exception
+-- into the `Raises` monad.
+--
+-- @since 1.0.0
+handleExceptT :: (Exception e, Raises m) => ExceptT SomeException m a -> ExceptT e m a
+handleExceptT m =
+  catchE m $ \exc ->
+    case fromException exc of
+      Just e -> throwE e
+      Nothing -> lift $ raiseM exc
+{-# INLINE handleExceptT #-}
 
 -- | A class for monads in which exceptions may be thrown.
 --

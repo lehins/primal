@@ -223,7 +223,7 @@ catch action handler =
             Just exc -> handler# exc
             Nothing -> raiseIO# someExc
      in catch# (action# ()) handler'#
--- {-# INLINEABLE catch #-}
+{-# INLINE catch #-}
 --{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
 
 -- | Same as `catch`, but allows to select which particular exception we care
@@ -249,6 +249,7 @@ catchSync ::
   -> (e -> m a)
   -> m a
 catchSync action = catch action . syncHandler
+{-# INLINE catchSync #-}
 
 -- | Catch an asynchronous exception.
 catchAsync ::
@@ -342,6 +343,7 @@ tryJust g f = catchJust g (Right <$> f) (pure . Left)
 
 trySync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 trySync f = catchSync (Right <$> f) (pure . Left)
+{-# INLINE trySync #-}
 
 tryAsync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 tryAsync f = catchAsync (Right <$> f) (pure . Left)

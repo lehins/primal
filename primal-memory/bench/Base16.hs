@@ -7,6 +7,8 @@
 
 module Main (main) where
 
+
+import Control.Monad.Trans.Except
 import Criterion.Main
 import Data.Bits
 import Data.ByteArray.Encoding
@@ -88,12 +90,12 @@ encodeBase16Native mr = runST $ do
 
 
 decodeBase16Native :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> Either DecodeError a
-decodeBase16Native mr = tryST $ do
+decodeBase16Native mr = runST $ runExceptT $ handleExceptT $ do
   let Count c = byteCountMem mr
       q = c `quot` 2
       r = c `rem` 2
-  when (r /= 0) $ raise DecodeInvalidLength
-  m <- allocMutMemST (Count q :: Count Word8)
+  when (r /= 0) $ raiseM DecodeInvalidLength
+  m <- allocMutMem (Count q :: Count Word8)
   let !(Ptr hi#) = hiFromBase16Table
       !(Ptr lo#) = loFromBase16Table
       go !i !o =
@@ -101,14 +103,13 @@ decodeBase16Native mr = tryST $ do
           let !w4hi = lookupWord8 hi# (indexByteOffMem mr (Off i))
           let !w4lo = lookupWord8 lo# (indexByteOffMem mr (Off (i + 1)))
               !w = w4hi .|. w4lo
-              raiseInvalid off = raise $ DecodeInvalidValue (Off i + off)
-              {-# NOINLINE raiseInvalid #-}
+              raiseInvalid off = raiseM $ DecodeInvalidValue (Off i + off)
           when (w4hi == 0xff) $ raiseInvalid 0
           when (w4lo == 0xff) $ raiseInvalid 1
-          writeByteOffMutMemST m o w
+          writeByteOffMutMem m o w
           go (i + 2) (o + 1)
   go 0 0
-  freezeMutST m
+  freezeMutMem m
 {-# INLINE decodeBase16Native #-}
 
 
@@ -134,13 +135,13 @@ encodeBase16Addr mr' = runST $ do
 
 
 decodeBase16Addr :: Addr Word16 -> Either DecodeError (Addr Word8)
-decodeBase16Addr mr' = tryST $ do
+decodeBase16Addr mr' = runST $ runExceptT $ handleExceptT $ do
   let mr = castAddr mr'
       Count c = byteCountAddr mr
       q = c `quot` 2
       r = c `rem` 2
       end = mr `plusByteOffAddr` Off c
-  when (r /= 0) $ raise DecodeInvalidLength
+  when (r /= 0) $ raiseM DecodeInvalidLength
   m <- allocMAddr (Count q :: Count Word8)
   let !(Ptr hi#) = hiFromBase16Table
       !(Ptr lo#) = loFromBase16Table
@@ -150,11 +151,9 @@ decodeBase16Addr mr' = tryST $ do
           let !w4lo = lookupWord8 lo# (indexByteOffAddr i 1)
               !w = w4hi .|. w4lo
               raiseInvalid off =
-                raise $ DecodeInvalidValue (countToOff (minusByteCountAddr i mr) + off)
-              {-# NOINLINE raiseInvalid #-}
-          when (w == 0xff) $ do
-            when (w4hi == 0xff) $ raiseInvalid 0
-            when (w4lo == 0xff) $ raiseInvalid 1
+                raiseM $ DecodeInvalidValue (countToOff (minusByteCountAddr i mr) + off)
+          when (w4hi == 0xff) $ raiseInvalid 0
+          when (w4lo == 0xff) $ raiseInvalid 1
           writeMAddr o w
           go (i `plusByteOffAddr` 2) (o `plusByteOffMAddr` 1)
   go mr m

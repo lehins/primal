@@ -34,6 +34,7 @@ import Primal.Memory.Internal
 import Primal.Monad
 import Primal.Monad.Unsafe
 import Primal.Mutable.Freeze
+import Control.Monad.Trans.Except
 
 -- | Error produced when decoding fails.
 --
@@ -134,12 +135,13 @@ decodeBase16Mem ::
   (MemRead mr, MemAlloc ma) =>
   mr ->
   Either DecodeError (Frozen ma)
-decodeBase16Mem mr = tryST $ do
+decodeBase16Mem mr = runST $ do
   let Count c = byteCountMem mr
       q = Count (c `quot` 2) :: Count Word8
   m <- allocMutMemST q
-  decodeBase16MutMem mr m
-  freezeMutST m
+  runExceptT $ handleExceptT $ do
+    decodeBase16MutMem mr m
+    freezeMutMem m
 {-# INLINE decodeBase16Mem #-}
 
 
@@ -155,7 +157,7 @@ decodeBase16MutMem mr m = do
   let Count c = byteCountMem mr
       r = c `rem` 2
   q <- getByteCountMutMem m
-  when (r /= 0) $ raise DecodeInvalidLength
+  when (r /= 0) $ raiseM DecodeInvalidLength
   let f srcBA# o =
         accessMutMemST
           m
@@ -169,7 +171,7 @@ decodeBase16MutMem mr m = do
           (\dstAddr# mo -> unsafeIOToST $ decodeBase16_Addr_Addr# srcAddr# o dstAddr# mo q)
           0
   res <- liftST $ accessMem mr f g 0
-  unless (res == -1) $ raise $ DecodeInvalidValue res
+  unless (res == -1) $ raiseM $ DecodeInvalidValue res
 {-# INLINE decodeBase16MutMem #-}
 
 
