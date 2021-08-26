@@ -16,7 +16,7 @@
 -- Portability : non-portable
 --
 module Primal.Memory.Bytes
-  ( module Primal.Unbox
+  ( module Primal.Element.Unbox
     -- * Immutable
   , Bytes
   , toByteArray#
@@ -176,8 +176,8 @@ import Primal.Foreign
 import Primal.Memory.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Monad
-import Primal.Unbox
-import Primal.Unbox.Atomic
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 
 eqBytes :: Bytes p1 -> Bytes p2 -> Bool
 eqBytes b1 b2 = isSameBytes b1 b2 || eqByteMem b1 b2

@@ -9,14 +9,14 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- |
--- Module      : Primal.Unbox.Atom
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Element.Unbox.Atom
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Unbox.Atom
+module Primal.Element.Unbox.Atom
   ( Atom(..)
   -- * SpinLocks
   , acquireLockByteOffMutableByteArray
@@ -62,8 +62,8 @@ import Primal.Concurrent
 import Primal.Exception
 import Primal.Monad.Unsafe
 import Data.Bits
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
+import Primal.Element.Unbox.Atomic
+import Primal.Element.Unbox.Class
 import Primal.Foreign hiding (Any)
 import GHC.TypeLits
 

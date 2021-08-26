@@ -93,26 +93,3 @@ HsInt primal_decode_base16(const HsWord16 *src, HsInt src_off, HsWord8 *dst, HsI
   }
   return -1;
 }
-
-
-/*
-HsInt primal_decode_base16(const HsWord16 *src, HsInt src_off, HsWord8 *dst, HsInt dst_off, HsInt n){
-  HsWord8 lo, hi;
-  const HsWord8 *src8 = (HsWord8 *) src;
-  src8+= src_off;
-  dst+= dst_off;
-  while(n > 0){
-    hi = hi_from_base16[*src8];
-    lo = lo_from_base16[*(++src8)];
-    if (hi == 0xff) return (HsInt) (src8 - (HsWord8 *) src - 1);
-    if (lo == 0xff) return (HsInt) (src8 - (HsWord8 *) src);
-    //if (hi == 0xff) return 2*n;
-    //if (lo == 0xff) return 2*n - 1;
-    *dst = hi | lo;
-    ++src8;
-    ++dst;
-    n--;
-  }
-  return -1;
-}
-*/

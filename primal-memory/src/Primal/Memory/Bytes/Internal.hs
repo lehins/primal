@@ -124,8 +124,8 @@ import Primal.Monad.Unsafe
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Unbox.Class
-import Primal.Unlift
+import Primal.Element.Unbox
+import Primal.Element.Unlift
 import Unsafe.Coerce
 #if MIN_VERSION_base(4,14,0)
 import Data.IORef

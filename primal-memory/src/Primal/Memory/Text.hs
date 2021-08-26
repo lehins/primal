@@ -26,7 +26,7 @@ module Primal.Memory.Text
 import Data.Text.Array
 import Data.Text.Internal as T
 import Primal.Mutable.Freeze
-import Primal.Unbox
+import Primal.Element.Unbox
 import Primal.Memory.Internal
 import Primal.Memory.Bytes
 

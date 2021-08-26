@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -12,23 +11,17 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
--- Module      : Primal.Unbox.Class
+-- Module      : Primal.Element.Unbox.Instances
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Unbox.Class
-  ( Unbox(..)
-  , setMutableByteArray#
-  , setOffAddr#
-  , setByteOffAddr#
-  , setByteOffMutableByteArrayLoop#
-  , setAddrLoop#
-  , errorImpossible
-  , bool2Int#
+module Primal.Element.Unbox.Instances
+  ( bool2Int#
   , int2Bool#
   -- * Backwards compatibility
   , WordPtr(..)
@@ -47,10 +40,10 @@ import Data.Bits
 import Data.Complex
 import Data.Char
 import Data.Type.Equality
-import Data.Kind
 import Foreign.C.Error (Errno(..))
+import Primal.Element.Unbox.Class
+import Primal.Element.Unbox.Tuples ()
 import Primal.Foreign hiding (Any)
-import qualified Primal.Exception as Exception (errorWithoutStackTrace)
 import GHC.Conc
 import GHC.Stable
 import GHC.Real
@@ -112,161 +105,6 @@ instance Unbox P.WordPtr where
 #else
 import Foreign.Ptr
 #endif
-
--- | Invariants:
---
--- * Reading should never fail on memory that contains only zeros
---
--- * Writing should always overwrite all of the bytes allocated for the element. In other
---   words, writing to a dirty (uninitilized) region of memory should never leave any
---   garbage around. For example, if a type requires 31 bytes of memory then on any write
---   all 31 bytes must be overwritten.
---
--- * A single thread write/read sequence must always roundtrip
---
--- * This is not a class for serialization, therefore memory layout of unpacked datatype
---   is selfcontained in `Unbox` class and representation is not expected to stay the same
---   between different versions of this library. Primitive types like `Int`, `Word`,
---   `Char` are an exception to this rule for obvious reasons.
---
-class Unbox a where
-  type UnboxIso a :: Type
-
-  type SizeOf a :: Nat
-  type SizeOf a = SizeOf (UnboxIso a)
-  type Alignment a :: Nat
-  type Alignment a = Alignment (UnboxIso a)
-
-  toUnboxIso :: a -> UnboxIso a
-  default toUnboxIso :: Coercible a (UnboxIso a) => a -> UnboxIso a
-  toUnboxIso = coerce
-
-  fromUnboxIso :: UnboxIso a -> a
-  default fromUnboxIso :: Coercible a (UnboxIso a) => UnboxIso a -> a
-  fromUnboxIso = coerce
-
-  -- | Returned value must match the `SizeOf` type level Nat
-  sizeOf# :: Proxy# a -> Int#
-  default sizeOf# :: Unbox (UnboxIso a) => Proxy# a -> Int#
-  sizeOf# _ = sizeOf# (proxy# :: Proxy# (UnboxIso a))
-  {-# INLINE sizeOf# #-}
-
-  -- | Returned value must match the `Alignment` type level Nat
-  alignment# :: Proxy# a -> Int#
-  default alignment# :: Unbox (UnboxIso a) => Proxy# a -> Int#
-  alignment# _ = alignment# (proxy# :: Proxy# (UnboxIso a))
-  {-# INLINE alignment# #-}
-
-
-  indexByteOffByteArray# :: ByteArray# -> Int# -> a
-  default indexByteOffByteArray# :: Unbox (UnboxIso a) => ByteArray# -> Int# -> a
-  indexByteOffByteArray# ba# i# = fromUnboxIso (indexByteOffByteArray# ba# i# :: UnboxIso a)
-  {-# INLINE indexByteOffByteArray# #-}
-
-  --
-  -- These equalities hold:
-  --
-  -- > indexByteArray# ba# i# == indexOffAddr# (byteArrayContents# ba#) i#
-  --
-  -- > indexByteArray# ba# i# == indexByteOffByteArray# ba# (i# *# sizeOf (proxy# :: Proxy# a))
-  --
-  indexByteArray# :: ByteArray# -> Int# -> a
-  default indexByteArray# :: Unbox (UnboxIso a) => ByteArray# -> Int# -> a
-  indexByteArray# ba# i# = fromUnboxIso (indexByteArray# ba# i# :: UnboxIso a)
-  {-# INLINE indexByteArray# #-}
-
-  indexOffAddr# :: Addr# -> Int# -> a
-  default indexOffAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a
-  indexOffAddr# addr# i# = fromUnboxIso (indexOffAddr# addr# i# :: UnboxIso a)
-  {-# INLINE indexOffAddr# #-}
-
-  indexByteOffAddr# :: Addr# -> Int# -> a
-  indexByteOffAddr# addr# i# = indexOffAddr# (addr# `plusAddr#` i#) 0#
-  {-# INLINE indexByteOffAddr# #-}
-
-  readByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  default readByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  readByteOffMutableByteArray# mba# i# s = case readByteOffMutableByteArray# mba# i# s of
-                                             (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
-  {-# INLINE readByteOffMutableByteArray# #-}
-
-  readMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  default readMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  readMutableByteArray# mba# i# s = case readMutableByteArray# mba# i# s of
-                                      (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
-  {-# INLINE readMutableByteArray# #-}
-
-  readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
-  default readOffAddr# ::
-    Unbox (UnboxIso a) => Addr# -> Int# -> State# s -> (# State# s, a #)
-  readOffAddr# addr# i# s = case readOffAddr# addr# i# s of
-                              (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
-  {-# INLINE readOffAddr# #-}
-
-  readByteOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
-  readByteOffAddr# addr# i# = readOffAddr# (addr# `plusAddr#` i#) 0#
-  {-# INLINE readByteOffAddr# #-}
-
-  writeByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  default writeByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeByteOffMutableByteArray# mba# i# a =
-    writeByteOffMutableByteArray# mba# i# (toUnboxIso a)
-  {-# INLINE writeByteOffMutableByteArray# #-}
-
-  writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  default writeMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toUnboxIso a)
-  {-# INLINE writeMutableByteArray# #-}
-
-  writeOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
-  default writeOffAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a -> State# s -> State# s
-  writeOffAddr# addr# i# a = writeOffAddr# addr# i# (toUnboxIso a)
-  {-# INLINE writeOffAddr# #-}
-
-  writeByteOffAddr# :: Addr# -> Int# -> a -> State# s -> State# s
-  writeByteOffAddr# addr# i# = writeOffAddr# (addr# `plusAddr#` i#) 0#
-  {-# INLINE writeByteOffAddr# #-}
-
-  -- | Set the region of MutableByteArray to the same value. Offset is in number of bytes.
-  setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  default setByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  setByteOffMutableByteArray# mba# o# n# a = setByteOffMutableByteArray# mba# o# n# (toUnboxIso a)
-  {-# INLINE setByteOffMutableByteArray# #-}
-
-  -- | Set specified number of elements to the same value.
-  setAddr# :: Addr# -> Int# -> a -> State# s -> State# s
-  default setAddr# :: Unbox (UnboxIso a) => Addr# -> Int# -> a -> State# s -> State# s
-  setAddr# addr# n# a = setAddr# addr# n# (toUnboxIso a)
-  {-# INLINE setAddr# #-}
-
-
--- | Set the region of MutableByteArray to the same value. Offset is in number of elements
-setMutableByteArray# ::
-     forall a s. Unbox a
-  => MutableByteArray# s
-  -> Int#
-  -> Int#
-  -> a
-  -> State# s
-  -> State# s
-setMutableByteArray# mba# o# = setByteOffMutableByteArray# mba# (o# *# sizeOf# (proxy# :: Proxy# a))
-{-# INLINE setMutableByteArray# #-}
-
-
--- | Set the region of memory to the same value. Offset is in number of elements
-setOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-setOffAddr# addr# i# = setAddr# (addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# a)))
-{-# INLINE setOffAddr# #-}
-
--- | Set the region of memory to the same value. Offset is in number of bytes
-setByteOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
-setByteOffAddr# addr# i# = setAddr# (addr# `plusAddr#` i#)
-{-# INLINE setByteOffAddr# #-}
 
 
 instance Unbox () where
@@ -1021,6 +859,10 @@ instance Unbox a => Unbox (Data.Semigroup.First a) where
   type UnboxIso (Data.Semigroup.First a) = a
 instance Unbox a => Unbox (Data.Semigroup.Last a) where
   type UnboxIso (Data.Semigroup.Last a) = a
+instance Unbox a => Unbox (Data.Monoid.First a) where
+  type UnboxIso (Data.Monoid.First a) = Maybe a
+instance Unbox a => Unbox (Data.Monoid.Last a) where
+  type UnboxIso (Data.Monoid.Last a) = Maybe a
 instance (Unbox a, Unbox b) => Unbox (Arg a b) where
   type UnboxIso (Arg a b) = (a, b)
   toUnboxIso (Arg a b) = (a, b)
@@ -1300,193 +1142,6 @@ instance Unbox a => Unbox (Complex a) where
   toUnboxIso (a :+ b) = (a, b)
   fromUnboxIso (a, b) = a :+ b
 
-instance (Unbox a, Unbox b) => Unbox (a, b) where
-  type UnboxIso (a, b) = (a, b)
-  type SizeOf (a, b) = SizeOf a + SizeOf b
-  type Alignment (a, b) = Alignment a + Alignment b
-  sizeOf# _ = sizeOf# (proxy# :: Proxy# a) +# sizeOf# (proxy# :: Proxy# b)
-  {-# INLINE sizeOf# #-}
-  alignment# _ =
-    alignment# (proxy# :: Proxy# a) +# alignment# (proxy# :: Proxy# b)
-  {-# INLINE alignment# #-}
-  indexByteArray# ba# i# =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
-     in indexByteOffByteArray# ba# i0#
-  {-# INLINE indexByteArray# #-}
-  indexByteOffByteArray# ba# i0# =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-     in (indexByteOffByteArray# ba# i0#, indexByteOffByteArray# ba# i1#)
-  {-# INLINE indexByteOffByteArray# #-}
-  indexOffAddr# addr# i# =
-    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
-        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-     in (indexOffAddr# addr0# 0#, indexOffAddr# addr1# 0#)
-  {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
-     in readByteOffMutableByteArray# mba# i0#
-  {-# INLINE readMutableByteArray# #-}
-  readByteOffMutableByteArray# mba# i0# s =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-     in case readByteOffMutableByteArray# mba# i0# s of
-          (# s', a0 #) ->
-            case readByteOffMutableByteArray# mba# i1# s' of
-              (# s'', a1 #) -> (# s'', (a0, a1) #)
-  {-# INLINE readByteOffMutableByteArray# #-}
-  readOffAddr# addr# i# s =
-    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
-        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-    in case readOffAddr# addr0# 0# s of
-         (# s', a0 #) ->
-           case readOffAddr# addr1# 0# s' of
-             (# s'', a1 #) -> (# s'', (a0, a1) #)
-  {-# INLINE readOffAddr# #-}
-  writeByteOffMutableByteArray# mba# i0# (a0, a1) s =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-    in writeByteOffMutableByteArray# mba# i1# a1 (writeByteOffMutableByteArray# mba# i0# a0 s)
-  {-# INLINE writeByteOffMutableByteArray# #-}
-  writeMutableByteArray# mba# i# a =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b))
-    in writeByteOffMutableByteArray# mba# i0# a
-  {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# addr# i# (a0, a1) s =
-    let addr0# = addr# `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b)))
-        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-    in writeOffAddr# addr1# 0# a1 (writeOffAddr# addr0# 0# a0 s)
-  {-# INLINE writeOffAddr# #-}
-  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
-    -- TODO: optimize with rewrite rules?
-    --  | a0 == a1 = setByteOffMutableByteArray# mba# (o# *# 2#) (n# *# 2#) a0 s
-  {-# INLINE setByteOffMutableByteArray# #-}
-  setAddr# = setAddrLoop#
-  {-# INLINE setAddr# #-}
-
-
-instance (Unbox a, Unbox b, Unbox c) => Unbox (a, b, c) where
-  type UnboxIso (a, b, c) = (a, b, c)
-  type SizeOf (a, b, c) = SizeOf a + SizeOf b + SizeOf c
-  type Alignment (a, b, c) = Alignment a + Alignment b + Alignment c
-  sizeOf# _ = sizeOf# (proxy# :: Proxy# a)
-           +# sizeOf# (proxy# :: Proxy# b)
-           +# sizeOf# (proxy# :: Proxy# c)
-  {-# INLINE sizeOf# #-}
-  alignment# _ = alignment# (proxy# :: Proxy# a)
-              +# alignment# (proxy# :: Proxy# b)
-              +# alignment# (proxy# :: Proxy# c)
-  {-# INLINE alignment# #-}
-  indexByteOffByteArray# ba# i0# =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
-    in ( indexByteOffByteArray# ba# i0#
-       , indexByteOffByteArray# ba# i1#
-       , indexByteOffByteArray# ba# i2#
-       )
-  {-# INLINE indexByteOffByteArray# #-}
-  indexByteArray# ba# i# =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
-    in indexByteOffByteArray# ba# i0#
-  {-# INLINE indexByteArray# #-}
-  indexOffAddr# addr# i# =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
-        i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
-    in ( indexOffAddr# (addr# `plusAddr#` i0#) 0#
-       , indexOffAddr# (addr# `plusAddr#` i1#) 0#
-       , indexOffAddr# (addr# `plusAddr#` i2#) 0#
-       )
-  {-# INLINE indexOffAddr# #-}
-  readMutableByteArray# mba# i# =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
-    in readByteOffMutableByteArray# mba# i0#
-  {-# INLINE readMutableByteArray# #-}
-  readByteOffMutableByteArray# mba# i0# s =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
-    in case readByteOffMutableByteArray# mba# i0# s  of { (# s0, a0 #) ->
-       case readByteOffMutableByteArray# mba# i1# s0 of { (# s1, a1 #) ->
-       case readByteOffMutableByteArray# mba# i2# s1 of { (# s2, a2 #) ->
-         (# s2, (a0, a1, a2) #)
-       }}}
-  {-# INLINE readByteOffMutableByteArray# #-}
-  readOffAddr# addr# i# s =
-    let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
-        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-        addr2# = addr1# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
-    in case readOffAddr# addr0# 0# s  of { (# s0, a0 #) ->
-       case readOffAddr# addr1# 0# s0 of { (# s1, a1 #) ->
-       case readOffAddr# addr2# 0# s1 of { (# s2, a2 #) ->
-         (# s2, (a0, a1, a2) #)
-       }}}
-  {-# INLINE readOffAddr# #-}
-  writeByteOffMutableByteArray# mba# i0# (a0, a1, a2) s =
-    let i1# = i0# +# sizeOf# (proxy# :: Proxy# a)
-        i2# = i1# +# sizeOf# (proxy# :: Proxy# b)
-    in writeByteOffMutableByteArray# mba# i2# a2
-       (writeByteOffMutableByteArray# mba# i1# a1
-        (writeByteOffMutableByteArray# mba# i0# a0 s))
-  {-# INLINE writeByteOffMutableByteArray# #-}
-  writeMutableByteArray# mba# i# a s =
-    let i0# = i# *# sizeOf# (proxy# :: Proxy# (a, b, c))
-    in writeByteOffMutableByteArray# mba# i0# a s
-  {-# INLINE writeMutableByteArray# #-}
-  writeOffAddr# addr# i# (a0, a1, a2) s =
-    let addr0# = addr#  `plusAddr#` (i# *# sizeOf# (proxy# :: Proxy# (a, b, c)))
-        addr1# = addr0# `plusAddr#` sizeOf# (proxy# :: Proxy# a)
-        addr2# = addr1# `plusAddr#` sizeOf# (proxy# :: Proxy# b)
-    in writeOffAddr# addr2# 0# a2
-       (writeOffAddr# addr1# 0# a1
-        (writeOffAddr# addr0# 0# a0 s))
-  {-# INLINE writeOffAddr# #-}
-  setByteOffMutableByteArray# = setByteOffMutableByteArrayLoop#
-  {-# INLINE setByteOffMutableByteArray# #-}
-  setAddr# = setAddrLoop#
-  {-# INLINE setAddr# #-}
-
--- TODO: Write optimized versions for larger tuples
-instance (Unbox a, Unbox b, Unbox c, Unbox d) => Unbox (a, b, c, d) where
-  type UnboxIso (a, b, c, d) = ((a, b), (c, d))
-  toUnboxIso (a, b, c, d) = ((a, b), (c, d))
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b), (c, d)) = (a, b, c, d)
-  {-# INLINE fromUnboxIso #-}
-
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e) => Unbox (a, b, c, d, e) where
-  type UnboxIso (a, b, c, d, e) = ((a, b), (c, d), e)
-  toUnboxIso (a, b, c, d, e) = ((a, b), (c, d), e)
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b), (c, d), e) = (a, b, c, d, e)
-  {-# INLINE fromUnboxIso #-}
-
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f) => Unbox (a, b, c, d, e, f) where
-  type UnboxIso (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
-  toUnboxIso (a, b, c, d, e, f) = ((a, b), (c, d), (e, f))
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b), (c, d), (e, f)) = (a, b, c, d, e, f)
-  {-# INLINE fromUnboxIso #-}
-
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g) => Unbox (a, b, c, d, e, f, g) where
-  type UnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
-  toUnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b, c), (d, e, f), g) = (a, b, c, d, e, f, g)
-  {-# INLINE fromUnboxIso #-}
-
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g, Unbox h) =>
-  Unbox (a, b, c, d, e, f, g, h) where
-  type UnboxIso (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
-  toUnboxIso (a, b, c, d, e, f, g, h) = ((a, b, c), (d, e, f), (g, h))
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b, c), (d, e, f), (g, h)) = (a, b, c, d, e, f, g, h)
-  {-# INLINE fromUnboxIso #-}
-
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g, Unbox h, Unbox i) =>
-  Unbox (a, b, c, d, e, f, g, h, i) where
-  type UnboxIso (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
-  toUnboxIso (a, b, c, d, e, f, g, h, i) = ((a, b, c), (d, e, f), (g, h, i))
-  {-# INLINE toUnboxIso #-}
-  fromUnboxIso ((a, b, c), (d, e, f), (g, h, i)) = (a, b, c, d, e, f, g, h, i)
-  {-# INLINE fromUnboxIso #-}
-
 
 instance Unbox a => Unbox (Maybe a) where
   type UnboxIso (Maybe a) = Maybe a
@@ -1651,49 +1306,3 @@ instance (Unbox a, Unbox b) => Unbox (Either a b) where
   {-# INLINE setByteOffMutableByteArray# #-}
   setAddr# = setAddrLoop#
   {-# INLINE setAddr# #-}
-
-
--- | A loop that uses `writeByteOffMutableByteArray#` to set the values in the region. It is a
--- suboptimal way to fill the memory with a single value that is why it is only provided
--- here for convenience
-setByteOffMutableByteArrayLoop# ::
-     forall a s. Unbox a
-  => MutableByteArray# s
-  -> Int#
-  -> Int#
-  -> a
-  -> State# s
-  -> State# s
-setByteOffMutableByteArrayLoop# mba# o# n# a = go o#
-  where
-    sz# = sizeOf# (proxy# :: Proxy# a)
-    k# = o# +# n# *# sz#
-    go i# s
-      | isTrue# (i# <# k#) = go (i# +# sz#) (writeByteOffMutableByteArray# mba# i# a s)
-      | otherwise = s
-{-# INLINE setByteOffMutableByteArrayLoop# #-}
-
-
--- setAddrLoop# :: forall a s. Unbox a => Addr# -> Int# -> a -> State# s -> State# s
--- setAddrLoop# addr0# n# a = go addr0# n#
---   where
---     k# = sizeOf# (Proxy# :: Proxy# a)
---     go addr# i# s
---       | isTrue# (i# >=# 0#) = go (addr# `plusAddr#` k#) (i# -# 1#) (writeOffAddr# addr# 0# a s)
---       | otherwise = s
--- {-# INLINE setAddrLoop# #-}
-
-
-setAddrLoop# :: Unbox a => Addr# -> Int# -> a -> State# s -> State# s
-setAddrLoop# addr# n# a = go 0#
-  where
-    go i# s
-      | isTrue# (i# <# n#) = go (i# +# 1#) (writeOffAddr# addr# i# a s)
-      | otherwise = s
-{-# INLINE setAddrLoop# #-}
-
-
-errorImpossible :: String -> String -> a
-errorImpossible fname msg =
-  Exception.errorWithoutStackTrace $ "Impossible <" ++ fname ++ ">:" ++ msg
-{-# NOINLINE errorImpossible #-}

@@ -80,9 +80,8 @@ import Primal.Array.Internal
 import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
-import Primal.Unbox
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 
 -------------------
 -- Unboxed Array --

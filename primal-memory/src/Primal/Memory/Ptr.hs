@@ -84,8 +84,6 @@ module Primal.Memory.Ptr
   , prefetchOffPtr1
   , prefetchOffPtr2
   , prefetchOffPtr3
-  -- * Re-exports
-  , module Primal.Unbox
   ) where
 
 
@@ -97,9 +95,8 @@ import GHC.Ptr
 import Primal.Foreign
 import Primal.Monad
 import Primal.Monad.Unsafe
-import Primal.Unbox
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 
 isSamePtr :: Ptr e -> Ptr e -> Bool
 isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)

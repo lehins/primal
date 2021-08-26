@@ -42,8 +42,8 @@ module Primal.Ref.Unboxed.Atomic
   ) where
 
 import Primal.Monad
-import Primal.Unbox
-import Primal.Unbox.Atomic
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 import Primal.Ref.Unboxed
 
 

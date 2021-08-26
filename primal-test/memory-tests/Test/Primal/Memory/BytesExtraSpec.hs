@@ -13,7 +13,6 @@ import Data.Semigroup
 import Test.Primal
 import Test.Primal.Memory.BytesSpec (primTypeSpec)
 import Primal.Foreign
-import Primal.Unbox.Atom
 
 spec :: Spec
 spec = do

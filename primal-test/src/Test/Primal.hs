@@ -12,6 +12,7 @@
 module Test.Primal
   ( module Test.Primal
   , module Test.Primal.Common
+  , module Primal.Element
   ) where
 
 import Control.DeepSeq
@@ -22,6 +23,7 @@ import Data.Functor.Compose
 import Data.Functor.Identity
 import Primal.Memory.Bytes
 import Data.Ratio
+import Data.Monoid as Monoid
 import qualified Data.Semigroup as Semigroup
 import Foreign.C.Error
 import Primal.Foreign hiding (Any)
@@ -32,6 +34,7 @@ import GHC.Fingerprint.Type
 import GHC.IO.Device
 import System.IO
 import Test.Primal.Common
+import Primal.Element
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
@@ -362,6 +365,8 @@ data AUnboxType
   | AEither AUnboxType AUnboxType
   | AFirst AUnboxType
   | ALast AUnboxType
+  | AMFirst AUnboxType
+  | AMLast AUnboxType
   | AIdentity AUnboxType
   | ADual AUnboxType
   | AMin AUnboxType
@@ -480,6 +485,8 @@ instance Arbitrary AUnboxType where
       , (1, AEither <$> arbitrary <*> arbitrary)
       , (1, AFirst <$> arbitrary)
       , (1, ALast <$> arbitrary)
+      , (1, AMFirst <$> arbitrary)
+      , (1, AMLast <$> arbitrary)
       , (1, AIdentity <$> arbitrary)
       , (1, ADual <$> arbitrary)
       , (1, AMin <$> arbitrary)
@@ -624,13 +631,16 @@ withAUnboxType ty f =
       withAUnboxType t1 $ \(_ :: Proxy t1) ->
         withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Either t1 t2))
     AFirst t ->
+      withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Semigroup.First t))
+    ALast t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Semigroup.Last t))
+    AMFirst t ->
       withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (First t))
-    ALast t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Last t))
+    AMLast t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Last t))
     AIdentity t ->
       withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Identity t))
     ADual t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Dual t))
-    AMin t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Min t))
-    AMax t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Max t))
+    AMin t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Semigroup.Min t))
+    AMax t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Semigroup.Max t))
     ASum t -> withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Sum t))
     AProduct t ->
       withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Product t))
@@ -695,7 +705,7 @@ withAUnboxType ty f =
                         f (Proxy :: Proxy (t1, t2, t3, t4, t5, t6, t7, t8, t9))
     AArg t1 t2 ->
       withAUnboxType t1 $ \(_ :: Proxy t1) ->
-        withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Arg t1 t2))
+        withAUnboxType t2 $ \(_ :: Proxy t2) -> f (Proxy :: Proxy (Semigroup.Arg t1 t2))
     AConst t ->
       withAUnboxType t $ \(_ :: Proxy t) -> f (Proxy :: Proxy (Const t ()))
 #if __GLASGOW_HASKELL__ >= 806

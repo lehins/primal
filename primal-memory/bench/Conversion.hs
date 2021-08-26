@@ -5,16 +5,17 @@
 
 module Main (main) where
 
-import Primal.Eval
-import Primal.Monad
 import Criterion.Main
+import qualified Data.Primitive.ByteArray as BA
+import Data.Semigroup
+import qualified Foreign.ForeignPtr as GHC
+import Foreign.Storable
+import Primal.Eval
+import Primal.Foreign
 import Primal.Memory.Bytes
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
-import qualified Data.Primitive.ByteArray as BA
-import qualified Foreign.ForeignPtr as GHC
-import Foreign.Storable
-import Primal.Foreign
+
 
 main :: IO ()
 main = do

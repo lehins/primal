@@ -20,7 +20,7 @@ module Test.Primal.MutArray where
 import Primal.Array
 import Primal.Container.Array
 import Primal.Container.Ref
-import Primal.Unbox
+import Primal.Element.Unbox
 import Test.Primal.Common
 import Test.Primal.MutRef
 

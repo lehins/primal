@@ -4,14 +4,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Test.Primal.BRefSpec (spec) where
 
-import qualified Control.Concurrent as Base
 import Data.Maybe
 import Primal.Concurrent
 import Primal.Exception
-import Primal.Mem.Weak
+--import Primal.Mem.Weak
 import Primal.Ref
-import Primal.Unbox
-import System.Mem (performGC)
+import Primal.Element.Unbox
+--import System.Mem (performGC)
 import Test.Hspec
 import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
 
@@ -179,14 +178,6 @@ spec = do
     --   takeBRef ref `shouldReturn` "Hello World"
     -- -- xit "modifyBRef" (pure () :: IO ())
     -- -- xit "modifyBRefMasked" (pure () :: IO ())
-    -- it "toBaseBRef" $ do
-    --   ref <- newBRef ()
-    --   Base.takeBRef (toBaseBRef ref) `shouldReturn` ()
-    --   isEmptyBRef ref `shouldReturn` True
-    -- it "fromBaseBRef" $ do
-    --   ref <- Base.newBRef ()
-    --   takeBRef (fromBaseBRef ref) `shouldReturn` ()
-    --   Base.isEmptyBRef ref `shouldReturn` True
     -- describe "mkWeakBRef" $ do
     --   it "performGC" $ do
     --     seref <- newEmptyBRef

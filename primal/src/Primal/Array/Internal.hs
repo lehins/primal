@@ -36,8 +36,7 @@ module Primal.Array.Internal
 import Control.Monad
 import Primal.Exception
 import qualified Data.Foldable as F
-import Primal.Unbox
-import Primal.Unbox.Class
+import Primal.Element.Unbox
 import Data.Semigroup
 
 -- | Number of elements contained in the data structure

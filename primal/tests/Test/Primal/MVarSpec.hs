@@ -11,7 +11,7 @@ import Primal.Concurrent.MVar
 import Primal.Exception
 import Primal.Mem (performGC)
 import Primal.Mem.Weak
-import Primal.Unbox
+import Primal.Element.Unbox
 import Test.Hspec
 import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
 

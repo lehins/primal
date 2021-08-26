@@ -39,6 +39,11 @@ library
 
                      , Primal.Concurrent
                      , Primal.Concurrent.MVar
+                     , Primal.Element
+                     , Primal.Element.Unbox
+                     , Primal.Element.Unbox.Atom
+                     , Primal.Element.Unbox.Atomic
+                     , Primal.Element.Unlift
                      , Primal.Eval
                      , Primal.Exception
                      , Primal.Monad
@@ -49,11 +54,6 @@ library
                      , Primal.Mutable.Ord
                      --, Primal.Mutable.Show
 
-                     , Primal.Unbox
-                     , Primal.Unbox.Atom
-                     , Primal.Unbox.Atomic
-                     , Primal.Unbox.Class
-                     , Primal.Unlift
 
                      , Primal.Ref
                      , Primal.Ref.Boxed
@@ -69,6 +69,9 @@ library
                      , Primal.Foreign.StablePtr
 
   other-modules:       Primal.Array.Internal
+                     , Primal.Element.Unbox.Class
+                     , Primal.Element.Unbox.Instances
+                     , Primal.Element.Unbox.Tuples
                      , Primal.Monad.Internal
                      , Primal.Foreign.C
                      , Primal.Foreign.C.Atomic

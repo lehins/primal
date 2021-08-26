@@ -14,7 +14,7 @@
 
 -- |
 -- Module      : Primal.Memory.Internal
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -35,11 +35,11 @@ import GHC.Word
 import Numeric (showHex)
 import Primal.Array
 import Primal.Exception
+import Primal.Element
 import Primal.Foreign
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
-import Primal.Memory.Ptr
 import Primal.Monad
 import Primal.Mutable.Freeze
 

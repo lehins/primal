@@ -7,7 +7,7 @@ import Primal.Exception
 import Primal.Eval
 import Primal.Foreign (IsList(..))
 import Primal.Mutable.Freeze
-import Primal.Unbox
+import Primal.Element.Unbox
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck

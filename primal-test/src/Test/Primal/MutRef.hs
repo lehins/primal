@@ -20,7 +20,7 @@ import Data.Foldable as F
 import Control.Concurrent.Async
 import Primal.Exception (raiseImprecise)
 import Primal.Monad
-import Primal.Unbox
+import Primal.Element.Unbox
 import Data.Bits
 import Primal.Container.Ref
 import Test.Primal.Common

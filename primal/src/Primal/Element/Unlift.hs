@@ -6,14 +6,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Primal.Unlift
+-- Module      : Primal.Element.Unlift
 -- Copyright   : (c) Alexey Kuleshevich 2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Unlift
+module Primal.Element.Unlift
   ( Unlift(..)
   , MutUnlift(..)
   ) where

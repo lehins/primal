@@ -52,8 +52,7 @@ import Primal.Eval
 import Primal.Foreign
 import Primal.Mem.Weak
 import Primal.Monad
-import Primal.Unbox
-import Primal.Unbox.Class
+import Primal.Element.Unbox
 
 -- | Mutable variable that can hold an unboxed value.
 --

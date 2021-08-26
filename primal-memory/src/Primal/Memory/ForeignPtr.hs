@@ -72,7 +72,7 @@ import Primal.Foreign
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.Ptr
 import Primal.Monad
-import Primal.Unbox.Class
+import Primal.Element.Unbox
 
 
 newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)

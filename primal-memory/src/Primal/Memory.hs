@@ -7,7 +7,7 @@
 -- Portability : non-portable
 --
 module Primal.Memory
-  ( module Primal.Unbox
+  ( module Primal.Element.Unbox
   , Pinned(..)
   -- * Immutable
   , Bytes
@@ -115,7 +115,7 @@ module Primal.Memory
   , loadListByteOffMutMemN       -- DOC: [x], DOCTEST [x], TEST: [ ]
   ) where
 
-import Primal.Unbox
+import Primal.Element.Unbox
 import Primal.Memory.Internal
 import Primal.Memory.Fold
 import Primal.Mutable.Freeze

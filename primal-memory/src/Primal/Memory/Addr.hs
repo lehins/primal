@@ -147,7 +147,7 @@ module Primal.Memory.Addr
   , prefetchOffAddr3
   , prefetchOffMAddr3
   -- * Re-export
-  , module Primal.Unbox
+  , module Primal.Element.Unbox
   ) where
 
 import Control.Arrow (first)
@@ -171,9 +171,8 @@ import Primal.Monad.Unsafe
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Unbox
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 import Unsafe.Coerce
 
 

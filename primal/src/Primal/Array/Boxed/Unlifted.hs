@@ -60,7 +60,7 @@ import Primal.Array.Internal
 import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
-import Primal.Unlift
+import Primal.Element.Unlift
 
 --------------------------
 -- Unlifted Boxed Array --

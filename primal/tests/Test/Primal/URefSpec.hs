@@ -13,7 +13,7 @@ import Primal.Concurrent
 import Primal.Exception
 import Primal.Mem.Weak
 import Primal.Ref
-import Primal.Unbox
+import Primal.Element.Unbox
 import System.Mem (performGC)
 import Test.Hspec
 import Test.Hspec.QuickCheck

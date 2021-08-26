@@ -42,16 +42,16 @@ import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.ByteString.Short.Internal
 import GHC.ForeignPtr
+import Primal.Element
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 import Primal.Monad
-import Primal.Mutable.Freeze
 import Primal.Mutable.Eq
+import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Unlift
 
 -- | Mutable version of a `ShortByteString`
 newtype MShortByteString s = MShortByteString (MBytes 'Inc s)

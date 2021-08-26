@@ -4,15 +4,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
--- Module      : Primal.Unbox
+-- Module      : Primal.Element.Unbox
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Unbox
-  ( Unbox
+module Primal.Element.Unbox
+  ( module Primal.Element.Unbox.Class
+  , module Primal.Element.Unbox.Instances
   , Atom(..)
   , Atomic
   , AtomicCount
@@ -75,17 +76,18 @@ module Primal.Unbox
   ) where
 
 import Control.DeepSeq
-import Primal.Monad
 import Data.Coerce
 import Data.Int
-import Primal.Unbox.Atom
-import Primal.Unbox.Atomic
-import Primal.Unbox.Class
 import Data.Typeable
 import Data.Word
 import Foreign.ForeignPtr (ForeignPtr)
 import GHC.Base (quotInt, quotRemInt)
 import GHC.Exts
+import Primal.Element.Unbox.Atom
+import Primal.Element.Unbox.Atomic
+import Primal.Element.Unbox.Class
+import Primal.Element.Unbox.Instances
+import Primal.Monad
 
 
 -- | Helper function that converts a type into a string

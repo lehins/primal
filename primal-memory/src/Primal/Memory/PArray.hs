@@ -51,7 +51,7 @@ module Primal.Memory.PArray
   , setPMArray
   , copyPArrayToPMArray
   , movePMArrayToPMArray
-  , module Primal.Unbox
+  , module Primal.Element.Unbox
   ) where
 
 import Primal.Array (Size(..), UArray(..), UMArray(..), eqWithST, compareWithST)
@@ -64,8 +64,8 @@ import Primal.Memory.Internal
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Unbox
-import Primal.Unlift
+import Primal.Element.Unbox
+import Primal.Element.Unlift
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)

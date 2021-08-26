@@ -27,6 +27,7 @@ import Foreign.Storable
 import GHC.Fingerprint.Type
 import GHC.IO.Device
 import Numeric
+import Data.Semigroup
 import Primal.Array
 import Primal.Foreign hiding (Any)
 import Primal.Foreign.StablePtr
@@ -34,7 +35,6 @@ import Primal.Memory.Addr
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes
 import Primal.Memory.PArray
-import Primal.Memory.Ptr
 import Primal.Memory.Text
 import System.Timeout
 import Test.Primal
