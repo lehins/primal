@@ -26,8 +26,8 @@ main :: IO ()
 main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
-  mb1 <- allocAlignedMBytes n64
-  mb2 <- allocAlignedMBytes n64
+  mb1 <- allocAlignedPinnedMBytes n64
+  mb2 <- allocAlignedPinnedMBytes n64
   b1 <- freezeMBytes mb1
   mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba

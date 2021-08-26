@@ -268,9 +268,9 @@ spec = do
       prop "Pin - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
-        pinnedExpectation (allocAlignedMBytes n) True
+        pinnedExpectation (allocAlignedPinnedMBytes n) True
       prop "callocAlignedMBytes" $ \(b :: Bytes 'Pin) -> do
-        mb0 <- allocZeroAlignedMBytes (byteCountBytes b)
+        mb0 <- allocZeroAlignedPinnedMBytes (byteCountBytes b)
         mb <- thawBytes b
         zeroMBytes mb
         b0 <- freezeMBytes mb
@@ -283,7 +283,7 @@ spec = do
         not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSamePinnedBytes b1 b2)
     describe "Ptr Access" $
       prop "Test avoidance of GHC bug #18061" $
-        prop_WorkArounBugGHC18061 allocAlignedMBytes withNoHaltPtrMBytes
+        prop_WorkArounBugGHC18061 allocAlignedPinnedMBytes withNoHaltPtrMBytes
 
 
 prop_WorkArounBugGHC18061 ::

@@ -117,6 +117,10 @@ instance Typeable p => MemAlloc (PMArray p e) where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap fromMBytesPMArray . allocMBytes
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap fromMBytesPMArray . allocPinnedMutMemST
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap fromMBytesPMArray . allocAlignedPinnedMutMemST
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST mba = fmap fromMBytesPMArray . reallocMBytes (toMBytesPMArray mba)
   {-# INLINE reallocMutMemST #-}
 
@@ -215,7 +219,7 @@ allocAlignedPMArray ::
      (Primal s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (PMArray 'Pin e s)
-allocAlignedPMArray = fmap fromMBytesPMArray . allocAlignedMBytes
+allocAlignedPMArray = fmap fromMBytesPMArray . allocAlignedPinnedMBytes
 {-# INLINE allocAlignedPMArray #-}
 
 freezePMArray :: Primal s m => PMArray p e s -> m (PArray p e)

@@ -83,6 +83,14 @@ instance MemAlloc (MText 'Inc) where
     ma <- allocMutMemST c
     pure $ MText ma 0 (toCount16 c)
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST c = do
+    ma <- allocPinnedMutMemST c
+    pure $ MText ma 0 (toCount16 c)
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST c = do
+    ma <- allocAlignedPinnedMutMemST c
+    pure $ MText ma 0 (toCount16 c)
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST (MText ma o k) c'
     | k' <= k = pure $ MText ma o k'
     | o == 0 = do

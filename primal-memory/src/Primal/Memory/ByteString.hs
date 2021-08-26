@@ -132,11 +132,18 @@ instance MemWrite MByteString where
 instance MemAlloc MByteString where
   getByteCountMutMemST (MByteString bs) = pure $! Count (BS.length bs)
   {-# INLINE getByteCountMutMemST #-}
-  allocMutMemST c = do
+  allocMutMemST = allocPinnedMutMemST
+  {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST c = do
     let cb = toByteCount c
     fp <- mallocByteCountPlainForeignPtr cb
     pure $ MByteString (BS.PS fp 0 (coerce cb))
-  {-# INLINE allocMutMemST #-}
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST c = do
+    let cb = toByteCount c
+    fp <- mallocByteCountPlainForeignPtrAligned cb
+    pure $ MByteString (BS.PS fp 0 (coerce cb))
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST bsm@(MByteString (BS.PS fp o n)) newc
     | newn > n = defaultReallocMutMem bsm newc
     | otherwise = pure $ MByteString (BS.PS fp o newn)

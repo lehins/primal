@@ -31,18 +31,18 @@ module Primal.Memory.Bytes.Internal
   , isPinnedBytes
   , isPinnedMBytes
   , castStateMBytes
-  , castPinnedBytes
-  , castPinnedMBytes
+  , castPinnednessBytes
+  , castPinnednessMBytes
   , relaxPinnedBytes
   , relaxPinnedMBytes
   , toIncBytes
   , toIncMBytes
   , allocMBytes
   , allocPinnedMBytes
-  , allocAlignedMBytes
+  , allocAlignedPinnedMBytes
   , allocUnpinnedMBytes
   , allocZeroPinnedMBytes
-  , allocZeroAlignedMBytes
+  , allocZeroAlignedPinnedMBytes
   , reallocMBytes
   , freezeMBytes
   , thawBytes
@@ -184,7 +184,7 @@ instance Unlift (Bytes p) where
 -- dangerous. Type safe constructor `Primal.Memory.Bytes.fromMutableByteArray#` and
 -- unwrapper `Primal.Memory.Bytes.toMutableByteArray#` should be used instead. As a
 -- backdoor, of course, the actual constructor is available from "Primal.Memory.Internal"
--- module and especially unsafe function `castPinnedMBytes` was crafted.
+-- module and especially unsafe function `castPinnednessMBytes` was crafted.
 data MBytes (p :: Pinned) s = MBytes (MutableByteArray# s)
 type role MBytes nominal nominal
 
@@ -333,20 +333,20 @@ allocPinnedMBytes c =
       (# s', ba# #) -> (# s', MBytes ba# #)
 {-# INLINE allocPinnedMBytes #-}
 
-allocAlignedMBytes ::
+allocAlignedPinnedMBytes ::
      forall e m s. (Primal s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-allocAlignedMBytes c =
+allocAlignedPinnedMBytes c =
   primal $ \s ->
     case newAlignedPinnedByteArray#
            (unCountBytes# c)
            (alignment# (proxy# :: Proxy# e))
            s of
       (# s', ba# #) -> (# s', MBytes ba# #)
-{-# INLINE allocAlignedMBytes #-}
+{-# INLINE allocAlignedPinnedMBytes #-}
 
-
+-- |
 -- @since 0.3.0
 allocZeroPinnedMBytes ::
      (Primal s m, Unbox e)
@@ -355,13 +355,15 @@ allocZeroPinnedMBytes ::
 allocZeroPinnedMBytes n = allocPinnedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
 {-# INLINE allocZeroPinnedMBytes #-}
 
--- @since 0.3.0
-allocZeroAlignedMBytes ::
+-- |
+-- @since 1.0.0
+allocZeroAlignedPinnedMBytes ::
      (Primal s m, Unbox e)
   => Count e -- ^ Size in number of bytes
   -> m (MBytes 'Pin s)
-allocZeroAlignedMBytes n = allocAlignedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
-{-# INLINE allocZeroAlignedMBytes #-}
+allocZeroAlignedPinnedMBytes n =
+  allocAlignedPinnedMBytes n >>= \mb -> mb <$ setMBytes mb 0 (toByteCount n) 0
+{-# INLINE allocZeroAlignedPinnedMBytes #-}
 
 
 getByteCountMBytes :: Primal s m => MBytes p s -> m (Count Word8)
@@ -423,6 +425,8 @@ resizeMBytes (MBytes mb#) c =
       (# s', mb'# #) -> (# s', MBytes mb'# #)
 {-# INLINE resizeMBytes #-}
 
+
+-- TODO: document! See resizeMutableByteArray#.
 reallocMBytes ::
      forall e p m s. (Primal s m, Typeable p,  Unbox e)
   => MBytes p s
@@ -438,30 +442,30 @@ reallocMBytes mb c = do
              b <- freezeMBytes mb
              mb' <- allocPinnedMBytes newByteCount
              mb' <$ copyByteOffBytesToMBytes b 0 mb' 0 oldByteCount
-           Nothing -> castPinnedMBytes <$> resizeMBytes mb newByteCount
+           Nothing -> castPinnednessMBytes <$> resizeMBytes mb newByteCount
 {-# INLINABLE reallocMBytes #-}
 
 castStateMBytes :: MBytes p s' -> MBytes p s
 castStateMBytes = unsafeCoerce
 
-castPinnedBytes :: Bytes p' -> Bytes p
-castPinnedBytes (Bytes b#) = Bytes b#
+castPinnednessBytes :: Bytes p' -> Bytes p
+castPinnednessBytes (Bytes b#) = Bytes b#
 
-castPinnedMBytes :: MBytes p' s -> MBytes p s
-castPinnedMBytes (MBytes b#) = MBytes b#
+castPinnednessMBytes :: MBytes p' s -> MBytes p s
+castPinnednessMBytes (MBytes b#) = MBytes b#
 
-
+-- | Safe way to coerce pinnedness
 relaxPinnedBytes :: Bytes 'Pin -> Bytes p
-relaxPinnedBytes = castPinnedBytes
+relaxPinnedBytes = castPinnednessBytes
 
 relaxPinnedMBytes :: MBytes 'Pin e -> MBytes p e
-relaxPinnedMBytes = castPinnedMBytes
+relaxPinnedMBytes = castPinnednessMBytes
 
 toIncBytes :: Bytes p -> Bytes 'Inc
-toIncBytes = castPinnedBytes
+toIncBytes = castPinnednessBytes
 
 toIncMBytes :: MBytes p e -> MBytes 'Inc e
-toIncMBytes = castPinnedMBytes
+toIncMBytes = castPinnednessMBytes
 
 
 -- | How many elements of type @a@ fits into bytes completely. In order to get a possible
@@ -1107,10 +1111,20 @@ class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
   -- @since 1.0.0
   getByteCountMutMemST :: ma s -> ST s (Count Word8)
 
-  -- | See `Primal.Memory.allocMutMemST` for details.
+  -- | See `Primal.Memory.allocMutMem` for details.
   --
   -- @since 1.0.0
   allocMutMemST :: Unbox e => Count e -> ST s (ma s)
+
+  -- | See `Primal.Memory.allocPinnedMutMem` for details.
+  --
+  -- @since 1.0.0
+  allocPinnedMutMemST :: Unbox e => Count e -> ST s (ma s)
+
+  -- | See `Primal.Memory.allocAlignedPinnedMutMem` for details.
+  --
+  -- @since 1.0.0
+  allocAlignedPinnedMutMemST :: Unbox e => Count e -> ST s (ma s)
 
   -- | Either grow or shrink currently allocated mutable region of memory. For some
   -- implementations it might be possible to change the size of the allocated region
@@ -1193,6 +1207,10 @@ instance Typeable p => MemAlloc (MBytes p) where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = allocMBytes
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap relaxPinnedMBytes . allocPinnedMBytes
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap relaxPinnedMBytes . allocAlignedPinnedMBytes
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST = reallocMBytes
   {-# INLINE reallocMutMemST #-}
 
@@ -1252,6 +1270,10 @@ instance MemAlloc (UMArray e) where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap toUMArrayMBytes . allocUnpinnedMBytes
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap toUMArrayMBytes . allocPinnedMBytes
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap toUMArrayMBytes . allocAlignedPinnedMBytes
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST ma = fmap toUMArrayMBytes . reallocMBytes (fromUMArrayMBytes ma)
   {-# INLINE reallocMutMemST #-}
 
@@ -1343,6 +1365,10 @@ instance MemAlloc T.MArray where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap toTextMArrayMBytes . allocUnpinnedMBytes
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap toTextMArrayMBytes . allocPinnedMBytes
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap toTextMArrayMBytes . allocAlignedPinnedMBytes
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST m = fmap toTextMArrayMBytes . reallocMBytes (fromTextMArrayMBytes m)
   {-# INLINE reallocMutMemST #-}
 
@@ -1400,11 +1426,9 @@ instance MemRead BS.ByteString where
   {-# INLINE isSameMem #-}
   byteCountMem = Count . BS.length
   {-# INLINE byteCountMem #-}
-  indexOffMem bs i =
-    unsafeInlineST $ withPtrByteString bs (\ptr -> readOffPtr ptr i)
+  indexOffMem bs i = unsafeInlineST $ withPtrByteString bs (`readOffPtr` i)
   {-# INLINE indexOffMem #-}
-  indexByteOffMem bs i =
-    unsafeInlineST $ withPtrByteString bs (\ptr -> readByteOffPtr ptr i)
+  indexByteOffMem bs i = unsafeInlineST $ withPtrByteString bs (`readByteOffPtr` i)
   {-# INLINE indexByteOffMem #-}
   copyByteOffToMBytesMemST bs srcOff mb dstOff c =
     withPtrByteString bs $ \srcPtr ->

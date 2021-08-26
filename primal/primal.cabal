@@ -67,6 +67,7 @@ library
                      , Primal.Mem.StableName
                      , Primal.Foreign
                      , Primal.Foreign.StablePtr
+                     --, Primal.System.RunTime
 
   other-modules:       Primal.Array.Internal
                      , Primal.Element.Unbox.Class

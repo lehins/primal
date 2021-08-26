@@ -235,17 +235,17 @@ newForeignPtrEnv finEnv envPtr = liftPrimalState . GHC.newForeignPtrEnv finEnv e
 newForeignPtr_ :: Primal RW m => Ptr e -> m (ForeignPtr e)
 newForeignPtr_ = liftPrimalState . GHC.newForeignPtr_
 
--- | Similar to `GHC.mallocForeignPtr`, except it operates on `Prim`, instead of `Storable`.
+-- | Similar to `GHC.mallocForeignPtr`, except it operates on `Unbox`, instead of `Storable`.
 mallocForeignPtr :: forall e m . (Primal RW m, Unbox e) => m (ForeignPtr e)
 mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 
 
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
--- use `Prim`.
+-- use `Unbox`.
 mallocCountForeignPtr :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtr = liftPrimalState . GHC.mallocForeignPtrBytes . unCountBytes
 
--- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
+-- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Unbox` instance
 mallocCountForeignPtrAligned :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtrAligned count =
   liftPrimalState $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
@@ -275,7 +275,7 @@ addForeignPtrFinalizerEnv ::
 addForeignPtrFinalizerEnv fin envPtr = liftPrimalState . GHC.addForeignPtrFinalizerEnv fin envPtr
 
 
--- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Prim` and
+-- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Unbox` and
 -- we are not restricted to `IO`, since finalizers are not possible with `PlaintPtr`
 mallocPlainForeignPtr ::
      forall e m s. (Primal s m, Unbox e)
@@ -284,12 +284,12 @@ mallocPlainForeignPtr = mallocCountPlainForeignPtr (1 :: Count e)
 {-# INLINE mallocPlainForeignPtr #-}
 
 -- | Similar to `Foreign.ForeignPtr.mallocPlainForeignPtrArray`, except instead of `Storable` we
--- use `Prim`.
+-- use `Unbox`.
 mallocCountPlainForeignPtr :: (Primal s m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountPlainForeignPtr = mallocByteCountPlainForeignPtr . toByteCount
 {-# INLINE mallocCountPlainForeignPtr #-}
 
--- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Prim` instance
+-- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Unbox` instance
 mallocCountPlainForeignPtrAligned ::
      forall e m s. (Primal s m, Unbox e)
   => Count e
@@ -315,13 +315,13 @@ mallocByteCountPlainForeignPtr (Count (I# c#)) =
 
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
 mallocByteCountPlainForeignPtrAligned ::
-     Primal s m
+     forall e m s. (Primal s m, Unbox e)
   => Count Word8 -- ^ Number of bytes to allocate
-  -> Int -- ^ Alignment in bytes
   -> m (ForeignPtr e)
-mallocByteCountPlainForeignPtrAligned (Count (I# c#)) (I# a#) =
+mallocByteCountPlainForeignPtrAligned (Count (I# c#)) =
   primal $ \s ->
-    case newAlignedPinnedByteArray# c# a# s of
+     let a# = alignment# (proxy# :: Proxy# e)
+     in case newAlignedPinnedByteArray# c# a# s of
       (# s', mba# #) ->
         (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
 {-# INLINE mallocByteCountPlainForeignPtrAligned #-}

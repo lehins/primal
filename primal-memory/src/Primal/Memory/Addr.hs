@@ -301,10 +301,10 @@ allocZeroMAddr c = fromMBytesMAddr <$> allocZeroPinnedMBytes c
 
 
 allocAlignedMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
-allocAlignedMAddr c = fromMBytesMAddr <$> allocAlignedMBytes c
+allocAlignedMAddr c = fromMBytesMAddr <$> allocAlignedPinnedMBytes c
 
 allocZeroAlignedMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
-allocZeroAlignedMAddr c = fromMBytesMAddr <$> allocZeroAlignedMBytes c
+allocZeroAlignedMAddr c = fromMBytesMAddr <$> allocZeroAlignedPinnedMBytes c
 
 
 -- | Shrink mutable address to new specified size in number of elements. The new count
@@ -502,6 +502,10 @@ instance MemAlloc (MAddr e) where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap castMAddr . allocMAddr
   {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap castMAddr . allocMAddr
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap castMAddr . allocAlignedMAddr
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
   {-# INLINE reallocMutMemST #-}
 

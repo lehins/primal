@@ -65,11 +65,11 @@ module Primal.Memory.Bytes
   , allocMBytes
   , singletonMBytes
   , allocPinnedMBytes
-  , allocAlignedMBytes
+  , allocAlignedPinnedMBytes
   , allocUnpinnedMBytes
   , allocZeroMBytes
   , allocZeroPinnedMBytes
-  , allocZeroAlignedMBytes
+  , allocZeroAlignedPinnedMBytes
   , shrinkMBytes
   , resizeMBytes
   , reallocMBytes
@@ -210,8 +210,8 @@ coerceStateMBytes = unsafeCoerce#
 
 
 emptyBytes :: Bytes p
-emptyBytes = castPinnedBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
-{-# INLINE emptyBytes #-}
+emptyBytes = castPinnednessBytes $ runST $ allocPinnedMBytes (0 :: Count Word8) >>= freezeMBytes
+{-# NOINLINE emptyBytes #-}
 
 isEmptyBytes :: Bytes p -> Bool
 isEmptyBytes b = byteCountBytes b == 0

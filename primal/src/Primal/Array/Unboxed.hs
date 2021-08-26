@@ -766,7 +766,7 @@ newRawPinnedUMArray n =
 {-# INLINE newRawPinnedUMArray #-}
 
 -- | /O(1)/ - Same as `newRawPinnedUMArray` except allocate new mutable unboxed array as
--- pinned and aligned according to the `Prim` instance for the type of element @__e__@
+-- pinned and aligned according to the `Unbox` instance for the type of element @__e__@
 --
 -- Documentation for utilized primop: `newAlignedPinnedByteArray#`.
 --

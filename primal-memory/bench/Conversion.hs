@@ -22,16 +22,16 @@ main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
       xs = [1 .. unCount n]
-  mb1 <- allocAlignedMBytes n64
+  mb1 <- allocAlignedPinnedMBytes n64
   b1 <- freezeMBytes mb1
-  mb2 <- allocAlignedMBytes n64
-  mb3 <- allocAlignedMBytes n64
+  mb2 <- allocAlignedPinnedMBytes n64
+  mb3 <- allocAlignedPinnedMBytes n64
   let MForeignPtr fp = toMForeignPtrMBytes mb3
   mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
   -- Ensure that arrays are equal by filling them with zeros
-  bEq1 <- freezeMBytes =<< allocZeroAlignedMBytes n64
-  bEq2 <- freezeMBytes =<< allocZeroAlignedMBytes n64
+  bEq1 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
+  bEq2 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
   mbaEq1 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   mbaEq2 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)

@@ -77,11 +77,12 @@ import Primal.Monad
 -- Immutable Boxed Array --
 ---------------------------
 
--- $boxedArray A boxed array is essentially a contiguous chunk of memory that holds
--- pointers to actual elements that are being stored somewhere else on the heap. Therefore
--- it is more efficient to use `Primal.Array.UArray` if the element being stored has a `Prim` instance
--- or can have created for it, because this avoids an extra level of indirection. However
--- this is not always possible and for this reason we have boxed arrays.
+-- $boxedArray A boxed array is essentially a contiguous chunk of memory that
+-- holds pointers to actual elements that are being stored somewhere else on the
+-- heap. Therefore it is more efficient to use `Primal.Array.UArray` if the
+-- element being stored has a `Unbox` instance or can have created for it,
+-- because this avoids an extra level of indirection. However this is not always
+-- possible and for this reason we have boxed arrays.
 
 
 -- | Immutable array with boxed elements.
