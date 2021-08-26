@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Element.Unbox
@@ -18,21 +19,16 @@ module Primal.Element.Unbox
   , Atomic
   , AtomicCount
   , AtomicBits
-  , Primal
-  , RW
-  , RealWorld
-  , ST
-  , runST
   , showsType
-  -- * Unbox type size
+  -- * Unboxed element size
   , byteCount
   , byteCountType
   , byteCountProxy
-  -- * Unbox type alignment
+  -- * Unboxed element alignment
   , alignment
   , alignmentType
   , alignmentProxy
-  -- * Count
+  -- * Unboxed element count
   , Count(..)
   , unCountBytes
   , toByteCount
@@ -229,11 +225,6 @@ countForProxyTypeOf count _ = count
 countForType :: Count e -> e -> Count e
 countForType count _ = count
 
-fromByteCountInt8 :: Count Word8 -> Count Int8
-fromByteCountInt8 = coerce
-{-# INLINE fromByteCountInt8 #-}
-
-
 -- | Compute how many elements of type @e@ can fit in the supplied number of bytes.
 --
 -- @since 0.1.0
@@ -242,24 +233,18 @@ fromByteCount sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quo
 {-# INLINE[0] fromByteCount #-}
 {-# RULES
 "fromByteCount" fromByteCount = id
-"fromByteCount" fromByteCount = fromByteCountInt8
+"fromByteCount" fromByteCount = coerce :: Count Word8 -> Count Int8
   #-}
-
-fromByteCountRemWord8 :: Count Word8 -> (Count Word8, Count Word8)
-fromByteCountRemWord8 i = (coerce i, 0)
-{-# INLINE fromByteCountRemWord8 #-}
-
-fromByteCountRemInt8 :: Count Word8 -> (Count Int8, Count Word8)
-fromByteCountRemInt8 i = (coerce i, 0)
-{-# INLINE fromByteCountRemInt8 #-}
 
 
 fromByteCountRem :: forall e . Unbox e => Count Word8 -> (Count e, Count Word8)
 fromByteCountRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 0) quotRemInt)
 {-# INLINE[0] fromByteCountRem #-}
 {-# RULES
-"fromByteCountRemWord8" fromByteCountRem = fromByteCountRemWord8
-"fromByteCountRemInt8"  fromByteCountRem = fromByteCountRemInt8
+"fromByteCountRemWord8"
+  fromByteCountRem = (, 0) :: Count Word8 -> (Count Word8, Count Word8)
+"fromByteCountRemInt8"
+  fromByteCountRem = (, 0) . coerce :: Count Word8 -> (Count Int8, Count Word8)
   #-}
 
 quotSizeOfWith :: forall e b. Unbox e => Proxy# e -> Int -> b -> (Int -> Int -> b) -> b
@@ -312,7 +297,7 @@ offToByteCount :: Unbox e => Off e -> Count Word8
 offToByteCount = offToCount . toByteOff
 {-# INLINE offToByteCount #-}
 
--- | Compute byte offset from an offset of `Prim` type
+-- | Compute byte offset from an offset of `Unbox` type
 --
 -- >>> toByteOff (10 :: Off Word64)
 -- Off {unOff = 80}
@@ -323,7 +308,7 @@ toByteOff off = Off (I# (unOffBytes# off))
 {-# INLINE toByteOff #-}
 
 
--- | Convert an offset for some type @e@ with `Prim` instance to the number of bytes as an
+-- | Convert an offset for some type @e@ with `Unbox` instance to the number of bytes as an
 -- `Int`.
 --
 -- >>> unOffBytes (10 :: Off Word64)

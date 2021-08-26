@@ -11,6 +11,7 @@
 --
 module Primal.Memory.Fold where
 
+import Primal.Monad
 import Primal.Element.Unbox
 import Primal.Memory.Internal
 import Data.Semigroup

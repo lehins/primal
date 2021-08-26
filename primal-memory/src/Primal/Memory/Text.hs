@@ -23,6 +23,7 @@ module Primal.Memory.Text
   , toTextMArrayMBytes
   ) where
 
+import Primal.Monad
 import Data.Text.Array
 import Data.Text.Internal as T
 import Primal.Mutable.Freeze

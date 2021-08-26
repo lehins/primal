@@ -54,18 +54,19 @@ module Primal.Memory.PArray
   , module Primal.Element.Unbox
   ) where
 
-import Primal.Array (Size(..), UArray(..), UMArray(..), eqWithST, compareWithST)
+import Primal.Array (Size(..), UArray(..), UMArray(..), compareWithST, eqWithST)
+import Primal.Element.Unbox
+import Primal.Element.Unlift
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Bytes
 import Primal.Memory.Fold
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Internal
+import Primal.Monad
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Element.Unbox
-import Primal.Element.Unlift
 
 -- | An immutable array with elements of type @e@
 newtype PArray (p :: Pinned) e = PArray (Bytes p)

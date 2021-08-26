@@ -33,7 +33,7 @@ module Primal.Array.Internal
   , module Data.Semigroup
   ) where
 
-import Control.Monad
+import Primal.Monad
 import Primal.Exception
 import qualified Data.Foldable as F
 import Primal.Element.Unbox

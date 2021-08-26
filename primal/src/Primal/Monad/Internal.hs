@@ -20,10 +20,10 @@
 module Primal.Monad.Internal
   ( RW
   , RealWorld
-  , MonadIO
+  , PrimalIO
   , Primal(..)
   , PrimalState(..)
-  , MonadUnliftIO
+  , UnliftPrimalIO
   , UnliftPrimal(..)
   , ST
   , unIO
@@ -73,9 +73,9 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 -- | A shorter synonym for the magical `RealWorld`
 type RW = RealWorld
 
-type MonadIO m = Primal RW m
+type PrimalIO m = Primal RW m
 
-type MonadUnliftIO m = UnliftPrimal RW m
+type UnliftPrimalIO m = UnliftPrimal RW m
 
 class Raises m => Primal s m | m -> s where
   -- | Construct a primal action from a state passing function.
