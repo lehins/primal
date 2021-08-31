@@ -72,6 +72,7 @@ library
   other-modules:       Primal.Array.Internal
                      , Primal.Element.Unbox.Class
                      , Primal.Element.Unbox.Instances
+                     , Primal.Element.Unbox.Primitive
                      , Primal.Element.Unbox.Tuples
                      , Primal.Monad.Internal
                      , Primal.Foreign.C

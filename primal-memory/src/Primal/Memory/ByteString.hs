@@ -29,6 +29,7 @@ module Primal.Memory.ByteString
   , withNoHaltPtrByteString
   -- ** ShortByteString
   , ShortByteString(..)
+  , MShortByteString(..)
   , toShortByteStringBytes
   , fromShortByteStringBytes
   , byteStringConvertError

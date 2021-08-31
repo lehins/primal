@@ -31,6 +31,7 @@ library
                      , Primal.Memory.ByteString
                      , Primal.Memory.Bytes
                      , Primal.Memory.Encoding
+                     , Primal.Memory.Endianness
                      , Primal.Memory.ForeignPtr
                      , Primal.Memory.Fold
                      , Primal.Memory.PArray
@@ -72,6 +73,7 @@ test-suite tests
   other-modules:      Spec
                     , Test.Primal.Memory.Common
                     , Test.Primal.Memory.Encoding.Base16Spec
+                    , Test.Primal.Memory.EndiannessSpec
   build-tool-depends: hspec-discover:hspec-discover
   build-depends:      QuickCheck
                     , base
@@ -151,6 +153,24 @@ benchmark base16
                      , memory
                      , bytestring
                      , base16-bytestring
+                     , random
+                     , transformers
+  default-language:    Haskell2010
+
+benchmark endianness
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      bench
+  main-is:             Endianness.hs
+  ghc-options:         -Wall
+                       -threaded
+                       -O2
+  build-depends:       base
+                     , bytestring
+                     , criterion
+                     , primal
+                     , primal-memory
+                     , memory
+                     , bytestring
                      , random
                      , transformers
   default-language:    Haskell2010
