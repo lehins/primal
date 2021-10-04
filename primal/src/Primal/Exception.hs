@@ -47,30 +47,6 @@ module Primal.Exception
   , tryAll
   , tryAllSync
   , tryAllAsync
-  , onException
-  -- TODO: Implement:
-  -- , onAsyncException
-  , withException
-  , withAnyException
-  -- TODO: Implement:
-  -- , withAsyncException
-  , finally
-  , bracket
-  , bracket_
-  , bracketOnError
-  , ufinally
-  , ubracket
-  , ubracket_
-  , ubracketOnError
-  , mask
-  , mask_
-  , maskPrimalState_
-  , uninterruptibleMask
-  , uninterruptibleMask_
-  , uninterruptibleMaskPrimalState_
-  , maskAsyncExceptions
-  , unmaskAsyncExceptions
-  , maskUninterruptible
   , GHC.MaskingState(..)
   , getMaskingState
   -- * Exceptions
@@ -103,10 +79,10 @@ module Primal.Exception
   , prettyCallStack
   , SrcLoc(..)
   , prettySrcLoc
+
   ) where
 
 import qualified Control.Exception as GHC
-import Control.Monad
 import Primal.Monad.Internal
 import Primal.Monad.Raises
 import Primal.Monad.Unsafe
@@ -209,7 +185,7 @@ raiseTo tid e =
 -- monad. It will catch an exception of any type, regardless how it was thrown
 -- asynchonously or synchronously.
 --
--- @since 0.3.0
+-- @since 1.0.0
 catch ::
      forall e a m. (GHC.Exception e, UnliftPrimal RW m)
   => m a
@@ -224,7 +200,7 @@ catch action handler =
             Nothing -> raiseIO# someExc
      in catch# (action# ()) handler'#
 {-# INLINE catch #-}
---{-# SPECIALIZE catch :: GHC.Exception e => IO a -> (e -> IO a) -> IO a #-}
+
 
 -- | Same as `catch`, but allows to select which particular exception we care
 -- about with the help of a modifying predicate.
@@ -359,220 +335,9 @@ tryAllAsync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAllAsync f = catchAllAsync (Right <$> f) (pure . Left)
 
 
--- | Run an action, while invoking an exception handler when that action fails
--- for some reason. Exception handling function has async exceptions masked, but
--- it is still interruptible, which can be undesired in some scenarios. If you
--- are sure that the cleanup action does not deadlock and you do need hard
--- guarantees that it gets executed you can run it as uninterruptible:
---
--- > uninterruptibleMask $ \restore -> withException (restore action) handler
---
--- @since 0.3.0
-withException ::
-     (UnliftPrimal RW m, GHC.Exception e) => m a -> (e -> m b) -> m a
-withException action handler =
-  mask $ \restore -> do
-    catch
-      (restore action)
-      (\exc -> catchAllSync (void $ handler exc) (\_ -> pure ()) >> raise exc)
-
-
--- | Same as `withException`, but will invoke exception handling function on all
--- exceptions.
---
--- @since 0.3.0
-withAnyException :: UnliftPrimal RW m => m a -> (GHC.SomeException -> m b) -> m a
-withAnyException thing after =
-  mask $ \restore -> do
-    catchAll
-      (restore thing)
-      (\exc -> catchAllSync (void $ after exc) (\_ -> pure ()) >> raise exc)
-
--- | Async safe version of 'GHC.onException'.
---
--- @since 1.0.0
-onException :: UnliftPrimal RW m => m a -> m b -> m a
-onException thing after = withAnyException thing (const after)
-
-
---
--- @since 0.3.0
-bracket :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracket acquire cleanup action =
-  mask $ \restore -> do
-    resource <- acquire
-    result <-
-      catchAll (restore (action resource)) $ \exc -> do
-        catchAllSync (void $ cleanup resource) $ \_ -> pure ()
-        raise exc
-    result <$ cleanup resource
-{-# INLINEABLE bracket #-}
-
-bracketOnError :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
-bracketOnError acquire cleanup action =
-  mask $ \restore -> do
-    resource <- acquire
-    catchAll (restore (action resource)) $ \exc -> do
-      catchAllSync (void $ cleanup resource) $ \_ -> pure ()
-      raise exc
-
-finally :: UnliftPrimal RW m => m a -> m b -> m a
-finally action cleanup =
-  mask $ \restore -> do
-    result <-
-      catchAll (restore action) $ \exc -> do
-        catchAllSync (void cleanup) $ \_ -> pure ()
-        raise exc
-    result <$ cleanup
-
-
-
---
--- @since 0.3.0
-bracket_ :: UnliftPrimal RW m => m a -> m b -> m c -> m c
-bracket_ acquire cleanup action = bracket acquire (const cleanup) (const action)
-
-
-ubracket :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
-ubracket acquire cleanup action =
-  uninterruptibleMask $ \restore ->
-    bracket (restore acquire) cleanup (restore . action)
-
-
---
--- @since 0.3.0
-ubracket_ :: UnliftPrimal RW m => m a -> m b -> m c -> m c
-ubracket_ acquire cleanup action = ubracket acquire (const cleanup) (const action)
-
-
-ubracketOnError :: UnliftPrimal RW m => m a -> (a -> m b) -> (a -> m c) -> m c
-ubracketOnError acquire cleanup action =
-  uninterruptibleMask $ \restore ->
-    bracketOnError (restore acquire) cleanup (restore . action)
-
-ufinally :: UnliftPrimal RW m => m a -> m b -> m a
-ufinally action cleanup =
-  uninterruptibleMask $ \restore -> finally (restore action) cleanup
-
-
--- | Mask all asychronous exceptions, but keep it interruptible, unless the inherited state
--- was uninterruptible already, in which case this action has no affect. Same as
--- `Control.Exception.mask_`, except that it is polymorphic in state token. Inside a state
--- thread it cannot affect the result of computation, therefore it is safe to use it within
--- `ST` monad.
---
--- @since 0.3.0
-mask_ :: forall a m s. UnliftPrimal s m => m a -> m a
-mask_ action =
-  unsafeIOToPrimal getMaskingState >>= \case
-    GHC.Unmasked -> runInPrimalState action maskAsyncExceptionsInternal#
-    _ -> action
-{-# INLINEABLE mask_  #-}
-
-
-maskPrimalState_ :: forall a n m s. (Primal s m, PrimalState s n) => n a -> m a
-maskPrimalState_ action =
-  unsafeIOToPrimal getMaskingState >>= \case
-    GHC.Unmasked -> primal (maskAsyncExceptionsInternal# (primalState action))
-    _ -> liftPrimalState action
-{-# INLINEABLE maskPrimalState_  #-}
-
--- | Mask all asychronous exceptions, but keep it interruptible, unless the inherited state
--- was uninterruptible already, in which case this action has no affect. Same as
--- `Control.Exception.mask`, except that it is polymorphic in state token. Inside a state
--- thread it cannot affect the result of computation, therefore it is safe to use it within
--- `ST` monad.
---
--- @since 0.3.0
-mask ::
-     forall a m s. UnliftPrimal s m
-  => ((forall b. m b -> m b) -> m a)
-  -> m a
-mask action = do
-  unsafeIOToPrimal getMaskingState >>= \case
-    GHC.Unmasked ->
-      runInPrimalState
-        (action (`runInPrimalState` unmaskAsyncExceptionsInternal#))
-        maskAsyncExceptionsInternal#
-    GHC.MaskedInterruptible ->
-      action (`runInPrimalState` maskAsyncExceptionsInternal#)
-    GHC.MaskedUninterruptible -> action uninterruptibleMask_
-{-# INLINEABLE mask #-}
---{-# SPECIALIZE mask :: ((forall a. IO a -> IO a) -> IO b) -> IO b #-}
-
--- | Mask all asychronous exceptions and mark it uninterruptible. Same as
--- `Control.Exception.uninterruptibleMask`, except that it is polymorphic in state
--- token. Inside a state thread it cannot affect the result of computation, therefore it
--- is safe to use it within `ST` monad.
---
--- @since 0.3.0
-uninterruptibleMask ::
-     forall a m s. UnliftPrimal s m
-  => ((forall b. m b -> m b) -> m a)
-  -> m a
-uninterruptibleMask action = do
-  unsafeIOToPrimal getMaskingState >>= \case
-    GHC.Unmasked ->
-      runInPrimalState
-        (action (`runInPrimalState` unmaskAsyncExceptionsInternal#))
-        maskAsyncExceptionsInternal#
-    GHC.MaskedInterruptible ->
-      action (`runInPrimalState` maskAsyncExceptionsInternal#)
-    GHC.MaskedUninterruptible -> action uninterruptibleMask_
-{-# INLINEABLE uninterruptibleMask #-}
-
-
--- | Mask all async exceptions and make sure evaluation cannot be interrupted. It is
--- polymorphic in the state token because it is perfectly safe to use with `ST` actions that
--- don't perform any allocations. It doesn't have to be restricted to `RealWorld` because it
--- has no impact on other threads and can't affect the result of computation, moreover pure
--- functions that implement tight loops are already non-interruptible. In fact using this
--- function is more dangerous in `IO` than it is in `ST`, because misuse can lead to deadlocks
--- in a concurrent setting.
---
--- @since 0.3.0
-uninterruptibleMask_ :: forall a m s. UnliftPrimal s m => m a -> m a
-uninterruptibleMask_ action = runInPrimalState action maskUninterruptibleInternal#
-{-# INLINEABLE uninterruptibleMask_ #-}
-
-uninterruptibleMaskPrimalState_ :: forall a n m s. (PrimalState s n, Primal s m) => n a -> m a
-uninterruptibleMaskPrimalState_ action = primal (maskUninterruptibleInternal# (primalState action))
-{-# INLINEABLE uninterruptibleMaskPrimalState_ #-}
-
-
--- | A direct wrapper around `maskAsyncExceptions#` primop. This is different and more
--- dangerous than `mask_` because it can turn uninterrubtable state into interruptable.
-maskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
-maskAsyncExceptions action = runInPrimalState action maskAsyncExceptions#
-{-# INLINEABLE maskAsyncExceptions  #-}
-
-
--- | A direct wrapper around `unmaskAsyncExceptions#` primop.
-unmaskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
-unmaskAsyncExceptions action = runInPrimalState action unmaskAsyncExceptions#
-{-# INLINEABLE unmaskAsyncExceptions  #-}
-
-
--- | A direct wrapper around `maskUninterruptible#` primop.
-maskUninterruptible :: forall a m. UnliftPrimal RW m => m a -> m a
-maskUninterruptible action = runInPrimalState action maskUninterruptible#
-{-# INLINEABLE maskUninterruptible #-}
-
-maskAsyncExceptionsInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
-maskAsyncExceptionsInternal# = unsafeCoerce# maskAsyncExceptions#
-{-# INLINEABLE maskAsyncExceptionsInternal# #-}
-
-maskUninterruptibleInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
-maskUninterruptibleInternal# = unsafeCoerce# maskUninterruptible#
-{-# INLINEABLE maskUninterruptibleInternal# #-}
-
-unmaskAsyncExceptionsInternal# :: (State# s -> (# State# s, b #)) -> State# s -> (# State# s, b #)
-unmaskAsyncExceptionsInternal# = unsafeCoerce# unmaskAsyncExceptions#
-{-# INLINEABLE unmaskAsyncExceptionsInternal# #-}
-
 -- | Same as `GHC.getMaskingState`, but generalized to `Primal`
 --
--- @since 0.3.0
+-- @since 1.0.0
 getMaskingState :: Primal RW m => m GHC.MaskingState
 getMaskingState = liftIO GHC.getMaskingState
 {-# INLINEABLE getMaskingState #-}

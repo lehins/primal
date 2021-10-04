@@ -30,12 +30,12 @@ instance Show (GHC.StablePtr a) where
 
 -- | Same as `GHC.newStablePtr`, but generalized to `Primal`
 newStablePtr :: PrimalIO m => a -> m (GHC.StablePtr a)
-newStablePtr = liftPrimalState . GHC.newStablePtr
+newStablePtr = liftP . GHC.newStablePtr
 
 -- | Same as `GHC.deRefStablePtr`, but generalized to `Primal`
 deRefStablePtr :: PrimalIO m => GHC.StablePtr a -> m a
-deRefStablePtr = liftPrimalState . GHC.deRefStablePtr
+deRefStablePtr = liftP . GHC.deRefStablePtr
 
 -- | Same as `GHC.freeStablePtr`, but generalized to `Primal`
 freeStablePtr :: PrimalIO m => GHC.StablePtr a -> m ()
-freeStablePtr = liftPrimalState . GHC.freeStablePtr
+freeStablePtr = liftP . GHC.freeStablePtr

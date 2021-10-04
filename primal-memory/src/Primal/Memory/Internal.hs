@@ -34,7 +34,7 @@ import qualified Data.Semigroup as Semigroup
 import GHC.Word
 import Numeric (showHex)
 import Primal.Array
-import Primal.Exception
+import qualified Primal.Exception.Uninterruptible as EUI
 import Primal.Element
 import Primal.Foreign
 import Primal.Memory.ByteString
@@ -2453,5 +2453,5 @@ withScrubbedMutMem ::
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
   let _fptr = toMForeignPtrMem mem :: MForeignPtr e RW -- Enforce the `PtrAccess` constraint.
-  f mem `ufinally` setMutMem mem 0 (toByteCount c) 0
+  f mem `EUI.finally` setMutMem mem 0 (toByteCount c) 0
 {-# INLINE withScrubbedMutMem #-}

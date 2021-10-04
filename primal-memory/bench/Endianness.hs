@@ -213,7 +213,7 @@ writeWord32LE (MBA mba#) (I# i#) w =
   IO $ \s# -> (# writeWord32Array# mba# i# wle# s#, () #)
   where
     !(W32# wle#)
-      | targetByteOrder == BigEndian = byteSwap32 w
+      | homeEndian == BigEndian = byteSwap32 w
       | otherwise = w
 {-# INLINE writeWord32LE #-}
 
@@ -221,7 +221,7 @@ writeWord64LE :: MBA RealWorld -> Int -> Word64 -> IO ()
 writeWord64LE mba@(MBA mba#) i@(I# i#) w64@(W64# w#)
   | wordSizeInBits == 64 = do
     let !wle#
-          | targetByteOrder == BigEndian = byteSwap64# w#
+          | homeEndian == BigEndian = byteSwap64# w#
           | otherwise = w#
     IO $ \s# -> (# writeWord64Array# mba# i# wle# s#, () #)
   | otherwise = do

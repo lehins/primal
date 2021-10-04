@@ -46,6 +46,9 @@ library
                      , Primal.Element.Unlift
                      , Primal.Eval
                      , Primal.Exception
+                     , Primal.Exception.Interruptible
+                     , Primal.Exception.Uninterruptible
+                     , Primal.Exception.Unsafe
                      , Primal.Monad
                      , Primal.Monad.Raises
                      , Primal.Monad.Unsafe

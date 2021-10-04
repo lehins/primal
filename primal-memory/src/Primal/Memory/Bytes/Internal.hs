@@ -635,7 +635,7 @@ onForeignPtrContents (ForeignPtr addr# contents) onHaskellPtr onCPtr =
     PlainPtr mbaRW# -> onHaskellPtr addr# mbaRW# (pure False)
 #if MIN_VERSION_base(4,14,0)
     MallocPtr mbaRW# fref -> onHaskellPtr addr# mbaRW# $ do
-      finilizers <- liftPrimalState $ readIORef fref
+      finilizers <- liftP $ readIORef fref
       pure $! case finilizers of
         NoFinalizers         -> False
         HaskellFinalizers fs -> not $ Prelude.null fs

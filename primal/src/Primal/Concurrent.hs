@@ -49,6 +49,7 @@ module Primal.Concurrent
 import qualified Control.Exception as GHC
 import qualified Control.Concurrent as GHC
 import Primal.Exception
+import qualified Primal.Exception.Interruptible as EI
 import Primal.Monad
 import Primal.Foreign
 import qualified GHC.Conc as GHC
@@ -105,7 +106,7 @@ fork action =
 -- be passed to the supplied exception handler, which itself will be run in a masked state
 forkFinally :: UnliftPrimal RW m => m a -> (Either SomeException a -> m ()) -> m GHC.ThreadId
 forkFinally action handler =
-  mask $ \restore -> fork $ tryAll (restore action) >>= handler
+  EI.mask $ \restore -> fork $ tryAll (restore action) >>= handler
 
 -- | Wrapper around `forkOn#`. Unlike `Control.Concurrent.forkOn` it does not install any
 -- exception handlers on the action, so you need make sure to do it yourself.
@@ -122,7 +123,7 @@ forkOnFinally ::
   -> (Either SomeException a -> m ())
   -> m GHC.ThreadId
 forkOnFinally cap action handler =
-  mask $ \restore -> forkOn cap $ tryAll (restore action) >>= handler
+  EI.mask $ \restore -> forkOn cap $ tryAll (restore action) >>= handler
 
 
 forkOS :: UnliftPrimal RW m => m () -> m GHC.ThreadId
@@ -183,16 +184,16 @@ isCurrentThreadBound =
       (# s', bool# #) -> (# s', isTrue# bool# #)
 
 threadStatus :: Primal RW m => GHC.ThreadId -> m GHC.ThreadStatus
-threadStatus = liftPrimalState . GHC.threadStatus
+threadStatus = liftIO . GHC.threadStatus
 
 threadCapability :: Primal RW m => GHC.ThreadId -> m (Int, Bool)
-threadCapability = liftPrimalState . GHC.threadCapability
+threadCapability = liftIO . GHC.threadCapability
 
 getNumCapabilities :: Primal RW m => m Int
-getNumCapabilities = liftPrimalState GHC.getNumCapabilities
+getNumCapabilities = liftIO GHC.getNumCapabilities
 
 setNumCapabilities :: Primal RW m => Int -> m ()
-setNumCapabilities = liftPrimalState . GHC.setNumCapabilities
+setNumCapabilities = liftIO . GHC.setNumCapabilities
 
 
 

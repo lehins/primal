@@ -36,9 +36,9 @@ module Primal.Monad.Internal
   , withRunInIO
   , withRunInPrimalState
   , runInPrimalState
+  , liftP
   , liftIO
   , liftST
-  , liftPrimalState
   , primalStateToIO
   , primalStateToST
   ) where
@@ -152,13 +152,13 @@ withRunInPrimalState ::
   => ((forall a. m a -> n a) -> n b)
   -> m b
 withRunInPrimalState inner =
-  withRunInST $ \run -> liftPrimalState (inner (liftST . run))
+  withRunInST $ \run -> liftP (inner (liftST . run))
 {-# INLINE withRunInPrimalState #-}
 
 
 
 instance UnliftPrimal RealWorld IO where
-  withRunInST inner = coerce (inner liftPrimalState)
+  withRunInST inner = coerce (inner liftP)
   {-# INLINE withRunInST #-}
   runInPrimalState1 io f# = IO (f# (\e -> unIO (io e)))
   {-# INLINE runInPrimalState1 #-}
@@ -166,7 +166,7 @@ instance UnliftPrimal RealWorld IO where
   {-# INLINE runInPrimalState2 #-}
 
 instance UnliftPrimal s (ST s) where
-  withRunInST inner = inner liftPrimalState
+  withRunInST inner = inner liftP
   {-# INLINE withRunInST #-}
   runInPrimalState1 st f# = ST (f# (\e -> unST (st e)))
   {-# INLINE runInPrimalState1 #-}
@@ -285,44 +285,44 @@ primal_ f = primal $ \s -> (# f s, () #)
 {-# INLINE primal_ #-}
 
 -- | Lift an `IO` action to `Primal` with the `RealWorld` state token. Type restricted
--- synonym for `liftPrimalState`
+-- synonym for `liftP`
 liftIO :: Primal RW m => IO a -> m a
 liftIO (IO m) = primal m
 {-# INLINE liftIO #-}
 
 -- | Lift an `ST` action to `Primal` with the same state token. Type restricted synonym
--- for `liftPrimalState`
+-- for `liftP`
 liftST :: Primal s m => ST s a -> m a
 liftST (ST m) = primal m
 {-# INLINE liftST #-}
 
 -- | Lift an action from the `PrimalState` monad to a different `Primal` monad with the
 -- same state token.
-liftPrimalState :: (PrimalState s n, Primal s m) => n a -> m a
-liftPrimalState m = primal (primalState m)
-{-# INLINE[0] liftPrimalState #-}
+liftP :: (PrimalState s n, Primal s m) => n a -> m a
+liftP m = primal (primalState m)
+{-# INLINE[0] liftP #-}
 {-# RULES
- "liftPrimalState/id" liftPrimalState = id
+ "liftP/id" liftP = id
  #-}
 
 -- | Restrict a `PrimalState` action that works with `RealWorld` to `IO`.
 primalStateToIO :: PrimalState RealWorld m => m a -> IO a
-primalStateToIO = liftPrimalState
+primalStateToIO = liftP
 {-# INLINE primalStateToIO #-}
 
 -- | Restrict a `PrimalState` action that works in `ST`.
 primalStateToST :: PrimalState s m => m a -> ST s a
-primalStateToST = liftPrimalState
+primalStateToST = liftP
 {-# INLINE primalStateToST #-}
 
 
--- | Unwrap `ST`
+-- | Unwrap `ST` action
 unST :: ST s a -> State# s -> (# State# s, a #)
 unST (ST m) = m
 {-# INLINE unST #-}
 
 
--- | Unwrap `ST` that returns unit
+-- | Unwrap `ST` action that returns unit
 unST_ :: ST s () -> State# s -> State# s
 unST_ (ST m) s =
   case m s of
@@ -330,7 +330,7 @@ unST_ (ST m) s =
 {-# INLINE unST_ #-}
 
 
--- | Unwrap `IO` that returns unit
+-- | Unwrap `IO` action that returns unit
 unIO_ :: IO () -> State# RW -> State# RW
 unIO_ (IO m) s =
   case m s of

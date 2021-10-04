@@ -36,7 +36,6 @@ import Primal.Foreign
 import Primal.Memory
 import Primal.Memory.Addr
 import Primal.Memory.PArray
-import Primal.Monad
 import Primal.Mutable.Freeze
 import Data.Kind
 

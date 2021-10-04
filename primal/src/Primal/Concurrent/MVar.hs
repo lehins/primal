@@ -61,6 +61,7 @@ module Primal.Concurrent.MVar
 import Control.DeepSeq
 import Primal.Monad
 import Primal.Exception
+import qualified Primal.Exception.Interruptible as EI
 import GHC.Exts
 import GHC.Weak
 import qualified GHC.MVar as GHC
@@ -203,7 +204,7 @@ tryPutDeepMVar mvar x = tryPutLazyMVar mvar $! force x
 -- @since 0.3.0
 writeMVar :: forall a m s. Primal s m => MVar a s -> a -> m ()
 writeMVar mvar a =
-  maskPrimalState_ $ do
+  EI.liftMask_ $ do
     clearMVar (a `seq` mvar)
     putLazyMVar mvar a :: ST s ()
 {-# INLINE writeMVar #-}
@@ -220,7 +221,7 @@ writeMVar mvar a =
 -- @since 0.3.0
 swapMVar :: forall a m s. Primal s m => MVar a s -> a -> m a
 swapMVar mvar new =
-  maskPrimalState_ $ do
+  EI.liftMask_ $ do
     old <- takeMVar (new `seq` mvar)
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapMVar #-}
@@ -232,7 +233,7 @@ swapMVar mvar new =
 -- @since 0.3.0
 swapLazyMVar :: forall a m s. Primal s m => MVar a s -> a -> m a
 swapLazyMVar mvar new =
-  maskPrimalState_ $ do
+  EI.liftMask_ $ do
     old <- takeMVar mvar
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapLazyMVar #-}
@@ -243,7 +244,7 @@ swapLazyMVar mvar new =
 -- @since 0.3.0
 swapDeepMVar :: forall a m s. (NFData a, Primal s m) => MVar a s -> a -> m a
 swapDeepMVar mvar new =
-  maskPrimalState_ $ do
+  EI.liftMask_ $ do
     old <- takeMVar (new `deepseq` mvar)
     old <$ (putLazyMVar mvar new :: ST s ())
 {-# INLINE swapDeepMVar #-}
@@ -327,7 +328,7 @@ clearMVar (MVar mvar#) =
 -- @since 0.3.0
 withMVar :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m b) -> m b
 withMVar mvar !action =
-  mask $ \restore -> do
+  EI.mask $ \restore -> do
     a <- takeMVar mvar
     b <- restore (action a) `catchAll` \exc -> putLazyMVar mvar a >> raise exc
     b <$ putLazyMVar mvar a
@@ -343,7 +344,7 @@ withMVar mvar !action =
 -- @since 0.3.0
 withMVarMasked :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m b) -> m b
 withMVarMasked mvar !action =
-  mask_ $ do
+  EI.mask_ $ do
     a <- takeMVar mvar
     b <- action a `catchAll` \exc -> putLazyMVar mvar a >> raise exc
     b <$ putLazyMVar mvar a
@@ -381,7 +382,7 @@ modifyMVar_ mvar = void . modifyFetchOldMVar mvar
 -- @since 0.3.0
 modifyMVarMasked_ :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m ()
 modifyMVarMasked_ mvar !action =
-  mask_ $ modifyFetchLazyMVar (\_ _ -> ()) mvar (action >=> \a' -> pure $! a')
+  EI.mask_ $ modifyFetchLazyMVar (\_ _ -> ()) mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyMVarMasked_ #-}
 
 
@@ -390,7 +391,7 @@ modifyMVarMasked_ mvar !action =
 -- @since 0.3.0
 modifyFetchOldMVar :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchOldMVar mvar !action =
-  mask $ \restore ->
+  EI.mask $ \restore ->
     modifyFetchLazyMVar const mvar $ \a ->
       restore (action a >>= \a' -> pure $! a')
 {-# INLINE modifyFetchOldMVar #-}
@@ -403,7 +404,7 @@ modifyFetchOldMVar mvar !action =
 -- @since 0.3.0
 modifyFetchOldMVarMasked :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchOldMVarMasked mvar !action =
-  mask_ $ modifyFetchLazyMVar const mvar (action >=> \a' -> pure $! a')
+  EI.mask_ $ modifyFetchLazyMVar const mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyFetchOldMVarMasked #-}
 
 -- | Same as `modifyMVar_`, but also returns the result of running the supplied action,
@@ -412,7 +413,7 @@ modifyFetchOldMVarMasked mvar !action =
 -- @since 0.3.0
 modifyFetchNewMVar :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchNewMVar mvar !action =
-  mask $ \restore ->
+  EI.mask $ \restore ->
     modifyFetchLazyMVar (flip const) mvar $ \a ->
       restore (action a >>= \a' -> pure $! a')
 {-# INLINE modifyFetchNewMVar #-}
@@ -424,7 +425,7 @@ modifyFetchNewMVar mvar !action =
 -- @since 0.3.0
 modifyFetchNewMVarMasked :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchNewMVarMasked mvar !action =
-  mask_ $ modifyFetchLazyMVar (flip const) mvar (action >=> \a' -> pure $! a')
+  EI.mask_ $ modifyFetchLazyMVar (flip const) mvar (action >=> \a' -> pure $! a')
 {-# INLINE modifyFetchNewMVarMasked #-}
 
 
@@ -438,7 +439,7 @@ modifyFetchNewMVarMasked mvar !action =
 -- @since 0.3.0
 modifyMVar :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m (a, b)) -> m b
 modifyMVar mvar action =
-  mask $ \restore -> do
+  EI.mask $ \restore -> do
     a <- takeMVar mvar
     let run = restore (action a >>= \t@(!_, _) -> pure t)
     -- TODO: test against `force a'`
@@ -456,7 +457,7 @@ modifyMVar mvar action =
 -- @since 0.3.0
 modifyMVarMasked :: forall a b m. UnliftPrimal RW m => MVar a RW -> (a -> m (a, b)) -> m b
 modifyMVarMasked mvar action =
-  mask_ $ do
+  EI.mask_ $ do
     a <- takeMVar mvar
     let run = action a >>= \t@(!_, _) -> pure t
     -- TODO: test against `force a'`

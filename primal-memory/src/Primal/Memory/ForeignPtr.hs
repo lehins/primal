@@ -224,16 +224,16 @@ touchForeignPtr (ForeignPtr _ contents) = touch contents
 
 -- | Lifted version of `GHC.newForeignPtr`.
 newForeignPtr :: Primal RW m => FinalizerPtr e -> Ptr e -> m (ForeignPtr e)
-newForeignPtr fin = liftPrimalState . GHC.newForeignPtr fin
+newForeignPtr fin = liftP . GHC.newForeignPtr fin
 
 -- | Lifted version of `GHC.newForeignPtrEnv`.
 newForeignPtrEnv :: Primal RW m => FinalizerEnvPtr env e -> Ptr env -> Ptr e -> m (ForeignPtr e)
-newForeignPtrEnv finEnv envPtr = liftPrimalState . GHC.newForeignPtrEnv finEnv envPtr
+newForeignPtrEnv finEnv envPtr = liftP . GHC.newForeignPtrEnv finEnv envPtr
 
 
 -- | Lifted version of `GHC.newForeignPtr_`.
 newForeignPtr_ :: Primal RW m => Ptr e -> m (ForeignPtr e)
-newForeignPtr_ = liftPrimalState . GHC.newForeignPtr_
+newForeignPtr_ = liftP . GHC.newForeignPtr_
 
 -- | Similar to `GHC.mallocForeignPtr`, except it operates on `Unbox`, instead of `Storable`.
 mallocForeignPtr :: forall e m . (Primal RW m, Unbox e) => m (ForeignPtr e)
@@ -243,16 +243,16 @@ mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
 -- use `Unbox`.
 mallocCountForeignPtr :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
-mallocCountForeignPtr = liftPrimalState . GHC.mallocForeignPtrBytes . unCountBytes
+mallocCountForeignPtr = liftP . GHC.mallocForeignPtrBytes . unCountBytes
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Unbox` instance
 mallocCountForeignPtrAligned :: (Primal RW m, Unbox e) => Count e -> m (ForeignPtr e)
 mallocCountForeignPtrAligned count =
-  liftPrimalState $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
+  liftP $ GHC.mallocForeignPtrAlignedBytes (unCountBytes count) (alignmentProxy count)
 
 -- | Lifted version of `GHC.mallocForeignPtrBytes`.
 mallocByteCountForeignPtr :: Primal RW m => Count Word8 -> m (ForeignPtr e)
-mallocByteCountForeignPtr = liftPrimalState . GHC.mallocForeignPtrBytes . coerce
+mallocByteCountForeignPtr = liftP . GHC.mallocForeignPtrBytes . coerce
 
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
 mallocByteCountForeignPtrAligned ::
@@ -261,18 +261,18 @@ mallocByteCountForeignPtrAligned ::
   -> Int -- ^ Alignment in bytes
   -> m (ForeignPtr e)
 mallocByteCountForeignPtrAligned count =
-  liftPrimalState . GHC.mallocForeignPtrAlignedBytes (coerce count)
+  liftP . GHC.mallocForeignPtrAlignedBytes (coerce count)
 
 
 -- | Lifted version of `GHC.addForeignPtrFinalizer`
 addForeignPtrFinalizer :: Primal RW m => FinalizerPtr e -> ForeignPtr e -> m ()
-addForeignPtrFinalizer fin = liftPrimalState . GHC.addForeignPtrFinalizer fin
+addForeignPtrFinalizer fin = liftP . GHC.addForeignPtrFinalizer fin
 
 
 -- | Lifted version of `GHC.addForeignPtrFinalizerEnv`
 addForeignPtrFinalizerEnv ::
      Primal RW m => FinalizerEnvPtr env e -> Ptr env -> ForeignPtr e -> m ()
-addForeignPtrFinalizerEnv fin envPtr = liftPrimalState . GHC.addForeignPtrFinalizerEnv fin envPtr
+addForeignPtrFinalizerEnv fin envPtr = liftP . GHC.addForeignPtrFinalizerEnv fin envPtr
 
 
 -- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Unbox` and
@@ -331,17 +331,17 @@ mallocByteCountPlainForeignPtrAligned (Count (I# c#)) =
 -- | Unlifted version of `GHC.newConcForeignPtr`
 newConcForeignPtr :: UnliftPrimal RW m => Ptr e -> m () -> m (ForeignPtr e)
 newConcForeignPtr ptr fin =
-  withRunInIO $ \run -> liftPrimalState (GHC.newConcForeignPtr ptr (run fin))
+  withRunInIO $ \run -> liftP (GHC.newConcForeignPtr ptr (run fin))
 
 
 -- | Unlifted version of `GHC.addForeignPtrConcFinalizer`
 addForeignPtrConcFinalizer :: UnliftPrimal RW m => ForeignPtr a -> m () -> m ()
 addForeignPtrConcFinalizer fp fin =
-  withRunInIO $ \run -> liftPrimalState (GHC.addForeignPtrConcFinalizer fp (run fin))
+  withRunInIO $ \run -> liftP (GHC.addForeignPtrConcFinalizer fp (run fin))
 
 -- | Lifted version of `GHC.finalizeForeignPtr`.
 finalizeForeignPtr :: Primal RW m => ForeignPtr e -> m ()
-finalizeForeignPtr = liftPrimalState . GHC.finalizeForeignPtr
+finalizeForeignPtr = liftP . GHC.finalizeForeignPtr
 
 -- | Advances the given address by the given offset in number of elemeents. This operation
 -- does not affect associated finalizers in any way.

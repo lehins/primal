@@ -5,7 +5,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Monad.Unsafe
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -188,7 +188,7 @@ unsafeDupableInterleavePrimalState x =
      in (# s, r #)
 {-# NOINLINE unsafeDupableInterleavePrimalState #-}
 
--- | A version of `liftPrimalState` that coerce the state token.
+-- | A version of `liftP` that coerce the state token.
 --
 -- === Highly unsafe!
 --

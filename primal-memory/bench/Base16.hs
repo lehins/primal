@@ -21,7 +21,6 @@ import Primal.Memory.Addr
 import Primal.Memory.ByteString
 import Primal.Memory.Encoding
 import Primal.Memory.Internal
-import Primal.Monad
 import System.Random.Stateful
 
 main :: IO ()

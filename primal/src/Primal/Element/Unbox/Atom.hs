@@ -59,7 +59,7 @@ module Primal.Element.Unbox.Atom
 
 import Control.DeepSeq
 import Primal.Concurrent
-import Primal.Exception
+import qualified Primal.Exception.Uninterruptible as EUI
 import Primal.Monad.Unsafe
 import Data.Bits
 import Primal.Element.Unbox.Atomic
@@ -167,7 +167,7 @@ withLockMutableByteArray ::
 withLockMutableByteArray mba# i# f =
   let li0# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       li# = 1# +# li0#
-   in bracket_
+   in EUI.bracket_
         (acquireLockByteOffMutableByteArray mba# li0#)
         (releaseLockByteOffMutableByteArray mba# li0#) $ do
       a <- primal (readByteOffMutableByteArray# mba# li#)
@@ -186,7 +186,7 @@ atomicReadAtomMutableByteArray ::
   -> m (Atom e)
 atomicReadAtomMutableByteArray mba# i# =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffMutableByteArray mba# li#
         r :: e <- ST (readByteOffMutableByteArray# mba# (1# +# li#))
         coerce r <$ releaseLockByteOffMutableByteArray mba# li#
@@ -202,7 +202,7 @@ atomicWriteAtomMutableByteArray ::
   -> m ()
 atomicWriteAtomMutableByteArray mba# i# (Atom a) =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffMutableByteArray mba# li#
         primal_ (writeByteOffMutableByteArray# mba# (1# +# li#) a)
         releaseLockByteOffMutableByteArray mba# li# :: ST s ()
@@ -218,7 +218,7 @@ atomicReadAtomOffAddr ::
   -> m (Atom e)
 atomicReadAtomOffAddr mba# i# =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffAddr mba# li#
         r :: e <- ST (readOffAddr# mba# (1# +# li#))
         coerce r <$ releaseLockByteOffAddr mba# li#
@@ -235,7 +235,7 @@ atomicWriteAtomOffAddr addr# i# (Atom a) =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       lockAddr# = addr# `plusAddr#` li#
       valAddr# = lockAddr# `plusAddr#` 1#
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffAddr lockAddr# 0#
         primal_ (writeOffAddr# valAddr# 0# a)
         releaseLockByteOffAddr lockAddr# 0# :: ST s ()
@@ -252,7 +252,7 @@ withLockOffAddr ::
 withLockOffAddr addr# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       offAddr# = addr# `plusAddr#` (1# +# li#)
-   in bracket_
+   in EUI.bracket_
         (acquireLockByteOffAddr addr# li#)
         (releaseLockByteOffAddr addr# li#) $ do
       a <- primal (readOffAddr# offAddr# 0#)
@@ -269,7 +269,7 @@ atomicModifyAtomMutableByteArray ::
   -> m a
 atomicModifyAtomMutableByteArray mba# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffMutableByteArray mba# li#
         r <- ST $ \s ->
           case readByteOffMutableByteArray# mba# (1# +# li#) s of
@@ -289,7 +289,7 @@ atomicModifyAtomOffAddr ::
 atomicModifyAtomOffAddr addr# i# f =
   let li# = i# *# sizeOf# (proxy# :: Proxy# (Atom e))
       offAddr# = addr# `plusAddr#` (1# +# li#)
-   in uninterruptibleMaskPrimalState_ $ do
+   in EUI.liftMask_ $ do
         acquireLockByteOffAddr addr# li#
         r <- ST $ \s ->
           case readOffAddr# offAddr# 0# s of
