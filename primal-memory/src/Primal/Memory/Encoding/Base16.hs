@@ -61,7 +61,7 @@ instance NFData DecodeError where
 -- >>> import Primal.Memory
 -- >>> import Primal.Memory.Encoding
 -- >>> :set -XDataKinds
--- >>> let hex = encodeBase16 (fromListMem ([222,173,190,239] :: [Word8]) :: Bytes 'Inc)
+-- >>> let hex = encodeBase16 (fromByteListMem ([222,173,190,239] :: [Word8]) :: Bytes 'Inc)
 -- >>> toStringMem hex
 -- "deadbeef"
 --
@@ -149,7 +149,7 @@ decodeBase16Mem mr = runST $ do
 -- output into the supplied mutable region.
 --
 -- [Unsafe] Size of mutable memory should be at least double the size of the
--- immutable reagion, otherwise segfault is to be expected.
+-- immutable region, otherwise segfault or heap corruption is to be expected.
 --
 -- @since 1.0.0
 decodeBase16MutMem :: forall mr ma m s. (MemRead mr, MemAlloc ma, Primal s m) => mr -> ma s -> m ()
@@ -173,7 +173,6 @@ decodeBase16MutMem mr m = do
   res <- liftST $ accessMem mr f g 0
   unless (res == -1) $ raiseM $ DecodeInvalidValue res
 {-# INLINE decodeBase16MutMem #-}
-
 
 foreign import ccall unsafe "primal_memory.c primal_encode_base16"
   encodeBase16_BA_MBA# :: ByteArray# -> Off Word8 -> MutableByteArray# s -> Off Word8 -> Count Word8 -> IO ()

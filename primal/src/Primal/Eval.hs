@@ -69,7 +69,8 @@ touch x = primal_ (touch# x)
 {-# INLINE touch #-}
 
 
--- | Forward compatible operator that might be introduced in some future ghc version.
+-- | Forward compatible operator that was introduced in ghc-9.0. [The tale of
+-- `keepAlive#`](https://www.haskell.org/ghc/blog/20210607-the-keepAlive-story.html).
 --
 -- See: [#17760](https://gitlab.haskell.org/ghc/ghc/-/issues/17760)
 --
@@ -144,9 +145,10 @@ evalM = (>>= eval)
 -- >>> evalMaybe (4 `div` 2 :: Integer)
 -- Just 2
 --
--- Reason why we don't have a @evalEither@ function that would also return the
--- exact exception that was raised is because the order of evaluation in GHC is
--- not guaranteed in pure functions. Therefore in example below we can't know
+-- The reason why we don't have an @evalEither@ function is because it would
+-- also return the exact exception that was raised. Since the order of
+-- evaluation in GHC is not guaranteed in pure functions such function would
+-- break referencial transparency. Therefore in example below we can't know
 -- ahead of time which exception will be raised first: `undefined` or
 -- `DivideByZero`, so we return `Nothing` instead.
 --

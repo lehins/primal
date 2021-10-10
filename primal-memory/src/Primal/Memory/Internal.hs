@@ -501,7 +501,7 @@ copyByteOffMutMem src srcOff dst dstOff c =
 -- @since 0.3.0
 moveByteOffMutMem ::
   forall e mw' mw m s.
-  (Primal s m, MemWrite mw, MemWrite mw', Unbox e) =>
+  (Primal s m, MemWrite mw', MemWrite mw, Unbox e) =>
   -- | /memSource/ - Source memory from where to copy
   mw' s ->
   -- | /memSourceOff/ - Offset in number of bytes into source memory

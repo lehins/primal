@@ -68,7 +68,6 @@ module Primal.Memory
   , MemAlloc
   , Frozen
   , MutFreeze(..)
-  -- , MemState(..)
   -- ** Size
   , getCountMutMem               -- DOC: [x], DOCTEST [x], TEST: [ ]
   , getCountRemMutMem            -- DOC: [x], DOCTEST [x], TEST: [ ]
