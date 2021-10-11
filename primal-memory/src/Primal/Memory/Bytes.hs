@@ -60,7 +60,9 @@ module Primal.Memory.Bytes
   -- * Mutable
   -- ** To/From immutable
   , thawBytes
+  , thawCloneSliceBytes
   , freezeMBytes
+  , freezeCloneSliceMBytes
   -- ** Construction
   , allocMBytes
   , singletonMBytes
@@ -228,6 +230,21 @@ singletonMBytes a = do
   mb <- allocMBytes (1 :: Count e)
   mb <$ writeOffMBytes mb 0 a
 {-# INLINE singletonMBytes #-}
+
+thawCloneSliceBytes ::
+     (Typeable pd, Unbox e, Primal s m)
+  => Bytes ps
+  -> Off e
+  -> Count e
+  -> m (MBytes pd s)
+thawCloneSliceBytes b o c = allocMBytes c >>= \mb -> mb <$ copyBytesToMBytes b o mb 0 c
+{-# INLINE thawCloneSliceBytes #-}
+
+
+
+freezeCloneSliceMBytes mbSrc o c = do
+  createBytes_ c >>= \mbDst -> moveMBytesToMBytes mbSrc o mbDst 0 c
+{-# INLINE freezeCloneSliceMBytes #-}
 
 cloneBytes :: Typeable p => Bytes p -> Bytes p
 cloneBytes b = runST $ thawBytes b >>= cloneMBytes >>= freezeMBytes

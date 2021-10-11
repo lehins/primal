@@ -200,6 +200,7 @@ deepevalM m = eval . force =<< m
 --
 -- ===__Examples__
 --
+-- >>> import Primal.Eval
 -- >>> deepevalMaybe ("Partial tuple", 4 `div` 0 :: Integer)
 -- Nothing
 -- >>> deepevalMaybe ("Total tuple", 4 `div` 2 :: Integer)

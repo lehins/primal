@@ -149,7 +149,7 @@ isSameUBArray a1 a2 = runST (isSameUBMArray <$> thawUBArray a1 <*> thawUBArray a
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.Unlifted
+-- >>> import Primal.Array.Boxed.Unlifted
 -- >>> let a = fromListUBArray ([Left pi, Right 123] :: [Either Double Int])
 -- >>> indexUBArray a 0
 -- Left 3.141592653589793
@@ -601,7 +601,7 @@ writeMutUBMArray (UBMArray maa#) (I# i#) a = primal_ (writeMutMutableArrayArray#
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.Unlifted
+-- >>> import Primal.Array.Boxed.Unlifted
 -- >>> let xs = "Hello"
 -- >>> ma <- newUBMArray (Size (length xs) + 8) '!' :: IO (UBMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUBMArray ma i x) (zip [0..] xs)
