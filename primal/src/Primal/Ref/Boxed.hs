@@ -58,7 +58,7 @@ import Control.DeepSeq
 import Primal.Eval
 import Primal.Monad
 import Primal.Foreign
-import Primal.Mem.Weak
+import Primal.Memory.Weak
 import qualified GHC.IORef as IO
 import qualified GHC.STRef as ST
 

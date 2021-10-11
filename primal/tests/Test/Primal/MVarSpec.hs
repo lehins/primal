@@ -9,8 +9,8 @@ import Data.Maybe
 import Primal.Concurrent
 import Primal.Concurrent.MVar
 import Primal.Exception
-import Primal.Mem (performGC)
-import Primal.Mem.Weak
+import Primal.Memory.GC (performGC)
+import Primal.Memory.Weak
 import Primal.Element.Unbox
 import Test.Hspec
 import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)

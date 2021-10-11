@@ -10,11 +10,11 @@ import Data.Foldable as F
 import Data.List (partition)
 import Data.Maybe
 import Primal.Concurrent
-import Primal.Exception
-import Primal.Mem.Weak
-import Primal.Ref
 import Primal.Element.Unbox
-import System.Mem (performGC)
+import Primal.Exception
+import Primal.Memory.GC (performGC)
+import Primal.Memory.Weak
+import Primal.Ref
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck hiding ((.&.))

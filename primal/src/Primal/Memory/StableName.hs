@@ -4,14 +4,14 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
--- Module      : Primal.Mem.StableName
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Memory.StableName
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Mem.StableName
+module Primal.Memory.StableName
   ( StableName(..)
   , makeStableName
   , makeAnyStableName
@@ -24,7 +24,7 @@ import GHC.Exts
 #if MIN_VERSION_base(4,12,0)
 import GHC.StableName (StableName(..), eqStableName, hashStableName)
 
--- | Orphan instance defined in "Primal.Mem.StableName"
+-- | Orphan instance defined in "Primal.Memory.StableName"
 instance Show (StableName a) where
   showsPrec = showPrecStableName
 

@@ -50,7 +50,7 @@ module Primal.Ref.Unboxed
 
 import Primal.Eval
 import Primal.Foreign
-import Primal.Mem.Weak
+import Primal.Memory.Weak
 import Primal.Monad
 import Primal.Element.Unbox
 

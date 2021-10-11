@@ -1,16 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Test.Primal.BRefSpec (spec) where
 
 import Data.Maybe
 import Primal.Concurrent
 import Primal.Exception
---import Primal.Mem.Weak
 import Primal.Ref
 import Primal.Element.Unbox
---import System.Mem (performGC)
 import Test.Hspec
 import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
 

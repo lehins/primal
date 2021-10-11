@@ -65,9 +65,9 @@ library
                      , Primal.Ref.Unboxed
                      , Primal.Ref.Unboxed.Atomic
 
-                     , Primal.Mem
-                     , Primal.Mem.Weak
-                     , Primal.Mem.StableName
+                     , Primal.Memory.GC
+                     , Primal.Memory.Weak
+                     , Primal.Memory.StableName
                      , Primal.Foreign
                      , Primal.Foreign.StablePtr
                      --, Primal.System.RunTime

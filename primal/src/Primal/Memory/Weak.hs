@@ -2,14 +2,14 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 -- |
--- Module      : Primal.Mem.Weak
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Module      : Primal.Memory.Weak
+-- Copyright   : (c) Alexey Kuleshevich 2020-2021
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
 --
-module Primal.Mem.Weak
+module Primal.Memory.Weak
   ( Weak(..)
   , mkWeak -- TODO: validate pre ghc-8.2 mkWeak#
   , mkWeakNoFinalizer
