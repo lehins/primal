@@ -92,7 +92,7 @@ module Primal.Memory
   , defaultReallocMutMem         -- DOC: [x], DOCTEST [ ], TEST: [x]
   -- ** Thaw/Freeze
   , thawCloneMem                 -- DOC: [x], DOCTEST [x], TEST: [ ]
-  , thawCopyMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
+  , thawCloneSliceMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
   , thawMem                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , freezeCloneMutMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeCopyMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]

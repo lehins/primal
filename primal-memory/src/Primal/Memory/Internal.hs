@@ -1189,13 +1189,13 @@ thawCloneMem ::
   (MemAlloc ma, Primal s m) =>
   Frozen ma ->
   m (ma s)
-thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
+thawCloneMem a = thawCloneSliceMem a 0 (byteCountMem a)
 {-# INLINE thawCloneMem #-}
 
--- | Similar to `thawCloneMem`, except it is possible to specify which portion of the
--- frozen region will be copied over and thawed.
+-- | Similar to `thawCloneMem`, except it is possible to specify the contiguous
+-- portion of the frozen region to be copied over and thawed.
 --
--- [Unsafe] When any precondition for eihter an offset @memSourceOff@ or the element count
+-- [Unsafe] When any of the preconditions for either an offset @memSourceOff@ or the element count
 -- @memCount@ is violated a call to this function can result in: copy of data that doesn't
 -- belong to @memSource@ or failure with a segfault.
 --
@@ -1205,7 +1205,7 @@ thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 -- >>> :set -XDataKinds
 -- >>> import Primal.Memory
 -- >>> let fm = fromListMem @Word8 @(MBytes 'Inc) [1,2,3,4,5]
--- >>> mm <- thawCopyMem fm 1 (3 :: Count Word8)
+-- >>> mm <- thawCloneSliceMem fm 1 (3 :: Count Word8)
 -- >>> writeOffMutMem mm 1 (0 :: Word8)
 -- >>> freezeMutMem mm
 -- [0x02,0x00,0x04]
@@ -1213,7 +1213,7 @@ thawCloneMem a = thawCopyMem a 0 (byteCountMem a)
 -- [0x01,0x02,0x03,0x04,0x05]
 --
 -- @since 0.1.0
-thawCopyMem ::
+thawCloneSliceMem ::
   forall e ma m s.
   (Unbox e, MemAlloc ma, Primal s m) =>
   -- | /memSource/ - Read-only source memory region from which the data
@@ -1236,10 +1236,10 @@ thawCopyMem ::
   -- > unOff memSourceOff + unCount memCount < unCount (countMem memSource)
   Count e ->
   m (ma s)
-thawCopyMem a off c = do
+thawCloneSliceMem a off c = do
   mem <- allocMutMem c
   mem <$ copyMem a off mem 0 c
-{-# INLINE thawCopyMem #-}
+{-# INLINE thawCloneSliceMem #-}
 
 --
 -- @since 0.3.0
@@ -1250,7 +1250,7 @@ freezeCopyMutMem ::
   Off e ->
   Count e ->
   m (Frozen ma)
-freezeCopyMutMem mem off c = freezeMut mem >>= \r -> thawCopyMem r off c >>= freezeMut
+freezeCopyMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r off c >>= freezeMut
 {-# INLINE freezeCopyMutMem #-}
 
 -- | Safe version of `freezeMutMem`. Yields an immutable copy of the supplied mutable

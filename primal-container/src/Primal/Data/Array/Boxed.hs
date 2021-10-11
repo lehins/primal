@@ -44,7 +44,7 @@ module Primal.Data.Array.Boxed
   , atomicModifyBMArray2
   -- * Mutable
   , thawBArray
-  , thawCopyBArray
+  , thawCloneSliceBArray
   , freezeBMArray
   , freezeCopyBMArray
   , copyBArray

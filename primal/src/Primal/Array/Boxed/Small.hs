@@ -29,7 +29,7 @@ module Primal.Array.Boxed.Small
   , copySBArray
   , cloneSliceSBArray
   , thawSBArray
-  , thawCopySBArray
+  , thawCloneSliceSBArray
   , toListSBArray
   , fromListSBArray
   , fromListSBArrayN
@@ -417,7 +417,7 @@ copySBArray (SBArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the mutable boxed array will also be reflected in
--- the source immutable array as well. See `thawCopySBArray` that avoids this problem with
+-- the source immutable array as well. See `thawCloneSliceSBArray` that avoids this problem with
 -- a fresh allocation and data copy.
 --
 -- ====__Examples__
@@ -463,7 +463,7 @@ thawSBArray (SBArray a#) = primal $ \s ->
 -- ====__Examples__
 --
 -- >>> let a = fromListSBArray [1 .. 5 :: Int]
--- >>> ma <- thawCopySBArray a 1 3
+-- >>> ma <- thawCloneSliceSBArray a 1 3
 -- >>> writeSBMArray ma 1 10
 -- >>> freezeSBMArray ma
 -- SBArray [2,10,4]
@@ -471,7 +471,7 @@ thawSBArray (SBArray a#) = primal $ \s ->
 -- SBArray [1,2,3,4,5]
 --
 -- @since 0.3.0
-thawCopySBArray ::
+thawCloneSliceSBArray ::
      forall e m s. Primal s m
   => SBArray e
   -- ^ /srcArray/ - Immutable source array
@@ -496,10 +496,10 @@ thawCopySBArray ::
   -- Should be less then the actual available memory
   -> m (SBMArray e s)
   -- ^ /dstMutArray/ - Newly created destination mutable boxed array
-thawCopySBArray (SBArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
+thawCloneSliceSBArray (SBArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case thawSmallArray# a# i# n# s of
     (# s', ma# #) -> (# s', SBMArray ma# #)
-{-# INLINE thawCopySBArray #-}
+{-# INLINE thawCloneSliceSBArray #-}
 
 
 

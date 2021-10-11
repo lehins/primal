@@ -44,7 +44,7 @@ module Primal.Data.Array.Unboxed
   , shrinkUMArray
   , resizeUMArray
   , thawUArray
-  , thawCopyUArray
+  , thawCloneSliceUArray
   , freezeUMArray
   , freezeCopyUMArray
   , copyUArray
@@ -198,9 +198,9 @@ fromPMArray (PMArray mb) = UMArray (toMutableByteArray# mb)
 
 
 
-thawCopyUArray :: (Prim e, Primal s m) => UArray e -> Int -> Size -> m (UMArray e s)
-thawCopyUArray = I.thawCopyArray
-{-# INLINE thawCopyUArray #-}
+thawCloneSliceUArray :: (Prim e, Primal s m) => UArray e -> Int -> Size -> m (UMArray e s)
+thawCloneSliceUArray = I.thawCloneSliceArray
+{-# INLINE thawCloneSliceUArray #-}
 
 freezeCopyUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UArray e)
 freezeCopyUMArray = I.freezeCopyMArray

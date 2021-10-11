@@ -157,7 +157,7 @@ class MutRef ma => MutArray ma where
     -> ST s ()
 
   cloneSliceArray :: Elt ma e => Array ma e -> Int -> Size -> Array ma e
-  cloneSliceArray arr i n = runST $ thawCopyArrayST arr i n >>= freezeMutArrayST
+  cloneSliceArray arr i n = runST $ thawCloneSliceArrayST arr i n >>= freezeMutArrayST
   {-# INLINE cloneSliceArray #-}
 
   cloneSliceMutArrayST :: Elt ma e => ma e s -> Int -> Size -> ST s (ma e s)
@@ -169,9 +169,9 @@ class MutRef ma => MutArray ma where
   newMutArrayST n a = newRawMutArrayST n >>= \ma -> ma <$ setMutArrayST ma 0 n a
   {-# INLINE newMutArrayST #-}
 
-  thawCopyArrayST :: Elt ma e => Array ma e -> Int -> Size -> ST s (ma e s)
-  thawCopyArrayST a i n = newRawMutArrayST n >>= \ma -> ma <$ copyArrayST a i ma 0 n
-  {-# INLINE thawCopyArrayST #-}
+  thawCloneSliceArrayST :: Elt ma e => Array ma e -> Int -> Size -> ST s (ma e s)
+  thawCloneSliceArrayST a i n = newRawMutArrayST n >>= \ma -> ma <$ copyArrayST a i ma 0 n
+  {-# INLINE thawCloneSliceArrayST #-}
 
   freezeCopyMutArrayST :: Elt ma e => ma e s -> Int -> Size -> ST s (Array ma e)
   freezeCopyMutArrayST ma i n =
@@ -299,8 +299,8 @@ instance MutArray BMArray where
   {-# INLINE sizeOfArray #-}
   getSizeOfMutArrayST = getSizeOfBMArray
   {-# INLINE getSizeOfMutArrayST #-}
-  thawCopyArrayST = thawCopyBArray
-  {-# INLINE thawCopyArrayST #-}
+  thawCloneSliceArrayST = thawCloneSliceBArray
+  {-# INLINE thawCloneSliceArrayST #-}
   freezeCopyMutArrayST = freezeCopyBMArray
   {-# INLINE freezeCopyMutArrayST #-}
   newRawMutArrayST = newRawBMArray
@@ -328,8 +328,8 @@ instance MutArray SBMArray where
   {-# INLINE sizeOfArray #-}
   getSizeOfMutArrayST = getSizeOfSBMArray
   {-# INLINE getSizeOfMutArrayST #-}
-  thawCopyArrayST = thawCopySBArray
-  {-# INLINE thawCopyArrayST #-}
+  thawCloneSliceArrayST = thawCloneSliceSBArray
+  {-# INLINE thawCloneSliceArrayST #-}
   freezeCopyMutArrayST = freezeCopySBMArray
   {-# INLINE freezeCopyMutArrayST #-}
   newRawMutArrayST = newRawSBMArray
@@ -667,14 +667,14 @@ newMutArray ::
 newMutArray k = liftST . newMutArrayST k
 {-# INLINE newMutArray #-}
 
-thawCopyArray ::
+thawCloneSliceArray ::
      forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => Array ma e
   -> Int
   -> Size
   -> m (ma e s)
-thawCopyArray a i = liftST . thawCopyArrayST a i
-{-# INLINE thawCopyArray #-}
+thawCloneSliceArray a i = liftST . thawCloneSliceArrayST a i
+{-# INLINE thawCloneSliceArray #-}
 
 freezeCopyMutArray ::
      forall ma e m s. (MutArray ma, Elt ma e, Primal s m)

@@ -194,10 +194,10 @@ instance MutArray ma => MutArray (NEMutArrayIx ma) where
   {-# INLINE getSizeOfMutArrayST #-}
   thawArrayST (NEArrayIx i xs a) = NEMutArrayIx i xs <$> thawArray a
   {-# INLINE thawArrayST #-}
-  thawCopyArrayST (NEArrayIx i xs a) o sz@(Size n)
+  thawCloneSliceArrayST (NEArrayIx i xs a) o sz@(Size n)
     | n == 0 = error "NEArrayIx cannot be empty"
-    | otherwise = NEMutArrayIx (i `mod` n) (take n (drop o xs)) <$> thawCopyArray a o sz
-  {-# INLINE thawCopyArrayST #-}
+    | otherwise = NEMutArrayIx (i `mod` n) (take n (drop o xs)) <$> thawCloneSliceArray a o sz
+  {-# INLINE thawCloneSliceArrayST #-}
   freezeMutArrayST (NEMutArrayIx i xs ma) = NEArrayIx i xs <$> freezeMutArray ma
   {-# INLINE freezeMutArrayST #-}
   newRawMutArrayST sz = NEMutArrayIx 0 [] <$> newRawMutArray sz

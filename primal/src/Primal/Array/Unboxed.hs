@@ -29,7 +29,7 @@ module Primal.Array.Unboxed
   , cloneSliceUArray
   , copyUArray
   , thawUArray
-  , thawCopyUArray
+  , thawCloneSliceUArray
   , toListUArray
   , fromListUArray
   , fromListUArrayN
@@ -257,7 +257,7 @@ cloneSliceUArray ::
   --
   -- Should be less then the actual available memory
   -> UArray e
-cloneSliceUArray arr off sz = runST $ thawCopyUArray arr off sz >>= freezeUMArray
+cloneSliceUArray arr off sz = runST $ thawCloneSliceUArray arr off sz >>= freezeUMArray
 {-# INLINE cloneSliceUArray #-}
 
 -- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of another mutable
@@ -323,7 +323,7 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the mutable unboxed array will also be reflected in
--- the source immutable array as well. See `thawCopyUMArray` that avoids this problem with
+-- the source immutable array as well. See `thawCloneSliceUMArray` that avoids this problem with
 -- fresh allocation.
 --
 -- ====__Examples__
@@ -366,7 +366,7 @@ thawUArray (UArray a#) =
 -- ====__Examples__
 --
 -- >>> let a = fromListUArray [1 .. 5 :: Int]
--- >>> ma <- thawCopyUArray a 1 3
+-- >>> ma <- thawCloneSliceUArray a 1 3
 -- >>> writeUMArray ma 1 10
 -- >>> freezeUMArray ma
 -- UArray [2,10,4]
@@ -374,7 +374,7 @@ thawUArray (UArray a#) =
 -- UArray [1,2,3,4,5]
 --
 -- @since 1.0.0
-thawCopyUArray ::
+thawCloneSliceUArray ::
      forall e m s. (Unbox e, Primal s m)
   => UArray e
   -- ^ /srcArray/ - Immutable source array
@@ -399,8 +399,8 @@ thawCopyUArray ::
   -- Should be less then the actual available memory
   -> m (UMArray e s)
   -- ^ /dstMutArray/ - Newly created destination mutable boxed array
-thawCopyUArray arr off sz = newRawUMArray sz >>= \marr -> marr <$ copyUArray arr off marr 0 sz
-{-# INLINE thawCopyUArray #-}
+thawCloneSliceUArray arr off sz = newRawUMArray sz >>= \marr -> marr <$ copyUArray arr off marr 0 sz
+{-# INLINE thawCloneSliceUArray #-}
 
 
 
@@ -1036,7 +1036,7 @@ cloneSliceUMArray ::
   --
   -- Should be less then actual available memory
   -> m (UMArray e s)
-cloneSliceUMArray marr off sz = freezeUMArray marr >>= \arr -> thawCopyUArray arr off sz
+cloneSliceUMArray marr off sz = freezeUMArray marr >>= \arr -> thawCloneSliceUArray arr off sz
 {-# INLINE cloneSliceUMArray #-}
 
 

@@ -42,7 +42,7 @@ module Primal.Data.Array.Unboxed.Ragged
   , readMBytesRMArray
   , writeMBytesRMArray
   , thawRArray
-  -- , thawCopyRArray -- TODO: implement deep copy
+  -- , thawCloneSliceRArray -- TODO: implement deep copy
   , freezeRMArray
   -- , freezeCopyRMArray
   , copyRArray

@@ -30,7 +30,7 @@ module Primal.Array.Boxed
   , copyBArray
   , cloneSliceBArray
   , thawBArray
-  , thawCopyBArray
+  , thawCloneSliceBArray
   , toListBArray
   , fromListBArray
   , fromListBArrayN
@@ -341,7 +341,7 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the mutable boxed array will also be reflected in
--- the source immutable array as well. See `thawCopyBArray` that avoids this problem with
+-- the source immutable array as well. See `thawCloneSliceBArray` that avoids this problem with
 -- a fresh allocation and data copy.
 --
 -- ====__Examples__
@@ -372,13 +372,13 @@ thawBArray (BArray a#) = primal $ \s ->
 {-# INLINE thawBArray #-}
 
 -- TODO: add a test case for the properties
--- > ma' <- thawCopyBArray a i n
+-- > ma' <- thawCloneSliceBArray a i n
 --
 -- Is equivalent to:
 --
 -- > ma' <- newRawBMArray n >>= \ma -> ma <$ copyBArray a i ma 0 n
 --
--- > thawCopyBArray a i n === thawBArray $ cloneSliceBArray a i n
+-- > thawCloneSliceBArray a i n === thawBArray $ cloneSliceBArray a i n
 --
 -- | /O(sz)/ - Create a new mutable array with size @sz@ and copy that number of elements
 -- from source immutable @srcArray@ starting at an offset @startIx@ into the newly created
@@ -395,7 +395,7 @@ thawBArray (BArray a#) = primal $ \s ->
 -- ====__Examples__
 --
 -- >>> let a = fromListBArray [1 .. 5 :: Integer]
--- >>> ma <- thawCopyBArray a 1 3
+-- >>> ma <- thawCloneSliceBArray a 1 3
 -- >>> writeBMArray ma 1 10
 -- >>> freezeBMArray ma
 -- BArray [2,10,4]
@@ -403,7 +403,7 @@ thawBArray (BArray a#) = primal $ \s ->
 -- BArray [1,2,3,4,5]
 --
 -- @since 0.3.0
-thawCopyBArray ::
+thawCloneSliceBArray ::
      forall e m s. Primal s m
   => BArray e
   -- ^ /srcArray/ - Immutable source array
@@ -428,10 +428,10 @@ thawCopyBArray ::
   -- Should be less then the actual available memory
   -> m (BMArray e s)
   -- ^ /dstMutArray/ - Newly created destination mutable boxed array
-thawCopyBArray (BArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
+thawCloneSliceBArray (BArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case thawArray# a# i# n# s of
     (# s', ma# #) -> (# s', BMArray ma# #)
-{-# INLINE thawCopyBArray #-}
+{-# INLINE thawCloneSliceBArray #-}
 
 
 

@@ -44,7 +44,7 @@ module Primal.Data.Array.Boxed.Small
   , atomicModifySBMArray2
   -- *
   , thawSBArray
-  , thawCopySBArray
+  , thawCloneSliceSBArray
   , freezeSBMArray
   , freezeCopySBMArray
   , copySBArray
