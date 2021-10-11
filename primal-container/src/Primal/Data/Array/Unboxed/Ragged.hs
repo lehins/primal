@@ -44,7 +44,7 @@ module Primal.Data.Array.Unboxed.Ragged
   , thawRArray
   -- , thawCloneSliceRArray -- TODO: implement deep copy
   , freezeRMArray
-  -- , freezeCopyRMArray
+  -- , freezeCloneSliceRMArray
   , copyRArray
   , moveRMArray
   -- , cloneRArray -- TODO: implement deep clone

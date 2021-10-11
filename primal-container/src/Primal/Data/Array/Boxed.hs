@@ -46,7 +46,7 @@ module Primal.Data.Array.Boxed
   , thawBArray
   , thawCloneSliceBArray
   , freezeBMArray
-  , freezeCopyBMArray
+  , freezeCloneSliceBMArray
   , copyBArray
   , moveBMArray
   , cloneBArray

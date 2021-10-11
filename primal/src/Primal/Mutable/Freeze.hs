@@ -99,7 +99,7 @@ instance MutFreeze (BMArray e) where
   {-# INLINE freezeMutST #-}
   cloneMutST marr = getSizeOfBMArray marr >>= cloneSliceBMArray marr 0
   {-# INLINE cloneMutST #-}
-  freezeCloneMutST marr = getSizeOfBMArray marr >>= freezeCopyBMArray marr 0
+  freezeCloneMutST marr = getSizeOfBMArray marr >>= freezeCloneSliceBMArray marr 0
   {-# INLINE freezeCloneMutST #-}
 
 type instance Frozen (SBMArray e) = SBArray e
@@ -115,7 +115,7 @@ instance MutFreeze (SBMArray e) where
   {-# INLINE freezeMutST #-}
   cloneMutST marr = getSizeOfSBMArray marr >>= cloneSliceSBMArray marr 0
   {-# INLINE cloneMutST #-}
-  freezeCloneMutST marr = getSizeOfSBMArray marr >>= freezeCopySBMArray marr 0
+  freezeCloneMutST marr = getSizeOfSBMArray marr >>= freezeCloneSliceSBMArray marr 0
   {-# INLINE freezeCloneMutST #-}
 
 
@@ -144,7 +144,7 @@ instance (Unlift e) => MutFreeze (UBMArray e) where
   {-# INLINE thawCloneST #-}
   freezeMutST = freezeUBMArray
   {-# INLINE freezeMutST #-}
-  freezeCloneMutST ma = getSizeOfUBMArray ma >>= freezeCopyUBMArray ma 0
+  freezeCloneMutST ma = getSizeOfUBMArray ma >>= freezeCloneSliceUBMArray ma 0
   {-# INLINE freezeCloneMutST #-}
   cloneMutST ma = getSizeOfUBMArray ma >>= cloneSliceUBMArray ma 0
   {-# INLINE cloneMutST #-}

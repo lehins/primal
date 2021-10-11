@@ -1150,7 +1150,7 @@ thawMem = liftST . thawST
 {-# INLINE thawMem #-}
 
 -- | Convert the state of a mutable memory region to the immutable one. This is a no
--- copy operation, as such it is fast, but dangerous. See `freezeCopyMem` for a safe alternative.
+-- copy operation, as such it is fast, but dangerous. See `freezeCloneSliceMem` for a safe alternative.
 --
 -- [Unsafe] It makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the mutable region of memory will also be
@@ -1243,15 +1243,15 @@ thawCloneSliceMem a off c = do
 
 --
 -- @since 0.3.0
-freezeCopyMutMem ::
+freezeCloneSliceMutMem ::
   forall e ma m s.
   (Unbox e, MemAlloc ma, Primal s m) =>
   ma s ->
   Off e ->
   Count e ->
   m (Frozen ma)
-freezeCopyMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r off c >>= freezeMut
-{-# INLINE freezeCopyMutMem #-}
+freezeCloneSliceMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r off c >>= freezeMut
+{-# INLINE freezeCloneSliceMutMem #-}
 
 -- | Safe version of `freezeMutMem`. Yields an immutable copy of the supplied mutable
 -- memory region. Further mutation of the source memory region will not affect the

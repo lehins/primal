@@ -95,7 +95,7 @@ module Primal.Memory
   , thawCloneSliceMem                  -- DOC: [x], DOCTEST [x], TEST: [ ]
   , thawMem                      -- DOC: [x], DOCTEST [ ], TEST: [ ]
   , freezeCloneMutMem            -- DOC: [ ], DOCTEST [ ], TEST: [ ]
-  , freezeCopyMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
+  , freezeCloneSliceMutMem             -- DOC: [ ], DOCTEST [ ], TEST: [ ]
   , freezeMutMem                 -- DOC: [x], DOCTEST [ ], TEST: [ ]
   -- ** Move
   , cloneMutMem                  -- DOC: [x], DOCTEST [ ], TEST: [-]

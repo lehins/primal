@@ -46,7 +46,7 @@ module Primal.Data.Array.Unboxed
   , thawUArray
   , thawCloneSliceUArray
   , freezeUMArray
-  , freezeCopyUMArray
+  , freezeCloneSliceUMArray
   , copyUArray
   , moveUMArray
   , cloneUArray
@@ -202,9 +202,9 @@ thawCloneSliceUArray :: (Prim e, Primal s m) => UArray e -> Int -> Size -> m (UM
 thawCloneSliceUArray = I.thawCloneSliceArray
 {-# INLINE thawCloneSliceUArray #-}
 
-freezeCopyUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UArray e)
-freezeCopyUMArray = I.freezeCopyMArray
-{-# INLINE freezeCopyUMArray #-}
+freezeCloneSliceUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UArray e)
+freezeCloneSliceUMArray = I.freezeCloneSliceMArray
+{-# INLINE freezeCloneSliceUMArray #-}
 
 
 -- | Make an exact copy of a subsection of a pure immutable array.

@@ -56,7 +56,7 @@ module Primal.Array.Unboxed
   , shrinkUMArray
   , resizeUMArray
   , freezeUMArray
-  , freezeCopyUMArray
+  , freezeCloneSliceUMArray
   , casUMArray
   -- * Conversion
   , fromBaseUArray
@@ -949,7 +949,7 @@ resizeUMArray (UMArray mb#) sz =
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the source mutable boxed array will also be reflected
--- in the resulting immutable array. See `freezeCopyUMArray` that avoids this problem with
+-- in the resulting immutable array. See `freezeCloneSliceUMArray` that avoids this problem with
 -- fresh allocation.
 --
 -- @since 0.3.0
@@ -973,7 +973,7 @@ freezeUMArray (UMArray ma#) = primal $ \s ->
 -- failure with a segfault or out of memory exception.
 --
 -- @since 0.3.0
-freezeCopyUMArray ::
+freezeCloneSliceUMArray ::
      forall e m s. (Unbox e, Primal s m)
   => UMArray e s
   -- ^ /srcArray/ - Source mutable array
@@ -997,8 +997,8 @@ freezeCopyUMArray ::
   --
   -- Should be less then actual available memory
   -> m (UArray e)
-freezeCopyUMArray marr off sz = cloneSliceUMArray marr off sz >>= freezeUMArray
-{-# INLINE freezeCopyUMArray #-}
+freezeCloneSliceUMArray marr off sz = cloneSliceUMArray marr off sz >>= freezeUMArray
+{-# INLINE freezeCloneSliceUMArray #-}
 
 -- | /O(sz)/ - Allocate a new mutable array of size @sz@ and copy that number of the
 -- elements over from the @srcArray@ starting at index @ix@. Similar to `cloneSliceUArray`,

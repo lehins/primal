@@ -54,7 +54,7 @@ module Primal.Array.Boxed
   , resizeBMArray
   , resizeRawBMArray
   , freezeBMArray
-  , freezeCopyBMArray
+  , freezeCloneSliceBMArray
   , casBMArray
   -- * Re-export
   , Primal
@@ -834,7 +834,7 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the source mutable boxed array will also be reflected
--- in the resulting immutable array. See `freezeCopyBMArray` that avoids this problem with
+-- in the resulting immutable array. See `freezeCloneSliceBMArray` that avoids this problem with
 -- fresh allocation.
 --
 -- @since 0.3.0
@@ -859,7 +859,7 @@ freezeBMArray (BMArray ma#) = primal $ \s ->
 -- failure with a segfault or out of memory exception.
 --
 -- @since 0.3.0
-freezeCopyBMArray ::
+freezeCloneSliceBMArray ::
      forall e m s. Primal s m
   => BMArray e s
   -- ^ /srcArray/ - Source mutable array
@@ -883,13 +883,13 @@ freezeCopyBMArray ::
   --
   -- Should be less then actual available memory
   -> m (BArray e)
-freezeCopyBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
+freezeCloneSliceBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case freezeArray# ma# i# n# s of
     (# s', a# #) -> (# s', BArray a# #)
-{-# INLINE freezeCopyBMArray #-}
+{-# INLINE freezeCloneSliceBMArray #-}
 
 -- TODO:
--- prop> cloneSliceBMArray ma i n === freezeCopyBMArray ma i n >>= thawBArray
+-- prop> cloneSliceBMArray ma i n === freezeCloneSliceBMArray ma i n >>= thawBArray
 -- prop> cloneSliceBMArray ma i n === newBMArray n undefined >>= \mb -> mb <$ moveBMArray ma i mb 0 n
 -- | /O(sz)/ - Allocate a new mutable array of size @sz@ and copy that number of the
 -- elements over from the @srcArray@ starting at index @ix@. Similar to `cloneSliceBArray`,

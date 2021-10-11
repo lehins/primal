@@ -173,10 +173,10 @@ class MutRef ma => MutArray ma where
   thawCloneSliceArrayST a i n = newRawMutArrayST n >>= \ma -> ma <$ copyArrayST a i ma 0 n
   {-# INLINE thawCloneSliceArrayST #-}
 
-  freezeCopyMutArrayST :: Elt ma e => ma e s -> Int -> Size -> ST s (Array ma e)
-  freezeCopyMutArrayST ma i n =
+  freezeCloneSliceMutArrayST :: Elt ma e => ma e s -> Int -> Size -> ST s (Array ma e)
+  freezeCloneSliceMutArrayST ma i n =
     newRawMutArrayST n >>= \mad -> moveMutArrayST ma i mad 0 n >> freezeMutArrayST mad
-  {-# INLINE freezeCopyMutArrayST #-}
+  {-# INLINE freezeCloneSliceMutArrayST #-}
 
   setMutArrayST :: Elt ma e => ma e s -> Int -> Size -> e -> ST s ()
   setMutArrayST ma i0 (Size n0) x =
@@ -301,8 +301,8 @@ instance MutArray BMArray where
   {-# INLINE getSizeOfMutArrayST #-}
   thawCloneSliceArrayST = thawCloneSliceBArray
   {-# INLINE thawCloneSliceArrayST #-}
-  freezeCopyMutArrayST = freezeCopyBMArray
-  {-# INLINE freezeCopyMutArrayST #-}
+  freezeCloneSliceMutArrayST = freezeCloneSliceBMArray
+  {-# INLINE freezeCloneSliceMutArrayST #-}
   newRawMutArrayST = newRawBMArray
   {-# INLINE newRawMutArrayST #-}
   readMutArrayST = readBMArray
@@ -330,8 +330,8 @@ instance MutArray SBMArray where
   {-# INLINE getSizeOfMutArrayST #-}
   thawCloneSliceArrayST = thawCloneSliceSBArray
   {-# INLINE thawCloneSliceArrayST #-}
-  freezeCopyMutArrayST = freezeCopySBMArray
-  {-# INLINE freezeCopyMutArrayST #-}
+  freezeCloneSliceMutArrayST = freezeCloneSliceSBMArray
+  {-# INLINE freezeCloneSliceMutArrayST #-}
   newRawMutArrayST = newRawSBMArray
   {-# INLINE newRawMutArrayST #-}
   readMutArrayST = readSBMArray
@@ -676,14 +676,14 @@ thawCloneSliceArray ::
 thawCloneSliceArray a i = liftST . thawCloneSliceArrayST a i
 {-# INLINE thawCloneSliceArray #-}
 
-freezeCopyMutArray ::
+freezeCloneSliceMutArray ::
      forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
   -> m (Array ma e)
-freezeCopyMutArray ma i = liftST . freezeCopyMutArrayST ma i
-{-# INLINE freezeCopyMutArray #-}
+freezeCloneSliceMutArray ma i = liftST . freezeCloneSliceMutArrayST ma i
+{-# INLINE freezeCloneSliceMutArray #-}
 
 setMutArray ::
      forall ma e m s. (MutArray ma, Elt ma e, Primal s m)

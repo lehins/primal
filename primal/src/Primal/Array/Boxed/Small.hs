@@ -51,7 +51,7 @@ module Primal.Array.Boxed.Small
   , resizeSBMArray
   , resizeRawSBMArray
   , freezeSBMArray
-  , freezeCopySBMArray
+  , freezeCloneSliceSBMArray
   , casSBMArray
   -- * Re-export
   , Primal
@@ -847,7 +847,7 @@ makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
 -- subsequent destructive operation to the source mutable boxed array will also be reflected
--- in the resulting immutable array. See `freezeCopySBMArray` that avoids this problem with
+-- in the resulting immutable array. See `freezeCloneSliceSBMArray` that avoids this problem with
 -- fresh allocation.
 --
 -- @since 0.3.0
@@ -872,7 +872,7 @@ freezeSBMArray (SBMArray ma#) = primal $ \s ->
 -- failure with a segfault or out of memory exception.
 --
 -- @since 0.3.0
-freezeCopySBMArray ::
+freezeCloneSliceSBMArray ::
      forall e m s. Primal s m
   => SBMArray e s
   -- ^ /srcArray/ - Source mutable array
@@ -896,10 +896,10 @@ freezeCopySBMArray ::
   --
   -- Should be less then actual available memory
   -> m (SBArray e)
-freezeCopySBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
+freezeCloneSliceSBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
   case freezeSmallArray# ma# i# n# s of
     (# s', a# #) -> (# s', SBArray a# #)
-{-# INLINE freezeCopySBMArray #-}
+{-# INLINE freezeCloneSliceSBMArray #-}
 
 -- | /O(sz)/ - Allocate a new small boxed mutable array of size @sz@ and copy that number
 -- of the elements over from the @srcArray@ starting at index @ix@. Similar to
