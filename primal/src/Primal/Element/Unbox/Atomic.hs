@@ -13,7 +13,7 @@
 #endif
 -- |
 -- Module      : Primal.Element.Unbox.Atomic
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -371,7 +371,8 @@ atomicModifyOffAddr_# addr# i# f s =
 
 
 class Atomic a => AtomicCount a where
-  atomicAddFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicAddFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchOldMutableByteArray# ::
     AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchOldMutableByteArray# mba# i# x s =
@@ -379,7 +380,8 @@ class Atomic a => AtomicCount a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchOldMutableByteArray# #-}
 
-  atomicAddFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicAddFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAddFetchNewMutableByteArray# ::
     AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAddFetchNewMutableByteArray# mba# i# x s =
@@ -387,7 +389,8 @@ class Atomic a => AtomicCount a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAddFetchNewMutableByteArray# #-}
 
-  atomicSubFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicSubFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchOldMutableByteArray# ::
     AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchOldMutableByteArray# mba# i# x s =
@@ -395,7 +398,8 @@ class Atomic a => AtomicCount a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicSubFetchOldMutableByteArray# #-}
 
-  atomicSubFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicSubFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicSubFetchNewMutableByteArray# ::
     AtomicCount (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicSubFetchNewMutableByteArray# mba# i# x s =
@@ -439,7 +443,8 @@ class Atomic a => AtomicCount a where
 
 
 class (Bits a, Atomic a) => AtomicBits a where
-  atomicAndFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicAndFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchOldMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchOldMutableByteArray# mba# i# x s =
@@ -447,7 +452,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchOldMutableByteArray# #-}
 
-  atomicAndFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicAndFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicAndFetchNewMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicAndFetchNewMutableByteArray# mba# i# x s =
@@ -455,7 +461,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicAndFetchNewMutableByteArray# #-}
 
-  atomicNandFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicNandFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchOldMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchOldMutableByteArray# mba# i# x s =
@@ -463,7 +470,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchOldMutableByteArray# #-}
 
-  atomicNandFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicNandFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicNandFetchNewMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicNandFetchNewMutableByteArray# mba# i# x s =
@@ -471,7 +479,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicNandFetchNewMutableByteArray# #-}
 
-  atomicOrFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicOrFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchOldMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchOldMutableByteArray# mba# i# x s =
@@ -479,7 +488,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchOldMutableByteArray# #-}
 
-  atomicOrFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicOrFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicOrFetchNewMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicOrFetchNewMutableByteArray# mba# i# x s =
@@ -487,7 +497,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicOrFetchNewMutableByteArray# #-}
 
-  atomicXorFetchOldMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicXorFetchOldMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchOldMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchOldMutableByteArray# mba# i# x s =
@@ -495,7 +506,8 @@ class (Bits a, Atomic a) => AtomicBits a where
       (# s', y #) -> (# s', fromUnboxIso y #)
   {-# INLINE atomicXorFetchOldMutableByteArray# #-}
 
-  atomicXorFetchNewMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
+  atomicXorFetchNewMutableByteArray# ::
+    MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   default atomicXorFetchNewMutableByteArray# ::
     AtomicBits (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> (# State# s, a #)
   atomicXorFetchNewMutableByteArray# mba# i# x s =

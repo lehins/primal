@@ -186,7 +186,8 @@ instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f) => Unbox (a, b, 
   fromUnboxIso ((a, b), (c, d), (e, f)) = (a, b, c, d, e, f)
   {-# INLINE fromUnboxIso #-}
 
-instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g) => Unbox (a, b, c, d, e, f, g) where
+instance (Unbox a, Unbox b, Unbox c, Unbox d, Unbox e, Unbox f, Unbox g) =>
+         Unbox (a, b, c, d, e, f, g) where
   type UnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
   toUnboxIso (a, b, c, d, e, f, g) = ((a, b, c), (d, e, f), g)
   {-# INLINE toUnboxIso #-}

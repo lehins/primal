@@ -118,7 +118,7 @@ isAsyncException exc =
 -- restriction on `RealWorld`.
 raise :: (GHC.Exception e, Primal s m) => e -> m a
 raise e = unsafePrimal (raiseIO# (GHC.toException e))
--- {-# INLINEABLE raise #-}
+{-# INLINEABLE raise #-}
 
 
 data ImpreciseException =
@@ -179,7 +179,7 @@ raiseTo tid e =
   if isAsyncException e
     then GHC.throwTo tid e
     else GHC.throwTo tid $ GHC.SomeAsyncException e
--- {-# INLINEABLE raiseTo #-}
+{-# INLINEABLE raiseTo #-}
 
 -- | Behaves exactly as `GHC.catch`, except that it works in any `UnliftPrimal`
 -- monad. It will catch an exception of any type, regardless how it was thrown
@@ -310,11 +310,12 @@ catchAllAsync action = catchAll action . asyncHandler
 
 try :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
 try f = catch (Right <$> f) (pure . Left)
--- {-# INLINEABLE try #-}
+{-# INLINEABLE try #-}
 --{-# SPECIALIZE try :: GHC.Exception e => IO a -> IO (Either e a) #-}
 
 tryJust :: (GHC.Exception e, UnliftPrimal RW m) => (e -> Maybe b) -> m a -> m (Either b a)
 tryJust g f = catchJust g (Right <$> f) (pure . Left)
+{-# INLINEABLE tryJust #-}
 
 
 trySync :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)
@@ -326,10 +327,11 @@ tryAsync f = catchAsync (Right <$> f) (pure . Left)
 
 tryAll :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAll f = catchAll (Right <$> f) (pure . Left)
--- {-# INLINEABLE tryAll #-}
+{-# INLINEABLE tryAll #-}
 
 tryAllSync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAllSync f = catchAllSync (Right <$> f) (pure . Left)
+{-# INLINEABLE tryAllSync #-}
 
 tryAllAsync :: UnliftPrimal RW m => m a -> m (Either GHC.SomeException a)
 tryAllAsync f = catchAllAsync (Right <$> f) (pure . Left)

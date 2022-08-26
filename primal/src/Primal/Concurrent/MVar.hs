@@ -7,7 +7,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Concurrent.MVar
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -425,7 +425,7 @@ modifyFetchNewMVar mvar !action =
 -- @since 0.3.0
 modifyFetchNewMVarMasked :: forall a m. UnliftPrimal RW m => MVar a RW -> (a -> m a) -> m a
 modifyFetchNewMVarMasked mvar !action =
-  EI.mask_ $ modifyFetchLazyMVar (flip const) mvar (action >=> \a' -> pure $! a')
+  EI.mask_ $ modifyFetchLazyMVar (flip const) mvar (action >=> \a -> pure $! a)
 {-# INLINE modifyFetchNewMVarMasked #-}
 
 

@@ -631,9 +631,10 @@ getByteCountMutMem ::
 getByteCountMutMem = liftST . getByteCountMutMemST
 {-# INLINE getByteCountMutMem #-}
 
--- | Allocate a mutable memory region for specified number of elements. Memory is not
--- reset and will likely hold some garbage data, therefore prefer to use `allocZeroMutMem`,
--- unless it is guaranteed that all of allocated memory will be overwritten.
+-- | Allocate a region of mutable memory for specified number of elements. Memory
+-- is not initialized and will most likely hold some garbage data, therefore prefer
+-- to use `allocZeroMutMem`, unless it is guaranteed that all of allocated
+-- memory will be overwritten.
 --
 -- [Unsafe] When any of preconditions for @memCount@ argument is violated the outcome is
 -- unpredictable. One possible outcome is termination with

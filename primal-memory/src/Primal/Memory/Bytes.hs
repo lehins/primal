@@ -242,8 +242,14 @@ thawCloneSliceBytes b o c = allocMBytes c >>= \mb -> mb <$ copyBytesToMBytes b o
 
 
 
+freezeCloneSliceMBytes ::
+     (Unbox e, Typeable pd, Primal s m)
+  => MBytes ps s
+  -> Off e
+  -> Count e
+  -> m (Bytes pd)
 freezeCloneSliceMBytes mbSrc o c = do
-  createBytes_ c >>= \mbDst -> moveMBytesToMBytes mbSrc o mbDst 0 c
+  createBytes_ c $ \mbDst -> moveMBytesToMBytes mbSrc o mbDst 0 c
 {-# INLINE freezeCloneSliceMBytes #-}
 
 cloneBytes :: Typeable p => Bytes p -> Bytes p

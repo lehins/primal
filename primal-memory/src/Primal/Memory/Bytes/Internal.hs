@@ -151,8 +151,9 @@ import Data.IORef
 --
 -- @since 0.1.0
 data Pinned
-  = Pin -- ^ Pinned, which indicates that allocated memory will not move
-  | Inc -- ^ Inconclusive, thus memory could be pinned or unpinned
+  = Pin -- ^ Pinned, which indicates that allocated memory will not be moved by
+        -- garbage collector.
+  | Inc -- ^ Inconclusive, thus memory could be pinned or unpinned.
 
 -- | An immutable region of memory which is allocated either as pinned or unpinned.
 --

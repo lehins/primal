@@ -7,7 +7,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Element.Unlift
--- Copyright   : (c) Alexey Kuleshevich 2021
+-- Copyright   : (c) Alexey Kuleshevich 2021-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -26,22 +26,7 @@ import GHC.Exts
 import Primal.Array.Unboxed
 import Primal.Ref.Unboxed
 
--- | Invariants:
---
--- * Reading should never fail on memory that contains only zeros
---
--- * Writing should always overwrite all of the bytes allocated for the element. In other
---   words, writing to a dirty (uninitilized) region of memory should never leave any
---   garbage around. For example, if a type requires 31 bytes of memory then on any write
---   all 31 bytes must be overwritten.
---
--- * A single thread write/read sequence must always roundtrip
---
--- * This is not a class for serialization, therefore memory layout of unpacked datatype
---   is selfcontained in `Unbox` class and representation is not expected to stay the same
---   between different versions of this library. Primitive types like `Int`, `Word`,
---   `Char` are an exception to this rule for obvious reasons.
---
+
 class Unlift e where
   type UnliftIso e :: Type
 
@@ -57,7 +42,6 @@ class Unlift e where
   default indexArrayArray# :: Unlift (UnliftIso e) => ArrayArray# -> Int# -> e
   indexArrayArray# aa# i# = fromUnliftIso (indexArrayArray# aa# i# :: UnliftIso e)
   {-# INLINE indexArrayArray# #-}
-
 
   readMutableArrayArray# :: MutableArrayArray# s -> Int# -> State# s -> (# State# s, e #)
   default readMutableArrayArray# ::
@@ -75,11 +59,10 @@ class Unlift e where
 
 -- | Example default instance with coercible isomorphism
 --
--- @@@
--- newtype Foo s = Foo (UMArray Int s)
--- instance MutUnlift Foo where
---   type MutUnliftIso Foo = UMArray Int
--- @@@
+-- > newtype Foo s = Foo (UMArray Int s)
+-- > instance MutUnlift Foo where
+-- >   type MutUnliftIso Foo = UMArray Int
+--
 class MutUnlift (me :: Type -> Type) where
   type MutUnliftIso me :: Type -> Type
 

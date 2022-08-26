@@ -10,7 +10,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Primal.Element.Unbox.Atom
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -67,6 +67,11 @@ import Primal.Element.Unbox.Class
 import Primal.Foreign hiding (Any)
 import GHC.TypeLits
 
+-- | Turn any value that has a `Unbox` instance, regardless of its size, into a
+-- threadsafe atomic unit that can be modified concurrently using a spinlock. It
+-- is often will be faster to use an `Primal.Concurrent.MVar.MVar` instead,
+-- however in scenarios were contention is very low using `Atom` will be more
+-- perfrmant.
 newtype Atom e =
   Atom
     { unAtom :: e
