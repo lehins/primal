@@ -1,6 +1,6 @@
 -- |
 -- Module      : Primal.Monad
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -17,7 +17,6 @@ module Primal.Monad
   , unlessM
   -- * Re-export
   , module Control.Monad
-  , module Primal.Monad.Raises
   ) where
 
 import Control.Monad
@@ -25,7 +24,6 @@ import Control.Monad.ST
 import Primal.Eval
 import Primal.Exception
 import Primal.Monad.Internal
-import Primal.Monad.Raises
 
 
 

@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Memory.PArray
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -68,7 +68,9 @@ import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
 
--- | An immutable array with elements of type @e@
+-- | An immutable array with elements of type @e@. This is a very similar array
+-- to `UArray`, except it allows tracking pinnedness at the type level in the
+-- same way `Bytes` does it.
 newtype PArray (p :: Pinned) e = PArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
 type role PArray nominal nominal

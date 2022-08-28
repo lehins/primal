@@ -6,7 +6,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 -- |
 -- Module      : Primal.Mutable.Freeze
--- Copyright   : (c) Alexey Kuleshevich 2021
+-- Copyright   : (c) Alexey Kuleshevich 2021-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -46,7 +46,7 @@ type family Frozen (thawed :: k -> *) = (frozen :: k) | frozen -> thawed
 class MutFreeze mut where
   {-# MINIMAL thawST, freezeMutST, (clone|thawCloneST) #-}
 
-  -- | See `thawMut` for documentation.
+  -- | See `thaw` for documentation.
   --
   -- @since 1.0.0
   thawST :: Frozen mut -> ST s (mut s)

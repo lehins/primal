@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Memory.ByteString
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -196,12 +196,14 @@ castByteStringBytes (BS.PS fptr o n) = do
 
 
 -- | Convert `Bytes` into a bytestring `Builder`
+--
+-- /O(1)/ for pinned and /O(n)/ for unpinned memory
 toBuilderBytes :: Bytes p -> Builder
-toBuilderBytes = shortByteString . toShortByteStringBytes
-{-# INLINE[1] toBuilderBytes #-}
-{-# RULES
-"toBuilderBytes" toBuilderBytes = byteString . toByteStringBytes
-  #-}
+toBuilderBytes b =
+  case toPinnedBytes b of
+    Just pb -> byteString $ toByteStringBytes pb
+    Nothing -> shortByteString $ toShortByteStringBytes b
+{-# INLINE toBuilderBytes #-}
 
 -- | /O(n)/ - Allocate `Bytes` and fill them using the supplied `Builder`
 fromBuilderBytes :: Builder -> Bytes 'Pin

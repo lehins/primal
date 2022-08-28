@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Test.Primal.ArraySpec (spec, impreciseExpectedException, ExpectedException(..)) where
 
 import Primal.Array

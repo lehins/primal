@@ -11,7 +11,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Memory.Bytes.Internal
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -30,6 +30,8 @@ module Primal.Memory.Bytes.Internal
   , isSameMBytes
   , isPinnedBytes
   , isPinnedMBytes
+  , toPinnedBytes
+  , toPinnedMBytes
   , castStateMBytes
   , castPinnednessBytes
   , castPinnednessMBytes
@@ -510,6 +512,19 @@ isPinnedMBytes (MBytes mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 "isPinnedBytes" forall (x :: Bytes 'Pin) . isPinnedBytes x = True
 "isPinnedMBytes" forall (x :: MBytes 'Pin s) . isPinnedMBytes x = True
   #-}
+
+
+toPinnedBytes :: Bytes p -> Maybe (Bytes 'Pin)
+toPinnedBytes (Bytes b#)
+  | isTrue# (isByteArrayPinned# b#) = Just (Bytes b#)
+  | otherwise = Nothing
+{-# INLINE toPinnedBytes #-}
+
+toPinnedMBytes :: MBytes p s -> Maybe (MBytes 'Pin s)
+toPinnedMBytes (MBytes mb#)
+  | isTrue# (isMutableByteArrayPinned# mb#) = Just (MBytes mb#)
+  | otherwise = Nothing
+{-# INLINE toPinnedMBytes #-}
 
 
 

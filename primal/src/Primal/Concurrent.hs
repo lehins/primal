@@ -7,7 +7,7 @@
 {-# LANGUAGE UnliftedFFITypes #-}
 -- |
 -- Module      : Primal.Concurrent
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -126,9 +126,9 @@ forkOnFinally cap action handler =
   EI.mask $ \restore -> forkOn cap $ tryAll (restore action) >>= handler
 
 
+-- | Lifted version of `GHC.forkOS`
 forkOS :: UnliftPrimal RW m => m () -> m GHC.ThreadId
 forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
-
 
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target

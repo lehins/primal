@@ -1,6 +1,6 @@
 -- |
 -- Module      : Primal.Element
--- Copyright   : (c) Alexey Kuleshevich 2021
+-- Copyright   : (c) Alexey Kuleshevich 2021-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental

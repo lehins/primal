@@ -207,7 +207,10 @@ setByteOffMutableByteArrayLoop# mba# o# n# a = go o#
       | otherwise = s
 {-# INLINE setByteOffMutableByteArrayLoop# #-}
 
-
+-- TODO: benchmark. Iterating from start would seem more efficient, but needs
+-- checking. This approach has the benefit of not retainig @n@, bu giving offset
+-- 0 to `writeOffAddr#`
+--
 -- setAddrLoop# :: forall a s. Unbox a => Addr# -> Int# -> a -> State# s -> State# s
 -- setAddrLoop# addr0# n# a = go addr0# n#
 --   where

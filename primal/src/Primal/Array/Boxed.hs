@@ -12,7 +12,7 @@
 #endif
 -- |
 -- Module      : Primal.Array.Boxed
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -662,32 +662,7 @@ writeBMArray ::
   -- ^ /elt/ - Element to be written into @dstMutArray@
   -> m ()
 writeBMArray ma i !x = writeLazyBMArray ma i x
---writeBMArray ma i = eval >=> writeLazyBMArray ma i
 {-# INLINE writeBMArray #-}
-
-{-
-src/Data/Prim/Array.hs:697: failure in expression `freezeBMArray ma'
-expected: BArray [Nothing,Nothing,Just 2,Just *** Exception: divide by zero
- but got: BArray [Nothing,Nothing,Just 2,Just 5282521669542503534]
-                                              ^
-Examples: 180  Tried: 63  Errors: 0  Failures: 1doctests: user error (Language.Haskell.GhciWrapper.close: Interpreter exited with an error (ExitFailure (-6)))
-primal> Test suite doctests failed
-Test suite failure for package primal-0.3.0.0
-    doctests:  exited with: ExitFailure 1
-Logs printed to console
-
-
-Examples: 180  Tried: 26  Errors: 0  Failures: 0doctests: user error (Language.Haskell.GhciWrapper.close: Interpreter exited with an error (ExitFailure (-11)))
-primal> Test suite doctests failed
-Test suite failure for package primal-0.3.0.0
-    doctests:  exited with: ExitFailure 1
-
-https://travis-ci.com/github/lehins/primal/jobs/407895714
-[34/180] src/Data/Prim/Array.hs:699: failure in expression `readBMArray ma 3'
-expected: Just *** Exception: divide by zero
- but got: Just 140663761379224
-               ^
--}
 
 -- | /O(1)/ - Same as `writeBMArray` but allows to write a thunk into an array instead of an
 -- evaluated element. Careful with memory leaks and thunks that evaluate to exceptions.
@@ -891,6 +866,7 @@ freezeCloneSliceBMArray (BMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
 -- TODO:
 -- prop> cloneSliceBMArray ma i n === freezeCloneSliceBMArray ma i n >>= thawBArray
 -- prop> cloneSliceBMArray ma i n === newBMArray n undefined >>= \mb -> mb <$ moveBMArray ma i mb 0 n
+
 -- | /O(sz)/ - Allocate a new mutable array of size @sz@ and copy that number of the
 -- elements over from the @srcArray@ starting at index @ix@. Similar to `cloneSliceBArray`,
 -- except it works on mutable arrays.

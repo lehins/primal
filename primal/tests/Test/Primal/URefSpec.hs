@@ -2,7 +2,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Test.Primal.URefSpec (spec) where
 
-import qualified Control.Concurrent as Base
 import Control.Concurrent.Async
 import Control.DeepSeq
 import Data.Bits
@@ -11,9 +10,9 @@ import Data.List (partition)
 import Data.Maybe
 import Primal.Concurrent
 import Primal.Element.Unbox
-import Primal.Exception
-import Primal.Memory.GC (performGC)
-import Primal.Memory.Weak
+-- import Primal.Exception
+-- import Primal.Memory.GC (performGC)
+-- import Primal.Memory.Weak
 import Primal.Ref
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -24,16 +23,16 @@ import Test.QuickCheck.Monadic
 forAllIO :: (Show p, Testable t) => Gen p -> (p -> IO t) -> Property
 forAllIO g propM = forAll g $ \v -> monadicIO $ run $ propM v
 
-forAllST :: (Show p, Testable t) => Gen p -> (forall s. p -> ST s t) -> Property
-forAllST g propM = forAll g $ \v -> monadicST $ run $ propM v
+-- forAllST :: (Show p, Testable t) => Gen p -> (forall s. p -> ST s t) -> Property
+-- forAllST g propM = forAll g $ \v -> monadicST $ run $ propM v
 
 
-forAllURefST ::
-     (Show p, Unbox p, Testable t)
-  => Gen p
-  -> (forall s. p -> URef p s -> ST s t)
-  -> Property
-forAllURefST g propM = forAllST g $ \v -> newURef v >>= propM v
+-- forAllURefST ::
+--      (Show p, Unbox p, Testable t)
+--   => Gen p
+--   -> (forall s. p -> URef p s -> ST s t)
+--   -> Property
+-- forAllURefST g propM = forAllST g $ \v -> newURef v >>= propM v
 
 forAllURefIO ::
      (Show p, Unbox p, Testable t)
@@ -42,13 +41,13 @@ forAllURefIO ::
   -> Property
 forAllURefIO g propM = forAllIO g $ \v -> newURef v >>= propM v
 
-propURefST ::
-     (Show p, Unbox p, Testable t)
-  => String
-  -> Gen p
-  -> (forall s. p -> URef p s -> ST s t)
-  -> Spec
-propURefST name gen action = prop name $ forAllURefST gen action
+-- propURefST ::
+--      (Show p, Unbox p, Testable t)
+--   => String
+--   -> Gen p
+--   -> (forall s. p -> URef p s -> ST s t)
+--   -> Spec
+-- propURefST name gen action = prop name $ forAllURefST gen action
 
 propURefIO ::
      (Show p, Unbox p, Testable t)

@@ -456,18 +456,6 @@ ensurePinnedMBytes mb =
       pmb <$ moveMBytesToMBytes mb 0 pmb 0 n8
 {-# INLINE ensurePinnedMBytes #-}
 
-toPinnedBytes :: Bytes p -> Maybe (Bytes 'Pin)
-toPinnedBytes (Bytes b#)
-  | isTrue# (isByteArrayPinned# b#) = Just (Bytes b#)
-  | otherwise = Nothing
-{-# INLINE toPinnedBytes #-}
-
-toPinnedMBytes :: MBytes p s -> Maybe (MBytes 'Pin s)
-toPinnedMBytes (MBytes mb#)
-  | isTrue# (isMutableByteArrayPinned# mb#) = Just (MBytes mb#)
-  | otherwise = Nothing
-{-# INLINE toPinnedMBytes #-}
-
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied

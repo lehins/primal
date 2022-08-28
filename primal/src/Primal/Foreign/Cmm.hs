@@ -6,7 +6,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Foreign.Cmm
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental

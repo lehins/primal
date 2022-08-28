@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Monad.Raises
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -43,7 +43,7 @@ import Control.Monad.Trans.Writer.CPS as CPS (WriterT)
 #endif
 
 -- | Handle an exception of a specific type and re-raise any other exception
--- into the `Raises` monad.
+-- into the `Raises` monad class.
 --
 -- @since 1.0.0
 handleExceptT :: (Exception e, Raises m) => ExceptT SomeException m a -> ExceptT e m a

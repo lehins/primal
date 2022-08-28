@@ -1,9 +1,10 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 -- |
 -- Module      : Primal.Memory.Text
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -29,14 +30,23 @@ import Data.Text.Internal as T
 import Primal.Mutable.Freeze
 import Primal.Element.Unbox
 import Primal.Memory.Internal
-import Primal.Memory.Bytes
+
+-- | This is a text code unit size. Depending on the version of text library it
+-- can either be `Word16` or `Word8`. Prior to @text-2.0@ the library was using
+-- @utf-16@ for underlying unicode repesentation, while going forward it uses
+-- @utf-8@
+#if MIN_VERSION_text(2,0,0)
+type TCUSize = Word8
+#else
+type TCUSize = Word16
+#endif
 
 -- | Mutable version of a `Text`
 data MText (p :: Pinned) s =
   MText
-    {-# UNPACK #-}!(MBytes p s)   -- payload (Word16 elements)
-    {-# UNPACK #-}!(Off Word16)   -- offset (units of Word16, not Char)
-    {-# UNPACK #-}!(Count Word16) -- length (units of Word16, not Char)
+    {-# UNPACK #-}!(MBytes p s)   -- payload (TCUSize elements)
+    {-# UNPACK #-}!(Off TCUSize)   -- offset (units of TCUSize, not Char)
+    {-# UNPACK #-}!(Count TCUSize) -- length (units of TCUSize, not Char)
 
 
 type instance Frozen (MText 'Inc) = Text
@@ -45,9 +55,9 @@ instance MutFreeze (MText 'Inc) where
   thawST (T.Text a o k) = (\ma -> MText ma (Off o) (Count k)) <$> thawST (fromTextArrayBytes a)
   {-# INLINE thawST #-}
   thawCloneST (T.Text a o k) = do
-    let c = Count k :: Count Word16
+    let c = Count k :: Count TCUSize
     ma <- allocMutMemST c
-    copyByteOffMutMemST a (toByteOff (Off o :: Off Word16)) ma 0 c
+    copyByteOffMutMemST a (toByteOff (Off o :: Off TCUSize)) ma 0 c
     pure $ MText ma 0 c
   {-# INLINE thawCloneST #-}
   freezeMutST (MText ma o k) =
@@ -81,15 +91,15 @@ instance MemAlloc (MText 'Inc) where
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST c = do
     ma <- allocMutMemST c
-    pure $ MText ma 0 (toCount16 c)
+    pure $ MText ma 0 (toTCUSizeCount c)
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST c = do
     ma <- allocPinnedMutMemST c
-    pure $ MText ma 0 (toCount16 c)
+    pure $ MText ma 0 (toTCUSizeCount c)
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST c = do
     ma <- allocAlignedPinnedMutMemST c
-    pure $ MText ma 0 (toCount16 c)
+    pure $ MText ma 0 (toTCUSizeCount c)
   {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST (MText ma o k) c'
     | k' <= k = pure $ MText ma o k'
@@ -100,12 +110,12 @@ instance MemAlloc (MText 'Inc) where
         ma' <- allocMutMemST c'
         moveByteOffMutMemST ma (toByteOff o) ma' 0 k
         pure $ MText ma' 0 k'
-     where k' = toCount16 c'
+     where k' = toTCUSizeCount c'
   {-# INLINE reallocMutMemST #-}
 
-toCount16 :: Unbox e => Count e -> Count Word16
-toCount16 c = fromByteCount (Count (unCountBytes c))
-{-# INLINE toCount16 #-}
+toTCUSizeCount :: Unbox e => Count e -> Count TCUSize
+toTCUSizeCount c = fromByteCount (Count (unCountBytes c))
+{-# INLINE toTCUSizeCount #-}
 
 ensurePinnedText :: T.Text -> T.Text
 ensurePinnedText t = runST $ do

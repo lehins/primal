@@ -5,7 +5,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Monad.Unsafe
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -133,6 +133,7 @@ noDuplicate = unsafeIOToPrimal $ primal_ noDuplicate#
 -- multiple times and a copy interrupted at will.
 unsafeDupablePerformPrimalState :: PrimalState s m => m a -> a
 unsafeDupablePerformPrimalState m = unsafeDupablePerformIO (unsafePrimalStateToIO m)
+{-# INLINE unsafeDupablePerformPrimalState #-}
 
 -- | Take an `IO` and compute it as a pure value, while inlining the action itself.
 --

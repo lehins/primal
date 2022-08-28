@@ -147,3 +147,4 @@ test-suite mutable-tests-O0
 source-repository head
   type:     git
   location: https://github.com/lehins/primal
+  subdir:   primal-test

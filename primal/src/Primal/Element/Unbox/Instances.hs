@@ -637,7 +637,7 @@ instance Unbox a => Unbox (Maybe a) where
   {-# INLINE writeByteOffMutableByteArray# #-}
   writeMutableByteArray# mba# i# mVal s =
     let k# = sizeOf# (proxy# :: Proxy# (Maybe a))
-        i0# = i# *# k# -- Not using writeByteOffMutableByteArray# to avoid k# recomputation
+        i0# = i# *# k#
     in case mVal of
          Nothing -> setByteArray# mba# i0# k# 0# s
          Just a  -> writeByteOffMutableByteArray# mba# (i0# +# 1#) a (writeInt8Array# mba# i0# 1# s)

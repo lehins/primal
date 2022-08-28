@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      : Primal.Foreign.StablePtr
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -21,9 +21,11 @@ import Control.DeepSeq
 import Primal.Monad
 import qualified GHC.Stable as GHC
 
+-- | Orphan in @primal@
 instance NFData (GHC.StablePtr a) where
   rnf (GHC.StablePtr _) = ()
 
+-- | Orphan in @primal@
 instance Show (GHC.StablePtr a) where
   show = show . GHC.castStablePtrToPtr
 
