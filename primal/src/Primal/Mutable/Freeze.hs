@@ -44,7 +44,7 @@ type family Frozen (thawed :: k -> *) = (frozen :: k) | frozen -> thawed
 -- | A type class that allows for going between frozen and thawed states for a mutable
 -- data structure.
 class MutFreeze mut where
-  {-# MINIMAL thawST, freezeMutST, (clone|thawCloneST) #-}
+  {-# MINIMAL thawST, freezeMutST, thawCloneST #-}
 
   -- | See `thaw` for documentation.
   --
@@ -56,11 +56,16 @@ class MutFreeze mut where
   -- @since 1.0.0
   freezeMutST :: mut s -> ST s (Frozen mut)
 
+  -- | See `thawClone` for documentation.
+  --
+  -- @since 1.0.0
+  thawCloneST :: Frozen mut -> ST s (mut s)
+
   -- | Make an exact copy of the immutable type.
   --
   -- @since 1.0.0
   clone :: Frozen mut -> Frozen mut
-  clone frozen = runST $ thawCloneST frozen >>= freezeMutST
+  clone frozen = runST $ freezeMutST =<< thawCloneST frozen
   {-# INLINE clone #-}
 
   -- | See `cloneMut` for documentation.
@@ -70,18 +75,11 @@ class MutFreeze mut where
   cloneMutST mut = thawST . clone =<< freezeMutST mut
   {-# INLINE cloneMutST #-}
 
-  -- | See `thawClone` for documentation.
-  --
-  -- @since 1.0.0
-  thawCloneST :: Frozen mut -> ST s (mut s)
-  thawCloneST = thawST . clone
-  {-# INLINE thawCloneST #-}
-
   -- | See `freezeCloneMut` for documentation.
   --
   -- @since 1.0.0
   freezeCloneMutST :: mut s -> ST s (Frozen mut)
-  freezeCloneMutST = cloneMutST >=> freezeMutST
+  freezeCloneMutST = freezeMutST <=< cloneMutST
   {-# INLINE freezeCloneMutST #-}
 
 

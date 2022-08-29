@@ -22,9 +22,7 @@ module Primal.Monad
 import Control.Monad
 import Control.Monad.ST
 import Primal.Eval
-import Primal.Exception
 import Primal.Monad.Internal
-
 
 
 -- | Similar to `when`, but condional is supplied in a form of monadic action rather than a

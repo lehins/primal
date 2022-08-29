@@ -48,6 +48,8 @@ module Primal.Array.Boxed
   , newLazyBMArray
   , newRawBMArray
   , makeBMArray
+  , fromListBMArray
+  , fromListBMArrayN
   , moveBMArray
   , cloneSliceBMArray
   , shrinkBMArray
@@ -181,11 +183,20 @@ instance Monoid (BArray e) where
   mconcat = concatWith newRawBMArray copyBArray freezeBMArray sizeOfBArray
   {-# INLINE mconcat #-}
 
--- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+-- | Compare pointers of two immutable arrays and see if they refer to the
+-- exact same one. Note, that this function can give false negatives.
 --
 -- @since 0.3.0
 isSameBArray :: BArray a -> BArray a -> Bool
-isSameBArray a1 a2 = runST (isSameBMArray <$> thawBArray a1 <*> thawBArray a2)
+isSameBArray a1 a2 =
+  runST $ do
+    ma1 <- thawBArray a1
+    ma2 <- thawBArray a2
+    res <- eval $ isSameBMArray ma1 ma2
+    -- thawing a boxed array actually mutates its internal state, we need to change it back
+    _ <- freezeBMArray ma1
+    _ <- freezeBMArray ma2
+    pure res
 {-# INLINE isSameBArray #-}
 
 -- | /O(1)/ - Get the number of elements in an immutable array
@@ -265,7 +276,7 @@ cloneSliceBArray ::
   -- > startIx < unSize (sizeOfBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -297,7 +308,7 @@ copyBArray ::
   -- /__Precondition:__/
   --
   -- > srcMutArray <- thawBArray srcArray
-  -- > srcMutArray /= dstMutArray
+  -- > not (isSameMBArray srcMutArray dstMutArray)
   -> Int
   -- ^ /srcStartIx/ - Offset into the source immutable array where copy should start from
   --
@@ -339,26 +350,35 @@ copyBArray (BArray src#) (I# srcOff#) (BMArray dst#) (I# dstOff#) (Size (I# n#))
 --
 -- Documentation for utilized primop: `unsafeThawArray#`.
 --
--- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the mutable boxed array will also be reflected in
--- the source immutable array as well. See `thawCloneSliceBArray` that avoids this problem with
--- a fresh allocation and data copy.
+-- [Very Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable boxed array will also be reflected in the
+-- source immutable array as well. In fact due to GHC optimizations it is never trully safe to write
+-- into the mutable array produced by this function. See `thawCloneSliceBArray` function that
+-- avoids this problem with fresh allocation.
 --
 -- ====__Examples__
 --
 -- >>> ma <- thawBArray $ fromListBArray [1 .. 5 :: Integer]
--- >>> writeBMArray ma 1 10
--- >>> freezeBMArray ma
--- BArray [1,10,3,4,5]
+-- >>> readBMArray ma 1
+-- 2
+-- >>> getSizeOfBMArray ma
+-- Size {unSize = 5}
 --
--- Be careful not to retain a reference to the pure immutable source array after the
--- thawed version gets mutated.
+-- The obvious reason for the unsafety of this function is when a reference to
+-- the pure immutable source array is retained after the thawed version gets
+-- mutated:
 --
 -- >>> let a = fromListBArray [1 .. 5 :: Integer]
 -- >>> ma' <- thawBArray a
 -- >>> writeBMArray ma' 0 100000
 -- >>> a
 -- BArray [100000,2,3,4,5]
+--
+-- However, even when the reference is not retained, this seemingly benign usage of an unsafe
+-- function can produce very surprising results. For example the array @a@ can be floated out of the
+-- function by GHC and used by reference elsewhere in the code where an array @1,2,3,4,5]@ happens
+-- to be used. This optimization can happen because it is statically known to contain the same 5
+-- `Int`s and it is not expected to be mutated ever.
 --
 -- @since 0.3.0
 thawBArray ::
@@ -417,7 +437,7 @@ thawCloneSliceBArray ::
   -- > startIx < unSize (sizeOfBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -445,6 +465,7 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 
 
 
+
 -- | /O(min(length list, sz))/ - Same as `fromListBArray`, except that it will allocate an
 -- array exactly of @n@ size, as such it will not convert any portion of the list that
 -- doesn't fit into the newly created array.
@@ -453,32 +474,32 @@ toListBArray ba = build (\ c n -> foldrWithFB sizeOfBArray indexBArray c n ba)
 -- thunks with `UndefinedElement` exception throwing function will be placed in the tail
 -- portion of the array.
 --
--- [Unsafe] When a precondition @sz@ is violated this function can result in critical
--- failure with out of memory or `HeapOverflow` async exception.
+-- [Unsafe] When @sz@ is greater than the amount of available memory then this function
+-- will result in a critical failure, such as out of memory or `HeapOverflow` async
+-- exception.
 --
 -- ====__Examples__
 --
--- >>> fromListBArrayN 3 [1 :: Int, 2, 3]
+-- >>> fromListBArrayN 3 [1 :: Integer, 2, 3]
 -- BArray [1,2,3]
--- >>> fromListBArrayN 3 [1 :: Int ..]
+-- >>> fromListBArrayN 3 [1 :: Integer ..]
 -- BArray [1,2,3]
 --
 -- @since 0.1.0
 fromListBArrayN ::
      forall e. HasCallStack
   => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to bew loaded into the array
+  -> [e] -- ^ /list/ - A list to be loaded into the array
   -> BArray e
-fromListBArrayN sz xs =
-  runST $ fromListMutWith newRawBMArray writeBMArray sz xs >>= freezeBMArray
+fromListBArrayN sz xs = runST $ fromListBMArrayN sz xs >>= freezeBMArray
 {-# INLINE fromListBArrayN #-}
 
 
 -- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
 -- `fromListBArrayN` when the number of elements is known ahead of time. The reason for this
 -- is that it is necessary to iterate the whole list twice: once to count how many elements
--- there is in order to create large enough array that can fit them; and the second time to
--- load the actual elements. Naturally, infinite lists will grind the program to a halt.
+-- there is, in order to create large enough array that can fit them; and the second time to
+-- load all those elements. Naturally, infinite lists will grind the program to a halt.
 --
 -- ====__Example__
 --
@@ -802,6 +823,58 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 {-# INLINE makeBMArray #-}
 
 
+-- | /O(min(length list, sz))/ - Same as `fromListBArray`, except that it will allocate an
+-- array exactly of @n@ size, as such it will not convert any portion of the list that
+-- doesn't fit into the newly created array.
+--
+-- [Partial] When length of supplied list is in fact smaller then the expected size @sz@,
+-- thunks with `UndefinedElement` exception throwing function will be placed in the tail
+-- portion of the array.
+--
+-- [Unsafe] When @sz@ is greater than the amount of available memory then this
+-- function will result in a critical failure, such as out of memory or
+-- `HeapOverflow` async exception.
+--
+-- ====__Examples__
+--
+-- >>> freezeBMArray =<< fromListBMArrayN 3 [1 :: Integer, 2, 3]
+-- BArray [1,2,3]
+-- >>> ma <- fromListBMArrayN 10 [1 :: Integer ..]
+-- >>> freezeBMArray =<< writeBMArray ma 2 2022
+-- BArray [1,2,2022,4,5,6,7,8,9,10]
+--
+-- @since 0.1.0
+fromListBMArrayN ::
+     forall e m s. (HasCallStack, Primal s m)
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to be loaded into the array
+  -> m (BMArray e s)
+fromListBMArrayN = fromListMutWith newRawBMArray writeBMArray
+{-# INLINE fromListBMArrayN #-}
+
+
+-- | /O(length list)/ - Convert a list into a mutable boxed array. It is more efficient to use
+-- `fromListBArrayN` when the number of elements is known ahead of time. The reason for this
+-- is that it is necessary to iterate the whole list twice: once to count how many elements
+-- there is, in order to create large enough array that can fit them; and the second time to
+-- load all those elements. Naturally, infinite lists will grind the program to a halt.
+--
+-- ====__Example__
+--
+-- >>> ma <- fromListBMArray ["Hello", "World"]
+-- >>> writeBMArray ma 1 "Haskell"
+-- >>> freezeBMArray ma
+-- BArray ["Hello","Haskell"]
+--
+-- @since 1.0.0
+fromListBMArray ::
+     forall e m s. (HasCallStack, Primal s m)
+  => [e]
+  -> m (BMArray e s)
+fromListBMArray xs = fromListBMArrayN (coerce (length xs)) xs
+{-# INLINE fromListBMArray #-}
+
+
 -- | /O(1)/ - Convert a mutable boxed array into an immutable one. Use `thawBArray` in order
 -- to go in the opposite direction.
 --
@@ -848,7 +921,7 @@ freezeCloneSliceBMArray ::
   -- > startIx < unSize (sizeOfBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -893,7 +966,7 @@ cloneSliceBMArray ::
   -- > startIx < unSize (sizeOfBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --

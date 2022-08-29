@@ -43,6 +43,8 @@ module Primal.Array.Unboxed
   , newUMArray
   , newRawUMArray
   , makeUMArray
+  , fromListUMArray
+  , fromListUMArrayN
 
   , newPinnedUMArray
   , newRawPinnedUMArray
@@ -181,7 +183,7 @@ sizeOfUArray (UArray a#) =
 {-# INLINE sizeOfUArray #-}
 
 
--- | /O(1)/ - Index an element of a pure unboxed array.
+-- | /O(1)/ - Index an element in an immutable unboxed array.
 --
 -- Documentation for utilized primop: `indexByteArray#`.
 --
@@ -247,7 +249,7 @@ cloneSliceUArray ::
   -- > startIx < unSize (sizeOfUArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -321,26 +323,37 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 --
 -- Documentation for utilized primop: `unsafeThawByteArray#`.
 --
--- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the mutable unboxed array will also be reflected in
--- the source immutable array as well. See `thawCloneSliceUMArray` that avoids this problem with
--- fresh allocation.
+-- [Very Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable unboxed array will also be reflected in the
+-- source immutable array as well. In fact due to GHC optimizations it is never trully safe to write
+-- into the mutable array produced by this function. See `thawCloneSliceUArray` function that
+-- avoids this problem with fresh allocation.
 --
 -- ====__Examples__
 --
--- >>> ma <- thawUArray $ fromListUArray [1 .. 5 :: Int]
--- >>> writeUMArray ma 1 10
--- >>> freezeUMArray ma
--- UArray [1,10,3,4,5]
+-- The example below shows a safe usage of this function
 --
--- Be careful not to retain a reference to the pure immutable source array after the
--- thawed version gets mutated.
+-- >>> ma <- thawUArray $ fromListUMArray [1 .. 5 :: Int]
+-- >>> readUMArray ma 1
+-- 2
+-- >>> getSizeOfUMArray ma
+-- Size {unSize = 5}
+--
+-- The obvious reason for the unsafety of this function is when a reference to
+-- the pure immutable source array is retained after the thawed version gets
+-- mutated:
 --
 -- >>> let a = fromListUArray [1 .. 5 :: Int]
 -- >>> ma' <- thawUArray a
 -- >>> writeUMArray ma' 0 100000
 -- >>> a
 -- UArray [100000,2,3,4,5]
+--
+-- However, even when the reference is not retained, this seemingly benign usage of an unsafe
+-- function can produce very surprising results. For example the array @a@ can be floated out of the
+-- function by GHC and used by reference elsewhere in the code where an array @1,2,3,4,5]@ happens
+-- to be used. This optimization can happen because it is statically known to contain the same 5
+-- `Int`s and it is not expected to be mutated ever.
 --
 -- @since 0.3.0
 thawUArray :: forall e m s. Primal s m => UArray e -> m (UMArray e s)
@@ -388,7 +401,7 @@ thawCloneSliceUArray ::
   -- > startIx < unSize (sizeOfUArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -398,14 +411,14 @@ thawCloneSliceUArray ::
   --
   -- Should be less then the actual available memory
   -> m (UMArray e s)
-  -- ^ /dstMutArray/ - Newly created destination mutable boxed array
+  -- ^ /dstMutArray/ - Newly created destination mutable array
 thawCloneSliceUArray arr off sz = newRawUMArray sz >>= \marr -> marr <$ copyUArray arr off marr 0 sz
 {-# INLINE thawCloneSliceUArray #-}
 
 
 
--- | /O(n)/ - Convert a pure boxed array into a list. It should work fine with GHC built-in list
--- fusion.
+-- | /O(n)/ - Convert an immutable array into a list. It should work fine with GHC
+-- built-in list fusion.
 --
 -- @since 0.1.0
 toListUArray ::
@@ -415,16 +428,16 @@ toListUArray ::
 toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
 {-# INLINE toListUArray #-}
 
--- | /O(min(length list, sz))/ - Same as `fromListUArray`, except it will allocate an array exactly of @n@ size, as
--- such it will not convert any portion of the list that doesn't fit into the newly
--- created array.
+
+-- | /O(min(length list, sz))/ - Same as `fromListUArray`, except it will allocate an
+-- array exactly of @n@ size, as such it will not convert any portion of the list that
+-- doesn't fit into the newly created array.
 --
--- [Partial] When length of supplied list is in fact smaller then the expected size @sz@,
--- thunks with `UndefinedElement` exception throwing function will be placed in the tail
--- portion of the array.
---
--- [Unsafe] When a precondition @sz@ is violated this function can result in critical
--- failure with out of memory or `HeapOverflow` async exception.
+-- [Unsafe] When @sz@ is less than the number of elements in the list, then there can be
+-- random garbage at the end of an allocated array, which breaks referential
+-- transparency. When @sz@ is greater than the amount of available memory then this
+-- function will result in a critical failure with out of memory or `HeapOverflow` async
+-- exception.
 --
 -- ====__Examples__
 --
@@ -437,18 +450,17 @@ toListUArray ba = build (\ c n -> foldrWithFB sizeOfUArray indexUArray c n ba)
 fromListUArrayN ::
      forall e. Unbox e
   => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to bew loaded into the array
+  -> [e] -- ^ /list/ - A list to be loaded into the newly allocated array
   -> UArray e
-fromListUArrayN sz xs =
-  runST $ fromListMutWith newRawUMArray writeUMArray sz xs >>= freezeUMArray
+fromListUArrayN sz xs = runST $ fromListUMArrayN sz xs >>= freezeUMArray
 {-# INLINE fromListUArrayN #-}
 
 
--- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
--- `fromListUArrayN` when the number of elements is known ahead of time. The reason for this
--- is that it is necessary to iterate the whole list twice: once to count how many elements
--- there is in order to create large enough array that can fit them; and the second time to
--- load the actual elements. Naturally, infinite lists will grind the program to a halt.
+-- | /O(length list)/ - Convert a list into an immutable array. It is more efficient to use
+-- `fromListUArrayN` when the number of elements is known ahead of time. The reason for this is that
+-- it is necessary to iterate the whole list twice: once to count how many elements there is in the
+-- list in order to create large enough array that can fit all those elements; and the second time
+-- to load the actual elements. Naturally, infinite lists will grind the program to a halt.
 --
 -- ====__Example__
 --
@@ -510,7 +522,7 @@ isPinnedUMArray (UMArray mb#) = isTrue# (isMutableByteArrayPinned# mb#)
 --
 -- ====__Example__
 --
--- >>> ma <- thawUArray $ fromListUArray ['a' .. 'z']
+-- >>> ma <- fromListUMArray ['a' .. 'z']
 -- >>> getSizeOfUMArray ma
 -- Size {unSize = 26}
 --
@@ -536,7 +548,7 @@ getSizeOfUMArray (UMArray ma#) =
 --
 -- ==== __Examples__
 --
--- >>> ma <- thawUArray $ fromListUArray "Hi!"
+-- >>> ma <- fromListUMArray "Hi!"
 -- >>> readUMArray ma 2
 -- '!'
 --
@@ -586,7 +598,7 @@ writeUMArray (UMArray ma#) (I# i#) a = primal_ (writeMutableByteArray# ma# i# a)
 -- prop> newUMArray sz a === makeUMArray sz (const (pure a))
 -- | /O(sz)/ - Allocate new mutable unboxed array. Similar to `newRawUMArray`, except all
 -- elements are initialized to the supplied initial value. This is equivalent to
--- @makeUMArray sz (const (pure a))@ but often will be more efficient.
+-- @makeUMArray sz (const (pure a often will be more efficient.
 --
 -- [Unsafe] When any of preconditions for @sz@ argument is violated the outcome is
 -- unpredictable. One possible outcome is termination with `HeapOverflow` async
@@ -786,6 +798,54 @@ newRawAlignedPinnedUMArray n =
 {-# INLINE newRawAlignedPinnedUMArray #-}
 
 
+-- | /O(min(length list, sz))/ - Same as `fromListUArray`, except it will
+-- allocate an array exactly of @n@ size, as such it will not convert any
+-- portion of the list that doesn't fit into the newly created array.
+--
+-- [Unsafe] When @sz@ is less than the number of elements in the list, then there can be random
+-- garbage at the end of an allocated array, which breaks referential transparency. When @sz@ times
+-- the size of an element is greater than the amount of available memory then this function will
+-- result in a critical failure, such as an out of memory or `HeapOverflow` async exception.
+--
+-- ====__Examples__
+--
+-- >>> freezeUMArray =<< fromListUArrayN 3 [1 :: Int, 2, 3]
+-- UArray [1,2,3]
+-- >>> ma <- fromListUArrayN 10 [1 :: Int ..]
+-- >>> freezeUMArray =<< writeUMArray ma 2 2022
+-- UArray [1,2,2022,4,5,6,7,8,9,10]
+--
+-- @since 0.1.0
+fromListUMArrayN ::
+     forall e m s. (Unbox e, Primal s m)
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to be loaded into the newly allocated mutable array
+  -> m (UMArray e s)
+fromListUMArrayN = fromListMutWith newRawUMArray writeUMArray
+{-# INLINE fromListUMArrayN #-}
+
+-- | /O(length list)/ - Convert a list into a new mutable array. It is more
+-- efficient to use `fromListUMArrayN` when the number of elements is known
+-- ahead of time. The reason for this is that it is necessary to iterate the
+-- whole list twice: once to count how many elements there is in the list in
+-- order to create large enough array that can fit all those elements; and the
+-- second time to load all those elements. Naturally, infinite lists will grind
+-- the program to a halt.
+--
+-- ====__Example__
+--
+-- >>> fromListUArray "Hello Haskell"
+-- UArray "Hello Haskell"
+--
+-- @since 1.0.0
+fromListUMArray ::
+     forall e m s. (Unbox e, Primal s m)
+  => [e]
+  -> m (UMArray e s)
+fromListUMArray xs = fromListUMArrayN (coerce (length xs)) xs
+{-# INLINE fromListUMArray #-}
+
+
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between
 -- source and destination.
@@ -942,15 +1002,14 @@ resizeUMArray (UMArray mb#) sz =
 
 
 
--- | /O(1)/ - Convert a mutable unboxed array into an immutable one. Use `thawUArray` in order
--- to go in the opposite direction.
+-- | /O(1)/ - Convert a mutable unboxed array into an immutable one.
 --
 -- Documentation on the utilized primop: `unsafeFreezeByteArray#`.
 --
 -- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the source mutable boxed array will also be reflected
+-- subsequent destructive operation to the source mutable array will also be reflected
 -- in the resulting immutable array. See `freezeCloneSliceUMArray` that avoids this problem with
--- fresh allocation.
+-- fresh allocation and copy.
 --
 -- @since 0.3.0
 freezeUMArray ::
@@ -987,7 +1046,7 @@ freezeCloneSliceUMArray ::
   -- > startIx < unSize (sizeOfUArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -1026,7 +1085,7 @@ cloneSliceUMArray ::
   -- > startIx < unSize (sizeOfUArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -1056,7 +1115,7 @@ cloneSliceUMArray marr off sz = freezeUMArray marr >>= \arr -> thawCloneSliceUAr
 -- >>> freezeUMArray ma
 -- UArray [0,10,20,30,40]
 --
--- Unlike a boxed arrays it is OK to pass the expected value, instead of an actual element:
+-- Unlike boxed arrays it is OK to pass the expected value, instead of an actual element:
 --
 -- >>> casUMArray ma 2 20 1000
 -- (True,1000)
@@ -1077,7 +1136,7 @@ casUMArray ::
      (Atomic e, Primal s m)
   => UMArray e s -- ^ Mutable array to mutate
   -> Int -- ^ Index at which the cell should be set to the new value
-  -> e -- ^ Reference to the expected boxed value
+  -> e -- ^ The expected value
   -> e -- ^ New value to update the cell with
   -> m (Bool, e)
 casUMArray (UMArray mba#) (I# i#) expected new =

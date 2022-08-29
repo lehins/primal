@@ -8,7 +8,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Array.Boxed.Unlifted
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -37,6 +37,8 @@ module Primal.Array.Boxed.Unlifted
   , newUBMArray
   , newRawUBMArray
   , makeUBMArray
+  , fromListUBMArray
+  , fromListUBMArrayN
 
   , moveUBMArray
   , cloneSliceUBMArray
@@ -122,7 +124,7 @@ instance Unlift e => Monoid (UBArray e) where
 
 -- | /O(1)/ - Get the size of an immutable array in number of elements.
 --
--- Documentation for utilized primop: `sizeofByteArray#`.
+-- Documentation for utilized primop: `sizeofArrayArray#`.
 --
 -- @since 1.0.0
 sizeOfUBArray ::
@@ -133,28 +135,39 @@ sizeOfUBArray (UBArray a#) = Size (I# (sizeofArrayArray# a#))
 {-# INLINE sizeOfUBArray #-}
 
 
--- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+-- | Compare pointers for two immutable arrays and see if they refer to the
+-- exact same one. Note, that this function can give false negatives.
 --
 -- @since 0.3.0
 isSameUBArray :: UBArray a -> UBArray a -> Bool
-isSameUBArray a1 a2 = runST (isSameUBMArray <$> thawUBArray a1 <*> thawUBArray a2)
+isSameUBArray a1 a2 =
+  runST $ do
+    ma1 <- thawUBArray a1
+    ma2 <- thawUBArray a2
+    res <- eval $ isSameUBMArray ma1 ma2
+    -- thawing a boxed array actually mutates its internal state, we need to change it back
+    _ <- freezeUBMArray ma1
+    _ <- freezeUBMArray ma2
+    pure res
 {-# INLINE isSameUBArray #-}
 
--- | /O(1)/ - Index an element of a pure unboxed array.
+-- | /O(1)/ - Index an element of an immutable array.
 --
--- Documentation for utilized primop: `indexByteArray#`.
+-- Documentation for utilized primop: `indexArrayArray#`.
 --
 -- [Unsafe] Bounds are not checked. When a precondition for @ix@ argument is violated the
--- result is either unpredictable output or failure with a segfault.
+-- result is likely a failure with a segfault.
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.Boxed.Unlifted
--- >>> let a = fromListUBArray ([Left pi, Right 123] :: [Either Double Int])
+-- >>> import Primal.Array
+-- >>> let a = fromListUBArray (fromListUArray [pi :: Double, exp 1], fromListUArray [sqrt 2])
+-- >>> a
+-- UBArray [UArray [3.141592653589793,2.718281828459045],UArray [1.4142135623730951]]
 -- >>> indexUBArray a 0
--- Left 3.141592653589793
+-- UArray [3.141592653589793,2.718281828459045]
 -- >>> indexUBArray a 1
--- Right 123
+-- UArray [1.4142135623730951]
 --
 -- @since 1.0.0
 indexUBArray ::
@@ -181,15 +194,11 @@ indexUBArray (UBArray aa#) (I# i#) = indexArrayArray# aa# i#
 -- failure with a segfault. Failure with out of memory is also possibility when the @sz is
 -- too large.
 --
--- Documentation for utilized primop: `cloneArray#`.
---
 -- ====__Examples__
 --
--- >>> let a = fromListUBArray ['a'..'z']
--- >>> a
--- UBArray "abcdefghijklmnopqrstuvwxyz"
--- >>> cloneSliceUBArray a 23 3
--- UBArray "xyz"
+-- >>> let a = fromListUBArray [fromListUArray x | x <- [['0'..'9'], ['a'..'z'], ['A'..'Z']]]
+-- >>> cloneSliceUBArray a 1 2
+-- UBArray [UArray "abcdefghijklmnopqrstuvwxyz",UArray "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 --
 -- @since 1.0.0
 cloneSliceUBArray ::
@@ -206,7 +215,7 @@ cloneSliceUBArray ::
   -- > startIx < unSize (sizeOfUBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -222,7 +231,7 @@ cloneSliceUBArray arr off sz = runST $ thawCloneSliceUBArray arr off sz >>= free
 -- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of another mutable
 -- array. Source and destination arrays must not be the same array in different states.
 --
--- Documentation for utilized primop: `copyByteArray#`.
+-- Documentation for utilized primop: `copyArrayArray#`.
 --
 -- [Unsafe] When any of the preconditions for @srcStartIx@, @dstStartIx@ or @sz@ is violated
 -- this function can result in a copy of some data that doesn't belong to @srcArray@ or
@@ -274,29 +283,41 @@ copyUBArray (UBArray src#) (I# srcOff#) (UBMArray dst#) (I# dstOff#) (Size (I# n
 {-# INLINE copyUBArray #-}
 
 
--- | /O(1)/ - Convert a pure immutable unboxed array into a mutable unboxed array. Use
--- `freezeUBMArray` in order to go in the opposite direction.
+-- | /O(1)/ - Convert a pure immutable array into a mutable array. Use `freezeUBMArray`
+-- in order to go in the opposite direction.
 --
--- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the mutable unboxed array will also be reflected in
--- the source immutable array as well. See `thawCloneSliceUBMArray` that avoids this problem with
--- fresh allocation.
+-- [Very Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable boxed array will also be reflected in the
+-- source immutable array as well. In fact due to GHC optimizations it is never trully safe to write
+-- into the mutable array produced by this function. See `thawCloneSliceBArray` function that
+-- avoids this problem with fresh allocation.
 --
 -- ====__Examples__
 --
--- >>> ma <- thawUBArray $ fromListUBArray [1 .. 5 :: Int]
--- >>> writeUBMArray ma 1 10
--- >>> freezeUBMArray ma
--- UBArray [1,10,3,4,5]
+-- >>> import Primal.Array.Unboxed
+-- >>> ma <- thawUBArray $ fromListUBArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
+-- >>> readBMArray ma 1
+-- UArray [0,1,2,3]
+-- >>> getSizeOfBMArray ma
+-- Size {unSize = 3}
 --
--- Be careful not to retain a reference to the pure immutable source array after the
--- thawed version gets mutated.
+-- The obvious reason for the unsafety of this function is when a reference to
+-- the pure immutable source array is retained after the thawed version gets
+-- mutated:
 --
--- >>> let a = fromListUBArray [1 .. 5 :: Int]
--- >>> ma' <- thawUBArray a
--- >>> writeUBMArray ma' 0 100000
+-- >>> let a = fromListUBArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
 -- >>> a
--- UBArray [100000,2,3,4,5]
+-- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [0,1,2,3,4]]
+-- >>> ma' <- thawUBArray a
+-- >>> writeUBMArray ma' 0 (fromListUArray [100000])
+-- >>> a
+-- UBArray [UArray [100000],UArray [0,1,2,3],UArray [0,1,2,3,4]]
+--
+-- However, even when the reference is not retained, this seemingly benign usage of an unsafe
+-- function can produce very surprising results. For example the array @a@ can be floated out of the
+-- function by GHC and used by reference elsewhere in the code where an array happens
+-- to be used. This optimization can happen because it is statically known to contain the same 5
+-- `Int`s and it is not expected to be mutated ever.
 --
 -- @since 1.0.0
 thawUBArray :: forall e m s. Primal s m => UBArray e -> m (UBMArray e s)
@@ -321,13 +342,13 @@ thawUBArray (UBArray a#) =
 --
 -- ====__Examples__
 --
--- >>> let a = fromListUBArray [1 .. 5 :: Int]
--- >>> ma <- thawCloneSliceUBArray a 1 3
--- >>> writeUBMArray ma 1 10
+-- >>> let a = fromListUBArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
+-- >>> ma <- thawCloneSliceUBArray a 1 2
+-- >>> writeUBMArray ma 1 $ fromListUArray [10]
 -- >>> freezeUBMArray ma
--- UBArray [2,10,4]
+-- UBArray [UArray [10],UArray [0,1,2,3,4]]
 -- >>> a
--- UBArray [1,2,3,4,5]
+-- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [0,1,2,3,4]]
 --
 -- @since 1.0.0
 thawCloneSliceUBArray ::
@@ -344,7 +365,7 @@ thawCloneSliceUBArray ::
   -- > startIx < unSize (sizeOfUBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -371,23 +392,21 @@ toListUBArray ::
 toListUBArray ba = build (\ c n -> foldrWithFB sizeOfUBArray indexUBArray c n ba)
 {-# INLINE toListUBArray #-}
 
--- | /O(min(length list, sz))/ - Same as `fromListUBArray`, except it will allocate an array exactly of @n@ size, as
--- such it will not convert any portion of the list that doesn't fit into the newly
--- created array.
+-- | /O(min(length list, sz))/ - Same as `fromListUBArray`, except it will allocate an
+-- array exactly of @n@ size, as such it will not convert any portion of the list that
+-- doesn't fit into the newly created array.
 --
--- [Partial] When length of supplied list is in fact smaller then the expected size @sz@,
--- thunks with `UndefinedElement` exception throwing function will be placed in the tail
--- portion of the array.
---
--- [Unsafe] When a precondition @sz@ is violated this function can result in critical
--- failure with out of memory or `HeapOverflow` async exception.
+-- [Unsafe] When @sz@ is less than the number of elements in the list, then there can be
+-- random garbage at the end of an allocated array, which will likely result in a segfault
+-- if indexed. When @sz@ is greater than the amount of available memory then this function
+-- will result in a critical failure with out of memory or `HeapOverflow` async exception.
 --
 -- ====__Examples__
 --
--- >>> fromListUBArrayN 3 [1 :: Int, 2, 3]
--- UBArray [1,2,3]
--- >>> fromListUBArrayN 3 [1 :: Int ..]
--- UBArray [1,2,3]
+-- >>> fromListUBArrayN 2 [fromListUMArray "Hello", fromListUMArray "Haskell"]
+-- UBArray [UMArray "Hello",UMArray "Haskell"]
+-- >>> fromListUBArrayN 1 [fromListUMArray "Hello", fromListUMArray "Haskell"]
+-- UBArray [UMArray "Hello"]
 --
 -- @since 0.1.0
 fromListUBArrayN ::
@@ -395,21 +414,21 @@ fromListUBArrayN ::
   => Size -- ^ /sz/ - Expected number of elements in the @list@
   -> [e] -- ^ /list/ - A list to bew loaded into the array
   -> UBArray e
-fromListUBArrayN sz xs =
-  runST $ fromListMutWith newRawUBMArray writeUBMArray sz xs >>= freezeUBMArray
+fromListUBArrayN sz xs = runST $ fromListUBMArrayN sz xs >>= freezeUBMArray
 {-# INLINE fromListUBArrayN #-}
 
 
--- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
--- `fromListUBArrayN` when the number of elements is known ahead of time. The reason for this
--- is that it is necessary to iterate the whole list twice: once to count how many elements
--- there is in order to create large enough array that can fit them; and the second time to
--- load the actual elements. Naturally, infinite lists will grind the program to a halt.
+-- | /O(length list)/ - Convert a list of unliftable elements into an immutable boxed
+-- array. It is more efficient to use `fromListUBArrayN` when the number of elements is
+-- known ahead of time. The reason for this is that it is necessary to iterate the whole
+-- list twice: once to count how many elements there is in order to create large enough
+-- array that can fit them; and the second time to load the actual elements. Naturally,
+-- infinite lists will grind the program to a halt.
 --
 -- ====__Example__
 --
--- >>> fromListUBArray "Hello Haskell"
--- UBArray "Hello Haskell"
+-- >>> fromListUBArray [fromListUArray "Hello", fromListUArray "Haskell"]
+-- UBArray [UArray "Hello",UArray "Haskell"]
 --
 -- @since 1.0.0
 fromListUBArray ::
@@ -458,7 +477,7 @@ isSameUBMArray (UBMArray ma1#) (UBMArray ma2#) = isTrue# (sameMutableArrayArray#
 
 -- | /O(1)/ - Get the size of a mutable unboxed array
 --
--- Documentation for utilized primop: `getSizeofMutableByteArray#`.
+-- Documentation for utilized primop: `getSizeofMutableArrayArray#`.
 --
 -- ====__Example__
 --
@@ -485,9 +504,9 @@ getSizeOfUBMArray (UBMArray ma#) =
 --
 -- ==== __Examples__
 --
--- >>> ma <- thawUBArray $ fromListUBArray "Hi!"
+-- >>> ma <- fromListUBMArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
 -- >>> readUBMArray ma 2
--- '!'
+-- UArray [0,1,2,3,4]
 --
 -- @since 1.0.0
 readUBMArray ::
@@ -516,11 +535,10 @@ readUBMArray (UBMArray maa#) (I# i#) = primal (readMutableArrayArray# maa# i#)
 --
 -- ==== __Examples__
 --
--- >>> ma <- newRawUBMArray 4 :: IO (UBMArray (Maybe Int) RW)
--- >>> mapM_ (\i -> writeUBMArray ma i Nothing) [0, 1, 3]
--- >>> writeUBMArray ma 2 (Just 2)
+-- >>> ma <- fromListUBMArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
+-- >>> writeUBMArray ma 2 $ fromListUArray [3,2,1]
 -- >>> freezeUBMArray ma
--- UBArray [Nothing,Nothing,Just 2,Nothing]
+-- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [3,2,1]]
 --
 -- @since 1.0.0
 writeUBMArray ::
@@ -543,7 +561,7 @@ writeUBMArray (UBMArray ma#) (I# i#) a = primal_ (writeMutableArrayArray# ma# i#
 --
 -- ==== __Examples__
 --
--- >>> ma <- thawUBArray $ fromListUBArray "Hi!"
+-- >>> ma <- fromListMutUBMArray =<< mapM fromListMUArray [[x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
 -- >>> readUBMArray ma 2
 -- '!'
 --
@@ -698,6 +716,57 @@ newRawUBMArray (Size (I# n#)) =
     case newArrayArray# n# s of
       (# s', ma# #) -> (# s', UBMArray ma# #)
 {-# INLINE newRawUBMArray #-}
+
+
+
+-- | /O(min(length list, sz))/ - Same as `fromListUBMArray`, except it will allocate an
+-- array exactly of @n@ size, as such it will not convert any portion of the list that
+-- doesn't fit into the newly created array.
+--
+-- [Unsafe] When @sz@ is less than the number of elements in the list, then there can be
+-- random garbage at the end of an allocated array, which will likely result in a segfault
+-- if indexed. When @sz@ is greater than the amount of available memory then this function
+-- will result in a critical failure with out of memory or `HeapOverflow` async exception.
+--
+-- ====__Examples__
+--
+-- >>> freezeUBMArray =<< fromListUBMArrayN 2 [fromListUMArray "Hello", fromListUMArray "Haskell"]
+-- UBArray [UMArray "Hello",UMArray "Haskell"]
+-- >>> freezeUBMArray =<< fromListUBMArrayN 1 [fromListUMArray "Hello", fromListUMArray "Haskell"]
+-- UBArray [UMArray "Hello"]
+--
+-- @since 0.1.0
+fromListUBMArrayN ::
+     forall e m s. (Unlift e, Primal s m)
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to bew loaded into the array
+  -> m (UBMArray e s)
+fromListUBMArrayN sz xs = fromListMutWith newRawUBMArray writeUBMArray sz xs
+{-# INLINE fromListUBMArrayN #-}
+
+
+-- | /O(length list)/ - Convert a list of unliftable elements into an mutable boxed
+-- array. It is more efficient to use `fromListUBMArrayN` when the number of elements is
+-- known ahead of time. The reason for this is that it is necessary to iterate the whole
+-- list twice: once to count how many elements there is in order to create large enough
+-- array that can fit them; and the second time to load the actual elements. Naturally,
+-- infinite lists will grind the program to a halt.
+--
+-- ====__Example__
+--
+-- >>> ma <- fromListUBMArray [fromListUMArray "Hello", fromListUMArray "Haskell"]
+-- >>> writeUBMArray ma 1 $ fromListUMArray "World"
+-- >>> freezeUBMArray ma
+-- UBMArray [UMArray "Hello",UMArray "World"]
+--
+-- @since 1.0.0
+fromListUBMArray ::
+     forall e m s. (Unlift e, Primal s m)
+  => [e]
+  -> m (UBMArray e s)
+fromListUBMArray xs = fromListUBMArrayN (coerce (length xs)) xs
+{-# INLINE fromListUBMArray #-}
+
 
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between
@@ -886,7 +955,7 @@ freezeCloneSliceUBMArray ::
   -- > startIx < unSize (sizeOfUBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -925,7 +994,7 @@ cloneSliceUBMArray ::
   -- > startIx < unSize (sizeOfUBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --

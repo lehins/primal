@@ -45,6 +45,8 @@ module Primal.Array.Boxed.Small
   , newLazySBMArray
   , newRawSBMArray
   , makeSBMArray
+  , fromListSBMArray
+  , fromListSBMArrayN
   , moveSBMArray
   , cloneSliceSBMArray
   , shrinkSBMArray
@@ -169,11 +171,20 @@ instance Monoid (SBArray e) where
   {-# INLINE mconcat #-}
 
 
--- | Compare pointers for two immutable arrays and see if they refer to the exact same one.
+-- | Compare pointers of two immutable arrays and see if they refer to the
+-- exact same one. Note, that this function can give false negatives.
 --
 -- @since 0.3.0
 isSameSBArray :: SBArray a -> SBArray a -> Bool
-isSameSBArray a1 a2 = runST (isSameSBMArray <$> thawSBArray a1 <*> thawSBArray a2)
+isSameSBArray a1 a2 =
+  runST $ do
+    ma1 <- thawSBArray a1
+    ma2 <- thawSBArray a2
+    res <- eval $ isSameSBMArray ma1 ma2
+    -- thawing a boxed array actually mutates its internal state, we need to change it back
+    _ <- freezeSBMArray ma1
+    _ <- freezeSBMArray ma2
+    pure res
 {-# INLINE isSameSBArray #-}
 
 -- | /O(1)/ - Get the number of elements in an immutable array
@@ -255,7 +266,7 @@ cloneSliceSBArray ::
   -- > startIx < unSize (sizeOfSBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -415,26 +426,35 @@ copySBArray (SBArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n
 --
 -- Documentation for utilized primop: `unsafeThawSmallArray#`.
 --
--- [Unsafe] This function makes it possible to break referential transparency, because any
--- subsequent destructive operation to the mutable boxed array will also be reflected in
--- the source immutable array as well. See `thawCloneSliceSBArray` that avoids this problem with
--- a fresh allocation and data copy.
+-- [Very Unsafe] This function makes it possible to break referential transparency, because any
+-- subsequent destructive operation to the mutable boxed array will also be reflected in the
+-- source immutable array as well. In fact due to GHC optimizations it is never trully safe to write
+-- into the mutable array produced by this function. See `thawCloneSliceSBArray` function that
+-- avoids this problem with fresh allocation.
 --
 -- ====__Examples__
 --
 -- >>> ma <- thawSBArray $ fromListSBArray [1 .. 5 :: Integer]
--- >>> writeSBMArray ma 1 10
--- >>> freezeSBMArray ma
--- SBArray [1,10,3,4,5]
+-- >>> readSBMArray ma 1
+-- 2
+-- >>> getSizeOfSBMArray ma
+-- Size {unSize = 5}
 --
--- Be careful not to retain a reference to the pure immutable source array after the
--- thawed version gets mutated.
+-- The obvious reason for the unsafety of this function is when a reference to
+-- the pure immutable source array is retained after the thawed version gets
+-- mutated:
 --
 -- >>> let a = fromListSBArray [1 .. 5 :: Integer]
 -- >>> ma' <- thawSBArray a
 -- >>> writeSBMArray ma' 0 100000
 -- >>> a
 -- SBArray [100000,2,3,4,5]
+--
+-- However, even when the reference is not retained, this seemingly benign usage of an unsafe
+-- function can produce very surprising results. For example the array @a@ can be floated out of the
+-- function by GHC and used by reference elsewhere in the code where an array @1,2,3,4,5]@ happens
+-- to be used. This optimization can happen because it is statically known to contain the same 5
+-- `Int`s and it is not expected to be mutated ever.
 --
 -- @since 0.3.0
 thawSBArray ::
@@ -485,7 +505,7 @@ thawCloneSliceSBArray ::
   -- > startIx < unSize (sizeOfSBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -521,8 +541,9 @@ toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba
 -- thunks with `UndefinedElement` exception throwing function will be placed in the tail
 -- portion of the array.
 --
--- [Unsafe] When a precondition @sz@ is violated this function can result in critical
--- failure with out of memory or `HeapOverflow` async exception.
+-- [Unsafe] When @sz@ is greater than the amount of available memory then this function
+-- will result in a critical failure, such as out of memory or `HeapOverflow` async
+-- exception.
 --
 -- ====__Examples__
 --
@@ -535,7 +556,7 @@ toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba
 fromListSBArrayN ::
      forall e. HasCallStack
   => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to bew loaded into the array
+  -> [e] -- ^ /list/ - A list to be loaded into the array
   -> SBArray e
 fromListSBArrayN sz xs =
   runST $ fromListMutWith newRawSBMArray writeSBMArray sz xs >>= freezeSBMArray
@@ -840,6 +861,60 @@ makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 {-# INLINE makeSBMArray #-}
 
 
+
+-- | /O(min(length list, sz))/ - Same as `fromListSBMArray`, except that it will allocate
+-- an array exactly of @n@ size, as such it will not convert any portion of the list that
+-- doesn't fit into the newly created array.
+--
+-- [Partial] When length of supplied list is in fact smaller then the expected size @sz@,
+-- thunks with `UndefinedElement` exception throwing function will be placed in the tail
+-- portion of the array.
+--
+-- [Unsafe] When @sz@ is greater than the amount of available memory then this function
+-- will result in a critical failure, such as out of memory or `HeapOverflow` async
+-- exception.
+--
+-- ====__Examples__
+--
+-- >>> freezeBSMArray =<< fromListBSMArrayN 3 [1 :: Integer, 2, 3]
+-- BSArray [1,2,3]
+-- >>> ma <- fromListBSMArrayN 10 [1 :: Integer ..]
+-- >>> freezeBSMArray =<< writeBSMArray ma 2 2022
+-- BSArray [1,2,2022,4,5,6,7,8,9,10]
+--
+-- @since 0.1.0
+fromListSBMArrayN ::
+     forall e m s. (HasCallStack, Primal s m)
+  => Size -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e] -- ^ /list/ - A list to be loaded into the array
+  -> m (SBMArray e s)
+fromListSBMArrayN = fromListMutWith newRawSBMArray writeSBMArray
+{-# INLINE fromListSBMArrayN #-}
+
+
+-- | /O(length list)/ - Convert a list into an mutable boxed array. It is more efficient to use
+-- `fromListSBMArrayN` when the number of elements is known ahead of time. The reason for this
+-- is that it is necessary to iterate the whole list twice: once to count how many elements
+-- there is in order to create large enough array that can fit them; and the second time to
+-- load the actual elements. Naturally, infinite lists will grind the program to a halt.
+--
+-- ====__Example__
+--
+-- >>> ma <- fromListSBMArray ["Hello", "World"]
+-- >>> writeSBMArray ma 1 "Haskell"
+-- >>> freezeSBMArray ma
+-- SBArray ["Hello","Haskell"]
+--
+-- @since 0.3.0
+fromListSBMArray ::
+     forall e m s. (HasCallStack, Primal s m)
+  => [e]
+  -> m (SBMArray e s)
+fromListSBMArray xs = fromListSBMArrayN (coerce (length xs)) xs
+{-# INLINE fromListSBMArray #-}
+
+
+
 -- | /O(1)/ - Convert a mutable boxed array into an immutable one. Use `thawSBArray` in order
 -- to go in the opposite direction.
 --
@@ -886,7 +961,7 @@ freezeCloneSliceSBMArray ::
   -- > startIx < unSize (sizeOfSBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned immutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
@@ -927,7 +1002,7 @@ cloneSliceSBMArray ::
   -- > startIx < unSize (sizeOfSBArray srcArray)
   -> Size
   -- ^ /sz/ - Size of the returned mutable array. Also this is the number of elements that
-  -- will be copied over into the destionation array starting at the beginning.
+  -- will be copied over into the destination array starting at the beginning.
   --
   -- /__Preconditions:__/
   --
