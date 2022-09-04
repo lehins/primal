@@ -382,7 +382,7 @@ readBytesRMArray (RMArray ma#) (I# i#) =
 -- it will not overwrite a value with if it evaluates to an exception:
 --
 -- >>> import Control.Exception
--- >>> writeRMArray ma 2 (impureThrow DivideByZero)
+-- >>> writeRMArray ma 2 (raiseImprecise DivideByZero)
 -- *** Exception: divide by zero
 -- >>> freezeRMArray ma
 -- Array [Nothing,Nothing,Just 2,Nothing]

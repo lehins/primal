@@ -122,6 +122,20 @@ instance Unlift e => Monoid (UBArray e) where
   {-# INLINE mconcat #-}
 
 
+instance Unlift (UBArray e) where
+  type UnliftIso (UBArray e) = UBArray e
+
+  indexArrayArray# aa# i# = UBArray (indexArrayArrayArray# aa# i#)
+  {-# INLINE indexArrayArray# #-}
+
+  readMutableArrayArray# maa# i# s = case readArrayArrayArray# maa# i# s of
+                                      (# s', ba# #) -> (# s', UBArray ba# #)
+  {-# INLINE readMutableArrayArray# #-}
+
+  writeMutableArrayArray# maa# i# (UBArray aa#) = writeArrayArrayArray# maa# i# aa#
+  {-# INLINE writeMutableArrayArray# #-}
+
+
 -- | /O(1)/ - Get the size of an immutable array in number of elements.
 --
 -- Documentation for utilized primop: `sizeofArrayArray#`.
@@ -161,7 +175,7 @@ isSameUBArray a1 a2 =
 -- ==== __Examples__
 --
 -- >>> import Primal.Array
--- >>> let a = fromListUBArray (fromListUArray [pi :: Double, exp 1], fromListUArray [sqrt 2])
+-- >>> let a = fromListUBArray [fromListUArray [pi :: Double, exp 1], fromListUArray [sqrt 2]]
 -- >>> a
 -- UBArray [UArray [3.141592653589793,2.718281828459045],UArray [1.4142135623730951]]
 -- >>> indexUBArray a 0
@@ -295,10 +309,10 @@ copyUBArray (UBArray src#) (I# srcOff#) (UBMArray dst#) (I# dstOff#) (Size (I# n
 -- ====__Examples__
 --
 -- >>> import Primal.Array.Unboxed
--- >>> ma <- thawUBArray $ fromListUBArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
--- >>> readBMArray ma 1
+-- >>> ma <- fromListUBMArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
+-- >>> readUBMArray ma 1
 -- UArray [0,1,2,3]
--- >>> getSizeOfBMArray ma
+-- >>> getSizeOfUBMArray ma
 -- Size {unSize = 3}
 --
 -- The obvious reason for the unsafety of this function is when a reference to
@@ -313,11 +327,11 @@ copyUBArray (UBArray src#) (I# srcOff#) (UBMArray dst#) (I# dstOff#) (Size (I# n
 -- >>> a
 -- UBArray [UArray [100000],UArray [0,1,2,3],UArray [0,1,2,3,4]]
 --
--- However, even when the reference is not retained, this seemingly benign usage of an unsafe
--- function can produce very surprising results. For example the array @a@ can be floated out of the
--- function by GHC and used by reference elsewhere in the code where an array happens
--- to be used. This optimization can happen because it is statically known to contain the same 5
--- `Int`s and it is not expected to be mutated ever.
+-- However, even when the reference is not retained, this seemingly benign usage of an
+-- unsafe function can produce very surprising results. For example the array @a@ can be
+-- floated out of the function by GHC and used by reference elsewhere in the code where an
+-- array happens to be used. This optimization can happen when it is statically known to
+-- contain the data and it is not expected to be mutated.
 --
 -- @since 1.0.0
 thawUBArray :: forall e m s. Primal s m => UBArray e -> m (UBMArray e s)
@@ -338,15 +352,13 @@ thawUBArray (UBArray a#) =
 -- failure with a segfault. Failure with out of memory is also a possibility when the @sz is
 -- too large.
 --
--- Documentation for utilized primop: `thawArray#`.
---
 -- ====__Examples__
 --
 -- >>> let a = fromListUBArray [fromListUArray [x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
 -- >>> ma <- thawCloneSliceUBArray a 1 2
 -- >>> writeUBMArray ma 1 $ fromListUArray [10]
 -- >>> freezeUBMArray ma
--- UBArray [UArray [10],UArray [0,1,2,3,4]]
+-- UBArray [UArray [0,1,2,3],UArray [10]]
 -- >>> a
 -- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [0,1,2,3,4]]
 --
@@ -376,7 +388,8 @@ thawCloneSliceUBArray ::
   -- Should be less then the actual available memory
   -> m (UBMArray e s)
   -- ^ /dstMutArray/ - Newly created destination mutable boxed array
-thawCloneSliceUBArray arr off sz = newRawUBMArray sz >>= \marr -> marr <$ copyUBArray arr off marr 0 sz
+thawCloneSliceUBArray arr off sz =
+  newRawUBMArray sz >>= \marr -> marr <$ copyUBArray arr off marr 0 sz
 {-# INLINE thawCloneSliceUBArray #-}
 
 
@@ -403,10 +416,10 @@ toListUBArray ba = build (\ c n -> foldrWithFB sizeOfUBArray indexUBArray c n ba
 --
 -- ====__Examples__
 --
--- >>> fromListUBArrayN 2 [fromListUMArray "Hello", fromListUMArray "Haskell"]
--- UBArray [UMArray "Hello",UMArray "Haskell"]
--- >>> fromListUBArrayN 1 [fromListUMArray "Hello", fromListUMArray "Haskell"]
--- UBArray [UMArray "Hello"]
+-- >>> fromListUBArrayN 2 [fromListUArray "Hello", fromListUArray "Haskell"]
+-- UBArray [UArray "Hello",UArray "Haskell"]
+-- >>> fromListUBArrayN 1 [fromListUArray "Hello", fromListUArray "Haskell"]
+-- UBArray [UArray "Hello"]
 --
 -- @since 0.1.0
 fromListUBArrayN ::
@@ -466,6 +479,18 @@ instance (MutUnlift e, MutNFData e) => MutNFData (UBMArray e) where
     loop 0
   {-# INLINE rnfMutST #-}
 
+instance MutUnlift (UBMArray e) where
+  type MutUnliftIso (UBMArray e) = UBMArray e
+
+  readMutMutableArrayArray# maa# i# s = case readMutableArrayArrayArray# maa# i# s of
+                                          (# s', nmaa# #) -> (# s', UBMArray nmaa# #)
+  {-# INLINE readMutMutableArrayArray# #-}
+
+  writeMutMutableArrayArray# maa# i# (UBMArray nmaa#) = writeMutableArrayArrayArray# maa# i# nmaa#
+  {-# INLINE writeMutMutableArrayArray# #-}
+
+
+
 -- | /O(1)/ - Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
 -- Documentation for utilized primop: `sameMutableArrayArray#`.
@@ -481,9 +506,10 @@ isSameUBMArray (UBMArray ma1#) (UBMArray ma2#) = isTrue# (sameMutableArrayArray#
 --
 -- ====__Example__
 --
--- >>> ma <- thawUBArray $ fromListUBArray ['a' .. 'z']
+-- >>> :set -XOverloadedLists
+-- >>> ma <- fromListUBMArray ([['a'..'z'],['A'..'Z']] :: [UArray Char])
 -- >>> getSizeOfUBMArray ma
--- Size {unSize = 26}
+-- Size {unSize = 2}
 --
 -- @since 1.0.0
 getSizeOfUBMArray ::
@@ -561,9 +587,14 @@ writeUBMArray (UBMArray ma#) (I# i#) a = primal_ (writeMutableArrayArray# ma# i#
 --
 -- ==== __Examples__
 --
--- >>> ma <- fromListMutUBMArray =<< mapM fromListMUArray [[x | x <- [0 :: Int .. y]] | y <- [2 .. 4]]
--- >>> readUBMArray ma 2
--- '!'
+-- >>> import Primal.Monad
+-- >>> import Primal.Array
+-- >>> xs <- mapM fromListUMArray [[x | x <- [0 :: Int .. y]] | y <- [2 .. 4]] :: IO [UMArray Int RW]
+-- >>> ma <- newRawUBMArray (Size (length xs)) :: IO (UBMArray (UMArray Int) RW)
+-- >>> mapM_ (\(i, x) -> writeMutUBMArray ma i x) $ zip [0..] xs
+-- >>> mua <- readMutUBMArray ma 2
+-- >>> readUMArray mua 2
+-- 2
 --
 -- @since 1.0.0
 readMutUBMArray ::
@@ -583,18 +614,21 @@ readMutUBMArray (UBMArray maa#) (I# i#) = primal (readMutMutableArrayArray# maa#
 {-# INLINE readMutUBMArray #-}
 
 
--- | /O(1)/ - Write a mutable  element into a mutable array at a supplied index.
+-- | /O(1)/ - Write a mutable element into a mutable array at a supplied index.
 --
 -- [Unsafe] Violation of @ix@ preconditions can result in heap corruption or a failure
 -- with a segfault
 --
 -- ==== __Examples__
 --
--- >>> ma <- newRawUBMArray 4 :: IO (UBMArray (Maybe Int) RW)
--- >>> mapM_ (\i -> writeUBMArray ma i Nothing) [0, 1, 3]
--- >>> writeUBMArray ma 2 (Just 2)
--- >>> freezeUBMArray ma
--- UBArray [Nothing,Nothing,Just 2,Nothing]
+-- >>> import Primal.Monad
+-- >>> import Primal.Array
+-- >>> xs <- mapM fromListUMArray [[x | x <- [0 :: Int .. y]] | y <- [2 .. 4]] :: IO [UMArray Int RW]
+-- >>> ma <- newRawUBMArray (Size (length xs)) :: IO (UBMArray (UMArray Int) RW)
+-- >>> mapM_ (\(i, x) -> writeMutUBMArray ma i x) $ zip [0..] xs
+-- >>> mua <- readMutUBMArray ma 2
+-- >>> readUMArray mua 2
+-- 2
 --
 -- @since 1.0.0
 writeMutUBMArray ::
@@ -619,12 +653,15 @@ writeMutUBMArray (UBMArray maa#) (I# i#) a = primal_ (writeMutMutableArrayArray#
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.Boxed.Unlifted
--- >>> let xs = "Hello"
--- >>> ma <- newUBMArray (Size (length xs) + 8) '!' :: IO (UBMArray Char RW)
--- >>> mapM_ (\(i, x) -> writeUBMArray ma i x) (zip [0..] xs)
+-- >>> import Primal.Monad (RW)
+-- >>> import Primal.Array
+-- >>> :set -XOverloadedStrings
+-- >>> let hw = "Hello World!" :: UArray Char
+-- >>> ma <- newUBMArray 3 hw
+-- >>> let hh = "Hi Haskell!" :: UArray Char
+-- >>> writeUBMArray ma 1 hh
 -- >>> freezeUBMArray ma
--- UBArray "Hello!!!!!!!!"
+-- UBArray [UArray "Hello World!",UArray "Hi Haskell!",UArray "Hello World!"]
 --
 -- @since 1.0.0
 newUBMArray ::
@@ -652,14 +689,11 @@ newUBMArray sz e = makeUBMArray sz (pure . const e)
 --
 -- ====__Examples__
 --
--- >>> ma <- makeUBMArray 5 $ \i -> (toEnum (i + 97) :: Char) <$ putStrLn ("Handling index: " ++ show i)
--- Handling index: 0
--- Handling index: 1
--- Handling index: 2
--- Handling index: 3
--- Handling index: 4
+-- >>> import Primal.Array
+-- >>> let digits n = makeUMArray n (\i -> pure (toEnum (i + 97) :: Char)) >>= freezeUMArray
+-- >>> ma <- makeUBMArray 5 (digits . Size)
 -- >>> freezeUBMArray ma
--- UBArray "abcde"
+-- UBArray [UArray "",UArray "a",UArray "ab",UArray "abc",UArray "abcd"]
 --
 -- @since 1.0.0
 makeUBMArray ::
@@ -672,6 +706,8 @@ makeUBMArray = makeMutWith newRawUBMArray writeUBMArray
 
 
 -- | Just like `makeUBMArray` but elements are themselves mutable
+--
+-- @since 1.0.0
 makeMutUBMArray ::
      forall e m s. (MutUnlift e, Primal s m)
   => Size
@@ -682,7 +718,7 @@ makeMutUBMArray = makeMutWith newRawUBMArray writeMutUBMArray
 
 
 -- | /O(1)/ - Allocate new mutable array. None of the elements are initialized so
--- expect it to contain some random garbage.
+-- expect a segfault when reading uninitialized array.
 --
 -- Documentation for utilized primop: `newArrayArray#`.
 --
@@ -692,11 +728,12 @@ makeMutUBMArray = makeMutWith newRawUBMArray writeMutUBMArray
 --
 -- ==== __Examples__
 --
--- >>> let xs = "Hello Haskell"
--- >>> ma <- newRawUBMArray (Size (length xs)) :: IO (UBMArray Char RW)
--- >>> mapM_ (\(i, x) -> writeUBMArray ma i x) (zip [0..] xs)
+-- >>> import Primal.Monad (RW)
+-- >>> import qualified Data.ByteString.Short as SBS
+-- >>> ma <- newRawUBMArray 3 :: IO (UBMArray SBS.ShortByteString RW)
+-- >>> mapM_ (\(i, cs) -> writeUBMArray ma i (SBS.pack cs)) $ zip [0..] [[48..57],[65..90],[97..122]]
 -- >>> freezeUBMArray ma
--- UBArray "Hello Haskell"
+-- UBArray ["0123456789","ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"]
 --
 -- @since 1.0.0
 newRawUBMArray ::
@@ -730,10 +767,10 @@ newRawUBMArray (Size (I# n#)) =
 --
 -- ====__Examples__
 --
--- >>> freezeUBMArray =<< fromListUBMArrayN 2 [fromListUMArray "Hello", fromListUMArray "Haskell"]
--- UBArray [UMArray "Hello",UMArray "Haskell"]
--- >>> freezeUBMArray =<< fromListUBMArrayN 1 [fromListUMArray "Hello", fromListUMArray "Haskell"]
--- UBArray [UMArray "Hello"]
+-- >>> freezeUBMArray =<< fromListUBMArrayN 2 [fromListUArray "Hello", fromListUArray "Haskell"]
+-- UBArray [UArray "Hello",UArray "Haskell"]
+-- >>> freezeUBMArray =<< fromListUBMArrayN 1 [fromListUArray "Hello", fromListUArray "Haskell"]
+-- UBArray [UArray "Hello"]
 --
 -- @since 0.1.0
 fromListUBMArrayN ::
@@ -754,10 +791,10 @@ fromListUBMArrayN sz xs = fromListMutWith newRawUBMArray writeUBMArray sz xs
 --
 -- ====__Example__
 --
--- >>> ma <- fromListUBMArray [fromListUMArray "Hello", fromListUMArray "Haskell"]
--- >>> writeUBMArray ma 1 $ fromListUMArray "World"
+-- >>> ma <- fromListUBMArray [fromListUArray "Hello", fromListUArray "Haskell"]
+-- >>> writeUBMArray ma 1 $ fromListUArray "World"
 -- >>> freezeUBMArray ma
--- UBMArray [UMArray "Hello",UMArray "World"]
+-- UBArray [UArray "Hello",UArray "World"]
 --
 -- @since 1.0.0
 fromListUBMArray ::

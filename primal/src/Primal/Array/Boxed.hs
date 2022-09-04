@@ -218,7 +218,7 @@ sizeOfBArray (BArray a#) = Size (I# (sizeofArray# a#))
 -- ==== __Examples__
 --
 -- >>> import Primal.Array
--- >>> let a = fromListBArray [[0 .. i] | i <- [0 .. 10 :: Int]]
+-- >>> let a = fromListBArray ([[0 .. i] | i <- [0 .. 10]] :: [[Int]])
 -- >>> indexBArray a 1
 -- [0,1]
 -- >>> indexBArray a 5
@@ -650,8 +650,8 @@ readBMArray (BMArray ma#) (I# i#) = primal (readArray# ma# i#)
 -- exception:
 --
 -- >>> import Primal.Exception
--- >>> writeBMArray ma 2 (impureThrow DivideByZero)
--- *** Exception: divide by zero
+-- >>> writeBMArray ma 2 (raiseImpreciseNoCallStack DivideByZero)
+-- *** Exception: ImpreciseException 'divide by zero' was raised
 -- >>> freezeCloneMut ma
 -- BArray [Nothing,Nothing,Just 2,Nothing]
 --
@@ -782,6 +782,7 @@ newLazyBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Monad
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawBMArray (Size (length xs)) :: IO (BMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeBMArray ma i x) (zip [0..] xs)
@@ -840,7 +841,8 @@ makeBMArray = makeMutWith newRawBMArray writeBMArray
 -- >>> freezeBMArray =<< fromListBMArrayN 3 [1 :: Integer, 2, 3]
 -- BArray [1,2,3]
 -- >>> ma <- fromListBMArrayN 10 [1 :: Integer ..]
--- >>> freezeBMArray =<< writeBMArray ma 2 2022
+-- >>> writeBMArray ma 2 2022
+-- >>> freezeBMArray ma
 -- BArray [1,2,2022,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0

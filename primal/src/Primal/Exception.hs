@@ -27,6 +27,7 @@ module Primal.Exception
   , raise
   , raiseTo
   , raiseImprecise
+  , raiseImpreciseNoCallStack
   , raiseLeftImprecise
   , ImpreciseException(..)
   , errorWithoutStackTrace
@@ -35,8 +36,9 @@ module Primal.Exception
   , catchJust
   , catchSync
   , catchAsync
-  -- , catchAny
-  -- , catchAnySync
+  , catchAny
+  , catchAnySync
+  , catchAnyAsync
   , catchAll
   , catchAllSync
   , catchAllAsync
@@ -83,6 +85,7 @@ module Primal.Exception
   ) where
 
 import qualified Control.Exception as GHC
+import Control.Monad (when)
 import Primal.Monad.Internal
 import Primal.Monad.Raises
 import Primal.Monad.Unsafe
@@ -124,14 +127,16 @@ raise e = unsafePrimal (raiseIO# (GHC.toException e))
 data ImpreciseException =
   ImpreciseException
     { impreciseException :: GHC.SomeException
-    , impreciseCallStack :: CallStack
+    , impreciseCallStack :: Maybe CallStack
     }
 
 instance Show ImpreciseException where
   showsPrec _ ImpreciseException {impreciseException, impreciseCallStack} =
     ("ImpreciseException '" ++) .
     (GHC.displayException impreciseException ++) .
-    ("' was raised:\n" ++) . (prettyCallStack impreciseCallStack ++)
+    case impreciseCallStack of
+      Nothing -> ("' was raised" ++)
+      Just cs -> ("' was raised at:\n" ++) . (prettyCallStack cs ++)
 
 instance GHC.Exception ImpreciseException
 
@@ -143,7 +148,20 @@ instance GHC.Exception ImpreciseException
 --
 -- @since 1.0.0
 raiseImprecise :: (HasCallStack, GHC.Exception e) => e -> a
-raiseImprecise e = raise# (GHC.toException (ImpreciseException (GHC.toException e) ?callStack))
+raiseImprecise e =
+  raise# (GHC.toException (ImpreciseException (GHC.toException e) (Just ?callStack)))
+
+
+-- | Just like `raiseImprecise`, creates a thunk, which, upon evaluation to WHNF, will
+-- cause an exception being raised. The actual exception that will be thrown is the
+-- `ImpreciseException`, which will contain the supplied exception. However, unlike
+-- `raiseImprecise` the callstack is not included.
+--
+-- @since 1.0.0
+raiseImpreciseNoCallStack :: GHC.Exception e => e -> a
+raiseImpreciseNoCallStack e =
+  raise# (GHC.toException (ImpreciseException (GHC.toException e) Nothing))
+
 
 -- | Convert the Left exception into a thunk that will a result in an
 -- `ImpreciseException`. Right value is returned unmodified and unevaluated.
@@ -261,7 +279,7 @@ catchAll ::
 catchAll action handler =
   runInPrimalState2 (const action) handler $ \action# handler# ->
     catch# (action# ()) handler#
--- {-# INLINEABLE catchAll #-}
+{-# INLINEABLE catchAll #-}
 --{-# SPECIALIZE catchAll :: IO a -> (GHC.SomeException -> IO a) -> IO a #-}
 
 -- | Catch all synchronous exceptions.
@@ -285,27 +303,38 @@ catchAllAsync ::
 catchAllAsync action = catchAll action . asyncHandler
 
 
--- catchAny ::
---      forall a m. UnliftPrimal RW m
---   => m a
---   -> (forall e. GHC.Exception e => e -> m a)
---   -> m a
--- catchAny action handler =
---   runInPrimalState2
---     (const action)
---     (\(GHC.SomeException e) -> handler e)
---     (\action# handler# -> catch# (action# ()) handler#)
--- -- {-# INLINEABLE catchAny #-}
+catchAny ::
+     forall a m. UnliftPrimal RW m
+  => m a
+  -> (forall e. GHC.Exception e => e -> m a)
+  -> m a
+catchAny action handler =
+  runInPrimalState2
+    (const action)
+    (\(GHC.SomeException e) -> handler e)
+    (\action# handler# -> catch# (action# ()) handler#)
+{-# INLINEABLE catchAny #-}
 
--- catchAnySync ::
---      forall a m. UnliftPrimal RW m
---   => m a
---   -> (forall e. GHC.Exception e => e -> m a)
---   -> m a
--- catchAnySync action handler =
---   catchAny action $ \exc ->
---     when (isAsyncException exc) (raise exc) >> handler exc
--- -- {-# INLINEABLE catchAnySync #-}
+catchAnySync ::
+     forall a m. UnliftPrimal RW m
+  => m a
+  -> (forall e. GHC.Exception e => e -> m a)
+  -> m a
+catchAnySync action handler =
+  catchAny action $ \exc ->
+    when (isAsyncException exc) (raise exc) >> handler exc
+{-# INLINEABLE catchAnySync #-}
+
+
+catchAnyAsync ::
+     forall a m. UnliftPrimal RW m
+  => m a
+  -> (forall e. GHC.Exception e => e -> m a)
+  -> m a
+catchAnyAsync action handler =
+  catchAny action $ \exc ->
+    when (isSyncException exc) (raise exc) >> handler exc
+{-# INLINEABLE catchAnyAsync #-}
 
 
 try :: (GHC.Exception e, UnliftPrimal RW m) => m a -> m (Either e a)

@@ -110,7 +110,11 @@ class Primal s m => UnliftPrimal s m where
 -- `IO` and `ST` monads, or any other newtype wrapper around it, like @`IdentityT` `IO`@
 -- for example.
 --
--- prop> primal (primalState m) === m
+-- Property:
+--
+-- @@@
+-- 'primal' ('primalState' m) === m
+-- @@@
 --
 class UnliftPrimal s m => PrimalState s m where
   -- | Get the state passing function from the primal action

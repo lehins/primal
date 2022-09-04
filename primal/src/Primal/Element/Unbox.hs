@@ -94,7 +94,7 @@ showsType = showsTypeRep . typeRep
 
 -- | Get the size of the data type in bytes. Argument is not evaluated.
 --
--- >>> import Primal.Unbox
+-- >>> import Primal.Element.Unbox
 -- >>> byteCount (Just 'a')
 -- Count {unCount = 5}
 --
@@ -106,7 +106,7 @@ byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 -- | Same as `sizeOf`, except that the type can be supplied as a type level argument
 --
 -- >>> :set -XTypeApplications
--- >>> import Primal.Unbox
+-- >>> import Primal.Element.Unbox
 -- >>> byteCountType @Int64
 -- Count {unCount = 8}
 --
@@ -117,7 +117,7 @@ byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 
 -- | Same as `byteCount`, but argument is a `Proxy` of @e@, instead of the type itself.
 --
--- >>> import Primal.Unbox
+-- >>> import Primal.Element.Unbox
 -- >>> import Data.Proxy
 -- >>> byteCountProxy (Proxy :: Proxy Int64)
 -- Count {unCount = 8}
@@ -139,7 +139,7 @@ alignment _ = I# (alignment# (proxy# :: Proxy# e))
 -- | Same as `alignment`, except that the type can be supplied with @TypeApplications@
 --
 -- >>> :set -XTypeApplications
--- >>> import Primal.Unbox
+-- >>> import Primal.Element.Unbox
 -- >>> alignmentType @Int32
 -- 4
 --
@@ -280,7 +280,7 @@ offForType c _ = c
 
 -- | Cast an offset to count. Useful for dealing with regions.
 --
--- >>> import Primal.Unbox
+-- >>> import Primal.Element
 -- >>> let totalCount = Count 10 :: Count Word
 -- >>> let startOffset = Off 4 :: Off Word
 -- >>> totalCount - offToCount startOffset
@@ -299,6 +299,7 @@ offToByteCount = offToCount . toByteOff
 
 -- | Compute byte offset from an offset of `Unbox` type
 --
+-- >>> import Primal.Element.Unbox
 -- >>> toByteOff (10 :: Off Word64)
 -- Off {unOff = 80}
 --
@@ -311,6 +312,7 @@ toByteOff off = Off (I# (unOffBytes# off))
 -- | Convert an offset for some type @e@ with `Unbox` instance to the number of bytes as an
 -- `Int`.
 --
+-- >>> import Primal.Element.Unbox
 -- >>> unOffBytes (10 :: Off Word64)
 -- 80
 --

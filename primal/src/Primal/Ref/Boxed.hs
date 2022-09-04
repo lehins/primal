@@ -225,7 +225,7 @@ writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 --
 -- >>> ref <- newBRef "Original value"
 -- >>> import Primal.Exception
--- >>> Left _exc <- tryAny $ writeBRef ref undefined
+-- >>> Left _exc <- tryAll $ writeBRef ref undefined
 -- >>> readBRef ref
 -- "Original value"
 -- >>> writeBRef ref "New total value"

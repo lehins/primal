@@ -142,28 +142,3 @@ instance MutUnlift T.MArray where
   fromMutUnliftIso = toTextMArray
   {-# INLINE fromMutUnliftIso #-}
 
-
-
--- instance Unlift (NArray e) where
---   type UnliftIso (NArray e) = NArray e
-
---   indexArrayArray# aa# i# = NArray (indexArrayArrayArray# aa# i#)
---   {-# INLINE indexArrayArray# #-}
-
---   readMutableArrayArray# maa# i# s = case readArrayArrayArray# maa# i# s of
---                                       (# s', ba# #) -> (# s', NArray ba# #)
---   {-# INLINE readMutableArrayArray# #-}
-
---   writeMutableArrayArray# maa# i# (NArray aa#) = writeArrayArrayArray# maa# i# aa#
---   {-# INLINE writeMutableArrayArray# #-}
-
--- instance MutUnlift (NMArray e) where
---   type MutUnliftIso (NMArray e) = NMArray e
-
---   readMutMutableArrayArray# maa# i# s = case readMutableArrayArrayArray# maa# i# s of
---                                           (# s', nmaa# #) -> (# s', NMArray nmaa# #)
---   {-# INLINE readMutMutableArrayArray# #-}
-
---   writeMutMutableArrayArray# maa# i# (NMArray nmaa#) = writeMutableArrayArrayArray# maa# i# nmaa#
---   {-# INLINE writeMutMutableArrayArray# #-}
-

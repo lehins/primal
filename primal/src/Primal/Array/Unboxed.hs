@@ -331,9 +331,10 @@ copyUArray (UArray src#) srcOff (UMArray dst#) dstOff n =
 --
 -- ====__Examples__
 --
--- The example below shows a safe usage of this function
+-- The example below shows a safe usage of this function. There was no destructive
+-- operations, that is why it is safe:
 --
--- >>> ma <- thawUArray $ fromListUMArray [1 .. 5 :: Int]
+-- >>> ma <- thawUArray $ fromListUArray [1 .. 5 :: Int]
 -- >>> readUMArray ma 1
 -- 2
 -- >>> getSizeOfUMArray ma
@@ -579,6 +580,7 @@ readUMArray (UMArray ma#) (I# i#) = primal (readMutableByteArray# ma# i#)
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Monad (RW)
 -- >>> ma <- newRawUMArray 4 :: IO (UMArray (Maybe Int) RW)
 -- >>> mapM_ (\i -> writeUMArray ma i Nothing) [0, 1, 3]
 -- >>> writeUMArray ma 2 (Just 2)
@@ -606,6 +608,7 @@ writeUMArray (UMArray ma#) (I# i#) a = primal_ (writeMutableByteArray# ma# i# a)
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Monad (RW)
 -- >>> import Primal.Array.Unboxed
 -- >>> let xs = "Hello"
 -- >>> ma <- newUMArray (Size (length xs) + 8) '!' :: IO (UMArray Char RW)
@@ -731,6 +734,7 @@ makeAlignedPinnedUMArray = makeMutWith newRawAlignedPinnedUMArray writeUMArray
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Monad (RW)
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawUMArray (Size (length xs)) :: IO (UMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeUMArray ma i x) (zip [0..] xs)
@@ -809,10 +813,11 @@ newRawAlignedPinnedUMArray n =
 --
 -- ====__Examples__
 --
--- >>> freezeUMArray =<< fromListUArrayN 3 [1 :: Int, 2, 3]
--- UArray [1,2,3]
--- >>> ma <- fromListUArrayN 10 [1 :: Int ..]
--- >>> freezeUMArray =<< writeUMArray ma 2 2022
+-- >>> freezeUMArray =<< makeUMArray 4 pure
+-- UArray [0,1,2,3]
+-- >>> ma <- fromListUMArrayN 10 [1 :: Int ..]
+-- >>> writeUMArray ma 2 2022
+-- >>> freezeUMArray ma
 -- UArray [1,2,2022,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0

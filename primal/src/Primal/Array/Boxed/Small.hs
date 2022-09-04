@@ -206,8 +206,8 @@ sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 --
 -- ==== __Examples__
 --
--- >>> import Primal.Array.SmallBoxed
--- >>> let a = fromListSBArray [[0 .. i] | i <- [0 .. 10 :: Int]]
+-- >>> import Primal.Array.Boxed.Small
+-- >>> let a = fromListSBArray ([[0 .. i] | i <- [0 .. 10]] :: [[Int]])
 -- >>> indexSBArray a 1
 -- [0,1]
 -- >>> indexSBArray a 5
@@ -674,6 +674,7 @@ readSBMArray (SBMArray ma#) (I# i#) = primal (readSmallArray# ma# i#)
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Array.Boxed.Small
 -- >>> import Primal.Mutable.Freeze (freezeCloneMut)
 -- >>> ma <- newSBMArray 4 (Nothing :: Maybe Integer)
 -- >>> writeSBMArray ma 2 (Just 2)
@@ -685,12 +686,12 @@ readSBMArray (SBMArray ma#) (I# i#) = primal (readSmallArray# ma# i#)
 -- exception:
 --
 -- >>> import Primal.Exception
--- >>> writeSBMArray ma 2 (impureThrow DivideByZero)
--- *** Exception: divide by zero
+-- >>> writeSBMArray ma 2 (raiseImpreciseNoCallStack DivideByZero)
+-- *** Exception: ImpreciseException 'divide by zero' was raised
 -- >>> freezeCloneMut ma
 -- SBArray [Nothing,Nothing,Just 2,Nothing]
 --
--- However, it is evaluated only to Weak Head Normal Form (WHNF), so it is still possible
+-- However, it is only evaluated to Weak Head Normal Form (WHNF), so it is still possible
 -- to write something that eventually evaluates to bottom.
 --
 -- >>> writeSBMArray ma 3 (Just (7 `div` 0 ))
@@ -819,6 +820,7 @@ newLazySBMArray (Size (I# n#)) a =
 --
 -- ==== __Examples__
 --
+-- >>> import Primal.Monad (RW)
 -- >>> let xs = "Hello Haskell"
 -- >>> ma <- newRawSBMArray (Size (length xs)) :: IO (SBMArray Char RW)
 -- >>> mapM_ (\(i, x) -> writeSBMArray ma i x) (zip [0..] xs)
@@ -876,11 +878,13 @@ makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 --
 -- ====__Examples__
 --
--- >>> freezeBSMArray =<< fromListBSMArrayN 3 [1 :: Integer, 2, 3]
--- BSArray [1,2,3]
--- >>> ma <- fromListBSMArrayN 10 [1 :: Integer ..]
--- >>> freezeBSMArray =<< writeBSMArray ma 2 2022
--- BSArray [1,2,2022,4,5,6,7,8,9,10]
+-- >>> import Primal.Array.Boxed.Small
+-- >>> freezeSBMArray =<< fromListSBMArrayN 3 [1 :: Integer, 2, 3]
+-- SBArray [1,2,3]
+-- >>> ma <- fromListSBMArrayN 10 [1 :: Integer ..]
+-- >>> writeSBMArray ma 2 2022
+-- >>> freezeSBMArray ma
+-- SBArray [1,2,2022,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0
 fromListSBMArrayN ::

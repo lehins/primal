@@ -142,21 +142,22 @@ evalM = (>>= eval)
 --
 -- In case of successful evaluation we get back Just value
 --
+-- >>> import Primal.Eval (evalMaybe)
 -- >>> evalMaybe (4 `div` 2 :: Integer)
 -- Just 2
 --
--- The reason why we don't have an @evalEither@ function is because it would
--- also return the exact exception that was raised. Since the order of
--- evaluation in GHC is not guaranteed in pure functions such function would
--- break referencial transparency. Therefore in example below we can't know
--- ahead of time which exception will be raised first: `undefined` or
--- `DivideByZero`, so we return `Nothing` instead.
+-- The reason why we don't have an @evalEither@ function is because it would also return the
+-- exact exception that was raised. Since the order of evaluation in GHC is not guaranteed
+-- in pure functions such function would break referencial transparency. Therefore in
+-- example below we can't know ahead of time which exception will be raised first:
+-- `undefined` or `DivideByZero`, but we do know for sure that it will fail, so we return
+-- `Nothing` instead.
 --
--- >>> evalMaybe (unsafeined `div` 0 :: Integer)
+-- >>> evalMaybe (undefined `div` 0 :: Integer)
 -- Nothing
 --
--- Note that exceptions might lurk deeper, so for more complex types it is best
--- to use `deepevalMaybe` instead.
+-- Note that exceptions might lurk deeper in the evaluation tree, so for more complex types
+-- it is best to use `deepevalMaybe` instead.
 --
 -- >>> evalMaybe ("Partial tuple", 5 `div` 0 :: Integer)
 -- Just ("Partial tuple",*** Exception: divide by zero
