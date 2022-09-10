@@ -20,6 +20,7 @@
 module Primal.Memory.Addr
   ( -- * Immutable Addr
     Addr(..)
+  , emptyAddr
   , isSameAddr
   , castAddr
   , fromBytesAddr
@@ -46,7 +47,7 @@ module Primal.Memory.Addr
   , MAddr(..)
   , isSameMAddr
   , castMAddr
-  , newMAddr
+  , singletonMAddr
   , allocMAddr
   , allocAlignedMAddr
   , allocZeroMAddr
@@ -223,7 +224,7 @@ instance Unbox e => IsList (Addr e) where
   toList = toListMem
   {-# INLINE toList #-}
 
-instance Semigroup.Semigroup (Addr e) where
+instance Unbox e => Semigroup.Semigroup (Addr e) where
   (<>) = appendMem
   {-# INLINE (<>) #-}
   sconcat (x :| xs) = concatMem (x:xs)
@@ -231,23 +232,32 @@ instance Semigroup.Semigroup (Addr e) where
   stimes i = cycleMemN (fromIntegral i)
   {-# INLINE stimes #-}
 
-instance Monoid.Monoid (Addr e) where
+instance Unbox e => Monoid.Monoid (Addr e) where
   mappend = appendMem
   {-# INLINE mappend #-}
   mconcat = concatMem
   {-# INLINE mconcat #-}
-  mempty = emptyMem
+  mempty = emptyAddr
   {-# INLINE mempty #-}
 
 type instance Frozen (MAddr e) = Addr e
 
-instance MutFreeze (MAddr e) where
+instance Unbox e => MutFreeze (MAddr e) where
   thawST = thawAddr
   {-# INLINE thawST #-}
+  thawCloneST addr = do
+    let c = countAddr addr
+    maddr <- allocMAddr c
+    maddr <$ copyAddrToMAddr addr 0 maddr 0 c
+  {-# INLINE thawCloneST #-}
   clone = cloneMem
   {-# INLINE clone #-}
   freezeMutST = freezeMAddr
   {-# INLINE freezeMutST #-}
+
+emptyAddr :: Addr e
+emptyAddr = fromBytesAddr emptyBytes
+{-# INLINE emptyAddr #-}
 
 castAddr :: Addr e -> Addr b
 castAddr (Addr a b) = Addr a b
@@ -286,12 +296,11 @@ fromMBytesMAddr mb =
     Ptr addr# -> MAddr addr# mb
 {-# INLINE fromMBytesMAddr #-}
 
-newMAddr :: forall e m s. (Primal s m, Unbox e) => e -> m (MAddr e s)
-newMAddr e = do
+singletonMAddr :: forall e m s. (Primal s m, Unbox e) => e -> m (MAddr e s)
+singletonMAddr e = do
   maddr <- fromMBytesMAddr <$> allocPinnedMBytes (1 :: Count e)
-  writeMAddr maddr e
-  pure $! maddr
-{-# INLINE newMAddr #-}
+  maddr <$ writeMAddr maddr e
+{-# INLINE singletonMAddr #-}
 
 allocMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
 allocMAddr c = fromMBytesMAddr <$> allocPinnedMBytes c
@@ -497,7 +506,7 @@ instance MemPtr (MAddr e) where
 
 
 
-instance MemAlloc (MAddr e) where
+instance Unbox e => MemAlloc (MAddr e) where
   getByteCountMutMemST = getByteCountMAddr
   {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap castMAddr . allocMAddr

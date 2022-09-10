@@ -251,10 +251,9 @@ specAtomic gen = do
           length l `shouldSatisfy` (\len -> len == lenr || len == lenr + 1)
       prop "atomicModifyURef" $
         forAll gen $ \z ->
-          forAllIO (arbitrary :: Gen (Fun (e, Int) e, [Int])) $ \(f, xs) -> do
+          forAllIO (arbitrary :: Gen [Int]) $ \xs -> do
             zvar <- newURef $ Atom (Nothing, z)
-            let --g = applyFun2 f
-                g y x = y `xor` fromIntegral x
+            let g y x = y `xor` fromIntegral x
             mxs <-
               mapConcurrently
                 (\x ->
