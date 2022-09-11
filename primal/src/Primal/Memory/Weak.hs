@@ -26,6 +26,7 @@ import Control.Monad
 import Primal.Monad
 import GHC.Weak (Weak(..))
 import Primal.Foreign
+import qualified Foreign.ForeignPtr as GHC (FinalizerEnvPtr, FinalizerPtr)
 
 -- | Same as `System.Mem.Weak.mkWeak`, except it requires a finalizer to be
 -- supplied. For a version without finalizers use `mkWeakNoFinalizer`
@@ -56,10 +57,11 @@ mkWeakPtrNoFinalizer key = mkWeakNoFinalizer key key
 addFinalizer :: UnliftPrimal RW m => k -> m b -> m ()
 addFinalizer key = void . mkWeakPtr key
 
--- | Add a foreign function finalizer with a single argument
+-- | Add a foreign function finalizer with a single argument. Returns `True` on success or
+-- `False` when weak pointer is already dead.
 addCFinalizer ::
      Primal RW m
-  => FunPtr (Ptr a -> IO ())
+  => GHC.FinalizerPtr a
      -- ^ Pointer to the C function to be called when finalizers are being invoked
   -> Ptr a
      -- ^ Argument that will be supplied to the finalizer function
@@ -70,10 +72,11 @@ addCFinalizer (FunPtr faddr#) (Ptr addr#) (Weak weak#) =
     case addCFinalizerToWeak# faddr# addr# 0# nullAddr# weak# s of
       (# s', i# #) -> (# s', isTrue# i# #)
 
--- | Add a foreign function finalizer with two arguments
+-- | Add a foreign function finalizer with two arguments. Returns `True` on success or
+-- `False` when weak pointer is already dead.
 addCFinalizerEnv ::
      Primal RW m
-  => FunPtr (Ptr env -> Ptr a -> IO ())
+  => GHC.FinalizerEnvPtr env a
      -- ^ Pointer to the C function to be called when finalizers are being invoked
   -> Ptr env
      -- ^ First argument that will be supplied to the finalizer function

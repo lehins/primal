@@ -16,6 +16,8 @@ module Primal.Monad
   , whenM
   , unlessM
   -- * Re-export
+  , asIO
+  , asST
   , module Control.Monad
   ) where
 
@@ -40,3 +42,14 @@ whenM m action = m >>= (`when` action)
 unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM m action = m >>= (`unless` action)
 
+-- | Restrict the type of a monadic action to `IO`
+--
+-- @since 1.0.0
+asIO :: IO a -> IO a
+asIO = id
+
+-- | Restrict the type of a monadic action to `ST`
+--
+-- @since 1.0.0
+asST :: ST s a -> ST s a
+asST = id

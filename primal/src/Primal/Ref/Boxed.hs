@@ -52,6 +52,7 @@ module Primal.Ref.Boxed
   , fromIORef
   -- * Weak Pointer
   , mkWeakBRef
+  , mkWeakNoFinalizerBRef
   ) where
 
 import Control.DeepSeq
@@ -444,18 +445,36 @@ fromIORef = fromSTRef . coerce
 
 -- | Create a `Weak` pointer associated with the supplied `BRef`.
 --
--- Same as `Data.IORef.mkWeakRef` from @base@, but works in any `UnliftPrimal` with
--- `RealWorld` state token.
+-- Similar to `Data.IORef.mkWeakRef` from @base@, but works in any `UnliftPrimal` with
+-- `RealWorld` state token and accepts another value to be stored in a weak ptr.
 --
 -- @since 1.0.0
 mkWeakBRef ::
-     forall a b m. UnliftPrimal RW m
-  => BRef a RW
-  -> m b -- ^ An action that will get executed whenever `BRef` gets garbage collected by
+     forall a b c m. UnliftPrimal RW m
+  => BRef a RW -- ^ Reference that will act as a key for the newly created weak pointer
+  -> b -- ^ Value that can be later dereferenced with `deRefWeak`.
+  -> m c -- ^ An action that will get executed whenever `BRef` gets garbage collected by
          -- the runtime.
-  -> m (Weak (BRef a RW))
-mkWeakBRef ref@(BRef ref#) !finalizer =
+  -> m (Weak b)
+mkWeakBRef (BRef ref#) val finalizer =
   runInPrimalState finalizer $ \f# s ->
-    case mkWeak# ref# ref f# s of
+    case mkWeak# ref# val f# s of
       (# s', weak# #) -> (# s', Weak weak# #)
 {-# INLINE mkWeakBRef #-}
+
+-- | Create a `Weak` pointer associated with the supplied `BRef`.
+--
+-- Similar to `mkWeakBRef`, except it does not require a finalizer. This is useful for FFI
+-- finalizers. One can be added later with `addCFinalizer` or `addCFinalizerEnv`
+--
+-- @since 1.0.0
+mkWeakNoFinalizerBRef ::
+     forall a b m. UnliftPrimal RW m
+  => BRef a RW -- ^ Reference that will act as a key for the newly created weak pointer
+  -> b -- ^ Value that can be later dereferenced with `deRefWeak`
+  -> m (Weak b)
+mkWeakNoFinalizerBRef (BRef ref#) val =
+  primal $ \s ->
+    case mkWeakNoFinalizer# ref# val s of
+      (# s', weak# #) -> (# s', Weak weak# #)
+{-# INLINE mkWeakNoFinalizerBRef #-}

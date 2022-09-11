@@ -17,6 +17,12 @@ import Primal.Memory.Addr as X
 import Primal.Memory.ByteString as X
 import Primal.Memory.PArray as X
 
+instance Arbitrary (Count e) where
+  arbitrary = Count . getNonNegative <$> arbitrary
+
+instance Arbitrary (Off e) where
+  arbitrary = Off . getNonNegative <$> arbitrary
+
 instance Typeable p => Arbitrary (Bytes p) where
   arbitrary = fromListMem <$> (arbitrary :: Gen [Word8])
 

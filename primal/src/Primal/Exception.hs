@@ -26,6 +26,8 @@ module Primal.Exception
     module Primal.Monad.Raises
   , raise
   , raiseTo
+  , StringException(..)
+  , raiseString
   , raiseImprecise
   , raiseImpreciseNoCallStack
   , raiseLeftImprecise
@@ -123,6 +125,17 @@ raise :: (GHC.Exception e, Primal s m) => e -> m a
 raise e = unsafePrimal (raiseIO# (GHC.toException e))
 {-# INLINEABLE raise #-}
 
+newtype StringException = StringException String
+  deriving (Eq, Show)
+
+instance GHC.Exception StringException where
+  displayException (StringException exc) = "StringException: " ++ exc
+
+-- | Raise a string exception. Very useful when recovery from an exception does not make
+-- much sense, but a message with failure still needs to be conveyed. Impossible cases
+-- are a good example of this.
+raiseString :: forall a m s. Primal s m => String -> m a
+raiseString = raise . StringException
 
 data ImpreciseException =
   ImpreciseException

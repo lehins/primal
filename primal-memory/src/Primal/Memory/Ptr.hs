@@ -18,6 +18,13 @@
 --
 module Primal.Memory.Ptr
   ( module GHC.Ptr
+  , mallocPtr
+  , callocPtr
+  , reallocPtr
+  , freePtr
+  , freeFinalizerPtr
+  , guardedFreePtr
+  , guardedFreeFinalizerEnvPtr
   , isSamePtr
   , plusOffPtr
   , plusByteOffPtr
@@ -84,6 +91,12 @@ module Primal.Memory.Ptr
   , prefetchOffPtr1
   , prefetchOffPtr2
   , prefetchOffPtr3
+  -- ** FFI calls
+  , mallocIO
+  , callocIO
+  , reallocIO
+  , freeIO
+  , guardedFreeIO
   ) where
 
 
@@ -91,12 +104,61 @@ import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr as X hiding (IntPtr, WordPtr, freeHaskellFunPtr, intPtrToPtr,
                          ptrToIntPtr, ptrToWordPtr, wordPtrToPtr)
 import qualified Foreign.Ptr as GHC (freeHaskellFunPtr)
+import qualified Foreign.ForeignPtr as GHC (FinalizerPtr, FinalizerEnvPtr)
 import GHC.Ptr
 import Primal.Foreign
 import Primal.Monad
 import Primal.Monad.Unsafe
 import Primal.Element.Unbox
 import Primal.Element.Unbox.Atomic
+
+foreign import ccall unsafe "stdlib.h malloc"
+  mallocIO :: CSize -> IO (Ptr a)
+foreign import ccall unsafe "stdlib.h calloc"
+  callocIO :: CSize -> CSize -> IO (Ptr a)
+foreign import ccall unsafe "stdlib.h realloc"
+  reallocIO :: Ptr a -> CSize -> IO (Ptr b)
+
+foreign import ccall unsafe "stdlib.h free"
+  freeIO :: Ptr a -> IO ()
+foreign import ccall unsafe "stdlib.h &free"
+  freeFinalizerPtr :: GHC.FinalizerPtr a
+
+foreign import ccall unsafe "primal_memory.c guarded_free"
+  guardedFreeIO :: Ptr CBool -> Ptr a -> IO ()
+foreign import ccall unsafe "primal_memory.c &guarded_free"
+  guardedFreeFinalizerEnvPtr :: GHC.FinalizerEnvPtr CBool a
+
+
+mallocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+mallocPtr = unsafeIOToPrimal . mallocIO . fromIntegral . toByteCount
+
+callocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+callocPtr c = unsafeIOToPrimal $ callocIO (fromIntegral c) (fromIntegral (byteCountProxy c))
+
+reallocPtr :: forall e s m. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr e)
+reallocPtr ptr c =
+  unsafeIOToPrimal $ reallocIO ptr (fromIntegral (toByteCount c))
+
+freePtr ::
+     forall e s m. (Unbox e, Primal s m)
+  => Ptr e
+  -- ^ Pointer to free. It must have been allocated with either `mallocPtr`,
+  -- `callocPtr` or `reallocPtr` and must not have been freed before.
+  -> m ()
+freePtr = unsafeIOToPrimal . freeIO
+
+guardedFreePtr ::
+     forall e s m. (Unbox e, Primal s m)
+  => Ptr CBool
+  -- ^ If this pointer contains @false@ or is null, then @free@ call will procede as
+  -- normal, otherwise it is skipped.
+  -> Ptr e
+  -- ^ Pointer to free. It must have been allocated with either `mallocPtr`,
+  -- `callocPtr` or `reallocPtr` and must not have been freed before.
+  -> m ()
+guardedFreePtr envPtr = unsafeIOToPrimal . guardedFreeIO envPtr
+
 
 isSamePtr :: Ptr e -> Ptr e -> Bool
 isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)

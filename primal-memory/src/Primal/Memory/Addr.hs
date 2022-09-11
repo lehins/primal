@@ -179,15 +179,15 @@ import Unsafe.Coerce
 
 -- | Immutable read-only address
 data Addr e = Addr
-  { addrAddr# :: Addr#
-  , addrBytes :: Bytes 'Pin
+  { aAddr# :: Addr#
+  , aBytes :: Bytes 'Pin
   }
 type role Addr nominal
 
 -- | Mutable address
 data MAddr e s = MAddr
-  { mAddrAddr#  :: Addr#
-  , mAddrMBytes :: MBytes 'Pin s
+  { maAddr#  :: Addr#
+  , maMBytes :: MBytes 'Pin s
   }
 type role MAddr nominal nominal
 
@@ -250,8 +250,6 @@ instance Unbox e => MutFreeze (MAddr e) where
     maddr <- allocMAddr c
     maddr <$ copyAddrToMAddr addr 0 maddr 0 c
   {-# INLINE thawCloneST #-}
-  clone = cloneMem
-  {-# INLINE clone #-}
   freezeMutST = freezeMAddr
   {-# INLINE freezeMutST #-}
 

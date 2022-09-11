@@ -1,4 +1,12 @@
 #include <HsFFI.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+void guarded_free(const bool *is_freed, void *ptr){
+  if((is_freed == NULL) || !(*is_freed)){
+      free(ptr);
+  }
+}
 
 static const char to_base16_char[] =
   "000102030405060708090a0b0c0d0e0f"

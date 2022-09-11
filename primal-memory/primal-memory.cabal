@@ -28,6 +28,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Primal.Memory
                      , Primal.Memory.Addr
+                     , Primal.Memory.FAddr
                      , Primal.Memory.ByteString
                      , Primal.Memory.Bytes
                      , Primal.Memory.Encoding
@@ -72,6 +73,7 @@ test-suite tests
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Primal.Memory.Common
+                    , Test.Primal.Memory.FAddrSpec
                     , Test.Primal.Memory.Encoding.Base16Spec
                     , Test.Primal.Memory.EndiannessSpec
   build-tool-depends: hspec-discover:hspec-discover
