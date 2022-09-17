@@ -134,6 +134,9 @@ module Primal.Memory.Bytes
   , concatBytes
   , toListBytes
   , toListSlackBytes
+  -- * Weak pointers
+  , mkWeakMBytes
+  , mkWeakNoFinalizerMBytes
   -- * Atomic
   , casMBytes
   , casBoolMBytes
@@ -176,6 +179,7 @@ module Primal.Memory.Bytes
 import Data.Maybe (fromMaybe)
 import Primal.Foreign
 import Primal.Memory.Internal
+import Primal.Memory.Weak
 import Primal.Memory.ForeignPtr
 import Primal.Monad
 import Primal.Element.Unbox
@@ -456,6 +460,43 @@ ensurePinnedMBytes mb =
       pmb <$ moveMBytesToMBytes mb 0 pmb 0 n8
 {-# INLINE ensurePinnedMBytes #-}
 
+
+
+-- | Create a `Weak` pointer associated with the supplied `MBytes`.
+--
+-- Similar to `Data.IORef.mkWeakRef` from @base@, but works in any `UnliftPrimal` with
+-- `RealWorld` state token and accepts another value to be stored in a weak ptr.
+--
+-- @since 1.0.0
+mkWeakMBytes ::
+     forall a b p m. UnliftPrimal RW m
+  => MBytes p RW -- ^ Reference that will act as a key for the newly created weak pointer
+  -> a -- ^ Value that can be later dereferenced with `deRefWeak`.
+  -> m b -- ^ An action that will get executed whenever `MBytes` gets garbage collected by
+         -- the runtime.
+  -> m (Weak a)
+mkWeakMBytes (MBytes mba#) val finalizer =
+  runInPrimalState finalizer $ \f# s ->
+    case mkWeak# mba# val f# s of
+      (# s', weak# #) -> (# s', Weak weak# #)
+{-# INLINE mkWeakMBytes #-}
+
+-- | Create a `Weak` pointer associated with the supplied `MBytes`.
+--
+-- Similar to `mkWeakMBytes`, except it does not require a finalizer. This is useful for FFI
+-- finalizers. One can be added later with `addCFinalizer` or `addCFinalizerEnv`
+--
+-- @since 1.0.0
+mkWeakNoFinalizerMBytes ::
+     forall a p m. UnliftPrimal RW m
+  => MBytes p RW -- ^ Reference that will act as a key for the newly created weak pointer
+  -> a -- ^ Value that can be later dereferenced with `deRefWeak`
+  -> m (Weak a)
+mkWeakNoFinalizerMBytes (MBytes mba#) val =
+  primal $ \s ->
+    case mkWeakNoFinalizer# mba# val s of
+      (# s', weak# #) -> (# s', Weak weak# #)
+{-# INLINE mkWeakNoFinalizerMBytes #-}
 
 
 -- | Perform atomic modification of an element in the `MBytes` at the supplied

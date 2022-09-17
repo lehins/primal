@@ -303,7 +303,7 @@ iallMem p xs = iallOffMem 0 (countMem xs :: Count e) p xs
 
 
 
--- Dangerous: ignores the slack
+-- | Compare two read only buffersDangerous: ignores the slack
 eqMem :: forall e mr . (Unbox e, Eq e, MemRead mr) => mr -> mr -> Bool
 eqMem m1 m2
   | isSameMem m1 m2 = True
