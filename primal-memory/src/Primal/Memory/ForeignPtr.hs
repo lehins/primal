@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
@@ -8,7 +9,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Memory.ForeignPtr
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -16,6 +17,9 @@
 --
 module Primal.Memory.ForeignPtr
   ( MemPtr(..)
+  , withPtrMem
+  , withNoHaltPtrMem
+  , MemForeignPtr(..)
     -- * ForeignPtr
   , ForeignPtr(..)
   , MForeignPtr(..)
@@ -119,35 +123,44 @@ instance MemWrite (MForeignPtr e) where
     withMForeignPtr fptr $ \ptr -> setOffPtr (castPtr ptr) off c a
   {-# INLINE setMutMemST #-}
 
-
 -- | It is possible to operate on memory that was allocated as pinned with a regular
 -- `Ptr`. Any data type that is backed by such memory can have a `MemPtr` instance. The
--- simplest way is to convert it to a `ForeignPtr` and other functions will come for free.
+-- simplest way is to create an instance for `MemForeignPtr` and other functions will come
+-- for free.
 class MemWrite mp => MemPtr mp where
-  -- | Convert to `ForeignPtr`.
-  toMForeignPtrMem :: mp s -> MForeignPtr e s
 
   -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
   -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
   -- treat the memory content.
-  withPtrMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
+  withPtrMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
+  default withPtrMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
   withPtrMemST = withMForeignPtr . toMForeignPtrMem
   {-# INLINE withPtrMemST #-}
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
   -- related to it in order to get more insight why this is needed.
-  withNoHaltPtrMemST :: mp s -> (Ptr a -> ST s b) -> ST s b
+  withNoHaltPtrMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
+  default withNoHaltPtrMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
   withNoHaltPtrMemST = withNoHaltMForeignPtr . toMForeignPtrMem
   {-# INLINE withNoHaltPtrMemST #-}
 
 
-instance MemPtr (MForeignPtr e) where
+-- | Any pinned memory that can be converted to a `ForeignPtr` without copy
+class MemPtr mp => MemForeignPtr mp where
+  -- | Convert to `ForeignPtr`.
+  toMForeignPtrMem :: mp s -> MForeignPtr e s
+
+instance MemPtr (MForeignPtr e)
+
+instance MemForeignPtr (MForeignPtr e) where
   toMForeignPtrMem = coerce
   {-# INLINE toMForeignPtrMem #-}
 
-instance MemPtr (MBytes 'Pin) where
+instance MemForeignPtr (MBytes 'Pin) where
   toMForeignPtrMem = toMForeignPtrMBytes
   {-# INLINE toMForeignPtrMem #-}
+
+instance MemPtr (MBytes 'Pin) where
   withPtrMemST = withPtrMBytes
   {-# INLINE withPtrMemST #-}
   withNoHaltPtrMemST = withNoHaltPtrMBytes
@@ -166,6 +179,20 @@ toMForeignPtrMBytes (MBytes mba#) =
 {-# INLINE toMForeignPtrMBytes #-}
 
 
+-- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
+-- stored in memory is left ambiguous intentionaly, so that the user can choose how to
+-- treat the memory content.
+withPtrMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withPtrMem mem f =
+  withRunInST (\unlift -> withPtrMemST mem $ \ptr -> unlift (f ptr))
+{-# INLINE withPtrMem #-}
+
+-- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
+-- related to it in order to get more insight why this is needed.
+withNoHaltPtrMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withNoHaltPtrMem mem f =
+  withRunInST (\unlift -> withNoHaltPtrMemST mem $ \ptr -> unlift (f ptr))
+{-# INLINE withNoHaltPtrMem #-}
 
 -- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from
 -- the action because memory itself might get garbage collected or cleaned up by

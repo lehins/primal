@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Primal.Memory
   ( module Test.Primal.Memory
   , module Primal.Memory
@@ -16,6 +17,7 @@ import Control.DeepSeq
 import Control.Monad
 import Primal.Memory
 import Primal.Memory.Addr
+import Primal.Memory.FAddr
 import Primal.Memory.Bytes
 import Primal.Memory.ByteString
 import Primal.Memory.Fold
@@ -74,6 +76,11 @@ instance Typeable p => Arbitrary (Bytes p) where
     pure b
 
 instance (Arbitrary e, Unbox e) => Arbitrary (Addr e) where
+  arbitrary = do
+    Mem (_ :: [e]) b <- arbitrary
+    pure b
+
+instance (Arbitrary e, Unbox e) => Arbitrary (FAddr e) where
   arbitrary = do
     Mem (_ :: [e]) b <- arbitrary
     pure b

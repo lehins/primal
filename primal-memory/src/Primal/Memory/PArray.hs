@@ -106,9 +106,11 @@ instance MutUnlift (PMArray p e) where
 
 type instance Frozen (PMArray p e) = PArray p e
 
-instance MemPtr (PMArray 'Pin e) where
+instance MemForeignPtr (PMArray 'Pin e) where
   toMForeignPtrMem = toMForeignPtrMBytes . toMBytesPMArray
   {-# INLINE toMForeignPtrMem #-}
+
+instance MemPtr (PMArray 'Pin e) where
   withPtrMemST mb = withPtrMBytes (toMBytesPMArray mb)
   {-# INLINE withPtrMemST #-}
   withNoHaltPtrMemST mb = withNoHaltPtrMBytes (toMBytesPMArray mb)

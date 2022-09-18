@@ -303,7 +303,13 @@ iallMem p xs = iallOffMem 0 (countMem xs :: Count e) p xs
 
 
 
--- | Compare two read only buffersDangerous: ignores the slack
+-- | Compare two read only buffers for equality element-by-element using the `Eq`
+-- instance. It will short circuit if exact same memory buffer is supplied, which will
+-- return `True`, or when there is a size mismatch, which will naturally result in a
+-- `False` answer. The very first two unequal elements will also cause the loop to short
+-- circuit.
+--
+-- Dangerous: ignores the slack
 eqMem :: forall e mr . (Unbox e, Eq e, MemRead mr) => mr -> mr -> Bool
 eqMem m1 m2
   | isSameMem m1 m2 = True
@@ -373,17 +379,17 @@ eqOffMemBinary m1 off1 m2 off2 count =
 {-# INLINE eqOffMemBinary #-}
 
 {-# RULES
-"eqOffMem/Char" forall mr1 (off1 :: Off Char) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Word" forall mr1 (off1 :: Off Word) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
+"eqOffMem/Char" forall mr (off :: Off Char) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Word" forall mr (off :: Off Word) . eqOffMem mr off = eqOffMemBinary mr off
 "eqOffMem/Word8" eqOffMem = eqByteOffMem
-"eqOffMem/Word16" forall mr1 (off1 :: Off Word16) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Word32" forall mr1 (off1 :: Off Word32) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Word64" forall mr1 (off1 :: Off Word64) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Int" forall mr1 (off1 :: Off Int) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Int8" forall mr1 (off1 :: Off Int8) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Int16" forall mr1 (off1 :: Off Int16) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Int32" forall mr1 (off1 :: Off Int32) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
-"eqOffMem/Int64" forall mr1 (off1 :: Off Int64) . eqOffMem mr1 off1 = eqOffMemBinary mr1 off1
+"eqOffMem/Word16" forall mr (off :: Off Word16) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Word32" forall mr (off :: Off Word32) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Word64" forall mr (off :: Off Word64) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Int" forall mr (off :: Off Int) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Int8" forall mr (off :: Off Int8) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Int16" forall mr (off :: Off Int16) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Int32" forall mr (off :: Off Int32) . eqOffMem mr off = eqOffMemBinary mr off
+"eqOffMem/Int64" forall mr (off :: Off Int64) . eqOffMem mr off = eqOffMemBinary mr off
 #-}
 
 eqOffMutMem ::

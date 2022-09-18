@@ -152,7 +152,7 @@ instance MemAlloc MByteString where
       Count newn = toByteCount newc
   {-# INLINE reallocMutMemST #-}
 
-instance MemPtr MByteString where
+instance MemForeignPtr MByteString where
   toMForeignPtrMem (MByteString bs) =
     case bs of
 #if MIN_VERSION_bytestring(0,11,0)
@@ -160,6 +160,8 @@ instance MemPtr MByteString where
 #else
       BS.PS fptr o _ -> MForeignPtr (castForeignPtr (fptr `plusByteOffForeignPtr` Off o))
 #endif
+
+instance MemPtr MByteString
 
 
 -- | /O(1)/ - Cast immutable `Bytes` to an immutable `ByteString`

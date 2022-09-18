@@ -2439,20 +2439,21 @@ fromStringMem = fromListMem . map fromChar8
     fromChar8 (C# c#) = W8# (narrow8Word# (int2Word# (ord# c#)))
 {-# INLINE fromStringMem #-}
 
--- | Allocate a new region of memory and Ensure that it is filled with zeros before and
--- after it gets used. `PtrAccess` is not used directly, but instead is used to guarantee
--- that the memory is pinned and its contents will not get moved around by the garbage
--- collector.
+-- | Allocate a new region of memory and ensure that it is filled with zeros before and
+-- after it gets used. Memory is allocated as pinned and its contents will not get moved
+-- around by the garbage collector. `reallocMutMem` or a monomorphic equivalent should not
+-- be called on the memory buffer, since it will wipe all scrubbing guarantees. Both
+-- memory buffer and the associated `Ptr` are only safe to use within the supplied action
 --
 -- @since 0.3.0
 withScrubbedMutMem ::
   forall e ma m a.
   (UnliftPrimal RW m, Unbox e, MemAlloc ma, MemPtr ma) =>
   Count e ->
-  (ma RW -> m a) ->
+  (ma RW -> Ptr e -> m a) ->
   m a
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
-  let _fptr = toMForeignPtrMem mem :: MForeignPtr e RW -- Enforce the `PtrAccess` constraint.
-  f mem `EUI.finally` setMutMem mem 0 (toByteCount c) 0
+  withNoHaltPtrMem mem $ \ptr ->
+    f mem ptr `EUI.finally` setMutMem mem 0 (toByteCount c) 0
 {-# INLINE withScrubbedMutMem #-}

@@ -128,25 +128,6 @@ module Primal.Memory.Addr
   , atomicXorFetchNewOffMAddr
   , atomicNotFetchOldOffMAddr
   , atomicNotFetchNewOffMAddr
-  -- * Prefetch
-  -- ** Directly
-  , prefetchAddr0
-  , prefetchMAddr0
-  , prefetchAddr1
-  , prefetchMAddr1
-  , prefetchAddr2
-  , prefetchMAddr2
-  , prefetchAddr3
-  , prefetchMAddr3
-  -- ** With offset
-  , prefetchOffAddr0
-  , prefetchOffMAddr0
-  , prefetchOffAddr1
-  , prefetchOffMAddr1
-  , prefetchOffAddr2
-  , prefetchOffMAddr2
-  , prefetchOffAddr3
-  , prefetchOffMAddr3
   -- * Re-export
   , module Primal.Element.Unbox
   ) where
@@ -269,7 +250,8 @@ castStateMAddr :: MAddr e s' -> MAddr b s
 castStateMAddr = unsafeCoerce
 
 isSameAddr :: Addr e -> Addr e -> Bool
-isSameAddr (Addr a1# _) (Addr a2# _) = isTrue# (a1# `eqAddr#` a2#)
+isSameAddr (Addr a1# _) (Addr a2# _) =
+  isTrue# (a1# `eqAddr#` a2#)
 {-# INLINE isSameAddr #-}
 
 isSameMAddr :: MAddr e s -> MAddr e s -> Bool
@@ -494,9 +476,11 @@ withNoHaltPtrMAddr (MAddr addr# mb) f = keepAlive mb $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrMAddr #-}
 
 
-instance MemPtr (MAddr e) where
+instance MemForeignPtr (MAddr e) where
   toMForeignPtrMem = toMForeignPtrMAddr . castMAddr
   {-# INLINE toMForeignPtrMem #-}
+
+instance MemPtr (MAddr e) where
   withPtrMemST maddr = withPtrMAddr (castMAddr maddr)
   {-# INLINE withPtrMemST #-}
   withNoHaltPtrMemST maddr = withNoHaltPtrMAddr (castMAddr maddr)
@@ -1232,71 +1216,3 @@ atomicNotFetchNewOffMAddr ::
 atomicNotFetchNewOffMAddr maddr (Off (I# i#)) =
   withAddrMAddr# maddr $ \ addr# -> primal $ atomicNotFetchNewOffAddr# addr# i#
 {-# INLINE atomicNotFetchNewOffMAddr #-}
-
-
-
-
-prefetchAddr0 :: Primal s m => Addr e -> m ()
-prefetchAddr0 (Addr addr# _) = primal_ (prefetchAddr0# addr# 0#)
-{-# INLINE prefetchAddr0 #-}
-
-prefetchMAddr0 :: Primal s m => MAddr e s -> m ()
-prefetchMAddr0 (MAddr maddr# _) = primal_ (prefetchAddr0# maddr# 0#)
-{-# INLINE prefetchMAddr0 #-}
-
-prefetchAddr1 :: Primal s m => Addr e -> m ()
-prefetchAddr1 (Addr addr# _) = primal_ (prefetchAddr1# addr# 0#)
-{-# INLINE prefetchAddr1 #-}
-
-prefetchMAddr1 :: Primal s m => MAddr e s -> m ()
-prefetchMAddr1 (MAddr maddr# _) = primal_ (prefetchAddr1# maddr# 0#)
-{-# INLINE prefetchMAddr1 #-}
-
-prefetchAddr2 :: Primal s m => Addr e -> m ()
-prefetchAddr2 (Addr addr# _) = primal_ (prefetchAddr2# addr# 0#)
-{-# INLINE prefetchAddr2 #-}
-
-prefetchMAddr2 :: Primal s m => MAddr e s -> m ()
-prefetchMAddr2 (MAddr maddr# _) = primal_ (prefetchAddr2# maddr# 0#)
-{-# INLINE prefetchMAddr2 #-}
-
-prefetchAddr3 :: Primal s m => Addr e -> m ()
-prefetchAddr3 (Addr addr# _) = primal_ (prefetchAddr3# addr# 0#)
-{-# INLINE prefetchAddr3 #-}
-
-prefetchMAddr3 :: Primal s m => MAddr e s -> m ()
-prefetchMAddr3 (MAddr maddr# _) = primal_ (prefetchAddr3# maddr# 0#)
-{-# INLINE prefetchMAddr3 #-}
-
-
-prefetchOffAddr0 :: (Primal s m, Unbox e) => Addr e -> Off e -> m ()
-prefetchOffAddr0 (Addr addr# _) off = primal_ (prefetchAddr0# addr# (unOffBytes# off))
-{-# INLINE prefetchOffAddr0 #-}
-
-prefetchOffMAddr0 :: (Primal s m, Unbox e) => MAddr e s -> Off e -> m ()
-prefetchOffMAddr0 (MAddr maddr# _) off = primal_ (prefetchAddr0# maddr# (unOffBytes# off))
-{-# INLINE prefetchOffMAddr0 #-}
-
-prefetchOffAddr1 :: (Primal s m, Unbox e) => Addr e -> Off e -> m ()
-prefetchOffAddr1 (Addr addr# _) off = primal_ (prefetchAddr1# addr# (unOffBytes# off))
-{-# INLINE prefetchOffAddr1 #-}
-
-prefetchOffMAddr1 :: (Primal s m, Unbox e) => MAddr e s -> Off e -> m ()
-prefetchOffMAddr1 (MAddr maddr# _) off = primal_ (prefetchAddr1# maddr# (unOffBytes# off))
-{-# INLINE prefetchOffMAddr1 #-}
-
-prefetchOffAddr2 :: (Primal s m, Unbox e) => Addr e -> Off e -> m ()
-prefetchOffAddr2 (Addr addr# _) off = primal_ (prefetchAddr2# addr# (unOffBytes# off))
-{-# INLINE prefetchOffAddr2 #-}
-
-prefetchOffMAddr2 :: (Primal s m, Unbox e) => MAddr e s -> Off e -> m ()
-prefetchOffMAddr2 (MAddr maddr# _) off = primal_ (prefetchAddr2# maddr# (unOffBytes# off))
-{-# INLINE prefetchOffMAddr2 #-}
-
-prefetchOffAddr3 :: (Primal s m, Unbox e) => Addr e -> Off e -> m ()
-prefetchOffAddr3 (Addr addr# _) off = primal_ (prefetchAddr3# addr# (unOffBytes# off))
-{-# INLINE prefetchOffAddr3 #-}
-
-prefetchOffMAddr3 :: (Primal s m, Unbox e) => MAddr e s -> Off e -> m ()
-prefetchOffMAddr3 (MAddr maddr# _) off = primal_ (prefetchAddr3# maddr# (unOffBytes# off))
-{-# INLINE prefetchOffMAddr3 #-}
