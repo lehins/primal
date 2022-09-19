@@ -70,6 +70,7 @@ library
                      , Primal.Memory.StableName
                      , Primal.Foreign
                      , Primal.Foreign.StablePtr
+                     , Primal.Foreign.Errno
                      --, Primal.System.RunTime
 
   other-modules:       Primal.Array.Internal

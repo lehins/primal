@@ -10,7 +10,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 -- |
 -- Module      : Primal.Memory.Ptr
--- Copyright   : (c) Alexey Kuleshevich 2020
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -20,11 +20,13 @@ module Primal.Memory.Ptr
   ( module GHC.Ptr
   , mallocPtr
   , callocPtr
+  , alignedAllocPtr
   , reallocPtr
   , freePtr
   , freeFinalizerPtr
   , guardedFreePtr
   , guardedFreeFinalizerEnvPtr
+  , freeHaskellFunPtr
   , isSamePtr
   , plusOffPtr
   , plusByteOffPtr
@@ -51,7 +53,6 @@ module Primal.Memory.Ptr
   , moveByteOffPtrToPtr
   , comparePtrToPtr
   , compareByteOffPtrToPtr
-  , freeHaskellFunPtr
   , module X
   , WordPtr(..)
   , ptrToWordPtr
@@ -114,10 +115,14 @@ import Primal.Element.Unbox.Atomic
 
 foreign import ccall unsafe "stdlib.h malloc"
   mallocIO :: CSize -> IO (Ptr a)
+foreign import ccall unsafe "stdlib.h aligned_alloc"
+  allignedAllocIO :: CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h calloc"
   callocIO :: CSize -> CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h realloc"
   reallocIO :: Ptr a -> CSize -> IO (Ptr b)
+-- foreign import ccall unsafe "stdlib.h posix_memalign"
+--   memalignIO :: CSize -> IO (Ptr a)
 
 foreign import ccall unsafe "stdlib.h free"
   freeIO :: Ptr a -> IO ()
@@ -133,6 +138,9 @@ foreign import ccall unsafe "primal_memory.c &guarded_free"
 mallocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
 mallocPtr = unsafeIOToPrimal . mallocIO . fromIntegral . toByteCount
 
+alignedAllocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+alignedAllocPtr = unsafeIOToPrimal . allignedAllocIO . fromIntegral . toByteCount
+
 callocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
 callocPtr c = unsafeIOToPrimal $ callocIO (fromIntegral c) (fromIntegral (byteCountProxy c))
 
@@ -140,11 +148,13 @@ reallocPtr :: forall e s m. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr 
 reallocPtr ptr c =
   unsafeIOToPrimal $ reallocIO ptr (fromIntegral (toByteCount c))
 
+
 freePtr ::
      forall e s m. (Unbox e, Primal s m)
   => Ptr e
-  -- ^ Pointer to free. It must have been allocated with either `mallocPtr`,
-  -- `callocPtr` or `reallocPtr` and must not have been freed before.
+  -- ^ Pointer to the beginning of the memory buffer that should be freed. It must have
+  -- been allocated with either `mallocPtr`, `callocPtr` or `reallocPtr` and must not have
+  -- been freed before.
   -> m ()
 freePtr = unsafeIOToPrimal . freeIO
 
@@ -159,6 +169,11 @@ guardedFreePtr ::
   -> m ()
 guardedFreePtr envPtr = unsafeIOToPrimal . guardedFreeIO envPtr
 
+-- | Same as `GHC.freeHaskellFunPtr`
+--
+-- @since 0.1.0
+freeHaskellFunPtr :: Primal s m => FunPtr a -> m ()
+freeHaskellFunPtr = unsafeIOToPrimal . GHC.freeHaskellFunPtr
 
 isSamePtr :: Ptr e -> Ptr e -> Bool
 isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)
@@ -714,9 +729,3 @@ prefetchOffPtr2 (Ptr b#) off = primal_ (prefetchAddr2# b# (unOffBytes# off))
 prefetchOffPtr3 :: (Primal s m, Unbox e) => Ptr e -> Off e -> m ()
 prefetchOffPtr3 (Ptr b#) off = primal_ (prefetchAddr3# b# (unOffBytes# off))
 {-# INLINE prefetchOffPtr3 #-}
-
--- | Same as `GHC.freeHaskellFunPtr`
---
--- @since 0.1.0
-freeHaskellFunPtr :: Primal s m => FunPtr a -> m ()
-freeHaskellFunPtr = unsafeIOToPrimal . GHC.freeHaskellFunPtr
