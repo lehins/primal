@@ -20,7 +20,7 @@ module Primal.Memory.Ptr
   ( module GHC.Ptr
   , mallocPtr
   , callocPtr
-  , alignedAllocPtr
+  , allocAlignedPtr
   , reallocPtr
   , freePtr
   , freeFinalizerPtr
@@ -108,6 +108,7 @@ import qualified Foreign.Ptr as GHC (freeHaskellFunPtr)
 import qualified Foreign.ForeignPtr as GHC (FinalizerPtr, FinalizerEnvPtr)
 import GHC.Ptr
 import Primal.Foreign
+import Primal.Foreign.Errno
 import Primal.Monad
 import Primal.Monad.Unsafe
 import Primal.Element.Unbox
@@ -116,7 +117,7 @@ import Primal.Element.Unbox.Atomic
 foreign import ccall unsafe "stdlib.h malloc"
   mallocIO :: CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h aligned_alloc"
-  allignedAllocIO :: CSize -> IO (Ptr a)
+  allignedAllocIO :: CSize -> CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h calloc"
   callocIO :: CSize -> CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h realloc"
@@ -136,17 +137,28 @@ foreign import ccall unsafe "primal_memory.c &guarded_free"
 
 
 mallocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-mallocPtr = unsafeIOToPrimal . mallocIO . fromIntegral . toByteCount
+mallocPtr =
+  unsafeIOToPrimal .
+  throwErrnoIfNullPred (== eNOMEM) "mallocPtr" .
+  mallocIO . fromIntegral . toByteCount
 
-alignedAllocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-alignedAllocPtr = unsafeIOToPrimal . allignedAllocIO . fromIntegral . toByteCount
+allocAlignedPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+allocAlignedPtr c =
+  unsafeIOToPrimal $
+  throwErrnoIfNullPred (\e -> e == eNOMEM || e == eINVAL) "allocAlignedPtr" $
+  allignedAllocIO (fromIntegral (alignment c)) (fromIntegral (toByteCount c))
 
 callocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-callocPtr c = unsafeIOToPrimal $ callocIO (fromIntegral c) (fromIntegral (byteCountProxy c))
+callocPtr c =
+  unsafeIOToPrimal $
+  throwErrnoIfNullPred (== eNOMEM) "callocPtr" $
+  callocIO (fromIntegral c) (fromIntegral (byteCountProxy c))
 
 reallocPtr :: forall e s m. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr e)
 reallocPtr ptr c =
-  unsafeIOToPrimal $ reallocIO ptr (fromIntegral (toByteCount c))
+  unsafeIOToPrimal $
+  throwErrnoIfNullPred (== eNOMEM) "reallocPtr" $
+  reallocIO ptr (fromIntegral (toByteCount c))
 
 
 freePtr ::

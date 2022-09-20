@@ -20,6 +20,7 @@ module Primal.Foreign.Errno
   , throwErrnoIfMinus1Retry_
   , throwErrnoIfMinus1_
   , throwErrnoIfNull
+  , throwErrnoIfNullPred
   , throwErrnoIfNullRetry
   , throwErrnoIfNullRetryMayBlock
   , throwErrnoIfRetry
@@ -62,10 +63,13 @@ import Foreign.C.Error hiding
   , throwErrnoPathIf_
   )
 import qualified Foreign.C.Error as GHC
-import Foreign.Ptr (Ptr)
-import Primal.Monad.Internal
+import Foreign.Ptr (Ptr, nullPtr)
+import Primal.Exception (raise)
+import Primal.Monad
 import Primal.Monad.Unsafe
 
+-- TODO: Create an ErrnoException, instead pf relying on IOExcetion. Will require
+-- reimplementing all functions in this module
 
 -- | Lifted version of `GHC.throwErrno
 --
@@ -144,6 +148,17 @@ throwErrnoIfNull loc f =
   withRunInST $ \run ->
     unsafeIOToST $ GHC.throwErrnoIfNull loc (unsafeSTToPrimal (run f))
 {-# INLINE throwErrnoIfNull #-}
+
+-- | Just like `throwErrnoIfNull`, but apply a predicate to the received `Errno`.
+throwErrnoIfNullPred :: Primal s m => (Errno -> Bool) -> String -> m (Ptr a) -> m (Ptr a)
+throwErrnoIfNullPred p loc f = do
+  resPtr <- f
+  when (resPtr == nullPtr) $ do
+   errno <- getErrno
+   when (p errno) $ do
+     raise (errnoToIOError loc errno Nothing Nothing)
+  pure resPtr
+{-# INLINE throwErrnoIfNullPred #-}
 
 -- | Lifted version of `GHC.throwErrnoIfNullRetry`
 --

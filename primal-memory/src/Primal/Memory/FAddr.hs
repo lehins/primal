@@ -50,6 +50,7 @@ module Primal.Memory.FAddr
   , castFMAddr
   , allocFMAddr
   , allocZeroFMAddr
+  , allocAlignedFMAddr
   , reallocFMAddr
   , reallocPtrFMAddr
   , allocWithFinalizerPtrFMAddr
@@ -180,6 +181,14 @@ allocZeroFMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (FMAddr e
 allocZeroFMAddr c =
   unsafeIOToPrimal (castStateFMAddr <$> allocWithFinalizerPtrFMAddr c callocPtr freeFinalizerPtr)
 {-# INLINE allocZeroFMAddr #-}
+
+allocAlignedFMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (FMAddr e s)
+allocAlignedFMAddr c =
+  unsafeIOToPrimal
+    (castStateFMAddr <$>
+     allocWithFinalizerPtrFMAddr c allocAlignedPtr freeFinalizerPtr)
+{-# INLINE allocAlignedFMAddr #-}
+
 
 guardImpossibleFinalizer :: String -> IO Bool -> IO ()
 guardImpossibleFinalizer name m =
@@ -511,9 +520,9 @@ instance Unbox e => MemAlloc (FMAddr e) where
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap castFMAddr . allocFMAddr
   {-# INLINE allocPinnedMutMemST #-}
-  -- Use posix_memalign
-  -- allocAlignedPinnedMutMemST = fmap castFMAddr . allocFMAddr
-  -- {-# INLINE allocAlignedPinnedMutMemST #-}
+  -- TODO: Use posix_memalign
+  allocAlignedPinnedMutMemST = fmap castFMAddr . allocAlignedFMAddr
+  {-# INLINE allocAlignedPinnedMutMemST #-}
   reallocMutMemST maddr = fmap castFMAddr . reallocFMAddr (castFMAddr maddr)
   {-# INLINE reallocMutMemST #-}
 

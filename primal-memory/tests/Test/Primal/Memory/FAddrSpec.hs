@@ -72,6 +72,10 @@ allocFMAddrSpec _ = do
         readOffFMAddr fma off `shouldReturn` 0
     prop "grow" $ propGrow (allocZeroFMAddr :: Count e -> IO (FMAddr e RW))
     prop "shift+grow" $ propShiftGrow (allocZeroFMAddr :: Count e -> IO (FMAddr e RW))
+  describe "allocAlignedFMAddr" $ do
+    prop "read/write" $ propReadWrite (allocAlignedFMAddr :: Count e -> IO (FMAddr e RW))
+    prop "grow" $ propGrow (allocAlignedFMAddr :: Count e -> IO (FMAddr e RW))
+    prop "shift+grow" $ propShiftGrow (allocAlignedFMAddr :: Count e -> IO (FMAddr e RW))
 
 reallocFMAddrSpec :: forall e. (Show e, Eq e, Num e, Unbox e, Arbitrary e) => Proxy e -> Spec
 reallocFMAddrSpec _ =
