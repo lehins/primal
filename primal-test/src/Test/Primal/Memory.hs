@@ -637,7 +637,8 @@ memBinarySpec = do
     prop "eqMem" $ \(fm1 :: Frozen ma) (fm2 :: Frozen ma) ->
       conjoin [ eqMem @Word8 fm1 fm2 === ((convertMem fm1 :: ByteString) == convertMem fm2)
               , fm1 === fm1
-              , fm2 === fm2 ]
+              , fm2 === fm2
+              ]
 
 
 -- primSpec ::

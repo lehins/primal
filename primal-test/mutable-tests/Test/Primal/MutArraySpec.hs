@@ -10,6 +10,7 @@ import Primal.Array.Boxed
 import Primal.Array.Boxed.Small
 import Primal.Array.Unboxed
 import Primal.Memory.Addr
+import Primal.Memory.FAddr
 import Primal.Memory.Bytes
 import Primal.Memory.PArray
 import Primal.Ref
@@ -24,6 +25,7 @@ primMutRefSpec ::
   => Spec
 primMutRefSpec = do
   MutRef.spec @MAddr @e
+  MutRef.spec @FMAddr @e
   MutRef.spec @(PMArray 'Inc) @e
   MutRef.spec @(PMArray 'Pin) @e
   MutRef.spec @UMArray @e

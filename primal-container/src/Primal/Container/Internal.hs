@@ -17,6 +17,7 @@ import Primal.Concurrent.MVar
 import Primal.Array
 import Primal.Ref
 import Primal.Memory.Addr
+import Primal.Memory.FAddr
 import Primal.Memory.PArray
 
 -- | Container element constraint.
@@ -40,5 +41,7 @@ type instance Elt UMArray e = Unbox e
 
 type instance Elt Addr e = Unbox e
 type instance Elt MAddr e = Unbox e
+type instance Elt FAddr e = Unbox e
+type instance Elt FMAddr e = Unbox e
 type instance Elt (PArray p) e = Unbox e
 type instance Elt (PMArray p) e = Unbox e

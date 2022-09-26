@@ -35,6 +35,7 @@ import Primal.Container.Ref.Internal
 import Primal.Foreign
 import Primal.Memory
 import Primal.Memory.Addr
+import Primal.Memory.FAddr
 import Primal.Memory.PArray
 import Primal.Mutable.Freeze
 import Data.Kind
@@ -264,6 +265,32 @@ instance MutArray MAddr where
   shrinkMutArrayST ma sz = ma <$ shrinkMAddr ma (coerce sz :: Count e)
   {-# INLINE shrinkMutArrayST #-}
   resizeMutArrayST ma sz = reallocMAddr ma (coerce sz :: Count e)
+  {-# INLINE resizeMutArrayST #-}
+
+instance MutArray FMAddr where
+  sizeOfArray = coerce . countFAddr
+  {-# INLINE sizeOfArray #-}
+  indexArray a i = indexOffFAddr a (coerce i)
+  {-# INLINE indexArray #-}
+  getSizeOfMutArrayST = fmap coerce . getCountFMAddr
+  {-# INLINE getSizeOfMutArrayST #-}
+  newRawMutArrayST = allocFMAddr . coerce
+  {-# INLINE newRawMutArrayST #-}
+  writeMutArrayST ma i = writeOffFMAddr ma (coerce i)
+  {-# INLINE writeMutArrayST #-}
+  readMutArrayST ma i = readOffFMAddr ma (coerce i)
+  {-# INLINE readMutArrayST #-}
+  copyArrayST as os mad od n =
+    copyFAddrToFMAddr as (coerce os) mad (coerce od) (coerce n)
+  {-# INLINE copyArrayST #-}
+  moveMutArrayST mas os mad od n =
+    moveFMAddrToFMAddr mas (coerce os) mad (coerce od) (coerce n)
+  {-# INLINE moveMutArrayST #-}
+  setMutArrayST ma i sz = setOffFMAddr ma (coerce i) (coerce sz)
+  {-# INLINE setMutArrayST #-}
+  shrinkMutArrayST ma sz = reallocFMAddr ma (coerce sz :: Count e)
+  {-# INLINE shrinkMutArrayST #-}
+  resizeMutArrayST ma sz = reallocFMAddr ma (coerce sz :: Count e)
   {-# INLINE resizeMutArrayST #-}
 
 

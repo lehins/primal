@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Primal.Memory.BytesSpec
   ( module Test.Primal.Memory.BytesSpec
   , module Primal.Memory.Bytes
@@ -43,11 +42,12 @@ import Test.Primal.Memory
 
 type NEBytes p e = NEMem (MBytes p) e
 
-primSpec ::
+-- This spec is called in MemSpec module
+bytesSpec ::
      forall (p :: Pinned) e.
      (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable p, Typeable e)
   => Spec
-primSpec = do
+bytesSpec = do
   let bytesTypeName =
         showsType (Proxy :: Proxy (Bytes p)) .
         (' ' :) . showsType (Proxy :: Proxy e) $
@@ -109,34 +109,10 @@ prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
     pure $ conjoin $ zipWith (===) xs (toListBytes br :: [e])
 
 
-primTypeSpec ::
-     forall e. (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable e)
-  => Spec
-primTypeSpec = do
-  primSpec @'Pin @e
-  primSpec @'Inc @e
-  memSpec @(MAddr e) @e
-  memSpec @MArray @e
-  memSpec @MByteString @e
-
-
-primalStateTypeSpec ::
-     forall e. (NFData e, Ord e, Show e, Unbox e, Arbitrary e, Typeable e)
-  => Spec
-primalStateTypeSpec = do
-  memSpec @(UMArray e) @e
-  memSpec @(MAddr e) @e
-  memSpec @(PMArray 'Inc e) @e
-  memSpec @(PMArray 'Pin e) @e
-  memOrdSpec @UMArray @e
-  memOrdSpec @MAddr @e
-  memOrdSpec @(PMArray 'Inc) @e
-  memOrdSpec @(PMArray 'Pin) @e
-
-primBinarySpec ::
+bytesBinarySpec ::
      forall (p :: Pinned). (Typeable p)
   => Spec
-primBinarySpec = do
+bytesBinarySpec = do
   let bytesTypeName = showsType (Proxy :: Proxy (Bytes p)) ""
   describe bytesTypeName $ do
     describe "calloc" $ do
@@ -209,43 +185,10 @@ primBinarySpec = do
 
 spec :: Spec
 spec = do
-  primBinarySpec @'Pin
-  primBinarySpec @'Inc
-  memBinarySpec @(PMArray 'Inc Word8)
-  memBinarySpec @(PMArray 'Pin Word8)
-  memBinarySpec @(MAddr Word8)
-  memBinarySpec @MArray
-  memBinarySpec @MByteString
-
-  primalStateTypeSpec @Char
-  primalStateTypeSpec @Float
-  primalStateTypeSpec @Double
-  primalStateTypeSpec @Int
-  primalStateTypeSpec @Int8
-  primalStateTypeSpec @Int16
-  primalStateTypeSpec @Int32
-  primalStateTypeSpec @Int64
-  primalStateTypeSpec @Word
-  primalStateTypeSpec @Word8
-  primalStateTypeSpec @Word16
-  primalStateTypeSpec @Word32
-  primalStateTypeSpec @Word64
-  primalStateTypeSpec @(Ptr Char)
-
-  primTypeSpec @(Atom Word16)
-  primTypeSpec @(Identity Word)
-  primTypeSpec @(Down Word8)
-  primTypeSpec @(Dual Word16)
-  primTypeSpec @(Sum Word32)
-  primTypeSpec @(Product Word64)
-  primTypeSpec @(Ratio Int)
-  primTypeSpec @(Complex Float)
-  primTypeSpec @Ordering
-  primTypeSpec @SeekMode
-  primTypeSpec @((), Ptr (), FunPtr (), StablePtr ())
-  primTypeSpec @(All, Any, Fingerprint, IntPtr, WordPtr)
-  describe "Allocation" $ do
-    describe "Pinned Memory" $ do
+  bytesBinarySpec @'Pin
+  bytesBinarySpec @'Inc
+  describe "Pinned Bytes" $ do
+    describe "Allocation" $ do
       let mostThreshold = 3248 :: Count Word8
           leastThreshold = 3249 :: Count Word8
       -- Experimentally found the threshold to be 3249:

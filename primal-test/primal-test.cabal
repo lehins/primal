@@ -54,7 +54,8 @@ test-suite memory-tests-O1
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Primal.Memory.BytesSpec
-                    , Test.Primal.Memory.BytesExtraSpec
+                    , Test.Primal.Memory.MemSpec
+                    , Test.Primal.Memory.MemExtraSpec
                     , Test.Primal.Memory.PtrSpec
   build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
@@ -78,7 +79,8 @@ test-suite memory-tests-O0
   main-is:            Main.hs
   other-modules:      Spec
                     , Test.Primal.Memory.BytesSpec
-                    , Test.Primal.Memory.BytesExtraSpec
+                    , Test.Primal.Memory.MemSpec
+                    , Test.Primal.Memory.MemExtraSpec
                     , Test.Primal.Memory.PtrSpec
   build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base

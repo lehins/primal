@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Primal.Common
   ( module X
   , propIO

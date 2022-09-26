@@ -47,6 +47,7 @@ import Primal.Monad
 import Primal.Container.Internal
 import Primal.Container.Ref.Internal
 import Primal.Memory.Addr
+import Primal.Memory.FAddr
 import Primal.Memory.Bytes
 import Primal.Memory.PArray
 import GHC.Exts
@@ -342,6 +343,54 @@ instance AtomicBitsMutRef MAddr where
   atomicNotFetchOldMutRefST maddr = atomicNotFetchOldOffMAddr maddr (0 :: Off e)
   {-# INLINE atomicNotFetchOldMutRefST #-}
   atomicNotFetchNewMutRefST maddr = atomicNotFetchNewOffMAddr maddr (0 :: Off e)
+  {-# INLINE atomicNotFetchNewMutRefST #-}
+
+
+instance AtomicMutRef FMAddr where
+  type AtomicElt FMAddr e = Atomic e
+  atomicReadMutRefST maddr = atomicReadOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicReadMutRefST #-}
+  atomicWriteMutRefST maddr = atomicWriteOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicWriteMutRefST #-}
+  casMutRefST maddr = casBoolFetchOffFMAddr maddr (0 :: Off e)
+  {-# INLINE casMutRefST #-}
+  atomicModifyMutRefST maddr = atomicModifyOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicModifyMutRefST #-}
+
+
+instance AtomicCountMutRef FMAddr where
+  type AtomicCountElt FMAddr e = AtomicCount e
+  atomicAddFetchOldMutRefST maddr = atomicAddFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicAddFetchOldMutRefST #-}
+  atomicAddFetchNewMutRefST maddr = atomicAddFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicAddFetchNewMutRefST #-}
+  atomicSubFetchOldMutRefST maddr = atomicSubFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicSubFetchOldMutRefST #-}
+  atomicSubFetchNewMutRefST maddr = atomicSubFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicSubFetchNewMutRefST #-}
+
+
+instance AtomicBitsMutRef FMAddr where
+  type AtomicBitsElt FMAddr e = AtomicBits e
+  atomicAndFetchOldMutRefST maddr = atomicAndFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicAndFetchOldMutRefST #-}
+  atomicAndFetchNewMutRefST maddr = atomicAndFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicAndFetchNewMutRefST #-}
+  atomicNandFetchOldMutRefST maddr = atomicNandFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicNandFetchOldMutRefST #-}
+  atomicNandFetchNewMutRefST maddr = atomicNandFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicNandFetchNewMutRefST #-}
+  atomicOrFetchOldMutRefST maddr = atomicOrFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicOrFetchOldMutRefST #-}
+  atomicOrFetchNewMutRefST maddr = atomicOrFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicOrFetchNewMutRefST #-}
+  atomicXorFetchOldMutRefST maddr = atomicXorFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicXorFetchOldMutRefST #-}
+  atomicXorFetchNewMutRefST maddr = atomicXorFetchNewOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicXorFetchNewMutRefST #-}
+  atomicNotFetchOldMutRefST maddr = atomicNotFetchOldOffFMAddr maddr (0 :: Off e)
+  {-# INLINE atomicNotFetchOldMutRefST #-}
+  atomicNotFetchNewMutRefST maddr = atomicNotFetchNewOffFMAddr maddr (0 :: Off e)
   {-# INLINE atomicNotFetchNewMutRefST #-}
 
 

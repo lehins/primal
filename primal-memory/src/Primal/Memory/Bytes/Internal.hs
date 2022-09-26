@@ -1145,11 +1145,16 @@ class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
   -- | Either grow or shrink currently allocated mutable region of memory. For some
   -- implementations it might be possible to change the size of the allocated region
   -- in-place, i.e. without copy. However in all implementations there is a good chance
-  -- that the memory region has to be allocated anew, in which case all of the contents
-  -- up to the minimum of new and old sizes will get copied over. After the resize
-  -- operation is complete the supplied @memSource@ region must not be used
-  -- anymore. Moreover, no reference to the old one should be kept in order to allow
-  -- garbage collection of the original in case a new one had to be allocated.
+  -- that the memory region has to be allocated anew, in which case all of the contents up
+  -- to the minimum of new and old sizes will get copied over. After the resize operation
+  -- is complete the supplied @memSource@ region must not be used anymore. Moreover, no
+  -- reference to the old one should be kept in order to allow garbage collection of the
+  -- original buffer, in case a new one had to be allocated.
+  --
+  -- Reallocation does not preserve alignment. In other words if the original buffer was
+  -- allocated with something like `allocAlignedPinnedMutMem`, the returned buffer will
+  -- ignore the original alignment and will use the default, which is usually one machine
+  -- word.
   --
   -- Default implementation is `defaultReallocMutMem`
   --

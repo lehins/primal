@@ -53,6 +53,7 @@ module Primal.Memory.FAddr
   , allocAlignedFMAddr
   , reallocFMAddr
   , reallocPtrFMAddr
+  , allocWithFinalizerFMAddr
   , allocWithFinalizerPtrFMAddr
   , allocWithFinalizerEnvPtrFMAddr
   , singletonFMAddr
@@ -235,17 +236,26 @@ reallocFMAddr fma c
         fma' <$ copyFAddrToFMAddr fa 0 fma' 0 (min c (faCount fa))
 {-# INLINE reallocFMAddr #-}
 
--- allocWithFinalizerFMAddr ::
---      Count e
---   -- ^ Number of elements to allocate memory for
---   -> (Count e -> IO (Ptr e))
---   -- ^ Function to be used for allocating memory
---   -> Ptr e -> IO ()
---   -- ^ Finalizer to be used for freeing memory
---   -> IO (FMAddr e s)
--- allocWithFinalizerFMAddr c alloc freeFinalizer =
---   allocAndFinalizeFMAddr c alloc (addCFinalizer freeFinalizer)
--- {-# INLINE allocWithFinalizerFMAddr #-}
+
+-- | Allocate a memory buffer using a supplied allocating and freeing actions. Unlike
+-- `allocWithFinalizerPtrFMAddr` and `allocWithFinalizerEnvPtrFMAddr` the freeing funciton
+-- is a regular Haskell action, rather than a pointer to an FFI function.
+allocWithFinalizerFMAddr ::
+     Count e
+  -- ^ Number of elements to allocate memory for
+  -> (Count e -> IO (Ptr e))
+  -- ^ Function to be used for allocating memory
+  -> (Ptr e -> IO ())
+  -- ^ Finalizer to be used for freeing the memory
+  -> IO (FMAddr e s)
+allocWithFinalizerFMAddr c alloc free = do
+  ref <- newBRef ()
+  Interruptible.mask_ $ do
+    ptr@(Ptr addr#) <- alloc c
+    _weakPtr <- mkWeakBRef ref () (free ptr)
+    pure $!
+      FMAddr {fmaAddr# = addr#, fmaCount = c, fmaFinalizer = Finalizer ref}
+{-# INLINE allocWithFinalizerFMAddr #-}
 
 
 allocWithFinalizerPtrFMAddr ::
@@ -274,17 +284,18 @@ allocWithFinalizerEnvPtrFMAddr c alloc freeFinalizer envPtr =
   allocAndFinalizeFMAddr c alloc (addCFinalizerEnv freeFinalizer envPtr)
 {-# INLINE allocWithFinalizerEnvPtrFMAddr #-}
 
+-- | Helper function for allocating memory with a C finalizer
 allocAndFinalizeFMAddr ::
      Count e
   -> (Count e -> IO (Ptr a))
   -> (Ptr a -> Weak () -> IO Bool)
   -> IO (FMAddr e s)
-allocAndFinalizeFMAddr c alloc finalize = do
+allocAndFinalizeFMAddr c alloc addCFinalizer' = do
   ref <- newBRef ()
   weakPtr <- mkWeakNoFinalizerBRef ref ()
   Interruptible.mask_ $ do
     ptr@(Ptr addr#) <- alloc c
-    guardImpossibleFinalizer "BRef" (finalize ptr weakPtr)
+    guardImpossibleFinalizer "BRef" (addCFinalizer' ptr weakPtr)
     pure $!
       FMAddr {fmaAddr# = addr#, fmaCount = c, fmaFinalizer = Finalizer ref}
 {-# INLINE allocAndFinalizeFMAddr #-}
