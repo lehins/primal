@@ -49,7 +49,7 @@ import Primal.Container.Ref.Atomic
 import Primal.Array
 import Primal.Memory.Addr
 import Primal.Memory.Bytes
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 
 
 
@@ -241,7 +241,7 @@ class (AtomicBitsMutRef ma, AtomicMutArray ma) => AtomicBitsMutArray ma where
   {-# INLINE atomicNotFetchNewMutArrayST #-}
 
 
-instance Typeable p => AtomicMutArray (PMArray p) where
+instance Typeable p => AtomicMutArray (PUMArray p) where
   atomicReadMutArrayST mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMutArrayST #-}
   atomicWriteMutArrayST mba i = atomicWriteMBytes (coerce mba) (coerce i :: Off e)
@@ -252,7 +252,7 @@ instance Typeable p => AtomicMutArray (PMArray p) where
   {-# INLINE atomicModifyMutArrayST #-}
 
 
-instance Typeable p => AtomicCountMutArray (PMArray p) where
+instance Typeable p => AtomicCountMutArray (PUMArray p) where
   atomicAddFetchOldMutArrayST mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMutArrayST #-}
   atomicAddFetchNewMutArrayST mba i = atomicAddFetchNewMBytes (coerce mba) (coerce i :: Off e)
@@ -263,7 +263,7 @@ instance Typeable p => AtomicCountMutArray (PMArray p) where
   {-# INLINE atomicSubFetchNewMutArrayST #-}
 
 
-instance Typeable p => AtomicBitsMutArray (PMArray p) where
+instance Typeable p => AtomicBitsMutArray (PUMArray p) where
   atomicAndFetchOldMutArrayST mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAndFetchOldMutArrayST #-}
   atomicAndFetchNewMutArrayST mba i = atomicAndFetchNewMBytes (coerce mba) (coerce i :: Off e)

@@ -28,7 +28,7 @@ import Primal.Memory.Addr
 import Primal.Memory.FAddr
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import Primal.Memory.Text
 import Test.Primal
 import Test.Primal.Memory
@@ -44,8 +44,8 @@ eqTypeSpec = do
   memSpec @(MBytes 'Pin) @e
   memSpec @(MAddr e) @e
   memSpec @(UMArray e) @e
-  memSpec @(PMArray 'Inc e) @e
-  memSpec @(PMArray 'Pin e) @e
+  memSpec @(PUMArray 'Inc e) @e
+  memSpec @(PUMArray 'Pin e) @e
   memSpec @MArray @e
   memSpec @MByteString @e
 
@@ -59,8 +59,8 @@ ordTypeSpec = do
   memOrdSpec @MAddr @e
   memOrdSpec @FMAddr @e
   memOrdSpec @UMArray @e
-  memOrdSpec @(PMArray 'Inc) @e
-  memOrdSpec @(PMArray 'Pin) @e
+  memOrdSpec @(PUMArray 'Inc) @e
+  memOrdSpec @(PUMArray 'Pin) @e
 
 
 
@@ -68,8 +68,8 @@ spec :: Spec
 spec = do
   memBinarySpec @(MBytes 'Inc)
   memBinarySpec @(MBytes 'Pin)
-  memBinarySpec @(PMArray 'Inc Word8)
-  memBinarySpec @(PMArray 'Pin Word8)
+  memBinarySpec @(PUMArray 'Inc Word8)
+  memBinarySpec @(PUMArray 'Pin Word8)
   memBinarySpec @(MAddr Word8)
   memBinarySpec @(FMAddr Word8)
   memBinarySpec @MArray

@@ -68,13 +68,13 @@ spec = do
       prop "Bytes 'Pin" $ roundTripBase16 @(Bytes 'Pin)
       prop "Bytes 'Inc" $ roundTripBase16 @(Bytes 'Inc)
       prop "Addr Word8" $ roundTripBase16 @(Addr Word8)
-      prop "PArray 'Inc Word8" $ roundTripBase16 @(PArray 'Inc Word8)
+      prop "PUArray 'Inc Word8" $ roundTripBase16 @(PUArray 'Inc Word8)
       prop "ByteString" $ roundTripBase16 @ByteString
       prop "ShortByteString" $ roundTripBase16 @ShortByteString
     describe "failure" $ do
       prop "Bytes 'Pin" $ decodeFailureBase16 @(Bytes 'Pin)
       prop "Bytes 'Inc" $ decodeFailureBase16 @(Bytes 'Inc)
       prop "Addr Word8" $ decodeFailureBase16 @(Addr Word8)
-      prop "PArray 'Inc Word8" $ decodeFailureBase16 @(PArray 'Inc Word8)
+      prop "PUArray 'Inc Word8" $ decodeFailureBase16 @(PUArray 'Inc Word8)
       prop "ByteString" $ decodeFailureBase16 @ByteString
       prop "ShortByteString" $ decodeFailureBase16 @ShortByteString

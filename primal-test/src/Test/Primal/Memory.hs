@@ -21,7 +21,7 @@ import Primal.Memory.FAddr
 import Primal.Memory.Bytes
 import Primal.Memory.ByteString
 import Primal.Memory.Fold
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import qualified Primal.Memory.Text as T
 import Test.Primal
 
@@ -95,7 +95,7 @@ instance Arbitrary ByteString where
     Mem (_ :: [Word8]) b <- arbitrary
     pure b
 
-instance (Typeable p, Unbox e, Arbitrary e) => Arbitrary (PArray p e) where
+instance (Typeable p, Unbox e, Arbitrary e) => Arbitrary (PUArray p e) where
   arbitrary = do
     Mem (_ :: [e]) b <- arbitrary
     pure b

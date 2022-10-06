@@ -51,11 +51,11 @@ module Primal.Data.Array.Unboxed
   , moveUMArray
   , cloneUArray
   , cloneUMArray
-  -- * PArray
-  , toPArray
-  , fromPArray
-  , toPMArray
-  , fromPMArray
+  -- * PUArray
+  , toPUArray
+  , fromPUArray
+  , toPUMArray
+  , fromPUMArray
   -- * List
   , fromListUArray
   , fromListUArrayN
@@ -69,7 +69,7 @@ import Control.Prim.Monad
 import Data.Bits
 import Data.Prim
 import qualified Data.Prim.MArray.Internal as I
-import Data.Prim.Memory.PArray
+import Data.Prim.Memory.PUArray
 import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
@@ -165,34 +165,34 @@ instance Prim e => I.MArray (UMArray e) where
   {-# INLINE resizeMArray #-}
 
 
--- | /O(1)/ - Cast an unboxed array into a `PArray`
+-- | /O(1)/ - Cast an unboxed array into a `PUArray`
 --
 -- @since 0.1.0
-toPArray :: UArray e -> PArray 'Inc e
-toPArray (UArray a#) = PArray (fromByteArray# a#)
-{-# INLINE toPArray #-}
+toPUArray :: UArray e -> PUArray 'Inc e
+toPUArray (UArray a#) = PUArray (fromByteArray# a#)
+{-# INLINE toPUArray #-}
 
--- | /O(1)/ - Cast a `PArray` into an unboxed array
+-- | /O(1)/ - Cast a `PUArray` into an unboxed array
 --
 -- @since 0.1.0
-fromPArray :: PArray p e -> UArray e
-fromPArray (PArray ba) = UArray (toByteArray# ba)
-{-# INLINE fromPArray #-}
+fromPUArray :: PUArray p e -> UArray e
+fromPUArray (PUArray ba) = UArray (toByteArray# ba)
+{-# INLINE fromPUArray #-}
 
 
--- | /O(1)/ - Cast a mutable unboxed array into a `PMArray`
+-- | /O(1)/ - Cast a mutable unboxed array into a `PUMArray`
 --
 -- @since 0.1.0
-toPMArray :: UMArray e s -> PMArray 'Inc e s
-toPMArray (UMArray mba#) = PMArray (fromMutableByteArray# mba#)
-{-# INLINE toPMArray #-}
+toPUMArray :: UMArray e s -> PUMArray 'Inc e s
+toPUMArray (UMArray mba#) = PUMArray (fromMutableByteArray# mba#)
+{-# INLINE toPUMArray #-}
 
--- | /O(1)/ - Cast an `PMArray` into a mutable unboxed array
+-- | /O(1)/ - Cast an `PUMArray` into a mutable unboxed array
 --
 -- @since 0.1.0
-fromPMArray :: PMArray p e s -> UMArray e s
-fromPMArray (PMArray mb) = UMArray (toMutableByteArray# mb)
-{-# INLINE fromPMArray #-}
+fromPUMArray :: PUMArray p e s -> UMArray e s
+fromPUMArray (PUMArray mb) = UMArray (toMutableByteArray# mb)
+{-# INLINE fromPUMArray #-}
 
 
 

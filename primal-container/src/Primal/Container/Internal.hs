@@ -18,7 +18,7 @@ import Primal.Array
 import Primal.Ref
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 
 -- | Container element constraint.
 type family Elt (c :: k) e :: Constraint
@@ -43,5 +43,5 @@ type instance Elt Addr e = Unbox e
 type instance Elt MAddr e = Unbox e
 type instance Elt FAddr e = Unbox e
 type instance Elt FMAddr e = Unbox e
-type instance Elt (PArray p) e = Unbox e
-type instance Elt (PMArray p) e = Unbox e
+type instance Elt (PUArray p) e = Unbox e
+type instance Elt (PUMArray p) e = Unbox e

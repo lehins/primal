@@ -35,7 +35,7 @@ library
                      , Primal.Memory.Endianness
                      , Primal.Memory.ForeignPtr
                      , Primal.Memory.Fold
-                     , Primal.Memory.PArray
+                     , Primal.Memory.PUArray
                      , Primal.Memory.Ptr
                      , Primal.Memory.Text
                      , Primal.Memory.Internal

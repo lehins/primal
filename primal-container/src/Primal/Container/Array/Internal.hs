@@ -36,7 +36,7 @@ import Primal.Foreign
 import Primal.Memory
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import Primal.Mutable.Freeze
 import Data.Kind
 
@@ -294,28 +294,28 @@ instance MutArray FMAddr where
   {-# INLINE resizeMutArrayST #-}
 
 
-instance Typeable p => MutArray (PMArray p) where
-  sizeOfArray = sizePArray
+instance Typeable p => MutArray (PUMArray p) where
+  sizeOfArray = sizePUArray
   {-# INLINE sizeOfArray #-}
   indexArray a i = indexOffMem a (coerce i)
   {-# INLINE indexArray #-}
-  getSizeOfMutArrayST = getSizeOfPMArray
+  getSizeOfMutArrayST = getSizeOfPUMArray
   {-# INLINE getSizeOfMutArrayST #-}
-  newRawMutArrayST = allocPMArray
+  newRawMutArrayST = allocPUMArray
   {-# INLINE newRawMutArrayST #-}
-  writeMutArrayST = writePMArray
+  writeMutArrayST = writePUMArray
   {-# INLINE writeMutArrayST #-}
-  readMutArrayST = readPMArray
+  readMutArrayST = readPUMArray
   {-# INLINE readMutArrayST #-}
-  copyArrayST = copyPArrayToPMArray
+  copyArrayST = copyPUArrayToPUMArray
   {-# INLINE copyArrayST #-}
-  moveMutArrayST = movePMArrayToPMArray
+  moveMutArrayST = movePUMArrayToPUMArray
   {-# INLINE moveMutArrayST #-}
-  setMutArrayST = setPMArray
+  setMutArrayST = setPUMArray
   {-# INLINE setMutArrayST #-}
-  shrinkMutArrayST ma sz = ma <$ shrinkPMArray ma sz
+  shrinkMutArrayST ma sz = ma <$ shrinkPUMArray ma sz
   {-# INLINE shrinkMutArrayST #-}
-  resizeMutArrayST = reallocPMArray
+  resizeMutArrayST = reallocPUMArray
   {-# INLINE resizeMutArrayST #-}
 
 

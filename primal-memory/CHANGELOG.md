@@ -1,5 +1,10 @@
 # Changelog for primal-memory
 
+# 1.0.0
+
+* Addition of `FAddr` and `FMAddr`
+* Rename `PArray` -> `PUArray` and `PMArray` -> `PUMArray`
+
 ## 0.3.0
 
 * Rename many functions that perform mutation. Add `Mut` infix to operations that deal

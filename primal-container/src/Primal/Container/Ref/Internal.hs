@@ -35,7 +35,7 @@ import Primal.Ref
 import Primal.Memory
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 
 class MutRef mr where
 
@@ -80,12 +80,12 @@ instance MutRef FMAddr where
   {-# INLINE readMutRefST #-}
 
 
-instance Typeable p => MutRef (PMArray p) where
-  newRawMutRefST = allocPMArray 1
+instance Typeable p => MutRef (PUMArray p) where
+  newRawMutRefST = allocPUMArray 1
   {-# INLINE newRawMutRefST #-}
-  writeMutRefST mba = writePMArray mba 0
+  writeMutRefST mba = writePUMArray mba 0
   {-# INLINE writeMutRefST #-}
-  readMutRefST mba = readPMArray mba 0
+  readMutRefST mba = readPUMArray mba 0
   {-# INLINE readMutRefST #-}
 
 

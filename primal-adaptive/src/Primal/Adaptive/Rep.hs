@@ -29,7 +29,7 @@ import Primal.Prim
 import Primal.Prim.Class
 import Primal.Data.Array
 import Primal.Data.Array.Unboxed.Ragged
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import Primal.Memory.Bytes
 import Data.Prim.Unbox
 import Data.Semigroup
@@ -103,7 +103,7 @@ type family AdaptRep def e :: Type -> Type -> Type where
     BestRep def (AdaptRep def (a, b, c, d, e)) (AdaptRep def (f, g, h, i))
   AdaptRep def (UArray a) = RMArray 0
   AdaptRep def (Bytes 'Inc) = RMArray 0
-  AdaptRep def (PArray 'Inc a) = RMArray 0
+  AdaptRep def (PUArray 'Inc a) = RMArray 0
   AdaptRep def (RArray n a) = RMArray (n + 1)
   AdaptRep def a = AtomicPrimRep def (IsBasicAtomic a)
 

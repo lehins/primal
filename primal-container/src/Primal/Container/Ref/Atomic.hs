@@ -7,7 +7,7 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 -- |
 -- Module      : Primal.Container.Ref.Atomic
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -49,7 +49,7 @@ import Primal.Container.Ref.Internal
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
 import Primal.Memory.Bytes
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import GHC.Exts
 
 
@@ -250,8 +250,8 @@ instance AtomicBitsMutRef BRef where
   type AtomicBitsElt BRef e = Bits e
 
 
-instance Typeable p => AtomicMutRef (PMArray p) where
-  type AtomicElt (PMArray p) e = Atomic e
+instance Typeable p => AtomicMutRef (PUMArray p) where
+  type AtomicElt (PUMArray p) e = Atomic e
   atomicReadMutRefST mba = atomicReadMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicReadMutRefST #-}
   atomicWriteMutRefST mba = atomicWriteMBytes (coerce mba) (0 :: Off e)
@@ -262,8 +262,8 @@ instance Typeable p => AtomicMutRef (PMArray p) where
   {-# INLINE atomicModifyMutRefST #-}
 
 
-instance Typeable p => AtomicCountMutRef (PMArray p) where
-  type AtomicCountElt (PMArray p) e = AtomicCount e
+instance Typeable p => AtomicCountMutRef (PUMArray p) where
+  type AtomicCountElt (PUMArray p) e = AtomicCount e
   atomicAddFetchOldMutRefST mba = atomicAddFetchOldMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicAddFetchOldMutRefST #-}
   atomicAddFetchNewMutRefST mba = atomicAddFetchNewMBytes (coerce mba) (0 :: Off e)
@@ -274,8 +274,8 @@ instance Typeable p => AtomicCountMutRef (PMArray p) where
   {-# INLINE atomicSubFetchNewMutRefST #-}
 
 
-instance Typeable p => AtomicBitsMutRef (PMArray p) where
-  type AtomicBitsElt (PMArray p) e = AtomicBits e
+instance Typeable p => AtomicBitsMutRef (PUMArray p) where
+  type AtomicBitsElt (PUMArray p) e = AtomicBits e
   atomicAndFetchOldMutRefST mba = atomicAndFetchOldMBytes (coerce mba) (0 :: Off e)
   {-# INLINE atomicAndFetchOldMutRefST #-}
   atomicAndFetchNewMutRefST mba = atomicAndFetchNewMBytes (coerce mba) (0 :: Off e)

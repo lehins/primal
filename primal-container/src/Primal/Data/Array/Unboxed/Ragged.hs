@@ -65,7 +65,7 @@ import Primal.Container.Mutable.Ref.Internal
 import Primal.Data.Array
 import Primal.Foreign
 import Primal.Memory.Bytes
-import Primal.Memory.PArray
+import Primal.Memory.PUArray
 import Primal.Monad
 
 
@@ -148,7 +148,7 @@ instance MArray (RMArray 0) (UArray e) where
   moveMArray = moveRMArray
   {-# INLINE moveMArray #-}
 
-instance MRef (RMArray 0) (PArray 'Inc e) where
+instance MRef (RMArray 0) (PUArray 'Inc e) where
   newRawMRef = newRawRMArray 1
   {-# INLINE newRawMRef #-}
   readMRef rma = coerce <$> readBytesRMArray rma 0
@@ -156,7 +156,7 @@ instance MRef (RMArray 0) (PArray 'Inc e) where
   writeMRef rma ba = writeBytesRMArray rma 0 (coerce ba)
   {-# INLINE writeMRef #-}
 
-instance MArray (RMArray 0) (PArray 'Inc e) where
+instance MArray (RMArray 0) (PUArray 'Inc e) where
   indexArray = coerce . indexBytesRArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfRArray

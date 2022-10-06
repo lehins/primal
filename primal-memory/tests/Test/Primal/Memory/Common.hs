@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Primal.Memory.Common
   ( module X
   ) where
@@ -15,7 +15,7 @@ import Test.QuickCheck.Monadic as X
 import Primal.Memory as X
 import Primal.Memory.Addr as X
 import Primal.Memory.ByteString as X
-import Primal.Memory.PArray as X
+import Primal.Memory.PUArray as X
 
 instance Arbitrary (Count e) where
   arbitrary = Count . getNonNegative <$> arbitrary
@@ -29,7 +29,7 @@ instance Typeable p => Arbitrary (Bytes p) where
 instance (Arbitrary e, Unbox e) => Arbitrary (Addr e) where
   arbitrary = fromListMem <$> (arbitrary :: Gen [e])
 
-instance (Typeable p, Arbitrary e, Unbox e) => Arbitrary (PArray p e) where
+instance (Typeable p, Arbitrary e, Unbox e) => Arbitrary (PUArray p e) where
   arbitrary = fromListMem <$> (arbitrary :: Gen [e])
 
 instance Arbitrary ByteString where
