@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -12,7 +13,8 @@
 -- Portability : non-portable
 --
 module Primal.Monad.Unsafe
-  ( unsafePrimal
+  ( unsafeCastDataState
+  , unsafePrimal
   , unsafePrimal_
   , unsafePrimalState
   , unsafePrimalState_
@@ -43,6 +45,15 @@ import System.IO.Unsafe
 import Primal.Monad.Internal
 import GHC.IO hiding (noDuplicate)
 import GHC.Exts
+import Data.Kind
+
+-- | Take some mutable data type and unsafely change its state token to match the monad it
+-- should operate in.
+--
+-- === Highly unsafe!
+--
+unsafeCastDataState :: forall (f :: Type -> Type) s' m s. Primal s m => f s' -> m (f s)
+unsafeCastDataState f = pure (unsafeCoerce# f)
 
 -- | Coerce the state token of primal operation and wrap it into a `Primal` action.
 --
