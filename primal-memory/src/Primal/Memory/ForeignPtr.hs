@@ -25,6 +25,8 @@ module Primal.Memory.ForeignPtr
   , MForeignPtr(..)
   , castForeignPtr
   , unsafeForeignPtrToPtr
+  , withMForeignPtr
+  , withNoHaltMForeignPtr
   , ForeignPtrContents(..)
   -- * Pointer arithmetic
   , plusOffForeignPtr

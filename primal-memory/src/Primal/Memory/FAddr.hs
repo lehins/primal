@@ -53,6 +53,7 @@ module Primal.Memory.FAddr
   , allocAlignedFMAddr
   , reallocFMAddr
   , reallocPtrFMAddr
+  -- ** Internal allocators
   , allocWithFinalizerFMAddr
   , allocWithFinalizerPtrFMAddr
   , allocWithFinalizerEnvPtrFMAddr
@@ -236,6 +237,8 @@ reallocFMAddr fma c
         fma' <$ copyFAddrToFMAddr fa 0 fma' 0 (min c (faCount fa))
 {-# INLINE reallocFMAddr #-}
 
+
+-- TODO: Switch return type to `FMAddr e RW` and do some casting in `allocFMAddr` et al.
 
 -- | Allocate a memory buffer using a supplied allocating and freeing actions. Unlike
 -- `allocWithFinalizerPtrFMAddr` and `allocWithFinalizerEnvPtrFMAddr` the freeing funciton
