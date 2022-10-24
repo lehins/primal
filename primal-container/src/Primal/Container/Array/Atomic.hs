@@ -3,6 +3,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -11,7 +12,7 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 -- |
 -- Module      : Primal.Container.Array.Atomic
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
@@ -39,6 +40,8 @@ module Primal.Container.Array.Atomic
   , atomicXorFetchNewMutArray
   , atomicNotFetchOldMutArray
   , atomicNotFetchNewMutArray
+  , ifoldAtomicMutArray
+  , ifindAtomicMutArray
   ) where
 
 import Primal.Monad
@@ -605,3 +608,36 @@ atomicNotFetchNewMutArray ::
   -> m e
 atomicNotFetchNewMutArray mut = liftST . atomicNotFetchNewMutArrayST mut
 {-# INLINE atomicNotFetchNewMutArray #-}
+
+
+
+ifindAtomicMutArray ::
+  (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e) =>
+  ma e s ->
+  (Int -> e -> (e, Maybe a)) ->
+  m (Maybe a)
+ifindAtomicMutArray ma f = do
+  Size n <- getSizeOfMutArray ma
+  let go i
+        | i >= n = pure Nothing
+        | otherwise =
+          atomicModifyMutArray ma i (f i) >>= \case
+            Nothing -> go (i + 1)
+            Just a -> pure $! Just a
+  go 0
+
+ifoldAtomicMutArray ::
+  (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e) =>
+  ma e s ->
+  c ->
+  (Int -> c -> e -> (e, (c, Maybe a))) ->
+  m (c, Maybe a)
+ifoldAtomicMutArray ma acc0 f = do
+  Size n <- getSizeOfMutArray ma
+  let go i !acc
+        | i >= n = pure (acc, Nothing)
+        | otherwise = do
+          atomicModifyMutArray ma i (f i acc) >>= \case
+            (acc', Nothing) -> go (i + 1) acc'
+            res -> pure res
+  go 0 acc0

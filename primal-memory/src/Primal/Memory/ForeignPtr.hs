@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -69,9 +70,14 @@ module Primal.Memory.ForeignPtr
   ) where
 
 import qualified Foreign.ForeignPtr as GHC
-import GHC.ForeignPtr (FinalizerEnvPtr, FinalizerPtr, ForeignPtr(..),
-                       ForeignPtrContents(..), castForeignPtr,
-                       unsafeForeignPtrToPtr)
+import GHC.ForeignPtr
+  ( FinalizerEnvPtr
+  , FinalizerPtr
+  , ForeignPtr(..)
+  , ForeignPtrContents(..)
+  , castForeignPtr
+  , unsafeForeignPtrToPtr
+  )
 import qualified GHC.ForeignPtr as GHC
 import Primal.Eval
 import Primal.Foreign
@@ -83,6 +89,7 @@ import Primal.Element.Unbox
 
 newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)
 
+type role MForeignPtr nominal nominal
 
 instance MemWrite (MForeignPtr e) where
   accessMutMemST fptr _ g o = withMForeignPtr fptr $ \(Ptr addr#) -> g addr# o
