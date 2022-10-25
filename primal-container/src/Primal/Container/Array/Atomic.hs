@@ -625,6 +625,7 @@ ifindAtomicMutArray ma f = do
             Nothing -> go (i + 1)
             Just a -> pure $! Just a
   go 0
+{-# INLINE ifindAtomicMutArray #-}
 
 ifoldAtomicMutArray ::
   (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e) =>
@@ -641,3 +642,4 @@ ifoldAtomicMutArray ma acc0 f = do
             (acc', Nothing) -> go (i + 1) acc'
             res -> pure res
   go 0 acc0
+{-# INLINE ifoldAtomicMutArray #-}
