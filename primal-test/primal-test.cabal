@@ -26,23 +26,22 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Test.Prim
-                     , Test.Prim.MArray
-                     , Test.Prim.MRef
-                     , Test.Prim.Memory
-                     --, Test.Prim.Memory.Bytes
+  exposed-modules:     Test.Primal
+                     , Test.Primal.MutArray
+                     , Test.Primal.MutRef
+                     , Test.Primal.Memory
+                     --, Test.Primal.Memory.Bytes
 
-  other-modules:       Test.Prim.Common
+  other-modules:       Test.Primal.Common
   build-depends:       base >= 4.9 && < 5
                      , async
                      , deepseq
                      , primal
                      , primal-memory
-                     , primal-mutable
+                     , primal-container
                      , hspec
                      , QuickCheck
                      , genvalidity
-                     , unliftio
 
   default-language:    Haskell2010
   ghc-options:         -Wall -fno-warn-orphans
@@ -54,9 +53,11 @@ test-suite memory-tests-O1
   hs-source-dirs:     memory-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.BytesSpec
-                    , Test.Prim.Memory.BytesExtraSpec
-                    , Test.Prim.Memory.PtrSpec
+                    , Test.Primal.Memory.BytesSpec
+                    , Test.Primal.Memory.MemSpec
+                    , Test.Primal.Memory.MemExtraSpec
+                    , Test.Primal.Memory.PtrSpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -77,9 +78,11 @@ test-suite memory-tests-O0
   hs-source-dirs:     memory-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.Memory.BytesSpec
-                    , Test.Prim.Memory.BytesExtraSpec
-                    , Test.Prim.Memory.PtrSpec
+                    , Test.Primal.Memory.BytesSpec
+                    , Test.Primal.Memory.MemSpec
+                    , Test.Primal.Memory.MemExtraSpec
+                    , Test.Primal.Memory.PtrSpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
@@ -101,13 +104,14 @@ test-suite mutable-tests-O1
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.MArraySpec
+                    , Test.Primal.MutArraySpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
                     , primal-memory
-                    , primal-mutable
+                    , primal-container
                     , primal-test
                     , hspec
                     , QuickCheck
@@ -123,13 +127,14 @@ test-suite mutable-tests-O0
   hs-source-dirs:     mutable-tests
   main-is:            Main.hs
   other-modules:      Spec
-                    , Test.Prim.MArraySpec
+                    , Test.Primal.MutArraySpec
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:      base
                     , bytestring
                     , deepseq
                     , primal
                     , primal-memory
-                    , primal-mutable
+                    , primal-container
                     , primal-test
                     , hspec
                     , QuickCheck
@@ -144,3 +149,4 @@ test-suite mutable-tests-O0
 source-repository head
   type:     git
   location: https://github.com/lehins/primal
+  subdir:   primal-test

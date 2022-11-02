@@ -24,7 +24,7 @@ resolver: lts-15.8
 #
 # packages:
 # - some-directory
-# - https://example.com/foo/bar/baz-0.0.2.tar.gz
+# - https://example.com/bar/bar/baz-0.0.2.tar.gz
 #   subdirs:
 #   - auto-update
 #   - wai

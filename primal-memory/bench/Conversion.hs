@@ -5,32 +5,33 @@
 
 module Main (main) where
 
-import Control.Prim.Eval
-import Control.Prim.Monad
 import Criterion.Main
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.ForeignPtr
-import Data.Prim.Memory.Ptr
 import qualified Data.Primitive.ByteArray as BA
+import Data.Semigroup
 import qualified Foreign.ForeignPtr as GHC
 import Foreign.Storable
-import Foreign.Prim
+import Primal.Eval
+import Primal.Foreign
+import Primal.Memory.Bytes
+import Primal.Memory.ForeignPtr
+import Primal.Memory.Ptr
+
 
 main :: IO ()
 main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
       xs = [1 .. unCount n]
-  mb1 <- allocAlignedMBytes n64
+  mb1 <- allocAlignedPinnedMBytes n64
   b1 <- freezeMBytes mb1
-  mb2 <- allocAlignedMBytes n64
-  mb3 <- allocAlignedMBytes n64
-  let fp = toForeignPtrMBytes mb3
+  mb2 <- allocAlignedPinnedMBytes n64
+  mb3 <- allocAlignedPinnedMBytes n64
+  let MForeignPtr fp = toMForeignPtrMBytes mb3
   mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
   -- Ensure that arrays are equal by filling them with zeros
-  bEq1 <- freezeMBytes =<< allocZeroAlignedMBytes n64
-  bEq2 <- freezeMBytes =<< allocZeroAlignedMBytes n64
+  bEq1 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
+  bEq2 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
   mbaEq1 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   mbaEq2 <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   BA.setByteArray mbaEq1 0 (unCount n64) (0 :: Word64)
@@ -95,7 +96,7 @@ withPtrMBytes_noinline mb f = do
   res <$ touch mb
 {-# NOINLINE withPtrMBytes_noinline #-}
 
-ptrAction :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction (Count n) mb = go 0
   where
     go i
@@ -104,7 +105,7 @@ ptrAction (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-ptrAction_inline :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_inline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_inline (Count n) mb = go 0
   where
     go i
@@ -113,7 +114,7 @@ ptrAction_inline (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-ptrAction_noinline :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_noinline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_noinline (Count n) mb = go 0
   where
     go i
@@ -122,7 +123,7 @@ ptrAction_noinline (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-bytesAction :: forall a . (Num a, Prim a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+bytesAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 bytesAction (Count n) mb = go 0
   where
     go i
@@ -131,7 +132,7 @@ bytesAction (Count n) mb = go 0
         go (i + 1)
       | otherwise = pure ()
 
-foreignPtrAction :: forall a . (Num a, Prim a) => Count a -> ForeignPtr a -> IO ()
+foreignPtrAction :: forall a . (Num a, Unbox a) => Count a -> ForeignPtr a -> IO ()
 foreignPtrAction (Count n) fp = go 0
   where
     go i

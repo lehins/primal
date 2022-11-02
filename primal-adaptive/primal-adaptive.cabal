@@ -26,17 +26,17 @@ tested-with:         GHC == 8.0.2
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Data.Prim.Adaptive.Rep
-                     , Data.Prim.Adaptive.MArray
-                     , Data.Prim.Unbox
-                     --, Data.Prim.Adaptive.MRef
+  exposed-modules:     Primal.Adaptive.Rep
+                     , Primal.Adaptive.MutArray
+                     , Primal.Adaptive.MutRef
+                     , Primal.Adaptive.Unpack
 
   other-modules:
   build-depends:       base >= 4.9 && < 5
                      , deepseq
                      , primal
                      , primal-memory
-                     , primal-mutable
+                     , primal-container
 
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -97,3 +97,4 @@ library
 source-repository head
   type:     git
   location: https://github.com/lehins/primal
+  subdir:   primal-adaptive

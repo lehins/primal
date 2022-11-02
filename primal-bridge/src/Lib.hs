@@ -17,9 +17,9 @@ import Data.Array.Base
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
 
-instance MonadUnliftPrim RealWorld m => PtrAccess m (StorableArray i a) where
+instance UnliftPrimal RealWorld m => PtrAccess m (StorableArray i a) where
   withPtrAccess sa f =
-    withRunInPrimBase $ \run -> withStorableArray sa (run . f . castPtr)
+    withRunInPrimalState $ \run -> withStorableArray sa (run . f . castPtr)
   toForeugnPtr (StorableArray _ _ _ fp) = fp
 
 instance (Ix i, MArray StorableArray e IO) =>

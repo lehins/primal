@@ -1,0 +1,151 @@
+name:                primal-container
+version:             0.1.0.0
+synopsis:            Short description
+description:         Please see the README on GitHub at <https://github.com/lehins/primal#readme>
+homepage:            https://github.com/lehins/primal
+license:             BSD3
+license-file:        LICENSE
+author:              Alexey Kuleshevich
+maintainer:          alexey@kuleshevi.ch
+copyright:           2020 Alexey Kuleshevich
+category:            Algorithms
+build-type:          Simple
+extra-source-files:  README.md
+                   , CHANGELOG.md
+cabal-version:       1.18
+tested-with:         GHC == 8.0.2
+                   , GHC == 8.2.2
+                   , GHC == 8.4.3
+                   , GHC == 8.4.4
+                   , GHC == 8.6.3
+                   , GHC == 8.6.4
+                   , GHC == 8.6.5
+                   , GHC == 8.8.1
+                   , GHC == 8.8.2
+                   , GHC == 8.10.1
+
+library
+  hs-source-dirs:      src
+  exposed-modules:
+                     -- Primal.Container.Array
+                     -- , Primal.Container.Singleton
+                     -- , Primal.Container.Reduce
+                     -- , Primal.Container.Lift
+                     -- , Primal.Container.Mutable.Singleton
+                     -- , Primal.Container.Mutable.Reduce
+                     -- , Primal.Container.Mutable.Lift
+
+                       Primal.Container.Array
+                     , Primal.Container.Array.Atomic
+                     , Primal.Container.Ref
+                     , Primal.Container.Ref.Atomic
+
+                     --   Primal.Container.Mutable.Array
+                     -- , Primal.Container.Mutable.Array.Atomic
+                     -- , Primal.Container.Mutable.Ref
+                     -- , Primal.Container.Mutable.Ref.Atomic
+                     -- , Primal.Data.Array.Boxed
+                     -- , Primal.Data.Array.Boxed.Small
+                     --, Primal.Data.Array.Unboxed
+                     --, Primal.Data.Array.Unboxed.Pinned
+                     , Primal.Container.Internal
+                     --, Primal.Array.Ragged.Unboxed
+  other-modules:       Primal.Container.Ref.Internal
+                     , Primal.Container.Array.Internal
+  build-depends:       base >= 4.9 && < 5
+                     , deepseq
+                     , primal
+                     , primal-memory
+
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+
+-- test-suite doctests
+--   type:             exitcode-stdio-1.0
+--   hs-source-dirs:   tests
+--   main-is:          doctests.hs
+--   build-depends: base
+--                , doctest >=0.15
+--                , primal-array
+--                , template-haskell
+--   default-language:    Haskell2010
+--   ghc-options:        -Wall
+--                       -fno-warn-orphans
+--                       -threaded
+
+-- test-suite tests
+--   type:               exitcode-stdio-1.0
+--   hs-source-dirs:     tests
+--   main-is:            Main.hs
+--   other-modules:      Common
+--                     , LibSpec
+--                     , Spec
+--   build-depends:      base             >= 4.8 && < 5
+--                     , primal-array
+--                     , hspec
+--                     , QuickCheck
+
+--   default-language:   Haskell2010
+--   ghc-options:        -Wall
+--                       -fno-warn-orphans
+--                       -threaded
+--                       -with-rtsopts=-N2
+
+-- benchmark mref
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             MRef.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N4
+--   build-depends:       base
+--                      , atomic-primops
+--                      , criterion
+--                      , mutable-containers
+--                      , primal
+--                      , primal-memory
+--                      , primal-container
+--                      , primitive
+--                      , pvar
+--                      , deepseq
+--                      , vector
+--                      , unliftio
+--   default-language:    Haskell2010
+
+-- benchmark atomic
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             Atomic.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N4
+--   build-depends:       base
+--                      , atomic-primops
+--                      , criterion
+--                      , primal
+--                      , primal-memory
+--                      , primal-container
+--                      , deepseq
+--                      , unliftio
+--   default-language:    Haskell2010
+
+
+-- benchmark bench
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      bench
+--   main-is:             Bench.hs
+--   ghc-options:         -Wall
+--                        -threaded
+--                        -O2
+--                        -with-rtsopts=-N
+--   build-depends:       base
+--                      , criterion
+--                      , primal-array
+--   default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/lehins/primal
+  subdir:   primal-container

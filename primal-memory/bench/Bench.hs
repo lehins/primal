@@ -10,8 +10,8 @@ import GHC.Exts
 import Data.Proxy
 import Data.Typeable
 import Criterion.Main
-import Data.Prim.Memory.Bytes
-import Data.Prim.Memory.Ptr
+import Primal.Memory.Bytes
+import Primal.Memory.Ptr
 import qualified Data.Primitive.Types as BA
 import qualified Data.Primitive.ByteArray as BA
 import Foreign.Storable as S
@@ -26,8 +26,8 @@ main :: IO ()
 main = do
   let n = 1000000 :: Count a
       n64 = n :: Count Word64
-  mb1 <- allocAlignedMBytes n64
-  mb2 <- allocAlignedMBytes n64
+  mb1 <- allocAlignedPinnedMBytes n64
+  mb2 <- allocAlignedPinnedMBytes n64
   b1 <- freezeMBytes mb1
   mba <- BA.newAlignedPinnedByteArray (unCountBytes (n :: Count Word64)) 8
   ba <- BA.unsafeFreezeByteArray mba
@@ -118,7 +118,7 @@ main = do
     ]
 
 benchIndex ::
-     forall a p. (Typeable a, Prim a, BA.Prim a)
+     forall a p. (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> Bytes p
   -> BA.ByteArray
@@ -132,7 +132,7 @@ benchIndex px b ba =
   where i = 100
 
 benchRead ::
-     forall a p. (Typeable a, Prim a, BA.Prim a)
+     forall a p. (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> MBytes p RealWorld
   -> BA.MutableByteArray RealWorld
@@ -146,7 +146,7 @@ benchRead px mb mba =
   where i = 100
 
 benchPeek ::
-     forall a. (Typeable a, Prim a, S.Storable a)
+     forall a. (Typeable a, Unbox a, S.Storable a)
   => Proxy a
   -> MBytes 'Pin RealWorld
   -> ForeignPtr a
@@ -159,7 +159,7 @@ benchPeek px mb fptr =
     ]
 
 setBytesBench ::
-     forall a . (Typeable a, BA.Prim a, Prim a)
+     forall a . (Typeable a, BA.Prim a, Unbox a)
   => MBytes 'Pin RealWorld
   -> MBytes 'Pin RealWorld
   -> BA.MutableByteArray RealWorld
