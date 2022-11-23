@@ -625,7 +625,7 @@ setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
 -- @since 0.3.0
 getByteCountMutMem ::
   forall ma m s.
-  (Primal s m, MemAlloc ma) =>
+  (Primal s m, MemFreeze ma) =>
   ma s ->
   m (Count Word8)
 getByteCountMutMem = liftST . getByteCountMutMemST
@@ -681,7 +681,7 @@ allocMutMem = liftST . allocMutMemST
 -- @since 0.3.0
 reallocMutMem ::
   forall e ma m s.
-  (Primal s m, MemAlloc ma, Unbox e) =>
+  (Primal s m, MemFreeze ma, Unbox e) =>
   -- | /memSource/ - Source memory region to resize
   ma s ->
   -- | /memCount/ - Number of elements for the reallocated memory region
@@ -771,7 +771,7 @@ modifyFetchNewMutMemM mem o f = do
 -- @since 0.1.0
 cycleMemN ::
   forall ma mr.
-  (MemAlloc ma, MemRead mr) =>
+  (MemFreeze ma, MemRead mr) =>
   Int ->
   mr ->
   Frozen ma
@@ -801,7 +801,7 @@ cycleMemN n r
 -- @since 0.1.0
 emptyMem ::
   forall ma.
-  MemAlloc ma =>
+  MemFreeze ma =>
   Frozen ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
@@ -819,7 +819,7 @@ emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 -- @since 0.1.0
 singletonMem ::
   forall e ma.
-  (MemAlloc ma, Unbox e) =>
+  (MemFreeze ma, Unbox e) =>
   -- | The single element that will be stored in the newly allocated region of memory
   e ->
   Frozen ma
@@ -876,7 +876,7 @@ allocZeroMutMem n = do
 -- @since 0.1.0
 createMemST ::
   forall e b ma.
-  (MemAlloc ma, Unbox e) =>
+  (MemFreeze ma, Unbox e) =>
   -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
@@ -900,7 +900,7 @@ createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 
 createMemST_ ::
   forall e b ma.
-  (MemAlloc ma, Unbox e) =>
+  (MemFreeze ma, Unbox e) =>
   -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
@@ -931,7 +931,7 @@ createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMut m)
 -- @since 0.1.0
 createZeroMemST ::
   forall e ma b.
-  (MemAlloc ma, Unbox e) =>
+  (MemFreeze ma, Unbox e) =>
   -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
@@ -974,7 +974,7 @@ createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freeze
 -- @since 0.1.0
 createZeroMemST_ ::
   forall e ma b.
-  (MemAlloc ma, Unbox e) =>
+  (MemFreeze ma, Unbox e) =>
   -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
@@ -1016,7 +1016,7 @@ createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMut m)
 -- @since 0.2.0
 cloneMem ::
   forall ma.
-  MemAlloc ma =>
+  MemFreeze ma =>
   -- | /memSource/ - immutable source memory.
   Frozen ma ->
   Frozen ma
@@ -1104,7 +1104,7 @@ moveMutMem src srcOff dst dstOff = moveByteOffMutMem src (toByteOff srcOff) dst 
 
 appendMem ::
   forall mr1 mr2 ma.
-  (MemRead mr1, MemRead mr2, MemAlloc ma) =>
+  (MemRead mr1, MemRead mr2, MemFreeze ma) =>
   mr1 ->
   mr2 ->
   Frozen ma
@@ -1119,7 +1119,7 @@ appendMem r1 r2 =
 
 concatMem ::
   forall mr ma.
-  (MemRead mr, MemAlloc ma) =>
+  (MemRead mr, MemFreeze ma) =>
   [mr] ->
   Frozen ma
 concatMem xs = do
@@ -1144,7 +1144,7 @@ concatMem xs = do
 -- @since 0.1.0
 thawMem ::
   forall ma m s.
-  (MemAlloc ma, Primal s m) =>
+  (MemFreeze ma, Primal s m) =>
   Frozen ma ->
   m (ma s)
 thawMem = liftST . thawST
@@ -1160,7 +1160,7 @@ thawMem = liftST . thawST
 -- @since 0.3.0
 freezeMutMem ::
   forall ma m s.
-  (MemAlloc ma, Primal s m) =>
+  (MemFreeze ma, Primal s m) =>
   ma s ->
   m (Frozen ma)
 freezeMutMem = liftST . freezeMutST
@@ -1187,7 +1187,7 @@ freezeMutMem = liftST . freezeMutST
 -- @since 0.1.0
 thawCloneMem ::
   forall ma m s.
-  (MemAlloc ma, Primal s m) =>
+  (MemFreeze ma, Primal s m) =>
   Frozen ma ->
   m (ma s)
 thawCloneMem a = thawCloneSliceMem a 0 (byteCountMem a)
@@ -1216,7 +1216,7 @@ thawCloneMem a = thawCloneSliceMem a 0 (byteCountMem a)
 -- @since 0.1.0
 thawCloneSliceMem ::
   forall e ma m s.
-  (Unbox e, MemAlloc ma, Primal s m) =>
+  (Unbox e, MemFreeze ma, Primal s m) =>
   -- | /memSource/ - Read-only source memory region from which the data
   -- will copied and thawed
   Frozen ma ->
@@ -1246,7 +1246,7 @@ thawCloneSliceMem a off c = do
 -- @since 0.3.0
 freezeCloneSliceMutMem ::
   forall e ma m s.
-  (Unbox e, MemAlloc ma, Primal s m) =>
+  (Unbox e, MemFreeze ma, Primal s m) =>
   ma s ->
   Off e ->
   Count e ->
@@ -1276,7 +1276,7 @@ freezeCloneSliceMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r o
 -- @since 0.3.0
 freezeCloneMutMem ::
   forall ma m s.
-  (MemAlloc ma, Primal s m) =>
+  (MemFreeze ma, Primal s m) =>
   ma s ->
   m (Frozen ma)
 freezeCloneMutMem = freezeCloneMut
@@ -1293,7 +1293,7 @@ freezeCloneMutMem = freezeCloneMut
 -- [0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20]
 --
 -- @since 0.1.0
-convertMem :: (MemRead mr, MemAlloc ma) => mr -> Frozen ma
+convertMem :: (MemRead mr, MemFreeze ma) => mr -> Frozen ma
 convertMem m =
   let c = byteCountMem m
    in createMemST_ c (\mm -> copyMem m 0 mm 0 c)
@@ -1363,7 +1363,7 @@ countRemMem = fromByteCountRem . byteCountMem
 -- Count {unCount = 12}
 --
 -- @since 0.3.0
-getCountMutMem :: forall e ma m s. (MemAlloc ma, Primal s m, Unbox e) => ma s -> m (Count e)
+getCountMutMem :: forall e ma m s. (MemFreeze ma, Primal s m, Unbox e) => ma s -> m (Count e)
 getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 {-# INLINE getCountMutMem #-}
 
@@ -1385,7 +1385,7 @@ getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 -- @since 0.3.0
 getCountRemMutMem ::
   forall e ma m s.
-  (MemAlloc ma, Primal s m, Unbox e) =>
+  (MemFreeze ma, Primal s m, Unbox e) =>
   ma s ->
   m (Count e, Count Word8)
 getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
@@ -1397,7 +1397,7 @@ getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
 -- @since 0.3.0
 cloneMutMem ::
   forall ma m s.
-  (MemAlloc ma, Primal s m) =>
+  (MemFreeze ma, Primal s m) =>
   ma s ->
   m (ma s)
 cloneMutMem = cloneMut
@@ -1562,7 +1562,7 @@ foldrCountMem (Count k) c nil bs = go 0
 -- @since 0.1.0
 fromListMem ::
   forall e ma.
-  (Unbox e, MemAlloc ma) =>
+  (Unbox e, MemFreeze ma) =>
   [e] ->
   Frozen ma
 fromListMem xs =
@@ -1582,7 +1582,7 @@ fromListMem xs =
 -- @since 0.1.0
 fromByteListMem ::
   forall ma.
-  MemAlloc ma =>
+  MemFreeze ma =>
   [Word8] ->
   Frozen ma
 fromByteListMem = fromListMem
@@ -1627,7 +1627,7 @@ fromByteListMem = fromListMem
 -- @since 0.2.0
 fromListMemN ::
   forall e ma.
-  (Unbox e, MemAlloc ma) =>
+  (Unbox e, MemFreeze ma) =>
   -- | /memCount/ - Expected number of elements in the list, which exactly how much
   -- memory will be allocated.
   --
@@ -1661,7 +1661,7 @@ fromListMemN count xs =
 -- @since 0.2.0
 fromListZeroMemN ::
   forall e ma.
-  (Unbox e, MemAlloc ma) =>
+  (Unbox e, MemFreeze ma) =>
   -- | /memCount/ - Number of elements to load from the list.
   Count e ->
   [e] ->
@@ -1689,7 +1689,7 @@ fromListZeroMemN count xs =
 -- @since 0.2.0
 fromListZeroMemN_ ::
   forall e ma.
-  (Unbox e, MemAlloc ma) =>
+  (Unbox e, MemFreeze ma) =>
   Count e ->
   [e] ->
   Frozen ma
@@ -1810,7 +1810,7 @@ loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff
 --
 -- @since 0.3.0
 loadListByteOffMutMem ::
-  (MemAlloc ma, Primal s m, Unbox e) =>
+  (MemFreeze ma, Primal s m, Unbox e) =>
   -- | /listSource/ - List with elements that should be loaded
   [e] ->
   -- | /memTarget/ - Memory region where to load the elements into
@@ -1960,7 +1960,7 @@ loadListMutMemN_ (Count n) ys mb =
 -- @since 0.3.0
 loadListOffMutMem ::
   forall e ma m s.
-  (Unbox e, MemAlloc ma, Primal s m) =>
+  (Unbox e, MemFreeze ma, Primal s m) =>
   -- | /listSource/ - List with elements that should be loaded
   [e] ->
   -- | /memTarget/ - Memory region where to load the elements into
@@ -2003,7 +2003,7 @@ loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c 
 -- @since 0.3.0
 loadListMutMem ::
   forall e ma m s.
-  (Unbox e, MemAlloc ma, Primal s m) =>
+  (Unbox e, MemFreeze ma, Primal s m) =>
   -- | /listSource/ - List with elements to load
   [e] ->
   -- | /memTarget/ - Mutable region where to load elements from the list
@@ -2020,7 +2020,7 @@ loadListMutMem ys ma = getCountMutMem ma >>= \c -> loadListOffMutMemN (c `countF
 -- @since 0.2.0
 loadListMutMem_ ::
   forall e ma m s.
-  (Unbox e, MemAlloc ma, Primal s m) =>
+  (Unbox e, MemFreeze ma, Primal s m) =>
   -- | /listSource/ - List with elements to load
   [e] ->
   -- | /memTarget/ - Mutable region where to load elements from the list
@@ -2040,7 +2040,7 @@ loadListMutMem_ ys mb = getCountMutMem mb >>= \c -> loadListMutMemN_ (c `countFo
 -- @since 0.1.0
 toByteListMem ::
   forall ma.
-  MemAlloc ma =>
+  MemFreeze ma =>
   Frozen ma ->
   [Word8]
 toByteListMem = toListMem
@@ -2055,7 +2055,7 @@ toByteListMem = toListMem
 
 mapByteMem ::
   forall e mr ma.
-  (MemRead mr, MemAlloc ma, Unbox e) =>
+  (MemRead mr, MemFreeze ma, Unbox e) =>
   (Word8 -> e) ->
   mr ->
   Frozen ma
@@ -2072,12 +2072,12 @@ mapByteMem f = imapByteOffMem (const f)
 --
 -- @since 0.1.0
 imapByteOffMem ::
-  (MemRead mr, MemAlloc ma, Unbox e) => (Off Word8 -> Word8 -> e) -> mr -> Frozen ma
+  (MemRead mr, MemFreeze ma, Unbox e) => (Off Word8 -> Word8 -> e) -> mr -> Frozen ma
 imapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
 mapByteMemM ::
-  (MemRead mr, MemAlloc ma, Primal s m, Unbox e) =>
+  (MemRead mr, MemFreeze ma, Primal s m, Unbox e) =>
   (Word8 -> m e) ->
   mr ->
   m (Frozen ma)
@@ -2086,7 +2086,7 @@ mapByteMemM f = mapByteOffMemM (const f)
 -- @since 0.1.0
 mapByteOffMemM ::
   forall e mr ma m s.
-  (MemRead mr, MemAlloc ma, Primal s m, Unbox e) =>
+  (MemRead mr, MemFreeze ma, Primal s m, Unbox e) =>
   (Off Word8 -> Word8 -> m e) ->
   mr ->
   m (Frozen ma)
@@ -2433,7 +2433,7 @@ toStringMem b = map toChar8 (toListMem b :: [Word8])
 -- | Convert a string into a region of memory, where each character is truncated
 -- to 8 bits and written into the memory region, therefore all non-ascii
 -- characters will be not be stored properly.
-fromStringMem :: MemAlloc ma => String -> Frozen ma
+fromStringMem :: MemFreeze ma => String -> Frozen ma
 fromStringMem = fromListMem . map fromChar8
   where
     fromChar8 (C# c#) = W8# (narrow8Word# (int2Word# (ord# c#)))
@@ -2454,6 +2454,6 @@ withScrubbedMutMem ::
   m a
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
-  withNoHaltPtrMem mem $ \ptr ->
+  withNoHaltPtrMutMem mem $ \ptr ->
     f mem ptr `EUI.finally` setMutMem mem 0 (toByteCount c) 0
 {-# INLINE withScrubbedMutMem #-}

@@ -520,16 +520,14 @@ withNoHaltPtrFMAddr (FMAddr addr# _ fin) f = keepAlive fin $ f (Ptr addr#)
 
 
 instance Unbox e => MemPtr (FMAddr e) where
-  withPtrMemST maddr = withPtrFMAddr (castFMAddr maddr)
-  {-# INLINE withPtrMemST #-}
-  withNoHaltPtrMemST maddr = withNoHaltPtrFMAddr (castFMAddr maddr)
-  {-# INLINE withNoHaltPtrMemST #-}
+  withPtrMutMemST maddr = withPtrFMAddr (castFMAddr maddr)
+  {-# INLINE withPtrMutMemST #-}
+  withNoHaltPtrMutMemST maddr = withNoHaltPtrFMAddr (castFMAddr maddr)
+  {-# INLINE withNoHaltPtrMutMemST #-}
 
 
 
 instance Unbox e => MemAlloc (FMAddr e) where
-  getByteCountMutMemST = getByteCountFMAddr
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap castFMAddr . allocFMAddr
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap castFMAddr . allocFMAddr
@@ -537,6 +535,10 @@ instance Unbox e => MemAlloc (FMAddr e) where
   -- TODO: Use posix_memalign
   allocAlignedPinnedMutMemST = fmap castFMAddr . allocAlignedFMAddr
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance Unbox e => MemFreeze (FMAddr e) where
+  getByteCountMutMemST = getByteCountFMAddr
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST maddr = fmap castFMAddr . reallocFMAddr (castFMAddr maddr)
   {-# INLINE reallocMutMemST #-}
 

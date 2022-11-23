@@ -13,7 +13,7 @@ import Test.Primal.Memory.Common
 
 
 roundTripBase16 ::
-     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemAlloc ma)
+     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
   => m
   -> Property
 roundTripBase16 mem =
@@ -24,7 +24,7 @@ roundTripBase16 mem =
         ]
 
 decodeFailureBase16 ::
-     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemAlloc ma)
+     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
   => m
   -> Int
   -> Word8
