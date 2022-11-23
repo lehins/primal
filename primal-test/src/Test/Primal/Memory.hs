@@ -31,11 +31,11 @@ data Mem a e = Mem [e] (Frozen a)
 instance (MemRead (Frozen a), Eq e) => Eq (Mem a e) where
   Mem xs1 m1 == Mem xs2 m2 = xs1 == xs2 && eqByteMem m1 m2
 
-instance (Show e, Unbox e, MemAlloc a) => Show (Mem a e) where
+instance (Show e, Unbox e, MemFreeze a) => Show (Mem a e) where
   show (Mem xs bs) =
     "(Mem " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
 
-instance (MemAlloc a, Unbox e, Arbitrary e) => Arbitrary (Mem a e) where
+instance (MemFreeze a, Unbox e, Arbitrary e) => Arbitrary (Mem a e) where
   arbitrary = do
     NonNegative n <- arbitrary
     xs :: [e] <- vectorOf n arbitrary
@@ -49,11 +49,11 @@ data NEMem a e = NEMem (Off e) [e] (Frozen a)
 instance (MemRead (Frozen a), Eq e) => Eq (NEMem a e) where
   NEMem o1 xs1 m1 == NEMem o2 xs2 m2 = o1 == o2 && xs1 == xs2 && eqByteMem m1 m2
 
-instance (Show e, Unbox e, MemAlloc a) => Show (NEMem a e) where
+instance (Show e, Unbox e, MemFreeze a) => Show (NEMem a e) where
   show (NEMem o xs bs) =
     "(NEMem " ++ show o ++ " " ++ show xs ++ " " ++ show (toListMem bs :: [e]) ++ ")"
 
-instance (MemAlloc a, Unbox e, Arbitrary e) => Arbitrary (NEMem a e) where
+instance (MemFreeze a, Unbox e, Arbitrary e) => Arbitrary (NEMem a e) where
   arbitrary = do
     Positive n <- arbitrary
     NonNegative k <- arbitrary
@@ -106,14 +106,14 @@ getZeroElement = do
   readOffMutMem z (0 :: Off e)
 
 prop_byteCountMem ::
-     forall ma e. (Unbox e, MemAlloc ma)
+     forall ma e. (Unbox e, MemFreeze ma)
   => Mem ma e
   -> Property
 prop_byteCountMem (Mem xs fm) =
   property $ byteCountMem fm `shouldBe` (Count (length xs) * byteCountType @e)
 
 prop_indexOffMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => NEMem ma e
   -> NonNegative Int
   -> AUnbox
@@ -132,7 +132,7 @@ prop_indexOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
     ]
 
 prop_indexByteOffMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => NEMem ma e
   -> NonNegative Int
   -> AUnbox
@@ -152,7 +152,7 @@ prop_indexByteOffMem (NEMem off@(Off o) xs fm) (NonNegative k) aPrim =
 
 
 prop_copyAndCompareByteOffToMBytesMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
@@ -182,7 +182,7 @@ prop_copyAndCompareByteOffToMBytesMem (NEMem offSrc xs fm) (NonNegative offByteD
       compareByteOffToBytesMem fm (toByteOff offSrc) b' offByteDst count `shouldBe` eOrdering
 
 prop_copyAndCompareByteOffToPtrMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
@@ -214,7 +214,7 @@ prop_copyAndCompareByteOffToPtrMem (NEMem offSrc xs fm) (NonNegative offByteDst)
 
 
 prop_readWriteOffMutMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => NEMem ma e
   -> e
   -> NonNegative Int
@@ -238,7 +238,7 @@ prop_readWriteOffMutMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
 
 
 prop_readWriteByteOffMutMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => NEMem ma e
   -> e
   -> NonNegative Int
@@ -261,7 +261,7 @@ prop_readWriteByteOffMutMem (NEMem off@(Off o) xs fm) e' (NonNegative k) aPrim =
     ]
 
 prop_moveByteOffToMBytesMutMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
@@ -279,7 +279,7 @@ prop_moveByteOffToMBytesMutMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn 
 
 
 prop_moveByteOffToPtrMutMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NonNegative (Off Word8)
   -> NonNegative (Count e)
@@ -296,7 +296,7 @@ prop_moveByteOffToPtrMutMem (NEMem offSrc xs fm) (NonNegative offByteDst) nn =
       readByteOffMutMem maddr i `shouldReturn` x
 
 prop_copyMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NEMem a e
   -> Property
@@ -312,7 +312,7 @@ prop_copyMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
 
 
 prop_moveMutMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => NEMem a e
   -> NEMem a e
   -> Property
@@ -333,7 +333,7 @@ prop_moveMutMem (NEMem offSrc xs fmSrc) (NEMem offDst _ fmDst) =
 
 
 prop_emptyMem ::
-     forall a e. (Show e, Unbox e, Eq e, MemAlloc a)
+     forall a e. (Show e, Unbox e, Eq e, MemFreeze a)
   => Mem a e
   -> Property
 prop_emptyMem (Mem xs fm') = propIO $ do
@@ -362,7 +362,7 @@ prop_emptyMem (Mem xs fm') = propIO $ do
 
 
 prop_setMutMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => NEMem ma e
   -> e
   -> NonNegative (Count e)
@@ -428,7 +428,7 @@ genByteOffRegion ma = do
 
 
 prop_setByteOffMutMem ::
-     forall ma e. (Show e, Unbox e, Eq e, MemAlloc ma)
+     forall ma e. (Show e, Unbox e, Eq e, MemFreeze ma)
   => Mem ma e
   -> e
   -> Property
@@ -451,7 +451,7 @@ asProxyTypeOf1 fa _ = fa
 
 prop_fromListMemN ::
      forall ma e.
-     ( MemAlloc ma
+     ( MemFreeze ma
      , Show (Frozen ma)
      , Eq (Frozen ma)
      , Show e
@@ -475,7 +475,7 @@ prop_fromListMemN (NEMem (Off i) xs fm) (Positive n') =
     xs' `deepseq` (xs' `shouldStartWith` xs)
 
 prop_loadListMutMem ::
-     forall ma e. (MemAlloc ma, Show e, Unbox e, Eq e)
+     forall ma e. (MemFreeze ma, Show e, Unbox e, Eq e)
   => [e]
   -> NonNegative (Count Word8)
   -> Property
@@ -495,7 +495,7 @@ prop_loadListMutMem xs (NonNegative c) =
 
 
 prop_reallocMutMem ::
-     forall ma e. (MemAlloc ma, Show e, Unbox e, Eq e)
+     forall ma e. (MemFreeze ma, Show e, Unbox e, Eq e)
   => Mem ma e
   -> NonNegative Int
   -> AUnboxType
@@ -516,7 +516,7 @@ prop_reallocMutMem (Mem xs fm) (NonNegative n) pt =
 
 
 prop_toListSlackMem ::
-     forall ma. MemAlloc ma
+     forall ma. MemFreeze ma
   => Count Word8
   -> AUnboxList
   -> Property
@@ -547,7 +547,7 @@ memSpec ::
      , NFData e
      , Typeable e
      , Typeable ma
-     , MemAlloc ma
+     , MemFreeze ma
      , Eq (Frozen ma)
      , Show (Frozen ma)
      , Arbitrary (Frozen ma)
@@ -592,7 +592,7 @@ memOrdSpec ::
      , Ord e
      , Typeable e
      , Typeable (ma e)
-     , MemAlloc (ma e)
+     , MemFreeze (ma e)
      , Ord (Frozen (ma e))
      , Show (Frozen (ma e))
      )
@@ -620,7 +620,7 @@ memOrdSpec = do
 memBinarySpec ::
      forall ma.
      ( Typeable ma
-     , MemAlloc ma
+     , MemFreeze ma
      , Eq (Frozen ma)
      , Show (Frozen ma)
      , Arbitrary (Frozen ma)

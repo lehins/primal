@@ -56,7 +56,7 @@ import Primal.Mutable.Ord
 
 -- | Mutable version of a `ShortByteString`
 newtype MShortByteString s = MShortByteString (MBytes 'Inc s)
-  deriving (MemWrite, MemAlloc, MutEq, MutOrd)
+  deriving (MemWrite, MemAlloc, MemFreeze, MutEq, MutOrd)
 
 type instance Frozen MShortByteString = ShortByteString
 
@@ -131,8 +131,6 @@ instance MemWrite MByteString where
 
 
 instance MemAlloc MByteString where
-  getByteCountMutMemST (MByteString bs) = pure $! Count (BS.length bs)
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = allocPinnedMutMemST
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST c = do
@@ -145,6 +143,9 @@ instance MemAlloc MByteString where
     fp <- mallocByteCountPlainForeignPtrAligned cb
     pure $ MByteString (BS.PS fp 0 (coerce cb))
   {-# INLINE allocAlignedPinnedMutMemST #-}
+instance MemFreeze MByteString where
+  getByteCountMutMemST (MByteString bs) = pure $! Count (BS.length bs)
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST bsm@(MByteString (BS.PS fp o n)) newc
     | newn > n = defaultReallocMutMem bsm newc
     | otherwise = pure $ MByteString (BS.PS fp o newn)

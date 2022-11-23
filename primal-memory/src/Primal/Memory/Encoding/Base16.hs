@@ -66,14 +66,14 @@ instance NFData DecodeError where
 -- "deadbeef"
 --
 -- @since 1.0.0
-encodeBase16 :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> a
+encodeBase16 :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> a
 encodeBase16 = encodeBase16Mem
 {-# INLINE encodeBase16 #-}
 
 -- | Encode region of immutable memory as hexadecimal.
 --
 -- @since 1.0.0
-encodeBase16Mem :: forall mr ma. (MemRead mr, MemAlloc ma) => mr -> Frozen ma
+encodeBase16Mem :: forall mr ma. (MemRead mr, MemFreeze ma) => mr -> Frozen ma
 encodeBase16Mem mr = runST $ do
   let bc = byteCountMem mr
   m <- allocMutMemST (bc * 2)
@@ -122,7 +122,7 @@ encodeBase16MutMem mr m = do
 -- Left (DecodeInvalidValue (Off {unOff = 4}))
 --
 -- @since 1.0.0
-decodeBase16 :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> Either DecodeError a
+decodeBase16 :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> Either DecodeError a
 decodeBase16 = decodeBase16Mem
 {-# INLINE decodeBase16 #-}
 
@@ -132,7 +132,7 @@ decodeBase16 = decodeBase16Mem
 -- @since 1.0.0
 decodeBase16Mem ::
   forall mr ma.
-  (MemRead mr, MemAlloc ma) =>
+  (MemRead mr, MemFreeze ma) =>
   mr ->
   Either DecodeError (Frozen ma)
 decodeBase16Mem mr = runST $ do
@@ -152,7 +152,7 @@ decodeBase16Mem mr = runST $ do
 -- immutable region, otherwise segfault or heap corruption is to be expected.
 --
 -- @since 1.0.0
-decodeBase16MutMem :: forall mr ma m s. (MemRead mr, MemAlloc ma, Primal s m) => mr -> ma s -> m ()
+decodeBase16MutMem :: forall mr ma m s. (MemRead mr, MemFreeze ma, Primal s m) => mr -> ma s -> m ()
 decodeBase16MutMem mr m = do
   let Count c = byteCountMem mr
       r = c `rem` 2

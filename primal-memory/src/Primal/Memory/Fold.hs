@@ -419,7 +419,7 @@ eqOffMutMem mm1 off1 mm2 off2 count = loop off1
 -- modified, as such it is semantically similar to `eqMem` which works on immutable
 -- regions.
 eqMutMem ::
-     forall e ma m s. (Unbox e, Eq e, Primal s m, MemAlloc ma)
+     forall e ma m s. (Unbox e, Eq e, Primal s m, MemFreeze ma)
   => ma s
   -> ma s
   -> m Bool

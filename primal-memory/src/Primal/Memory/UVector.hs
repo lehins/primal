@@ -111,10 +111,10 @@ type instance Frozen (UMVector p e) = UVector p e
 -- instance MemPtr (UMVector 'Pin e) where
 --   toMForeignPtrMem = toMForeignPtrMBytes . toMBytesUMVector
 --   {-# INLINE toMForeignPtrMem #-}
---   withPtrMemST mb = withPtrMBytes (toMBytesUMVector mb)
---   {-# INLINE withPtrMemST #-}
---   withNoHaltPtrMemST mb = withNoHaltPtrMBytes (toMBytesUMVector mb)
---   {-# INLINE withNoHaltPtrMemST #-}
+--   withPtrMutMemST mb = withPtrMBytes (toMBytesUMVector mb)
+--   {-# INLINE withPtrMutMemST #-}
+--   withNoHaltPtrMutMemST mb = withNoHaltPtrMBytes (toMBytesUMVector mb)
+--   {-# INLINE withNoHaltPtrMutMemST #-}
 
 -- instance Typeable p => MemAlloc (UMVector p e) where
 --   getByteCountMutMemST = getByteCountMutMem . toMBytesUMVector

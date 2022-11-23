@@ -92,10 +92,11 @@ module Primal.Memory.Bytes.Internal
   , moveByteOffMBytesToPtr
   , compareByteOffBytesToPtr
   , compareByteOffPtrToBytes
-  -- * MemRead
+  -- * Memory classes
   , MemRead(..)
   , MemWrite(..)
   , MemAlloc(..)
+  , MemFreeze(..)
   -- * Helpers
   , defaultReallocMutMem
   -- ** text
@@ -812,7 +813,7 @@ compareByteOffPtrToBytes (Ptr addr#) (Off (I# off1#)) (Bytes b#) (Off (I# off2#)
 --
 -- @since 0.3.0
 defaultReallocMutMem ::
-     forall e ma m s. (Unbox e, MemAlloc ma, Primal s m)
+     forall e ma m s. (Unbox e, MemFreeze ma, Primal s m)
   => ma s
   -> Count e
   -> m (ma s)
@@ -1120,12 +1121,7 @@ class MemWrite mw where
 
 
 -- | Generalized memory allocation and pure/mutable state conversion.
-class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
-
-  -- | See `Primal.Memory.getByteCountMutMem` for details.
-  --
-  -- @since 1.0.0
-  getByteCountMutMemST :: ma s -> ST s (Count Word8)
+class (MemWrite ma) => MemAlloc ma where
 
   -- | See `Primal.Memory.allocMutMem` for details.
   --
@@ -1141,6 +1137,14 @@ class (MemRead (Frozen ma), MemWrite ma, MutFreeze ma) => MemAlloc ma where
   --
   -- @since 1.0.0
   allocAlignedPinnedMutMemST :: Unbox e => Count e -> ST s (ma s)
+
+-- | Generalized memory allocation and pure/mutable state conversion.
+class (MemRead (Frozen ma), MutFreeze ma, MemAlloc ma) => MemFreeze ma where
+
+  -- | See `Primal.Memory.getByteCountMutMem` for details.
+  --
+  -- @since 1.0.0
+  getByteCountMutMemST :: ma s -> ST s (Count Word8)
 
   -- | Either grow or shrink currently allocated mutable region of memory. For some
   -- implementations it might be possible to change the size of the allocated region
@@ -1224,14 +1228,16 @@ instance MemWrite (MBytes p) where
 
 
 instance Typeable p => MemAlloc (MBytes p) where
-  getByteCountMutMemST = getByteCountMBytes
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = allocMBytes
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap relaxPinnedMBytes . allocPinnedMBytes
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST = fmap relaxPinnedMBytes . allocAlignedPinnedMBytes
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance Typeable p => MemFreeze (MBytes p) where
+  getByteCountMutMemST = getByteCountMBytes
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST = reallocMBytes
   {-# INLINE reallocMutMemST #-}
 
@@ -1287,14 +1293,16 @@ instance MemWrite (UMArray e) where
 
 
 instance MemAlloc (UMArray e) where
-  getByteCountMutMemST = getByteCountMutMemST . fromUMArrayMBytes
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap toUMArrayMBytes . allocUnpinnedMBytes
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap toUMArrayMBytes . allocPinnedMBytes
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST = fmap toUMArrayMBytes . allocAlignedPinnedMBytes
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance MemFreeze (UMArray e) where
+  getByteCountMutMemST = getByteCountMutMemST . fromUMArrayMBytes
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST ma = fmap toUMArrayMBytes . reallocMBytes (fromUMArrayMBytes ma)
   {-# INLINE reallocMutMemST #-}
 
@@ -1382,14 +1390,16 @@ instance MemWrite T.MArray where
 
 
 instance MemAlloc T.MArray where
-  getByteCountMutMemST = getByteCountMBytes . fromTextMArrayMBytes
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap toTextMArrayMBytes . allocUnpinnedMBytes
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap toTextMArrayMBytes . allocPinnedMBytes
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST = fmap toTextMArrayMBytes . allocAlignedPinnedMBytes
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance MemFreeze T.MArray where
+  getByteCountMutMemST = getByteCountMBytes . fromTextMArrayMBytes
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST m = fmap toTextMArrayMBytes . reallocMBytes (fromTextMArrayMBytes m)
   {-# INLINE reallocMutMemST #-}
 

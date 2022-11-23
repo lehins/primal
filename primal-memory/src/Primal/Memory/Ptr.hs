@@ -45,6 +45,7 @@ module Primal.Memory.Ptr
   , writePtr
   , writeOffPtr
   , writeByteOffPtr
+  , setPtr
   , setOffPtr
   , setByteOffPtr
   , copyPtrToPtr
@@ -191,10 +192,18 @@ isSamePtr :: Ptr e -> Ptr e -> Bool
 isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)
 {-# INLINE isSamePtr #-}
 
+setPtr ::
+     (Primal s m, Unbox e)
+  => Ptr e -- ^ Pointer to the memory to fill
+  -> Count e -- ^ Number of cells to fill
+  -> e -- ^ A value to fill the cells with
+  -> m ()
+setPtr (Ptr addr#) (Count (I# n#)) a = primal_ (setOffAddr# addr# 0# n# a)
+{-# INLINE setPtr #-}
 
 setOffPtr ::
      (Primal s m, Unbox e)
-  => Ptr e -- ^ Chunk of memory to fill
+  => Ptr e -- ^ Pointer to the memory to fill
   -> Off e -- ^ Offset in number of elements
   -> Count e -- ^ Number of cells to fill
   -> e -- ^ A value to fill the cells with
@@ -204,7 +213,7 @@ setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = primal_ (setOffAddr# add
 
 setByteOffPtr ::
      (Primal s m, Unbox e)
-  => Ptr e -- ^ Chunk of memory to fill
+  => Ptr e -- ^ Pointer to the memory to fill
   -> Off Word8 -- ^ Offset in number of Bytes
   -> Count e -- ^ Number of cells to fill
   -> e -- ^ A value to fill the cells with

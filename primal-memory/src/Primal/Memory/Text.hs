@@ -87,8 +87,6 @@ instance MemWrite (MText p) where
   {-# INLINE setByteOffMutMemST #-}
 
 instance MemAlloc (MText 'Inc) where
-  getByteCountMutMemST (MText _ _ k) = pure (toByteCount k)
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST c = do
     ma <- allocMutMemST c
     pure $ MText ma 0 (toTCUSizeCount c)
@@ -101,6 +99,10 @@ instance MemAlloc (MText 'Inc) where
     ma <- allocAlignedPinnedMutMemST c
     pure $ MText ma 0 (toTCUSizeCount c)
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance MemFreeze (MText 'Inc) where
+  getByteCountMutMemST (MText _ _ k) = pure (toByteCount k)
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST (MText ma o k) c'
     | k' <= k = pure $ MText ma o k'
     | o == 0 = do

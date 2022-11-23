@@ -112,20 +112,22 @@ instance MemForeignPtr (PUMArray 'Pin e) where
   {-# INLINE toMForeignPtrMem #-}
 
 instance MemPtr (PUMArray 'Pin e) where
-  withPtrMemST mb = withPtrMBytes (toMBytesPUMArray mb)
-  {-# INLINE withPtrMemST #-}
-  withNoHaltPtrMemST mb = withNoHaltPtrMBytes (toMBytesPUMArray mb)
-  {-# INLINE withNoHaltPtrMemST #-}
+  withPtrMutMemST mb = withPtrMBytes (toMBytesPUMArray mb)
+  {-# INLINE withPtrMutMemST #-}
+  withNoHaltPtrMutMemST mb = withNoHaltPtrMBytes (toMBytesPUMArray mb)
+  {-# INLINE withNoHaltPtrMutMemST #-}
 
 instance Typeable p => MemAlloc (PUMArray p e) where
-  getByteCountMutMemST = getByteCountMutMem . toMBytesPUMArray
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap fromMBytesPUMArray . allocMBytes
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap fromMBytesPUMArray . allocPinnedMutMemST
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST = fmap fromMBytesPUMArray . allocAlignedPinnedMutMemST
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance Typeable p => MemFreeze (PUMArray p e) where
+  getByteCountMutMemST = getByteCountMutMem . toMBytesPUMArray
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST mba = fmap fromMBytesPUMArray . reallocMBytes (toMBytesPUMArray mba)
   {-# INLINE reallocMutMemST #-}
 

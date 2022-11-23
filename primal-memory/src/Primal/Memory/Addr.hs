@@ -481,22 +481,24 @@ instance MemForeignPtr (MAddr e) where
   {-# INLINE toMForeignPtrMem #-}
 
 instance MemPtr (MAddr e) where
-  withPtrMemST maddr = withPtrMAddr (castMAddr maddr)
-  {-# INLINE withPtrMemST #-}
-  withNoHaltPtrMemST maddr = withNoHaltPtrMAddr (castMAddr maddr)
-  {-# INLINE withNoHaltPtrMemST #-}
+  withPtrMutMemST maddr = withPtrMAddr (castMAddr maddr)
+  {-# INLINE withPtrMutMemST #-}
+  withNoHaltPtrMutMemST maddr = withNoHaltPtrMAddr (castMAddr maddr)
+  {-# INLINE withNoHaltPtrMutMemST #-}
 
 
 
 instance Unbox e => MemAlloc (MAddr e) where
-  getByteCountMutMemST = getByteCountMAddr
-  {-# INLINE getByteCountMutMemST #-}
   allocMutMemST = fmap castMAddr . allocMAddr
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap castMAddr . allocMAddr
   {-# INLINE allocPinnedMutMemST #-}
   allocAlignedPinnedMutMemST = fmap castMAddr . allocAlignedMAddr
   {-# INLINE allocAlignedPinnedMutMemST #-}
+
+instance Unbox e => MemFreeze (MAddr e) where
+  getByteCountMutMemST = getByteCountMAddr
+  {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
   {-# INLINE reallocMutMemST #-}
 

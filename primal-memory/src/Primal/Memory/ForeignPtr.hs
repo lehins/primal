@@ -18,8 +18,8 @@
 --
 module Primal.Memory.ForeignPtr
   ( MemPtr(..)
-  , withPtrMem
-  , withNoHaltPtrMem
+  , withPtrMutMem
+  , withNoHaltPtrMutMem
   , MemForeignPtr(..)
     -- * ForeignPtr
   , ForeignPtr(..)
@@ -141,17 +141,17 @@ class MemWrite mp => MemPtr mp where
   -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
   -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
   -- treat the memory content.
-  withPtrMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
-  default withPtrMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
-  withPtrMemST = withMForeignPtr . toMForeignPtrMem
-  {-# INLINE withPtrMemST #-}
+  withPtrMutMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
+  default withPtrMutMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
+  withPtrMutMemST = withMForeignPtr . toMForeignPtrMem
+  {-# INLINE withPtrMutMemST #-}
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
   -- related to it in order to get more insight why this is needed.
-  withNoHaltPtrMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
-  default withNoHaltPtrMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
-  withNoHaltPtrMemST = withNoHaltMForeignPtr . toMForeignPtrMem
-  {-# INLINE withNoHaltPtrMemST #-}
+  withNoHaltPtrMutMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
+  default withNoHaltPtrMutMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
+  withNoHaltPtrMutMemST = withNoHaltMForeignPtr . toMForeignPtrMem
+  {-# INLINE withNoHaltPtrMutMemST #-}
 
 
 -- | Any pinned memory that can be converted to a `ForeignPtr` without copy
@@ -170,10 +170,10 @@ instance MemForeignPtr (MBytes 'Pin) where
   {-# INLINE toMForeignPtrMem #-}
 
 instance MemPtr (MBytes 'Pin) where
-  withPtrMemST = withPtrMBytes
-  {-# INLINE withPtrMemST #-}
-  withNoHaltPtrMemST = withNoHaltPtrMBytes
-  {-# INLINE withNoHaltPtrMemST #-}
+  withPtrMutMemST = withPtrMBytes
+  {-# INLINE withPtrMutMemST #-}
+  withNoHaltPtrMutMemST = withNoHaltPtrMBytes
+  {-# INLINE withNoHaltPtrMutMemST #-}
 
 
 toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e
@@ -191,17 +191,17 @@ toMForeignPtrMBytes (MBytes mba#) =
 -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
 -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
 -- treat the memory content.
-withPtrMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
-withPtrMem mem f =
-  withRunInST (\unlift -> withPtrMemST mem $ \ptr -> unlift (f ptr))
-{-# INLINE withPtrMem #-}
+withPtrMutMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withPtrMutMem mem f =
+  withRunInST (\unlift -> withPtrMutMemST mem $ \ptr -> unlift (f ptr))
+{-# INLINE withPtrMutMem #-}
 
 -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
 -- related to it in order to get more insight why this is needed.
-withNoHaltPtrMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
-withNoHaltPtrMem mem f =
-  withRunInST (\unlift -> withNoHaltPtrMemST mem $ \ptr -> unlift (f ptr))
-{-# INLINE withNoHaltPtrMem #-}
+withNoHaltPtrMutMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withNoHaltPtrMutMem mem f =
+  withRunInST (\unlift -> withNoHaltPtrMutMemST mem $ \ptr -> unlift (f ptr))
+{-# INLINE withNoHaltPtrMutMem #-}
 
 -- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from
 -- the action because memory itself might get garbage collected or cleaned up by
