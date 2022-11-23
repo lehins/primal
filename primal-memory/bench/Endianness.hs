@@ -80,7 +80,7 @@ main = do
 
 
 genMem ::
-     (MemAlloc ma, PrimalIO m, Unbox (f Word64))
+     (MemFreeze ma, PrimalIO m, Unbox (f Word64))
   => (Word64 -> f Word64)
   -> Count Word8
   -> m Word64

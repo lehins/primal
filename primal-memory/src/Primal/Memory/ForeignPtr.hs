@@ -23,9 +23,12 @@ module Primal.Memory.ForeignPtr
   , MemForeignPtr(..)
     -- * ForeignPtr
   , ForeignPtr(..)
-  , MForeignPtr(..)
   , castForeignPtr
   , unsafeForeignPtrToPtr
+  , MForeignPtr(..)
+  , castMForeignPtr
+  , allocMForeignPtr
+  , allocAlignedMForeignPtr
   , withMForeignPtr
   , withNoHaltMForeignPtr
   , ForeignPtrContents(..)
@@ -84,12 +87,16 @@ import Primal.Foreign
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.Ptr
 import Primal.Monad
+import Primal.Monad.Unsafe
 import Primal.Element.Unbox
 
 
 newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)
 
 type role MForeignPtr nominal nominal
+
+castMForeignPtr :: MForeignPtr a s -> MForeignPtr b s
+castMForeignPtr (MForeignPtr fp) = MForeignPtr (castForeignPtr fp)
 
 instance MemWrite (MForeignPtr e) where
   accessMutMemST fptr _ g o = withMForeignPtr fptr $ \(Ptr addr#) -> g addr# o
@@ -153,6 +160,25 @@ class MemWrite mp => MemPtr mp where
   withNoHaltPtrMutMemST = withNoHaltMForeignPtr . toMForeignPtrMem
   {-# INLINE withNoHaltPtrMutMemST #-}
 
+instance MemAlloc (MForeignPtr e) where
+  allocMutMemST = fmap castMForeignPtr . allocMForeignPtr
+  {-# INLINE allocMutMemST #-}
+  allocPinnedMutMemST = fmap castMForeignPtr . allocMForeignPtr
+  {-# INLINE allocPinnedMutMemST #-}
+  allocAlignedPinnedMutMemST = fmap castMForeignPtr . allocAlignedMForeignPtr
+  {-# INLINE allocAlignedPinnedMutMemST #-}
+
+allocMForeignPtr :: (Unbox e, Primal s m) => Count e -> m (MForeignPtr e s)
+allocMForeignPtr =
+  unsafeIOToPrimal . fmap MForeignPtr . GHC.mallocForeignPtrBytes . unCountBytes
+{-# INLINE allocMForeignPtr #-}
+
+allocAlignedMForeignPtr :: (Unbox e, Primal s m) => Count e -> m (MForeignPtr e s)
+allocAlignedMForeignPtr c =
+  MForeignPtr <$>
+  unsafeIOToPrimal
+    (GHC.mallocForeignPtrAlignedBytes (unCountBytes c) (alignmentProxy c))
+{-# INLINE allocAlignedMForeignPtr #-}
 
 -- | Any pinned memory that can be converted to a `ForeignPtr` without copy
 class MemPtr mp => MemForeignPtr mp where

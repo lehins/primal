@@ -65,7 +65,7 @@ main = do
     ]
 
 
-encodeBase16Native :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> a
+encodeBase16Native :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> a
 encodeBase16Native mr = runST $ do
   let bc@(Count c) = byteCountMem mr
       c2 = c - (c `mod` 2)
@@ -83,12 +83,12 @@ encodeBase16Native mr = runST $ do
   when (c /= c2) $
     writeByteOffMutMemST m o $
       lookupWord16 base16# $ indexByteOffMem mr (Off c2)
-  freezeMutST m
+  freezeMutMem m
 {-# INLINE encodeBase16Native #-}
 
 
 
-decodeBase16Native :: forall a ma. (a ~ Frozen ma, MemAlloc ma) => a -> Either DecodeError a
+decodeBase16Native :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> Either DecodeError a
 decodeBase16Native mr = runST $ runExceptT $ handleExceptT $ do
   let Count c = byteCountMem mr
       q = c `quot` 2
