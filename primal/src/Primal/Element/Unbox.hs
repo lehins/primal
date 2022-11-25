@@ -47,6 +47,7 @@ module Primal.Element.Unbox
   , Off(..)
   , unOffBytes
   , toByteOff
+  , unOff#
   , unOffBytes#
   , fromByteOff
   , fromByteOffRem
@@ -330,7 +331,12 @@ unOffInt8# :: Off Int8 -> Int#
 unOffInt8# (Off (I# o#)) = o#
 {-# INLINE unOffInt8# #-}
 
--- | Convert offset of some type into number of bytes
+-- | Convert offset of some type into number of elements as a primitive int
+unOff# :: Unbox e => Off e -> Int#
+unOff# (Off (I# o#)) = o#
+{-# INLINE unOff# #-}
+
+-- | Convert offset of some type into number of bytes as a primitive int
 unOffBytes# :: Unbox e => Off e -> Int#
 unOffBytes# o@(Off (I# o#)) =
   case coerce (byteCountProxy o) of
@@ -376,21 +382,21 @@ fromByteOffRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 
 
 
 offPlusCount :: Off e -> Count e -> Off e
-offPlusCount o c = Off (coerce o + coerce c)
+offPlusCount = coerce ((+) :: Int -> Int -> Int)
 {-# INLINE offPlusCount #-}
 
 offMinusCount :: Off e -> Count e -> Off e
-offMinusCount o c = Off (coerce o - coerce c)
+offMinusCount = coerce ((-) :: Int -> Int -> Int)
 {-# INLINE offMinusCount #-}
 
 
 
 countPlusOff :: Count e -> Off e -> Count e
-countPlusOff c o = Count (coerce c + coerce o)
+countPlusOff = coerce ((+) :: Int -> Int -> Int)
 {-# INLINE countPlusOff #-}
 
 countMinusOff :: Count e -> Off e -> Count e
-countMinusOff c o = Count (coerce c - coerce o)
+countMinusOff = coerce ((-) :: Int -> Int -> Int)
 {-# INLINE countMinusOff #-}
 
 

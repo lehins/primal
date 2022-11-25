@@ -23,7 +23,8 @@ module Primal.Memory.FAddr
     FAddr(..)
   , emptyFAddr
   , isSameFAddr
-  -- , castFAddr
+  , castFAddr
+  , castSizedFAddr
   -- , fromBytesFAddr
   -- , curOffFAddr
   , byteCountFAddr
@@ -48,11 +49,14 @@ module Primal.Memory.FAddr
   , Finalizer(..)
   , isSameFMAddr
   , castFMAddr
+  , castSizedFMAddr
   , allocFMAddr
   , allocZeroFMAddr
   , allocAlignedFMAddr
   , reallocFMAddr
+  , reallocByteCountFMAddr
   , reallocPtrFMAddr
+  , reallocByteCountPtrFMAddr
   -- ** Internal allocators
   , allocWithFinalizerFMAddr
   , allocWithFinalizerPtrFMAddr
@@ -160,7 +164,7 @@ instance NFData Finalizer where
 -- | Immutable read-only foreign address
 data FAddr e = FAddr
   { faAddr# :: Addr#
-  , faCount :: {-# UNPACK #-} !(Count e)
+  , faByteCount :: {-# UNPACK #-} !(Count Word8)
   , faFinalizer :: !Finalizer
   }
 type role FAddr nominal
@@ -168,56 +172,84 @@ type role FAddr nominal
 -- | Mutable foreign address
 data FMAddr e s = FMAddr
   { fmaAddr#  :: Addr#
-  , fmaCount :: {-# UNPACK #-} !(Count e)
+  , fmaByteCount :: {-# UNPACK #-} !(Count Word8)
   , fmaFinalizer :: !Finalizer
   }
 type role FMAddr nominal nominal
 
 
-allocFMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (FMAddr e s)
-allocFMAddr c =
-  unsafeIOToPrimal (castStateFMAddr <$> allocWithFinalizerPtrFMAddr c mallocPtr freeFinalizerPtr)
+allocFMAddr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (FMAddr e s)
+allocFMAddr = allocByteCountFMAddr . toByteCount
 {-# INLINE allocFMAddr #-}
 
-allocZeroFMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (FMAddr e s)
-allocZeroFMAddr c =
-  unsafeIOToPrimal (castStateFMAddr <$> allocWithFinalizerPtrFMAddr c callocPtr freeFinalizerPtr)
+allocByteCountFMAddr :: forall e m s. Primal s m => Count Word8 -> m (FMAddr e s)
+allocByteCountFMAddr bc =
+  unsafeIOToPrimal $
+    castStateFMAddr <$> allocWithFinalizerPtrFMAddr bc allocByteCountPtr freeFinalizerPtr
+{-# INLINE allocByteCountFMAddr #-}
+
+allocZeroFMAddr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (FMAddr e s)
+allocZeroFMAddr = allocZeroByteCountFMAddr . toByteCount
 {-# INLINE allocZeroFMAddr #-}
 
-allocAlignedFMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (FMAddr e s)
-allocAlignedFMAddr c =
-  unsafeIOToPrimal
-    (castStateFMAddr <$>
-     allocWithFinalizerPtrFMAddr c allocAlignedPtr freeFinalizerPtr)
+
+allocZeroByteCountFMAddr :: forall e m s. Primal s m => Count Word8 -> m (FMAddr e s)
+allocZeroByteCountFMAddr bc =
+  unsafeIOToPrimal $
+    castStateFMAddr <$> allocWithFinalizerPtrFMAddr bc callocByteCountPtr freeFinalizerPtr
+{-# INLINE allocZeroByteCountFMAddr #-}
+
+allocAlignedFMAddr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (FMAddr e s)
+allocAlignedFMAddr c = allocAlignedByteCountFMAddr (alignment c) (toByteCount c)
 {-# INLINE allocAlignedFMAddr #-}
 
+allocAlignedByteCountFMAddr :: forall e m s. Primal s m => Int -> Count Word8 -> m (FMAddr e s)
+allocAlignedByteCountFMAddr al bc =
+  unsafeIOToPrimal $
+    castStateFMAddr <$>
+      allocWithFinalizerPtrFMAddr bc (allocAlignedByteCountPtr al) freeFinalizerPtr
+{-# INLINE allocAlignedByteCountFMAddr #-}
 
-guardImpossibleFinalizer :: String -> IO Bool -> IO ()
+
+guardImpossibleFinalizer :: Primal s m => String -> m Bool -> m ()
 guardImpossibleFinalizer name m =
   unlessM m $
   raiseString $
     "Impossible: " ++ name ++ " was just created, thus adding finalizer should always succeed"
 
--- | It is important that the supplied pointer is never freed afterwards
 reallocPtrFMAddr :: forall e m s. (Primal s m, Unbox e) => Ptr e -> Count e -> m (FMAddr e s)
-reallocPtrFMAddr ptr c =
+reallocPtrFMAddr ptr = reallocByteCountPtrFMAddr ptr . toByteCount
+{-# INLINE reallocPtrFMAddr #-}
+
+-- | It is important that the supplied pointer is never freed afterwards
+reallocByteCountPtrFMAddr :: forall e m s. Primal s m => Ptr e -> Count Word8 -> m (FMAddr e s)
+reallocByteCountPtrFMAddr ptr bc =
   unsafeIOToPrimal $ do
     -- We need to keep around the freeing flag as well as the pointer to the beginning
     mb <- allocZeroPinnedMBytes (toByteCount (1 :: Count CBool) + toByteCount (1 :: Count (Ptr e)))
     weakPtr <- mkWeakNoFinalizerMBytes mb mb
     -- Make sure not to leak memory by masking exceptions until finalizer is properly registered
     Interruptible.mask_ $ do
-      newPtr@(Ptr addr#) <- reallocPtr ptr c
+      newPtr@(Ptr addr#) <- reallocByteCountPtr ptr bc
       writeByteOffMBytes mb (toByteOff (1 :: Off CBool)) newPtr
       guardImpossibleFinalizer "MBytes" $
         addCFinalizerEnv guardedFreeFinalizerEnvPtr (toPtrMBytes mb) newPtr weakPtr
       pure $!
-        FMAddr {fmaAddr# = addr#, fmaCount = c, fmaFinalizer = ReallocFinalizer mb}
-{-# INLINE reallocPtrFMAddr #-}
+        FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = ReallocFinalizer mb}
+{-# INLINEABLE reallocByteCountPtrFMAddr #-}
 
 reallocFMAddr :: forall e m s. (Primal s m, Unbox e) => FMAddr e s -> Count e -> m (FMAddr e s)
-reallocFMAddr fma c
-  | c == fmaCount fma = pure fma
+reallocFMAddr fma = reallocByteCountFMAddr fma . toByteCount
+{-# INLINE reallocFMAddr #-}
+
+
+reallocByteCountFMAddr ::
+     forall e m s. (Primal s m, Unbox e)
+  => FMAddr e s
+  -> Count Word8
+  -> m (FMAddr e s)
+reallocByteCountFMAddr fma bc
+  | bc == fmaByteCount fma = pure fma
   | otherwise =
     case fmaFinalizer fma of
       ReallocFinalizer mb -> do
@@ -225,17 +257,17 @@ reallocFMAddr fma c
         let curPtr = Ptr (fmaAddr# fma)
             offPtr = minusByteOffPtr curPtr ptr
         when (offPtr > 0) $
-          moveByteOffPtrToPtr ptr offPtr ptr 0 (min (fmaCount fma) c)
-        fma' <- reallocPtrFMAddr ptr c
+          moveByteOffPtrToPtr (castPtr ptr) offPtr (castPtr ptr) 0 (min (fmaByteCount fma) bc)
+        fma' <- reallocByteCountPtrFMAddr ptr bc
         -- Mark that the pointer has potentially been freed. This way the old
         -- ReallocFinalizer does not double free and if it wasn't freed the new finalizer
         -- will take care of it when it is no longer referenced.
         fma' <$ unsafeIOToPrimal (writeOffMBytes mb 0 (1 :: CBool))
       _ -> do
         fa <- freezeFMAddr fma
-        fma' <- reallocPtrFMAddr nullPtr c
-        fma' <$ copyFAddrToFMAddr fa 0 fma' 0 (min c (faCount fa))
-{-# INLINE reallocFMAddr #-}
+        fma' <- reallocByteCountPtrFMAddr nullPtr bc
+        fma' <$ copyFAddrToFMAddr (castFAddr fa) 0 (castFMAddr fma') 0 (min bc (faByteCount fa))
+{-# INLINEABLE reallocByteCountFMAddr #-}
 
 
 -- TODO: Switch return type to `FMAddr e RW` and do some casting in `allocFMAddr` et al.
@@ -244,63 +276,67 @@ reallocFMAddr fma c
 -- `allocWithFinalizerPtrFMAddr` and `allocWithFinalizerEnvPtrFMAddr` the freeing funciton
 -- is a regular Haskell action, rather than a pointer to an FFI function.
 allocWithFinalizerFMAddr ::
-     Count e
+     forall e m. UnliftPrimal RW m
+  => Count Word8
   -- ^ Number of elements to allocate memory for
-  -> (Count e -> IO (Ptr e))
+  -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
-  -> (Ptr e -> IO ())
+  -> (Ptr e -> m ())
   -- ^ Finalizer to be used for freeing the memory
-  -> IO (FMAddr e s)
+  -> m (FMAddr e RW)
 allocWithFinalizerFMAddr c alloc free = do
   ref <- newBRef ()
   Interruptible.mask_ $ do
     ptr@(Ptr addr#) <- alloc c
     _weakPtr <- mkWeakBRef ref () (free ptr)
     pure $!
-      FMAddr {fmaAddr# = addr#, fmaCount = c, fmaFinalizer = Finalizer ref}
+      FMAddr {fmaAddr# = addr#, fmaByteCount = c, fmaFinalizer = Finalizer ref}
 {-# INLINE allocWithFinalizerFMAddr #-}
 
 
 allocWithFinalizerPtrFMAddr ::
-     Count e
+     forall e m. UnliftPrimal RW m
+  => Count Word8
   -- ^ Number of elements to allocate memory for
-  -> (Count e -> IO (Ptr e))
+  -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
   -> FinalizerPtr e
   -- ^ Finalizer to be used for freeing memory
-  -> IO (FMAddr e RW)
-allocWithFinalizerPtrFMAddr c alloc freeFinalizer =
-  allocAndFinalizeFMAddr c alloc (addCFinalizer freeFinalizer)
+  -> m (FMAddr e RW)
+allocWithFinalizerPtrFMAddr bc alloc freeFinalizer =
+  allocAndFinalizeFMAddr bc alloc (addCFinalizer freeFinalizer)
 {-# INLINE allocWithFinalizerPtrFMAddr #-}
 
 allocWithFinalizerEnvPtrFMAddr ::
-     Count e
+     forall e env m. UnliftPrimal RW m
+  => Count Word8
   -- ^ Number of elements to allocate memory for
-  -> (Count e -> IO (Ptr e))
+  -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
   -> FinalizerEnvPtr env e
   -- ^ Finalizer to be used for freeing memory
   -> Ptr env
   -- ^ Pointer with enviroment to be passed to the finalizer
-  -> IO (FMAddr e RW)
+  -> m (FMAddr e RW)
 allocWithFinalizerEnvPtrFMAddr c alloc freeFinalizer envPtr =
   allocAndFinalizeFMAddr c alloc (addCFinalizerEnv freeFinalizer envPtr)
 {-# INLINE allocWithFinalizerEnvPtrFMAddr #-}
 
 -- | Helper function for allocating memory with a C finalizer
 allocAndFinalizeFMAddr ::
-     Count e
-  -> (Count e -> IO (Ptr a))
-  -> (Ptr a -> Weak () -> IO Bool)
-  -> IO (FMAddr e s)
-allocAndFinalizeFMAddr c alloc addCFinalizer' = do
+     forall e a m. UnliftPrimal RW m
+  => Count Word8
+  -> (Count Word8 -> m (Ptr a))
+  -> (Ptr a -> Weak () -> m Bool)
+  -> m (FMAddr e RW)
+allocAndFinalizeFMAddr bc alloc customAddCFinalizer = do
   ref <- newBRef ()
   weakPtr <- mkWeakNoFinalizerBRef ref ()
   Interruptible.mask_ $ do
-    ptr@(Ptr addr#) <- alloc c
-    guardImpossibleFinalizer "BRef" (addCFinalizer' ptr weakPtr)
+    ptr@(Ptr addr#) <- alloc bc
+    guardImpossibleFinalizer "BRef" (customAddCFinalizer ptr weakPtr)
     pure $!
-      FMAddr {fmaAddr# = addr#, fmaCount = c, fmaFinalizer = Finalizer ref}
+      FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = Finalizer ref}
 {-# INLINE allocAndFinalizeFMAddr #-}
 
 
@@ -362,13 +398,13 @@ instance Unbox e => Monoid.Monoid (FAddr e) where
 
 type instance Frozen (FMAddr e) = FAddr e
 
-instance Unbox e => MutFreeze (FMAddr e) where
+instance MutFreeze (FMAddr e) where
   thawST = thawFAddr
   {-# INLINE thawST #-}
   thawCloneST addr = do
-    let c = countFAddr addr
-    maddr <- allocFMAddr c
-    maddr <$ copyFAddrToFMAddr addr 0 maddr 0 c
+    let bc = byteCountFAddr addr
+    maddr <- allocFMAddr bc
+    castFMAddr maddr <$ copyFAddrToFMAddr (castFAddr addr) 0 maddr 0 bc
   {-# INLINE thawCloneST #-}
   clone = cloneMem
   {-# INLINE clone #-}
@@ -382,14 +418,24 @@ emptyFAddr = FAddr nullAddr# 0 NoFinalizer
 
 -- | Cast a foreign address. Watchout the count, since mismatch on the element size can
 -- lead to unused slack at the end of the buffer
-castFAddr :: (Unbox e, Unbox a) => FAddr e -> FAddr a
-castFAddr (FAddr addr# c fi) = FAddr addr# (fromByteCount (toByteCount c)) fi
+castSizedFAddr :: (Unbox e, Unbox a) => FAddr e -> FAddr a
+castSizedFAddr (FAddr addr# c fi) = FAddr addr# (fromByteCount (toByteCount c)) fi
+{-# INLINE castSizedFAddr #-}
+
+castFAddr :: FAddr e -> FAddr a
+castFAddr (FAddr addr# (Count c) fi) = FAddr addr# (Count c) fi
 {-# INLINE castFAddr #-}
 
 -- | Cast a foreign address. Watchout the count, since mismatch on the element size can
 -- lead to unused slack at the end of the buffer
-castFMAddr :: (Unbox e, Unbox a) => FMAddr e s -> FMAddr a s
-castFMAddr (FMAddr addr# c fin) = FMAddr addr# (fromByteCount (toByteCount c)) fin
+castSizedFMAddr :: (Unbox e, Unbox a) => FMAddr e s -> FMAddr a s
+castSizedFMAddr (FMAddr addr# c fin) = FMAddr addr# (fromByteCount (toByteCount c)) fin
+{-# INLINE castSizedFMAddr #-}
+
+-- | Cast a foreign address. Watchout the count, since in case of element byte count
+-- mismatch multi element foreign address will explode.
+castFMAddr :: FMAddr e s -> FMAddr a s
+castFMAddr (FMAddr addr# (Count c) fin) = FMAddr addr# (Count c) fin
 {-# INLINE castFMAddr #-}
 
 -- | Casr the state token type.
@@ -413,8 +459,9 @@ instance NFData (FMAddr e s) where
 
 
 plusOffFAddr :: Unbox e => FAddr e -> Off e -> FAddr e
-plusOffFAddr (FAddr addr# c fin) off =
-  FAddr (addr# `plusAddr#` unOffBytes# off) (c `countMinusOff` off) fin
+plusOffFAddr (FAddr addr# bc fin) off =
+  let !byteOff@(Off (I# byteOff#)) = toByteOff off
+   in FAddr (addr# `plusAddr#` byteOff#) (bc `countMinusOff` byteOff) fin
 {-# INLINE plusOffFAddr #-}
 
 plusByteOffFAddr :: FAddr e -> Off Word8 -> FAddr e
@@ -447,24 +494,24 @@ minusByteCountFAddr (FAddr addr1# _ _) (FAddr addr2# _ _) = Count (I# (addr1# `m
 -- curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b
 -- {-# INLINE curByteOffAddr #-}
 
-countFAddr :: FAddr e -> Count e
-countFAddr = faCount
+countFAddr :: Unbox e => FAddr e -> Count e
+countFAddr = fromByteCount . faByteCount
 {-# INLINE countFAddr #-}
 
-byteCountFAddr :: Unbox e => FAddr e -> Count Word8
-byteCountFAddr = toByteCount . faCount
+byteCountFAddr :: FAddr e -> Count Word8
+byteCountFAddr = faByteCount
 {-# INLINE byteCountFAddr #-}
 
-getCountFMAddr :: Monad m => FMAddr e s -> m (Count e)
-getCountFMAddr (FMAddr _ c _) = pure c
+getCountFMAddr :: (Unbox e, Monad m) => FMAddr e s -> m (Count e)
+getCountFMAddr = fmap fromByteCount . getByteCountFMAddr
 {-# INLINE getCountFMAddr #-}
 
-getSizeOfFMAddr :: (Monad m, Unbox e) => FMAddr e s -> m Size
+getSizeOfFMAddr :: (Unbox e, Monad m) => FMAddr e s -> m Size
 getSizeOfFMAddr maddr = coerce <$> getCountFMAddr maddr
 {-# INLINE getSizeOfFMAddr #-}
 
-getByteCountFMAddr :: (Unbox e, Monad m) => FMAddr e s -> m (Count Word8)
-getByteCountFMAddr = getCountFMAddr . castFMAddr
+getByteCountFMAddr :: Monad m => FMAddr e s -> m (Count Word8)
+getByteCountFMAddr (FMAddr _ c _) = pure c
 {-# INLINE getByteCountFMAddr #-}
 
 indexFAddr :: Unbox e => FAddr e -> e
@@ -519,7 +566,7 @@ withNoHaltPtrFMAddr (FMAddr addr# _ fin) f = keepAlive fin $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrFMAddr #-}
 
 
-instance Unbox e => MemPtr (FMAddr e) where
+instance MemPtr (FMAddr e) where
   withPtrMutMemST maddr = withPtrFMAddr (castFMAddr maddr)
   {-# INLINE withPtrMutMemST #-}
   withNoHaltPtrMutMemST maddr = withNoHaltPtrFMAddr (castFMAddr maddr)
@@ -527,7 +574,7 @@ instance Unbox e => MemPtr (FMAddr e) where
 
 
 
-instance Unbox e => MemAlloc (FMAddr e) where
+instance MemAlloc (FMAddr e) where
   allocMutMemST = fmap castFMAddr . allocFMAddr
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap castFMAddr . allocFMAddr
@@ -536,14 +583,14 @@ instance Unbox e => MemAlloc (FMAddr e) where
   allocAlignedPinnedMutMemST = fmap castFMAddr . allocAlignedFMAddr
   {-# INLINE allocAlignedPinnedMutMemST #-}
 
-instance Unbox e => MemFreeze (FMAddr e) where
+instance MemFreeze (FMAddr e) where
   getByteCountMutMemST = getByteCountFMAddr
   {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST maddr = fmap castFMAddr . reallocFMAddr (castFMAddr maddr)
   {-# INLINE reallocMutMemST #-}
 
 
-instance Unbox e => MemRead (FAddr e) where
+instance MemRead (FAddr e) where
   accessMem addr _ g o =
     unsafeInlineST $ withAddrFAddr# addr $ \addr# -> pure $! g addr# o
   {-# INLINE accessMem #-}
@@ -573,7 +620,7 @@ instance Unbox e => MemRead (FAddr e) where
       compareByteOffToPtrMem mem1 off1 (castPtr ptr2) off2 c
   {-# INLINE compareByteOffMem #-}
 
-instance Unbox e => MemWrite (FMAddr e) where
+instance MemWrite (FMAddr e) where
   accessMutMemST maddr _ g o = withAddrFMAddr# maddr $ \addr# -> g addr# o
   {-# INLINE accessMutMemST #-}
   isSameMutMem = isSameFMAddr

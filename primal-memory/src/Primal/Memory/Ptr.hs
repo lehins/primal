@@ -18,10 +18,14 @@
 --
 module Primal.Memory.Ptr
   ( module GHC.Ptr
-  , mallocPtr
+  , allocPtr
+  , allocByteCountPtr
   , callocPtr
+  , callocByteCountPtr
   , allocAlignedPtr
+  , allocAlignedByteCountPtr
   , reallocPtr
+  , reallocByteCountPtr
   , freePtr
   , freeFinalizerPtr
   , guardedFreePtr
@@ -118,7 +122,7 @@ import Primal.Element.Unbox.Atomic
 foreign import ccall unsafe "stdlib.h malloc"
   mallocIO :: CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h aligned_alloc"
-  allignedAllocIO :: CSize -> CSize -> IO (Ptr a)
+  alignedAllocIO :: CSize -> CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h calloc"
   callocIO :: CSize -> CSize -> IO (Ptr a)
 foreign import ccall unsafe "stdlib.h realloc"
@@ -136,34 +140,58 @@ foreign import ccall unsafe "primal_memory.c guarded_free"
 foreign import ccall unsafe "primal_memory.c &guarded_free"
   guardedFreeFinalizerEnvPtr :: GHC.FinalizerEnvPtr CBool a
 
+allocPtr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+allocPtr = allocByteCountPtr . toByteCount
+{-# INLINE allocPtr #-}
 
-mallocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-mallocPtr =
+allocByteCountPtr :: forall e m s. Primal s m => Count Word8 -> m (Ptr e)
+allocByteCountPtr =
   unsafeIOToPrimal .
-  throwErrnoIfNullPred (== eNOMEM) "mallocPtr" .
-  mallocIO . fromIntegral . toByteCount
+  throwErrnoIfNullPred (== eNOMEM) "allocByteCountPtr" .
+  mallocIO . fromIntegral
+{-# INLINE allocByteCountPtr #-}
 
-allocAlignedPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-allocAlignedPtr c =
-  unsafeIOToPrimal $
-  throwErrnoIfNullPred (\e -> e == eNOMEM || e == eINVAL) "allocAlignedPtr" $
-  allignedAllocIO (fromIntegral (alignment c)) (fromIntegral (toByteCount c))
+allocAlignedPtr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+allocAlignedPtr c = allocAlignedByteCountPtr (alignment c) (toByteCount c)
+{-# INLINE allocAlignedPtr #-}
 
-callocPtr :: forall e s m. (Unbox e, Primal s m) => Count e -> m (Ptr e)
-callocPtr c =
+allocAlignedByteCountPtr ::
+     forall e m s. Primal s m
+  => Int
+  -- ^ Alignment in number of bytes
+  -> Count Word8
+  -- ^ Number of bytes to allocate
+  -> m (Ptr e)
+allocAlignedByteCountPtr al sz =
   unsafeIOToPrimal $
-  throwErrnoIfNullPred (== eNOMEM) "callocPtr" $
+  throwErrnoIfNullPred (\e -> e == eNOMEM || e == eINVAL) "allocAlignedByteCountPtr" $
+  alignedAllocIO (fromIntegral al) (fromIntegral sz)
+{-# INLINE allocAlignedByteCountPtr #-}
+
+callocPtr :: forall e m s. (Unbox e, Primal s m) => Count e -> m (Ptr e)
+callocPtr = callocByteCountPtr . toByteCount
+{-# INLINE callocPtr #-}
+
+callocByteCountPtr :: forall e m s. Primal s m => Count Word8 -> m (Ptr e)
+callocByteCountPtr c =
+  unsafeIOToPrimal $
+  throwErrnoIfNullPred (== eNOMEM) "callocByteCountPtr" $
   callocIO (fromIntegral c) (fromIntegral (byteCountProxy c))
+{-# INLINE callocByteCountPtr #-}
 
-reallocPtr :: forall e s m. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr e)
-reallocPtr ptr c =
+reallocPtr :: forall e m s. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr e)
+reallocPtr ptr c = reallocByteCountPtr ptr (toByteCount c)
+{-# INLINE reallocPtr #-}
+
+reallocByteCountPtr :: forall e m s. Primal s m => Ptr e -> Count Word8 -> m (Ptr e)
+reallocByteCountPtr ptr c =
   unsafeIOToPrimal $
-  throwErrnoIfNullPred (== eNOMEM) "reallocPtr" $
-  reallocIO ptr (fromIntegral (toByteCount c))
-
+  throwErrnoIfNullPred (== eNOMEM) "reallocByteCountPtr" $
+  reallocIO ptr (fromIntegral c)
+{-# INLINE reallocByteCountPtr #-}
 
 freePtr ::
-     forall e s m. (Unbox e, Primal s m)
+     forall e m s. Primal s m
   => Ptr e
   -- ^ Pointer to the beginning of the memory buffer that should be freed. It must have
   -- been allocated with either `mallocPtr`, `callocPtr` or `reallocPtr` and must not have
@@ -172,20 +200,20 @@ freePtr ::
 freePtr = unsafeIOToPrimal . freeIO
 
 guardedFreePtr ::
-     forall e s m. (Unbox e, Primal s m)
+     forall e m s. Primal s m
   => Ptr CBool
   -- ^ If this pointer contains @false@ or is null, then @free@ call will procede as
   -- normal, otherwise it is skipped.
   -> Ptr e
-  -- ^ Pointer to free. It must have been allocated with either `mallocPtr`,
-  -- `callocPtr` or `reallocPtr` and must not have been freed before.
+  -- ^ Pointer to free. It must have been allocated with either `allocIO`,
+  -- `callocIO` or `reallocIO` FFI calls and must not have been freed before.
   -> m ()
 guardedFreePtr envPtr = unsafeIOToPrimal . guardedFreeIO envPtr
 
 -- | Same as `GHC.freeHaskellFunPtr`
 --
 -- @since 0.1.0
-freeHaskellFunPtr :: Primal s m => FunPtr a -> m ()
+freeHaskellFunPtr :: forall a m s. Primal s m => FunPtr a -> m ()
 freeHaskellFunPtr = unsafeIOToPrimal . GHC.freeHaskellFunPtr
 
 isSamePtr :: Ptr e -> Ptr e -> Bool
@@ -193,7 +221,7 @@ isSamePtr (Ptr a1#) (Ptr a2#) = isTrue# (a1# `eqAddr#` a2#)
 {-# INLINE isSamePtr #-}
 
 setPtr ::
-     (Primal s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => Ptr e -- ^ Pointer to the memory to fill
   -> Count e -- ^ Number of cells to fill
   -> e -- ^ A value to fill the cells with
@@ -202,7 +230,7 @@ setPtr (Ptr addr#) (Count (I# n#)) a = primal_ (setOffAddr# addr# 0# n# a)
 {-# INLINE setPtr #-}
 
 setOffPtr ::
-     (Primal s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => Ptr e -- ^ Pointer to the memory to fill
   -> Off e -- ^ Offset in number of elements
   -> Count e -- ^ Number of cells to fill
@@ -212,7 +240,7 @@ setOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = primal_ (setOffAddr# add
 {-# INLINE setOffPtr #-}
 
 setByteOffPtr ::
-     (Primal s m, Unbox e)
+     forall e m s. (Primal s m, Unbox e)
   => Ptr e -- ^ Pointer to the memory to fill
   -> Off Word8 -- ^ Offset in number of Bytes
   -> Count e -- ^ Number of cells to fill
@@ -222,20 +250,20 @@ setByteOffPtr (Ptr addr#) (Off (I# o#)) (Count (I# n#)) a = primal_ (setByteOffA
 {-# INLINE setByteOffPtr #-}
 
 
-readOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off e -> m e
+readOffPtr :: forall e m s. (Primal s m, Unbox e) => Ptr e -> Off e -> m e
 readOffPtr (Ptr addr#) (Off (I# i#)) = primal (readOffAddr# addr# i#)
 {-# INLINE readOffPtr #-}
 
 
-readByteOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off Word8 -> m e
+readByteOffPtr :: forall e m s. (Primal s m, Unbox e) => Ptr e -> Off Word8 -> m e
 readByteOffPtr (Ptr addr#) (Off (I# i#)) = primal (readByteOffAddr# addr# i#)
 {-# INLINE readByteOffPtr #-}
 
-writeOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off e -> e -> m ()
+writeOffPtr :: forall e m s. (Primal s m, Unbox e) => Ptr e -> Off e -> e -> m ()
 writeOffPtr (Ptr addr#) (Off (I# i#)) a = primal_ (writeOffAddr# addr# i# a)
 {-# INLINE writeOffPtr #-}
 
-writeByteOffPtr :: (Primal s m, Unbox e) => Ptr e -> Off Word8 -> e -> m ()
+writeByteOffPtr :: forall e m s. (Primal s m, Unbox e) => Ptr e -> Off Word8 -> e -> m ()
 writeByteOffPtr (Ptr addr#) (Off (I# i#)) a = primal_ (writeByteOffAddr# addr# i# a)
 {-# INLINE writeByteOffPtr #-}
 
@@ -271,6 +299,7 @@ plusOffPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unOffBytes# off)
 plusByteCountPtr :: Ptr e -> Count Word8 -> Ptr e
 plusByteCountPtr (Ptr addr#) (Count (I# off#)) = Ptr (addr# `plusAddr#` off#)
 {-# INLINE plusByteCountPtr #-}
+
 
 plusCountPtr :: Unbox e => Ptr e -> Count e -> Ptr e
 plusCountPtr (Ptr addr#) off = Ptr (addr# `plusAddr#` unCountBytes# off)
