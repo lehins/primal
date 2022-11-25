@@ -223,13 +223,13 @@ instance Unbox e => Monoid.Monoid (Addr e) where
 
 type instance Frozen (MAddr e) = Addr e
 
-instance Unbox e => MutFreeze (MAddr e) where
+instance MutFreeze (MAddr e) where
   thawST = thawAddr
   {-# INLINE thawST #-}
   thawCloneST addr = do
-    let c = countAddr addr
-    maddr <- allocMAddr c
-    maddr <$ copyAddrToMAddr addr 0 maddr 0 c
+    let bc = byteCountAddr addr
+    maddr <- allocMAddr bc
+    castMAddr maddr <$ copyAddrToMAddr (castAddr addr) 0 maddr 0 bc
   {-# INLINE thawCloneST #-}
   freezeMutST = freezeMAddr
   {-# INLINE freezeMutST #-}
@@ -488,7 +488,7 @@ instance MemPtr (MAddr e) where
 
 
 
-instance Unbox e => MemAlloc (MAddr e) where
+instance MemAlloc (MAddr e) where
   allocMutMemST = fmap castMAddr . allocMAddr
   {-# INLINE allocMutMemST #-}
   allocPinnedMutMemST = fmap castMAddr . allocMAddr
@@ -496,7 +496,7 @@ instance Unbox e => MemAlloc (MAddr e) where
   allocAlignedPinnedMutMemST = fmap castMAddr . allocAlignedMAddr
   {-# INLINE allocAlignedPinnedMutMemST #-}
 
-instance Unbox e => MemFreeze (MAddr e) where
+instance MemFreeze (MAddr e) where
   getByteCountMutMemST = getByteCountMAddr
   {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
