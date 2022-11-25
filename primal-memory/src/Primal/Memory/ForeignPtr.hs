@@ -48,6 +48,7 @@ module Primal.Memory.ForeignPtr
   , mallocByteCountPlainForeignPtrAligned
   -- ** With Finalizers
   , finalizeForeignPtr
+  , finalizeMForeignPtr
   -- *** Foreign finalizer
   , FinalizerPtr
   , newForeignPtr
@@ -404,6 +405,10 @@ addForeignPtrConcFinalizer fp fin =
 -- | Lifted version of `GHC.finalizeForeignPtr`.
 finalizeForeignPtr :: Primal RW m => ForeignPtr e -> m ()
 finalizeForeignPtr = liftP . GHC.finalizeForeignPtr
+
+-- | Lifted version of `GHC.finalizeForeignPtr`.
+finalizeMForeignPtr :: Primal RW m => MForeignPtr e RW -> m ()
+finalizeMForeignPtr (MForeignPtr fptr) = liftP $ GHC.finalizeForeignPtr fptr
 
 -- | Advances the given address by the given offset in number of elemeents. This operation
 -- does not affect associated finalizers in any way.

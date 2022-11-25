@@ -98,7 +98,7 @@ deRefWeak (Weak weak#) =
       (# s', _, a #) -> (# s', Just a #)
 
 
--- | Similar to `System.Mem.Weak.finalize`
+-- | Runs associated finalizer, same as `System.Mem.Weak.finalize`
 finalizeWeak :: Primal RW m => Weak v -> m ()
 finalizeWeak (Weak w) =
   primal $ \s ->

@@ -57,6 +57,7 @@ module Primal.Memory.FAddr
   , reallocByteCountFMAddr
   , reallocPtrFMAddr
   , reallocByteCountPtrFMAddr
+  , finalizeFMAddr
   -- ** Internal allocators
   , allocWithFinalizerFMAddr
   , allocWithFinalizerPtrFMAddr
@@ -151,15 +152,15 @@ import Primal.Element.Unbox.Atomic
 
 data Finalizer
   = NoFinalizer
-  | Finalizer {-# UNPACK #-} !(BRef () RW)
-  | ReallocFinalizer {-# UNPACK #-} !(MBytes 'Pin RW)
+  | Finalizer {-# UNPACK #-}!(BRef () RW) {-# UNPACK #-}!(Weak ())
+  | ReallocFinalizer {-# UNPACK #-}!(MBytes 'Pin RW) {-# UNPACK #-}!(Weak (MBytes 'Pin RW))
 
 
 instance NFData Finalizer where
   rnf = \case
     NoFinalizer -> ()
-    Finalizer _ -> ()
-    ReallocFinalizer _ -> ()
+    Finalizer _ _ -> ()
+    ReallocFinalizer _ _ -> ()
 
 -- | Immutable read-only foreign address
 data FAddr e = FAddr
@@ -227,15 +228,18 @@ reallocByteCountPtrFMAddr ptr bc =
   unsafeIOToPrimal $ do
     -- We need to keep around the freeing flag as well as the pointer to the beginning
     mb <- allocZeroPinnedMBytes (toByteCount (1 :: Count CBool) + toByteCount (1 :: Count (Ptr e)))
+    -- It is important to have the MBytes as a value to the weak pointer, otherwise it
+    -- could be freed before finalizer gets a chance to run.
     weakPtr <- mkWeakNoFinalizerMBytes mb mb
     -- Make sure not to leak memory by masking exceptions until finalizer is properly registered
     Interruptible.mask_ $ do
       newPtr@(Ptr addr#) <- reallocByteCountPtr ptr bc
+      -- Write the pointer after the CBool freeing flag
       writeByteOffMBytes mb (toByteOff (1 :: Off CBool)) newPtr
       guardImpossibleFinalizer "MBytes" $
         addCFinalizerEnv guardedFreeFinalizerEnvPtr (toPtrMBytes mb) newPtr weakPtr
       pure $!
-        FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = ReallocFinalizer mb}
+        FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = ReallocFinalizer mb weakPtr}
 {-# INLINEABLE reallocByteCountPtrFMAddr #-}
 
 reallocFMAddr :: forall e m s. (Primal s m, Unbox e) => FMAddr e s -> Count e -> m (FMAddr e s)
@@ -252,7 +256,7 @@ reallocByteCountFMAddr fma bc
   | bc == fmaByteCount fma = pure fma
   | otherwise =
     case fmaFinalizer fma of
-      ReallocFinalizer mb -> do
+      ReallocFinalizer mb _ -> do
         ptr <- unsafeIOToPrimal $ readByteOffMBytes mb (toByteOff (1 :: Off CBool))
         let curPtr = Ptr (fmaAddr# fma)
             offPtr = minusByteOffPtr curPtr ptr
@@ -278,26 +282,26 @@ reallocByteCountFMAddr fma bc
 allocWithFinalizerFMAddr ::
      forall e m. UnliftPrimal RW m
   => Count Word8
-  -- ^ Number of elements to allocate memory for
+  -- ^ Number of bytes to allocate
   -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
   -> (Ptr e -> m ())
   -- ^ Finalizer to be used for freeing the memory
   -> m (FMAddr e RW)
-allocWithFinalizerFMAddr c alloc free = do
+allocWithFinalizerFMAddr bc alloc free = do
   ref <- newBRef ()
   Interruptible.mask_ $ do
-    ptr@(Ptr addr#) <- alloc c
-    _weakPtr <- mkWeakBRef ref () (free ptr)
+    ptr@(Ptr addr#) <- alloc bc
+    weakPtr <- mkWeakBRef ref () (free ptr)
     pure $!
-      FMAddr {fmaAddr# = addr#, fmaByteCount = c, fmaFinalizer = Finalizer ref}
+      FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = Finalizer ref weakPtr}
 {-# INLINE allocWithFinalizerFMAddr #-}
 
 
 allocWithFinalizerPtrFMAddr ::
      forall e m. UnliftPrimal RW m
   => Count Word8
-  -- ^ Number of elements to allocate memory for
+  -- ^ Number of bytes to allocate
   -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
   -> FinalizerPtr e
@@ -310,7 +314,7 @@ allocWithFinalizerPtrFMAddr bc alloc freeFinalizer =
 allocWithFinalizerEnvPtrFMAddr ::
      forall e env m. UnliftPrimal RW m
   => Count Word8
-  -- ^ Number of elements to allocate memory for
+  -- ^ Number of bytes to allocate
   -> (Count Word8 -> m (Ptr e))
   -- ^ Function to be used for allocating memory
   -> FinalizerEnvPtr env e
@@ -318,8 +322,8 @@ allocWithFinalizerEnvPtrFMAddr ::
   -> Ptr env
   -- ^ Pointer with enviroment to be passed to the finalizer
   -> m (FMAddr e RW)
-allocWithFinalizerEnvPtrFMAddr c alloc freeFinalizer envPtr =
-  allocAndFinalizeFMAddr c alloc (addCFinalizerEnv freeFinalizer envPtr)
+allocWithFinalizerEnvPtrFMAddr bc alloc freeFinalizer envPtr =
+  allocAndFinalizeFMAddr bc alloc (addCFinalizerEnv freeFinalizer envPtr)
 {-# INLINE allocWithFinalizerEnvPtrFMAddr #-}
 
 -- | Helper function for allocating memory with a C finalizer
@@ -336,9 +340,17 @@ allocAndFinalizeFMAddr bc alloc customAddCFinalizer = do
     ptr@(Ptr addr#) <- alloc bc
     guardImpossibleFinalizer "BRef" (customAddCFinalizer ptr weakPtr)
     pure $!
-      FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = Finalizer ref}
+      FMAddr {fmaAddr# = addr#, fmaByteCount = bc, fmaFinalizer = Finalizer ref weakPtr}
 {-# INLINE allocAndFinalizeFMAddr #-}
 
+
+-- | Run the associated finalizer, if one is present.
+finalizeFMAddr :: Primal RW f => FMAddr e s -> f ()
+finalizeFMAddr fma =
+  case fmaFinalizer fma of
+    NoFinalizer -> pure ()
+    Finalizer _ weakPtr -> finalizeWeak weakPtr
+    ReallocFinalizer _ weakPtr -> finalizeWeak weakPtr
 
 singletonFMAddr :: forall e m s. (Primal s m, Unbox e) => e -> m (FMAddr e s)
 singletonFMAddr e = do

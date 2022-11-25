@@ -180,14 +180,14 @@ callocByteCountPtr c =
 {-# INLINE callocByteCountPtr #-}
 
 reallocPtr :: forall e m s. (Unbox e, Primal s m) => Ptr e -> Count e -> m (Ptr e)
-reallocPtr ptr c = reallocByteCountPtr ptr (toByteCount c)
+reallocPtr ptr = reallocByteCountPtr ptr . toByteCount
 {-# INLINE reallocPtr #-}
 
 reallocByteCountPtr :: forall e m s. Primal s m => Ptr e -> Count Word8 -> m (Ptr e)
-reallocByteCountPtr ptr c =
+reallocByteCountPtr ptr bc =
   unsafeIOToPrimal $
   throwErrnoIfNullPred (== eNOMEM) "reallocByteCountPtr" $
-  reallocIO ptr (fromIntegral c)
+  reallocIO ptr (fromIntegral bc)
 {-# INLINE reallocByteCountPtr #-}
 
 freePtr ::
