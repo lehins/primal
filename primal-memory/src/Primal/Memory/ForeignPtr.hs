@@ -149,15 +149,15 @@ class MemWrite mp => MemPtr mp where
   -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
   -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
   -- treat the memory content.
-  withPtrMutMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
-  default withPtrMutMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
+  withPtrMutMemST :: mp s -> (Ptr e -> ST s b) -> ST s b
+  default withPtrMutMemST :: MemForeignPtr mp => mp s -> (Ptr e -> ST s b) -> ST s b
   withPtrMutMemST = withMForeignPtr . toMForeignPtrMem
   {-# INLINE withPtrMutMemST #-}
 
   -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
   -- related to it in order to get more insight why this is needed.
-  withNoHaltPtrMutMemST :: Unbox e => mp s -> (Ptr e -> ST s b) -> ST s b
-  default withNoHaltPtrMutMemST :: (Unbox e, MemForeignPtr mp) => mp s -> (Ptr e -> ST s b) -> ST s b
+  withNoHaltPtrMutMemST :: mp s -> (Ptr e -> ST s b) -> ST s b
+  default withNoHaltPtrMutMemST :: MemForeignPtr mp => mp s -> (Ptr e -> ST s b) -> ST s b
   withNoHaltPtrMutMemST = withNoHaltMForeignPtr . toMForeignPtrMem
   {-# INLINE withNoHaltPtrMutMemST #-}
 
@@ -218,14 +218,14 @@ toMForeignPtrMBytes (MBytes mba#) =
 -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
 -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
 -- treat the memory content.
-withPtrMutMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withPtrMutMem :: (MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
 withPtrMutMem mem f =
   withRunInST (\unlift -> withPtrMutMemST mem $ \ptr -> unlift (f ptr))
 {-# INLINE withPtrMutMem #-}
 
 -- | See this GHC <https://gitlab.haskell.org/ghc/ghc/issues/17746 issue #17746> and
 -- related to it in order to get more insight why this is needed.
-withNoHaltPtrMutMem :: (Unbox e, MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
+withNoHaltPtrMutMem :: (MemPtr mp, UnliftPrimal s m) => mp s -> (Ptr e -> m b) -> m b
 withNoHaltPtrMutMem mem f =
   withRunInST (\unlift -> withNoHaltPtrMutMemST mem $ \ptr -> unlift (f ptr))
 {-# INLINE withNoHaltPtrMutMem #-}
