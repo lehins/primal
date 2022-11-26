@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Ref.Boxed
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -12,15 +13,16 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Ref.Boxed
-  ( BRef(..)
-  -- * Create
+  ( BRef (..)
+
+    -- * Create
   , newBRef
   , newDeepBRef
   , newLazyBRef
   , isSameBRef
-  -- * Read/write
+
+    -- * Read/write
   , readBRef
   , writeBRef
   , writeDeepBRef
@@ -28,40 +30,47 @@ module Primal.Ref.Boxed
   , writeFetchOldBRef
   , writeFetchOldDeepBRef
   , writeFetchOldLazyBRef
-  -- * Modify
-  -- ** Pure
+
+    -- * Modify
+
+    -- ** Pure
   , modifyBRef
   , modifyDeepBRef
   , modifyLazyBRef
   , modifyBRef_
   , modifyFetchNewBRef
   , modifyFetchOldBRef
-  -- ** Monadic
+
+    -- ** Monadic
   , modifyBRefM
   , modifyDeepBRefM
   , modifyLazyBRefM
   , modifyBRefM_
   , modifyFetchNewBRefM
   , modifyFetchOldBRefM
-  -- * Conversion
-  -- ** STBRef
+
+    -- * Conversion
+
+    -- ** STBRef
   , toSTRef
   , fromSTRef
-  -- ** IORef
+
+    -- ** IORef
   , toIORef
   , fromIORef
-  -- * Weak Pointer
+
+    -- * Weak Pointer
   , mkWeakBRef
   , mkWeakNoFinalizerBRef
   ) where
 
 import Control.DeepSeq
-import Primal.Eval
-import Primal.Monad
-import Primal.Foreign
-import Primal.Memory.Weak
 import qualified GHC.IORef as IO
 import qualified GHC.STRef as ST
+import Primal.Eval
+import Primal.Foreign
+import Primal.Memory.Weak
+import Primal.Monad
 
 -- | Mutable variable that can hold any value. This is just like `Data.STRef.STRef`, but
 -- with type arguments flipped and is generalized to work in `Primal`. It only stores a
@@ -77,7 +86,6 @@ instance Eq (BRef e s) where
   (==) = isSameBRef
   {-# INLINE (==) #-}
 
-
 instance NFData e => MutNFData (BRef e) where
   rnfMutST ref = rnf <$> readBRef ref
   {-# INLINE rnfMutST #-}
@@ -88,7 +96,6 @@ instance NFData e => MutNFData (BRef e) where
 isSameBRef :: BRef a s -> BRef a s -> Bool
 isSameBRef (BRef ref1#) (BRef ref2#) = isTrue# (sameMutVar# ref1# ref2#)
 {-# INLINE isSameBRef #-}
-
 
 -- | Create a new mutable variable. Initial value will be forced to WHNF (weak head normal form).
 --
@@ -107,7 +114,6 @@ isSameBRef (BRef ref1#) (BRef ref2#) = isTrue# (sameMutVar# ref1# ref2#)
 newBRef :: Primal s m => a -> m (BRef a s)
 newBRef a = a `seq` newLazyBRef a
 {-# INLINE newBRef #-}
-
 
 -- | Create a new mutable variable. Same as `newBRef`, but ensures that value is evaluated
 -- to normal form.
@@ -165,7 +171,6 @@ readBRef :: Primal s m => BRef a s -> m a
 readBRef (BRef ref#) = primal (readMutVar# ref#)
 {-# INLINE readBRef #-}
 
-
 -- | Swap the contents of a mutable variable with a new value, while retrieving the old
 -- one. New value is evaluated prior to it being written to the variable.
 --
@@ -181,7 +186,6 @@ readBRef (BRef ref#) = primal (readMutVar# ref#)
 writeFetchOldBRef :: Primal s m => BRef a s -> a -> m a
 writeFetchOldBRef ref a = readBRef ref <* writeBRef ref a
 {-# INLINE writeFetchOldBRef #-}
-
 
 -- | Swap the contents of a mutable variable with a new value lazily, while retrieving the old
 -- one. New value is __not__ evaluated prior to it being written to the variable.
@@ -200,7 +204,6 @@ writeFetchOldLazyBRef :: Primal s m => BRef a s -> a -> m a
 writeFetchOldLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
 {-# INLINE writeFetchOldLazyBRef #-}
 
-
 -- | Swap the contents of a mutable variable with a new value, while retrieving the old one. New
 -- value is evaluated to __normal__ form prior to it being written to the variable.
 --
@@ -216,7 +219,6 @@ writeFetchOldLazyBRef ref a = readBRef ref <* writeLazyBRef ref a
 writeFetchOldDeepBRef :: (NFData a, Primal s m) => BRef a s -> a -> m a
 writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 {-# INLINE writeFetchOldDeepBRef #-}
-
 
 -- | Write a value into a mutable variable strictly. If evaluating a value results in
 -- exception, original value in the mutable variable will not be affected. Another great
@@ -237,7 +239,6 @@ writeFetchOldDeepBRef ref a = readBRef ref <* writeDeepBRef ref a
 writeBRef :: Primal s m => BRef a s -> a -> m ()
 writeBRef ref !a = writeLazyBRef ref a
 {-# INLINE writeBRef #-}
-
 
 -- | Same as `writeBRef`, but will evaluate the argument to Normal Form prior to writing it
 -- to the `BRef`
@@ -266,11 +267,9 @@ writeLazyBRef :: Primal s m => BRef a s -> a -> m ()
 writeLazyBRef (BRef ref#) a = primal_ (writeMutVar# ref# a)
 {-# INLINE writeLazyBRef #-}
 
-
 ------------
 -- Modify --
 ------------
-
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the
 -- artifact produced by the modifying function. Artifact is not forced, therfore it cannot
@@ -322,7 +321,6 @@ modifyFetchOldBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 modifyFetchOldBRef ref f = modifyFetchOldBRefM ref (pure . f)
 {-# INLINE modifyFetchOldBRef #-}
 
-
 -- | Apply a pure function to the contents of a mutable variable lazily. Returns the
 -- artifact produced by the modifying function.
 --
@@ -331,20 +329,16 @@ modifyLazyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 modifyLazyBRef ref f = modifyLazyBRefM ref (pure . f)
 {-# INLINE modifyLazyBRef #-}
 
-
-
 -- | Modify value of a mutable variable with a monadic action. It is not strict in a
 -- return value of type @b@, but the new value written into the mutable variable is
 -- evaluated to WHNF.
 --
 -- ==== __Examples__
---
 modifyBRefM :: Primal s m => BRef a s -> (a -> m (a, b)) -> m b
 modifyBRefM ref f = do
   (a, b) <- f =<< readBRef ref
   b <$ writeBRef ref a
 {-# INLINE modifyBRefM #-}
-
 
 -- | Same as `modifyBRefM`, except evaluates new value to normal form prior ot it being
 -- written to the mutable ref.
@@ -353,7 +347,6 @@ modifyDeepBRefM ref f = do
   (a', b) <- f =<< readBRef ref
   b <$ writeDeepBRef ref a'
 {-# INLINE modifyDeepBRefM #-}
-
 
 -- | Modify value of a mutable variable with a monadic action. Result is written strictly.
 --
@@ -390,7 +383,6 @@ modifyFetchOldBRefM ref f = do
   a <- readBRef ref
   a <$ (writeBRef ref =<< f a)
 {-# INLINE modifyFetchOldBRefM #-}
-
 
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the new value.
 --
@@ -440,21 +432,22 @@ fromIORef :: IO.IORef a -> BRef a RW
 fromIORef = fromSTRef . coerce
 {-# INLINE fromIORef #-}
 
-
-
-
 -- | Create a `Weak` pointer associated with the supplied `BRef`.
 --
 -- Similar to `Data.IORef.mkWeakRef` from @base@, but works in any `UnliftPrimal` with
 -- `RealWorld` state token and accepts another value to be stored in a weak ptr.
 --
 -- @since 1.0.0
-mkWeakBRef ::
-     forall a b c m. UnliftPrimal RW m
-  => BRef a RW -- ^ Reference that will act as a key for the newly created weak pointer
-  -> b -- ^ Value that can be later dereferenced with `deRefWeak`.
-  -> m c -- ^ An action that will get executed whenever `BRef` gets garbage collected by
-         -- the runtime.
+mkWeakBRef
+  :: forall a b c m
+   . UnliftPrimal RW m
+  => BRef a RW
+  -- ^ Reference that will act as a key for the newly created weak pointer
+  -> b
+  -- ^ Value that can be later dereferenced with `deRefWeak`.
+  -> m c
+  -- ^ An action that will get executed whenever `BRef` gets garbage collected by
+  -- the runtime.
   -> m (Weak b)
 mkWeakBRef (BRef ref#) val finalizer =
   runInPrimalState finalizer $ \f# s ->
@@ -468,10 +461,13 @@ mkWeakBRef (BRef ref#) val finalizer =
 -- finalizers. One can be added later with `addCFinalizer` or `addCFinalizerEnv`
 --
 -- @since 1.0.0
-mkWeakNoFinalizerBRef ::
-     forall a b m. UnliftPrimal RW m
-  => BRef a RW -- ^ Reference that will act as a key for the newly created weak pointer
-  -> b -- ^ Value that can be later dereferenced with `deRefWeak`
+mkWeakNoFinalizerBRef
+  :: forall a b m
+   . UnliftPrimal RW m
+  => BRef a RW
+  -- ^ Reference that will act as a key for the newly created weak pointer
+  -> b
+  -- ^ Value that can be later dereferenced with `deRefWeak`
   -> m (Weak b)
 mkWeakNoFinalizerBRef (BRef ref#) val =
   primal $ \s ->

@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      : Primal.Data.Array.Unboxed.Ragged
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -16,18 +17,22 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Data.Array.Unboxed.Ragged
-  ( RArray(..)
-  , RMArray(..)
-  , Size(..)
-  -- * Immutable
+  ( RArray (..)
+  , RMArray (..)
+  , Size (..)
+
+    -- * Immutable
+
   -- , makeRArray
   -- , makeRArrayM
   , sizeOfRArray
   , indexRArray
-  -- * Mutable
-  -- ** Create
+
+    -- * Mutable
+
+    -- ** Create
+
   -- , newRMArray
   , newRawRMArray
   -- , newRMArrayLazy
@@ -35,7 +40,8 @@ module Primal.Data.Array.Unboxed.Ragged
   -- , createRArrayM
   -- , createRArrayM_
   , sizeOfRMArray
-  -- ** Access
+
+    -- ** Access
   , readRMArray
   , readUnboxedRMArray
   , writeRMArray
@@ -49,13 +55,15 @@ module Primal.Data.Array.Unboxed.Ragged
   , moveRMArray
   -- , cloneRArray -- TODO: implement deep clone
   -- , cloneRMArray
-  -- * List
-  -- , fromListRArray
-  -- , fromListRArrayN
-  -- , toListRArray
-  -- -- * Helpers
-  -- , foldrRArray
-  -- , traverseRArray
+
+    -- * List
+
+    -- , fromListRArray
+    -- , fromListRArrayN
+    -- , toListRArray
+    -- -- * Helpers
+    -- , foldrRArray
+    -- , traverseRArray
   ) where
 
 import GHC.TypeLits
@@ -67,7 +75,6 @@ import Primal.Foreign
 import Primal.Memory.Bytes
 import Primal.Memory.PUArray
 import Primal.Monad
-
 
 -- | Check if both of the arrays refer to the exact same one. None of the elements are
 -- evaluated.
@@ -95,7 +102,6 @@ instance MRef (RMArray 0) (Bytes 'Inc) where
   {-# INLINE writeMRef #-}
 
 instance MArray (RMArray 0) (Bytes 'Inc) where
-
   indexArray = indexBytesRArray
   {-# INLINE indexArray #-}
   sizeOfArray = sizeOfRArray
@@ -116,7 +122,6 @@ instance MArray (RMArray 0) (Bytes 'Inc) where
   {-# INLINE copyArray #-}
   moveMArray = moveRMArray
   {-# INLINE moveMArray #-}
-
 
 instance MRef (RMArray 0) (UArray e) where
   newRawMRef = newRawRMArray 1
@@ -208,7 +213,6 @@ instance (KnownNat n, 1 <= n, KnownNat k, k ~ (n - 1)) => MArray (RMArray n) (RA
   moveMArray = moveRMArray
   {-# INLINE moveMArray #-}
 
-
 sizeOfRArray :: RArray n a -> Size
 sizeOfRArray (RArray a#) = Size (I# (sizeofArrayArray# a#))
 {-# INLINE sizeOfRArray #-}
@@ -224,7 +228,6 @@ indexBytesRArray (RArray a#) (I# i#) = fromByteArray# (indexByteArrayArray# a# i
 indexRArray :: (KnownNat n, 1 <= n) => RArray n (RArray (n - 1) e) -> Int -> RArray (n - 1) e
 indexRArray (RArray a#) (I# i#) = RArray (indexArrayArrayArray# a# i#)
 {-# INLINE indexRArray #-}
-
 
 -- indexRArrayI :: MArray (RMArray n) e => RArray n e -> Int -> RElt n e
 -- indexRArrayI = indexArray
@@ -245,7 +248,6 @@ newRawRMArray (Size (I# n#)) =
 -- newRawRMArrayI = newRawRMArray
 -- {-# INLINE newRawRMArrayI #-}
 
-
 thawRArray :: Primal s m => RArray n e -> m (RMArray n e s)
 thawRArray (RArray a#) =
   primal $ \s ->
@@ -260,7 +262,6 @@ freezeRMArray (RMArray ma#) =
       (# s', a# #) -> (# s', RArray a# #)
 {-# INLINE freezeRMArray #-}
 
-
 -- | Get the size of a mutable boxed array
 --
 -- >>> ma <- newRMArray 1024 "Element of each cell"
@@ -271,7 +272,6 @@ freezeRMArray (RMArray ma#) =
 sizeOfRMArray :: RMArray n e s -> Size
 sizeOfRMArray (RMArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
 {-# INLINE sizeOfRMArray #-}
-
 
 -- | Read an element from mutable boxed array at a supplied index.
 --
@@ -284,8 +284,8 @@ sizeOfRMArray (RMArray ma#) = Size (I# (sizeofMutableArrayArray# ma#))
 -- "Element ix: 5"
 --
 -- @since 0.1.0
-readRMArray ::
-     (KnownNat n, 1 <= n, Primal s m)
+readRMArray
+  :: (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RMArray (n - 1) e s) s
   -> Int
   -> m (RMArray (n - 1) e s)
@@ -317,17 +317,16 @@ readRMArray (RMArray ma#) (I# i#) =
 --       (# s', ma'# #) -> (# s', RMArray ma'# #)
 -- {-# INLINE readRMMArray' #-}
 
-
-readRMArray_ ::
-     (MArray (RMArray n) ma, Primal s m)
+readRMArray_
+  :: (MArray (RMArray n) ma, Primal s m)
   => RMArray n ma s
   -> Int
   -> m ma
 readRMArray_ = readMArray
 {-# INLINE readRMArray_ #-}
 
-readFrozenRMArray ::
-     (KnownNat n, 1 <= n, Primal s m)
+readFrozenRMArray
+  :: (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RArray (n - 1) e) s
   -> Int
   -> m (RArray (n - 1) e)
@@ -350,7 +349,6 @@ readUnboxedFrozenRMArray (RMArray ma#) (I# i#) =
     case readByteArrayArray# ma# i# s of
       (# s', ba# #) -> (# s', UArray ba# #)
 {-# INLINE readUnboxedFrozenRMArray #-}
-
 
 readMBytesRMArray :: Primal s m => RMArray 0 e s -> Int -> m (MBytes 'Inc s)
 readMBytesRMArray (RMArray ma#) (I# i#) =
@@ -397,8 +395,8 @@ readBytesRMArray (RMArray ma#) (I# i#) =
 -- Either `deepseq` or `writeRMArrayDeep` can be used to alleviate that.
 --
 -- @since 0.1.0
-writeRMArray ::
-     (KnownNat n, 1 <= n, Primal s m)
+writeRMArray
+  :: (KnownNat n, 1 <= n, Primal s m)
   => RMArray n e s
   -> Int
   -> RMArray (n - 1) e s
@@ -407,8 +405,8 @@ writeRMArray (RMArray ma#) (I# i#) (RMArray e#) =
   primal_ (writeMutableArrayArrayArray# ma# i# e#)
 {-# INLINE writeRMArray #-}
 
-writeFrozenRMArray ::
-     (KnownNat n, 1 <= n, Primal s m)
+writeFrozenRMArray
+  :: (KnownNat n, 1 <= n, Primal s m)
   => RMArray n (RArray (n - 1) e) s
   -> Int
   -> RArray (n - 1) e
@@ -417,33 +415,29 @@ writeFrozenRMArray (RMArray ma#) (I# i#) (RArray e#) =
   primal_ (writeArrayArrayArray# ma# i# e#)
 {-# INLINE writeFrozenRMArray #-}
 
-writeUnboxedRMArray ::
-     Primal s m => RMArray 0 e s -> Int -> UMArray e s -> m ()
+writeUnboxedRMArray
+  :: Primal s m => RMArray 0 e s -> Int -> UMArray e s -> m ()
 writeUnboxedRMArray (RMArray ma#) (I# i#) (UMArray mba#) =
   primal_ (writeMutableByteArrayArray# ma# i# mba#)
 {-# INLINE writeUnboxedRMArray #-}
 
-
-writeUnboxedFrozenRMArray ::
-     Primal s m => RMArray 0 b s -> Int -> UArray e -> m ()
+writeUnboxedFrozenRMArray
+  :: Primal s m => RMArray 0 b s -> Int -> UArray e -> m ()
 writeUnboxedFrozenRMArray (RMArray ma#) (I# i#) (UArray ba#) =
   primal_ (writeByteArrayArray# ma# i# ba#)
 {-# INLINE writeUnboxedFrozenRMArray #-}
 
-
-writeMBytesRMArray ::
-     Primal s m => RMArray 0 e s -> Int -> MBytes 'Inc s -> m ()
+writeMBytesRMArray
+  :: Primal s m => RMArray 0 e s -> Int -> MBytes 'Inc s -> m ()
 writeMBytesRMArray (RMArray ma#) (I# i#) mb =
   primal_ (writeMutableByteArrayArray# ma# i# (toMutableByteArray# mb))
 {-# INLINE writeMBytesRMArray #-}
 
-
-writeBytesRMArray ::
-     Primal s m => RMArray 0 b s -> Int -> Bytes 'Inc -> m ()
+writeBytesRMArray
+  :: Primal s m => RMArray 0 b s -> Int -> Bytes 'Inc -> m ()
 writeBytesRMArray (RMArray ma#) (I# i#) b =
   primal_ (writeByteArrayArray# ma# i# (toByteArray# b))
 {-# INLINE writeBytesRMArray #-}
-
 
 -- | Copy a subsection of an immutable array into a subsection of another mutable array.
 --
@@ -456,13 +450,18 @@ writeBytesRMArray (RMArray ma#) (I# i#) b =
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-copyRArray ::
-     Primal s m
-  => RArray n e -- ^ Source immutable array
-  -> Int -- ^ Offset into the source immutable array
-  -> RMArray n e s -- ^ Destination mutable array
-  -> Int -- ^ Offset into the destination mutable array
-  -> Size -- ^ Number of elements to copy over
+copyRArray
+  :: Primal s m
+  => RArray n e
+  -- ^ Source immutable array
+  -> Int
+  -- ^ Offset into the source immutable array
+  -> RMArray n e s
+  -- ^ Destination mutable array
+  -> Int
+  -- ^ Offset into the destination mutable array
+  -> Size
+  -- ^ Number of elements to copy over
   -> m ()
 copyRArray (RArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#)) =
   primal_ (copyArrayArray# src# srcOff# dst# dstOff# n#)
@@ -478,15 +477,19 @@ copyRArray (RArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#))
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-moveRMArray ::
-     Primal s m
-  => RMArray n e s -- ^ Source mutable array
-  -> Int -- ^ Offset into the source mutable array
-  -> RMArray n e s -- ^ Destination mutable array
-  -> Int -- ^ Offset into the destination mutable array
-  -> Size -- ^ Number of elements to copy over
+moveRMArray
+  :: Primal s m
+  => RMArray n e s
+  -- ^ Source mutable array
+  -> Int
+  -- ^ Offset into the source mutable array
+  -> RMArray n e s
+  -- ^ Destination mutable array
+  -> Int
+  -- ^ Offset into the destination mutable array
+  -> Size
+  -- ^ Number of elements to copy over
   -> m ()
 moveRMArray (RMArray src#) (I# srcOff#) (RMArray dst#) (I# dstOff#) (Size (I# n#)) =
   primal_ (copyMutableArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveRMArray #-}
-

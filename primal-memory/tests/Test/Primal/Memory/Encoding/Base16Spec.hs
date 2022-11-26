@@ -11,9 +11,9 @@ import Primal.Exception
 import Primal.Memory.Encoding
 import Test.Primal.Memory.Common
 
-
-roundTripBase16 ::
-     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
+roundTripBase16
+  :: forall m ma
+   . (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
   => m
   -> Property
 roundTripBase16 mem =
@@ -23,18 +23,19 @@ roundTripBase16 mem =
         , encodeBase16Mem mem === Base16.encode (convertMem mem)
         ]
 
-decodeFailureBase16 ::
-     forall m ma. (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
+decodeFailureBase16
+  :: forall m ma
+   . (Eq m, Show m, Arbitrary m, m ~ Frozen ma, MemFreeze ma)
   => m
   -> Int
   -> Word8
   -> Property
 decodeFailureBase16 mem i' w =
-  (byteCountMem mem /= 0 && w `notElem` validBytes) ==>
-  conjoin
-    [ decodeBase16 invalidHexMem === Left (DecodeInvalidValue o)
-    , decodeBase16 invalidLengthHexMem === Left DecodeInvalidLength
-    ]
+  (byteCountMem mem /= 0 && w `notElem` validBytes)
+    ==> conjoin
+      [ decodeBase16 invalidHexMem === Left (DecodeInvalidValue o)
+      , decodeBase16 invalidLengthHexMem === Left DecodeInvalidLength
+      ]
   where
     hex = encodeBase16 mem
     validBytes =
@@ -53,8 +54,6 @@ decodeFailureBase16 mem i' w =
         hexMut <- thawCloneMem hex
         c <- getByteCountMutMem hexMut
         freezeMutMem =<< reallocMutMem hexMut (c - 1)
-
-
 
 spec :: Spec
 spec = do

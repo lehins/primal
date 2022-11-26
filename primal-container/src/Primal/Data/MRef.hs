@@ -5,7 +5,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Data.Prim.MRef
   ( module Data.Prim.MRef.Internal
   , module Data.Prim.MRef.Atomic

@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+
 -- |
 -- Module      : Primal.Container.Ref.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -9,9 +10,8 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Container.Ref.Internal
-  ( MutRef(..)
+  ( MutRef (..)
   , newMutRef
   , newRawMutRef
   , readMutRef
@@ -27,18 +27,17 @@ module Primal.Container.Ref.Internal
   , module Primal.Container.Internal
   ) where
 
-import Primal.Monad
+import Primal.Array
 import Primal.Concurrent.MVar
 import Primal.Container.Internal
-import Primal.Array
-import Primal.Ref
 import Primal.Memory
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
 import Primal.Memory.PUArray
+import Primal.Monad
+import Primal.Ref
 
 class MutRef mr where
-
   newMutRefST :: Elt mr e => e -> ST s (mr e s)
   newMutRefST a = newRawMutRef >>= \mut -> mut <$ writeMutRefST mut a
   {-# INLINE newMutRefST #-}
@@ -48,7 +47,6 @@ class MutRef mr where
   readMutRefST :: Elt mr e => mr e s -> ST s e
 
   writeMutRefST :: Elt mr e => mr e s -> e -> ST s ()
-
 
 -- | Read\/write aren't atomic - /not/ thread safe.
 instance MutRef MVar where
@@ -61,7 +59,6 @@ instance MutRef MVar where
   readMutRefST = readMVar
   {-# INLINE readMutRefST #-}
 
-
 instance MutRef MAddr where
   newRawMutRefST = allocMAddr 1
   {-# INLINE newRawMutRefST #-}
@@ -69,7 +66,6 @@ instance MutRef MAddr where
   {-# INLINE writeMutRefST #-}
   readMutRefST = readMAddr
   {-# INLINE readMutRefST #-}
-
 
 instance MutRef FMAddr where
   newRawMutRefST = allocFMAddr 1
@@ -79,7 +75,6 @@ instance MutRef FMAddr where
   readMutRefST = readFMAddr
   {-# INLINE readMutRefST #-}
 
-
 instance Typeable p => MutRef (PUMArray p) where
   newRawMutRefST = allocPUMArray 1
   {-# INLINE newRawMutRefST #-}
@@ -87,8 +82,6 @@ instance Typeable p => MutRef (PUMArray p) where
   {-# INLINE writeMutRefST #-}
   readMutRefST mba = readPUMArray mba 0
   {-# INLINE readMutRefST #-}
-
-
 
 instance MutRef BRef where
   newMutRefST = newBRef
@@ -100,8 +93,6 @@ instance MutRef BRef where
   readMutRefST = readBRef
   {-# INLINE readMutRefST #-}
 
-
-
 instance MutRef BMArray where
   newRawMutRefST = newRawBMArray 1
   {-# INLINE newRawMutRefST #-}
@@ -111,7 +102,6 @@ instance MutRef BMArray where
   {-# INLINE writeMutRefST #-}
   newMutRefST = newBMArray 1
   {-# INLINE newMutRefST #-}
-
 
 instance MutRef SBMArray where
   newRawMutRefST = newRawSBMArray 1
@@ -123,7 +113,6 @@ instance MutRef SBMArray where
   newMutRefST = newSBMArray 1
   {-# INLINE newMutRefST #-}
 
-
 instance MutRef UBMArray where
   newRawMutRefST = newRawUBMArray 1
   {-# INLINE newRawMutRefST #-}
@@ -133,7 +122,6 @@ instance MutRef UBMArray where
   {-# INLINE writeMutRefST #-}
   newMutRefST = newUBMArray 1
   {-# INLINE newMutRefST #-}
-
 
 instance MutRef UMArray where
   newRawMutRefST = newRawUMArray 1
@@ -145,40 +133,33 @@ instance MutRef UMArray where
   newMutRefST = newUMArray 1
   {-# INLINE newMutRefST #-}
 
-modifyMutRef ::
-     (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> (e, a)) -> m a
+modifyMutRef
+  :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> (e, a)) -> m a
 modifyMutRef ref f = modifyMutRefM ref (pure . f)
 {-# INLINE modifyMutRef #-}
-
 
 modifyMutRef_ :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> e) -> m ()
 modifyMutRef_ ref f = modifyMutRefM_ ref (pure . f)
 {-# INLINE modifyMutRef_ #-}
 
-
-
-modifyFetchOldMutRef ::
-     (MutRef mr, Elt mr e, Primal s m)
+modifyFetchOldMutRef
+  :: (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> e)
   -> m e
 modifyFetchOldMutRef ref f = modifyFetchOldMutRefM ref (pure . f)
 {-# INLINE modifyFetchOldMutRef #-}
 
-
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the new value.
 --
 -- @since 0.1.0
-modifyFetchNewMutRef ::
-     (MutRef mr, Elt mr e, Primal s m)
+modifyFetchNewMutRef
+  :: (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> e)
   -> m e
 modifyFetchNewMutRef ref f = modifyFetchNewMutRefM ref (pure . f)
 {-# INLINE modifyFetchNewMutRef #-}
-
-
-
 
 -- | Modify value of a mutable variable with a monadic action. Result is written strictly.
 --
@@ -195,23 +176,18 @@ modifyMutRefM_ :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> m e) -> m
 modifyMutRefM_ ref f = readMutRef ref >>= f >>= writeMutRef ref
 {-# INLINE modifyMutRefM_ #-}
 
-
-
-
 -- | Modify value of a mutable variable with a monadic action. It is not strict in a
 -- return value of type @b@, but the ne value written into the mutable variable is
 -- evaluated to WHNF.
 --
 -- ==== __Examples__
---
-modifyMutRefM ::
-     (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> m (e, a)) -> m a
+modifyMutRefM
+  :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> (e -> m (e, a)) -> m a
 modifyMutRefM ref f = do
   a <- readMutRef ref
   (a', b) <- f a
   b <$ writeMutRef ref a'
 {-# INLINE modifyMutRefM #-}
-
 
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the old value.
 --
@@ -228,8 +204,8 @@ modifyMutRefM ref f = do
 -- Leo
 --
 -- @since 0.1.0
-modifyFetchOldMutRefM ::
-     (MutRef mr, Elt mr e, Primal s m)
+modifyFetchOldMutRefM
+  :: (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> m e)
   -> m e
@@ -238,12 +214,11 @@ modifyFetchOldMutRefM ref f = do
   a <$ (writeMutRef ref =<< f a)
 {-# INLINE modifyFetchOldMutRefM #-}
 
-
 -- | Apply a monadic action to the contents of a mutable variable strictly. Returns the new value.
 --
 -- @since 0.1.0
-modifyFetchNewMutRefM ::
-     (MutRef mr, Elt mr e, Primal s m)
+modifyFetchNewMutRefM
+  :: (MutRef mr, Elt mr e, Primal s m)
   => mr e s
   -> (e -> m e)
   -> m e
@@ -252,8 +227,6 @@ modifyFetchNewMutRefM ref f = do
   a' <- f a
   a' <$ writeMutRef ref a'
 {-# INLINE modifyFetchNewMutRefM #-}
-
-
 
 newMutRef :: (MutRef mr, Elt mr e, Primal s m) => e -> m (mr e s)
 newMutRef = liftST . newMutRefST
@@ -270,4 +243,3 @@ readMutRef = liftST . readMutRefST
 writeMutRef :: (MutRef mr, Elt mr e, Primal s m) => mr e s -> e -> m ()
 writeMutRef mr = liftST . writeMutRefST mr
 {-# INLINE writeMutRef #-}
-

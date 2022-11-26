@@ -1,18 +1,19 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Main where
 
 import qualified Control.Concurrent.MVar as Base
+import Criterion.Main
+import Data.Atomics (atomicModifyIORefCAS, atomicModifyIORefCAS_)
+import Data.Coerce
+import qualified Data.IORef as Base
 import Primal.Concurrent.MVar
 import Primal.Eval
 import Primal.Monad
-import Criterion.Main
-import Data.Coerce
-import qualified Data.IORef as Base
 import Primal.Ref
 import qualified UnliftIO.MVar as Unlift
-import Data.Atomics (atomicModifyIORefCAS, atomicModifyIORefCAS_)
 
 main :: IO ()
 main = do
@@ -66,27 +67,33 @@ main = do
                 bench "modifyBRef_" $ whnfIO $ modifyBRef_ ref (+ i1)
             , envIORef i0 $ \ref ->
                 bench "modifyIORef' (base)" $
-                whnfIO $ Base.modifyIORef' ref (+ i1)
+                  whnfIO $
+                    Base.modifyIORef' ref (+ i1)
             , envMVar i0 $ \ref ->
                 bench "modifyMVar_" $ whnfIO $ modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVar_ (base)" $
-                whnfIO $ Base.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Base.modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVar_ (unliftio)" $
-                whnfIO $ Unlift.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Unlift.modifyMVar_ ref (pure . (+ i1))
             ]
         , bgroup
             "modifyMVarMasked"
             [ envMVar i0 $ \ref ->
                 bench "modifyMVarMasked_" $
-                whnfIO $ modifyMVarMasked_ ref (pure . (+ i1))
+                  whnfIO $
+                    modifyMVarMasked_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVarMasked_ (base)" $
-                whnfIO $ Base.modifyMVarMasked_ ref (pure . (+ i1))
+                  whnfIO $
+                    Base.modifyMVarMasked_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVarMasked_ (unliftio)" $
-                whnfIO $ Unlift.modifyMVarMasked_ ref (pure . (+ i1))
+                  whnfIO $
+                    Unlift.modifyMVarMasked_ ref (pure . (+ i1))
             ]
         ]
     , bgroup
@@ -100,13 +107,19 @@ main = do
         "atomicModify"
         [ envBRef i0 $ \ref ->
             bench "atomicModifyBRef" $
-            whnfIO $ atomicModifyBRef ref $ \x -> (x + i1, x)
+              whnfIO $
+                atomicModifyBRef ref $
+                  \x -> (x + i1, x)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORefCAS" $
-            whnfIO $ atomicModifyIORefCAS ref $ \x -> (x + i1, x)
+              whnfIO $
+                atomicModifyIORefCAS ref $
+                  \x -> (x + i1, x)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORef'" $
-            whnfIO $ Base.atomicModifyIORef' ref $ \x -> (x + i1, x)
+              whnfIO $
+                Base.atomicModifyIORef' ref $
+                  \x -> (x + i1, x)
         ]
     , bgroup
         "atomicModify_"
@@ -114,9 +127,12 @@ main = do
             bench "atomicModifyBRef_" $ whnfIO $ atomicModifyBRef_ ref (+ i1)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORefCAS_" $
-            whnfIO $ atomicModifyIORefCAS_ ref (+ i1)
+              whnfIO $
+                atomicModifyIORefCAS_ ref (+ i1)
         , envIORef i0 $ \ref ->
             bench "atomicModifyIORef'" $
-            whnfIO $ Base.atomicModifyIORef' ref $ \x -> (x + i1, ())
+              whnfIO $
+                Base.atomicModifyIORef' ref $
+                  \x -> (x + i1, ())
         ]
     ]

@@ -7,7 +7,6 @@
 
 module Main (main) where
 
-
 import Control.Monad.Trans.Except
 import Criterion.Main
 import Data.Bits
@@ -40,7 +39,7 @@ main = do
         , bench "encodeBase16Native (Bytes)" $ whnf encodeBase16Native b
         , bench "bytestring-base16" $ whnf Base16.encode bs
         , bench "memory" $
-          whnf (convertToBase Base16 :: ByteString -> ByteString) bs
+            whnf (convertToBase Base16 :: ByteString -> ByteString) bs
         ]
     , bgroup
         "decode"
@@ -58,12 +57,11 @@ main = do
             bench "bytestring-base16" $ nf Base16.decode bsHex
         , env (pure $ Base16.encode bs) $ \bsHex ->
             bench "memory" $
-            nf
-              (convertFromBase Base16 :: ByteString -> Either String ByteString)
-              bsHex
+              nf
+                (convertFromBase Base16 :: ByteString -> Either String ByteString)
+                bsHex
         ]
     ]
-
 
 encodeBase16Native :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> a
 encodeBase16Native mr = runST $ do
@@ -73,20 +71,19 @@ encodeBase16Native mr = runST $ do
   let !(Ptr base16#) = toBase16Table
       go !i !o
         | i < c2 = do
-          writeByteOffMutMemST m o $
-            lookupWord16 base16# (indexByteOffMem mr (Off i))
-          writeByteOffMutMemST m (o + 2) $
-            lookupWord16 base16# (indexByteOffMem mr (Off i + 1))
-          go (i + 2) (o + 4)
+            writeByteOffMutMemST m o $
+              lookupWord16 base16# (indexByteOffMem mr (Off i))
+            writeByteOffMutMemST m (o + 2) $
+              lookupWord16 base16# (indexByteOffMem mr (Off i + 1))
+            go (i + 2) (o + 4)
         | otherwise = pure o
   o <- go 0 0
   when (c /= c2) $
     writeByteOffMutMemST m o $
-      lookupWord16 base16# $ indexByteOffMem mr (Off c2)
+      lookupWord16 base16# $
+        indexByteOffMem mr (Off c2)
   freezeMutMem m
 {-# INLINE encodeBase16Native #-}
-
-
 
 decodeBase16Native :: forall a ma. (a ~ Frozen ma, MemFreeze ma) => a -> Either DecodeError a
 decodeBase16Native mr = runST $ runExceptT $ handleExceptT $ do
@@ -111,8 +108,6 @@ decodeBase16Native mr = runST $ runExceptT $ handleExceptT $ do
   freezeMutMem m
 {-# INLINE decodeBase16Native #-}
 
-
-
 encodeBase16Addr :: Addr e -> Addr Word8
 encodeBase16Addr mr' = runST $ do
   let !mr = castAddr mr'
@@ -124,14 +119,13 @@ encodeBase16Addr mr' = runST $ do
       go !i !o
         | isSameAddr i end = pure o
         | otherwise = do
-          writeMAddr o (lookupWord16 base16# (indexAddr i))
-          writeByteOffMAddr o 2 (lookupWord16 base16# (indexByteOffAddr i 1))
-          go (i `plusByteOffAddr` 2) (o `plusByteOffMAddr` 4)
+            writeMAddr o (lookupWord16 base16# (indexAddr i))
+            writeByteOffMAddr o 2 (lookupWord16 base16# (indexByteOffAddr i 1))
+            go (i `plusByteOffAddr` 2) (o `plusByteOffMAddr` 4)
   o <- go mr (castMAddr m)
   when (e /= 0) $ writeMAddr o (lookupWord16 base16# (indexAddr end))
   freezeMAddr (castMAddr m)
 {-# INLINE encodeBase16Addr #-}
-
 
 decodeBase16Addr :: Addr Word16 -> Either DecodeError (Addr Word8)
 decodeBase16Addr mr' = runST $ runExceptT $ handleExceptT $ do
@@ -158,7 +152,6 @@ decodeBase16Addr mr' = runST $ runExceptT $ handleExceptT $ do
   go mr m
   freezeMAddr m
 {-# INLINE decodeBase16Addr #-}
-
 
 lookupWord16 :: Addr# -> Word8 -> Word16
 lookupWord16 base16# (W8# w#) = W16# (indexWord16OffAddr# base16# (word2Int# w#))
@@ -188,7 +181,6 @@ toBase16Table =
     \e0e1e2e3e4e5e6e7e8e9eaebecedeeef\
     \f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"#
 {-# NOINLINE toBase16Table #-}
-
 
 loFromBase16Table :: Ptr Word8
 loFromBase16Table =

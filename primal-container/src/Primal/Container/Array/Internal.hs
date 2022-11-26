@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -13,6 +13,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE Unsafe #-}
+
 -- |
 -- Module      : Primal.Container.Array.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -20,15 +21,15 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Container.Array.Internal
-  ( Size(..)
+  ( Size (..)
   , module Primal.Mutable.Freeze
   , module Primal.Container.Array.Internal
   , module Primal.Container.Internal
   ) where
 
 import Control.Monad.ST
+import Data.Kind
 import Primal.Array
 import Primal.Container.Internal
 import Primal.Container.Ref.Internal
@@ -38,15 +39,11 @@ import Primal.Memory.Addr
 import Primal.Memory.FAddr
 import Primal.Memory.PUArray
 import Primal.Mutable.Freeze
-import Data.Kind
 
 type family Array (ma :: Type -> Type -> Type) e :: Type where
   Array ma e = Frozen (ma e)
 
-
-
 class MutRef ma => MutArray ma where
-
   -- | Access the size of an immutable array
   --
   -- @since 0.1.0
@@ -67,7 +64,8 @@ class MutRef ma => MutArray ma where
   -- @since 0.1.0
   indexArray
     :: Elt ma e
-    => Array ma e -- ^ Array to be indexed
+    => Array ma e
+    -- ^ Array to be indexed
     -> Int
     -- ^ Offset into the array
     --
@@ -98,7 +96,8 @@ class MutRef ma => MutArray ma where
   -- @since 1.0.0
   readMutArrayST
     :: Elt ma e
-    => ma e s -- ^ Array to read element from
+    => ma e s
+    -- ^ Array to read element from
     -> Int
     -- ^ Offset into the array
     --
@@ -108,13 +107,16 @@ class MutRef ma => MutArray ma where
   -- | Write an element into a mutable array
   --
   -- @since 1.0.0
-  writeMutArrayST :: Elt ma e =>
-       ma e s -- ^ Array to write an element into
+  writeMutArrayST
+    :: Elt ma e
+    => ma e s
+    -- ^ Array to write an element into
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArrayST` mut@
-    -> e -- ^ Element to be written
+    -> e
+    -- ^ Element to be written
     -> ST s ()
 
   -- | Copy a subsection of an immutable array into a subsection of another mutable array.
@@ -128,15 +130,19 @@ class MutRef ma => MutArray ma where
   -- each array minus their corersponding offsets.
   --
   -- @since 1.0.0
-  copyArrayST ::
-       Elt ma e
-    => Array ma e -- ^ Source immutable array
-    -> Int -- ^ Offset into the source immutable array
-    -> ma e s -- ^ Destination mutable array
-    -> Int -- ^ Offset into the destination mutable array
-    -> Size -- ^ Number of elements to copy over
+  copyArrayST
+    :: Elt ma e
+    => Array ma e
+    -- ^ Source immutable array
+    -> Int
+    -- ^ Offset into the source immutable array
+    -> ma e s
+    -- ^ Destination mutable array
+    -> Int
+    -- ^ Offset into the destination mutable array
+    -> Size
+    -- ^ Number of elements to copy over
     -> ST s ()
-
 
   -- | Copy a subsection of a mutable array into a subsection of another or the same
   -- mutable array. Therefore, unlike `copyArray`, memory overlap is allowed.
@@ -148,13 +154,18 @@ class MutRef ma => MutArray ma where
   -- each array minus their corersponding offsets.
   --
   -- @since 1.0.0
-  moveMutArrayST ::
-       Elt ma e
-    => ma e s -- ^ Source mutable array
-    -> Int -- ^ Offset into the source mutable array
-    -> ma e s -- ^ Destination mutable array
-    -> Int -- ^ Offset into the destination mutable array
-    -> Size -- ^ Number of elements to copy over
+  moveMutArrayST
+    :: Elt ma e
+    => ma e s
+    -- ^ Source mutable array
+    -> Int
+    -- ^ Offset into the source mutable array
+    -> ma e s
+    -- ^ Destination mutable array
+    -> Int
+    -- ^ Offset into the destination mutable array
+    -> Size
+    -- ^ Number of elements to copy over
     -> ST s ()
 
   cloneSliceArray :: Elt ma e => Array ma e -> Int -> Size -> Array ma e
@@ -183,7 +194,7 @@ class MutRef ma => MutArray ma where
   setMutArrayST ma i0 (Size n0) x =
     let n = n0 + i0
         go i = when (i < n) $ writeMutArrayST ma i x >> go (i + 1)
-    in go i0
+     in go i0
   {-# INLINE setMutArrayST #-}
 
   shrinkMutArrayST :: Elt ma e => ma e s -> Size -> ST s (ma e s)
@@ -196,7 +207,6 @@ class MutRef ma => MutArray ma where
     ma' <- newRawMutArrayST sz
     ma' <$ copyArrayST a 0 ma' 0 sz
   {-# INLINE resizeMutArrayST #-}
-
 
   -- | Convert an immutable array into the matching mutable array.
   --
@@ -216,7 +226,8 @@ class MutRef ma => MutArray ma where
   -- @since 1.0.0
   thawArrayST
     :: Elt ma e
-    => Array ma e -- ^ Immutable array to thaw
+    => Array ma e
+    -- ^ Immutable array to thaw
     -> ST s (ma e s)
     -- ^ Thawed mutable array. Any mutation will also affect the source immutable array
     --
@@ -224,7 +235,6 @@ class MutRef ma => MutArray ma where
   default thawArrayST :: (Elt ma e, MutFreeze (ma e)) => Array ma e -> ST s (ma e s)
   thawArrayST = thawST
   {-# INLINE thawArrayST #-}
-
 
   -- | Convert a mutable array into the matching immutable array.
   --
@@ -293,7 +303,6 @@ instance MutArray FMAddr where
   resizeMutArrayST ma sz = reallocFMAddr ma (coerce sz :: Count e)
   {-# INLINE resizeMutArrayST #-}
 
-
 instance Typeable p => MutArray (PUMArray p) where
   sizeOfArray = sizePUArray
   {-# INLINE sizeOfArray #-}
@@ -317,7 +326,6 @@ instance Typeable p => MutArray (PUMArray p) where
   {-# INLINE shrinkMutArrayST #-}
   resizeMutArrayST = reallocPUMArray
   {-# INLINE resizeMutArrayST #-}
-
 
 instance MutArray BMArray where
   indexArray = indexBArray
@@ -347,7 +355,6 @@ instance MutArray BMArray where
   cloneSliceMutArrayST = cloneSliceBMArray
   {-# INLINE cloneSliceMutArrayST #-}
 
-
 instance MutArray SBMArray where
   indexArray = indexSBArray
   {-# INLINE indexArray #-}
@@ -375,7 +382,6 @@ instance MutArray SBMArray where
   {-# INLINE cloneSliceArray #-}
   cloneSliceMutArrayST = cloneSliceSBMArray
   {-# INLINE cloneSliceMutArrayST #-}
-
 
 instance MutArray UMArray where
   indexArray = indexUArray
@@ -409,8 +415,6 @@ fromListArray :: (MutArray ma, Elt ma e) => [e] -> Array ma e
 fromListArray xs = fromListArrayN (Size (length xs)) xs
 {-# INLINE fromListArray #-}
 
-
-
 -- | Same as `fromListArray`, except it will allocate an array exactly of @n@ size, as
 -- such it will not convert any portion of the list that doesn't fit into the newly
 -- created array.
@@ -428,9 +432,11 @@ fromListArray xs = fromListArrayN (Size (length xs)) xs
 -- Array [1,2*** Exception: undefined array element: Data.Prim.Array.Boxed.uninitialized
 --
 -- @since 0.1.0
-fromListArrayN ::
-     forall ma e. (MutArray ma, Elt ma e)
-  => Size -- ^ Expected @n@ size of a list
+fromListArrayN
+  :: forall ma e
+   . (MutArray ma, Elt ma e)
+  => Size
+  -- ^ Expected @n@ size of a list
   -> [e]
   -> Array ma e
 fromListArrayN sz@(Size n) ls =
@@ -438,7 +444,7 @@ fromListArrayN sz@(Size n) ls =
     ma :: ma e s <- newRawMutArrayST sz
     let go i =
           \case
-            x:xs
+            x : xs
               | i < n -> writeMutArrayST ma i x >> go (i + 1) xs
             _ -> pure ()
     go 0 ls
@@ -448,16 +454,18 @@ fromListArrayN sz@(Size n) ls =
 -- fusion.
 --
 -- @since 0.1.0
-toListArray ::
-     forall ma e. (MutArray ma, Elt ma e)
+toListArray
+  :: forall ma e
+   . (MutArray ma, Elt ma e)
   => Array ma e
   -> [e]
-toListArray ba = build (\ c n -> foldrArray c n ba)
+toListArray ba = build (\c n -> foldrArray c n ba)
 {-# INLINE toListArray #-}
 
 -- | Strict right fold
-foldrArray ::
-     forall ma e b. (MutArray ma, Elt ma e)
+foldrArray
+  :: forall ma e b
+   . (MutArray ma, Elt ma e)
   => (e -> b -> b)
   -> b
   -> Array ma e
@@ -468,20 +476,22 @@ foldrArray c nil a = go 0
     go i
       | i == k = nil
       | otherwise =
-        let !v = indexArray a i
-         in v `c` go (i + 1)
-{-# INLINE[0] foldrArray #-}
+          let !v = indexArray a i
+           in v `c` go (i + 1)
+{-# INLINE [0] foldrArray #-}
 
-makeArray ::
-     forall ma e. (MutArray ma, Elt ma e)
+makeArray
+  :: forall ma e
+   . (MutArray ma, Elt ma e)
   => Size
   -> (Int -> e)
   -> Array ma e
 makeArray sz f = runST $ makeArrayM sz (pure . f)
 {-# INLINE makeArray #-}
 
-makeArrayM ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+makeArrayM
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (Array ma e)
@@ -491,8 +501,9 @@ makeArrayM sz@(Size n) f =
      in go 0
 {-# INLINE makeArrayM #-}
 
-createArrayM ::
-     forall ma e b m s. (MutArray ma, Elt ma e, Primal s m)
+createArrayM
+  :: forall ma e b m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (ma e s -> m b)
   -> m (b, Array ma e)
@@ -500,8 +511,9 @@ createArrayM sz f =
   newRawMutArray sz >>= \ma -> f ma >>= \b -> (,) b <$> freezeMutArray ma
 {-# INLINE createArrayM #-}
 
-createArrayM_ ::
-     forall ma e b m s. (MutArray ma, Elt ma e, Primal s m)
+createArrayM_
+  :: forall ma e b m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (ma e s -> m b)
   -> m (Array ma e)
@@ -509,23 +521,23 @@ createArrayM_ sz f =
   newRawMutArray sz >>= \ma -> f ma >> freezeMutArray ma
 {-# INLINE createArrayM_ #-}
 
-
-createArrayST ::
-     forall ma e b. (MutArray ma, Elt ma e)
+createArrayST
+  :: forall ma e b
+   . (MutArray ma, Elt ma e)
   => Size
   -> (forall s. ma e s -> ST s b)
   -> (b, Array ma e)
 createArrayST sz f = runST $ createArrayM sz f
 {-# INLINE createArrayST #-}
 
-createArrayST_ ::
-     forall ma e b. (MutArray ma, Elt ma e)
+createArrayST_
+  :: forall ma e b
+   . (MutArray ma, Elt ma e)
   => Size
   -> (forall s. ma e s -> ST s b)
   -> Array ma e
 createArrayST_ sz f = runST $ createArrayM_ sz f
 {-# INLINE createArrayST_ #-}
-
 
 -- | Create a new mutable array of a supplied size by applying a monadic action to indices
 -- of each one of the new elements.
@@ -547,8 +559,9 @@ createArrayST_ sz f = runST $ createArrayM_ sz f
 -- Numbers: 0,1,2,3,4,
 --
 -- @since 0.1.0
-makeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+makeMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (ma e s)
@@ -557,8 +570,6 @@ makeMutArray sz@(Size n) f = do
   let go i = when (i < n) $ f i >>= writeMutArray ma i >> go (i + 1)
   ma <$ go 0
 {-# INLINE makeMutArray #-}
-
-
 
 -- -- | Traverse an array with a monadic action.
 -- --
@@ -571,27 +582,25 @@ makeMutArray sz@(Size n) f = do
 -- traverseArray f a = makeArrayM (sizeOfArray a) (f . indexArray a)
 -- {-# INLINE traverseArray #-}
 
-
-
 -- | Get the size of a mutable array. Unlike `sizeOfArray` it is a monadic operation
 -- because mutable arrays support in place resizing.
 --
 -- @since 1.0.0
-getSizeOfMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+getSizeOfMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> m Size
 getSizeOfMutArray = liftST . getSizeOfMutArrayST
 {-# INLINE getSizeOfMutArray #-}
 
-newRawMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+newRawMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> m (ma e s)
 newRawMutArray = liftST . newRawMutArrayST
 {-# INLINE newRawMutArray #-}
-
-
 
 -- | Read an element from a mutable array
 --
@@ -607,9 +616,11 @@ newRawMutArray = liftST . newRawMutArrayST
 -- 99
 --
 -- @since 0.1.0
-readMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
-  => ma e s -- ^ Array to read element from
+readMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
+  => ma e s
+  -- ^ Array to read element from
   -> Int
   -- ^ Offset into the array
   --
@@ -621,14 +632,17 @@ readMutArray ma = liftST . readMutArrayST ma
 -- | Write an element into a mutable array
 --
 -- @since 0.1.0
-writeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
-  => ma e s -- ^ Array to write an element into
+writeMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
+  => ma e s
+  -- ^ Array to write an element into
   -> Int
   -- ^ Offset into the array
   --
   -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArray` mut@
-  -> e -- ^ Element to be written
+  -> e
+  -- ^ Element to be written
   -> m ()
 writeMutArray ma i = liftST . writeMutArrayST ma i
 {-# INLINE writeMutArray #-}
@@ -644,17 +658,22 @@ writeMutArray ma i = liftST . writeMutArrayST ma i
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-copyArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
-  => Array ma e -- ^ Source immutable array
-  -> Int -- ^ Offset into the source immutable array
-  -> ma e s -- ^ Destination mutable array
-  -> Int -- ^ Offset into the destination mutable array
-  -> Size -- ^ Number of elements to copy over
+copyArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
+  => Array ma e
+  -- ^ Source immutable array
+  -> Int
+  -- ^ Offset into the source immutable array
+  -> ma e s
+  -- ^ Destination mutable array
+  -> Int
+  -- ^ Offset into the destination mutable array
+  -> Size
+  -- ^ Number of elements to copy over
   -> m ()
 copyArray ma ia mb ib = liftST . copyArrayST ma ia mb ib
 {-# INLINE copyArray #-}
-
 
 -- | Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyArray`, memory overlap is allowed.
@@ -666,19 +685,26 @@ copyArray ma ia mb ib = liftST . copyArrayST ma ia mb ib
 -- each array minus their corersponding offsets.
 --
 -- @since 0.1.0
-moveMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
-  => ma e s -- ^ Source mutable array
-  -> Int -- ^ Offset into the source mutable array
-  -> ma e s -- ^ Destination mutable array
-  -> Int -- ^ Offset into the destination mutable array
-  -> Size -- ^ Number of elements to copy over
+moveMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
+  => ma e s
+  -- ^ Source mutable array
+  -> Int
+  -- ^ Offset into the source mutable array
+  -> ma e s
+  -- ^ Destination mutable array
+  -> Int
+  -- ^ Offset into the destination mutable array
+  -> Size
+  -- ^ Number of elements to copy over
   -> m ()
 moveMutArray ma ia mb ib = liftST . moveMutArrayST ma ia mb ib
 {-# INLINE moveMutArray #-}
 
-cloneSliceMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+cloneSliceMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -686,16 +712,18 @@ cloneSliceMutArray ::
 cloneSliceMutArray ma i = liftST . cloneSliceMutArrayST ma i
 {-# INLINE cloneSliceMutArray #-}
 
-newMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+newMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Size
   -> e
   -> m (ma e s)
 newMutArray k = liftST . newMutArrayST k
 {-# INLINE newMutArray #-}
 
-thawCloneSliceArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+thawCloneSliceArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => Array ma e
   -> Int
   -> Size
@@ -703,8 +731,9 @@ thawCloneSliceArray ::
 thawCloneSliceArray a i = liftST . thawCloneSliceArrayST a i
 {-# INLINE thawCloneSliceArray #-}
 
-freezeCloneSliceMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+freezeCloneSliceMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -712,8 +741,9 @@ freezeCloneSliceMutArray ::
 freezeCloneSliceMutArray ma i = liftST . freezeCloneSliceMutArrayST ma i
 {-# INLINE freezeCloneSliceMutArray #-}
 
-setMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+setMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Int
   -> Size
@@ -722,22 +752,23 @@ setMutArray ::
 setMutArray ma i k = liftST . setMutArrayST ma i k
 {-# INLINE setMutArray #-}
 
-shrinkMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+shrinkMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Size
   -> m (ma e s)
 shrinkMutArray ma = liftST . shrinkMutArrayST ma
 {-# INLINE shrinkMutArray #-}
 
-resizeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+resizeMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -> Size
   -> m (ma e s)
 resizeMutArray ma = liftST . resizeMutArrayST ma
 {-# INLINE resizeMutArray #-}
-
 
 -- | Convert an immutable array into the matching mutable array.
 --
@@ -755,9 +786,11 @@ resizeMutArray ma = liftST . resizeMutArrayST ma
 -- "A whale breed"
 --
 -- @since 0.1.0
-thawArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
-  => Array ma e -- ^ Immutable array to thaw
+thawArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
+  => Array ma e
+  -- ^ Immutable array to thaw
   -> m (ma e s)
   -- ^ Thawed mutable array. Any mutation will also affect the source immutable array
   --
@@ -765,12 +798,12 @@ thawArray ::
 thawArray = liftST . thawArrayST
 {-# INLINE thawArray #-}
 
-
 -- | Convert a mutable array into the matching immutable array.
 --
 -- @since 0.1.0
-freezeMutArray ::
-     forall ma e m s. (MutArray ma, Elt ma e, Primal s m)
+freezeMutArray
+  :: forall ma e m s
+   . (MutArray ma, Elt ma e, Primal s m)
   => ma e s
   -- ^ Mutable array to freeze. Any further mutation will also affect the immutable
   -- array

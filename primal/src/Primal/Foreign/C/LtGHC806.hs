@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+
 -- |
 -- Module      : Primal.Foreign.C.LtGHC806
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -10,10 +11,8 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Foreign.C.LtGHC806
-  (
-  -- ** GHC 8.6
+  ( -- ** GHC 8.6
     indexWord8ArrayAsChar#
   , readWord8ArrayAsChar#
   , writeWord8ArrayAsChar#
@@ -56,7 +55,6 @@ module Primal.Foreign.C.LtGHC806
   , indexWord8ArrayAsWord#
   , readWord8ArrayAsWord#
   , writeWord8ArrayAsWord#
-
   , atomicModifyMutVar_#
   , atomicModifyMutVar2#
   , module Primal.Foreign.C.LtGHC802
@@ -73,7 +71,6 @@ import Primal.Monad.Unsafe
 
 #include "MachDeps.h"
 #endif
-
 
 #if __GLASGOW_HASKELL__ <= 806
 

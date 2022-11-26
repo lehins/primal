@@ -6,7 +6,8 @@ import Lib
 main :: IO ()
 main = do
   defaultMain
-    [ bgroup "Bench"
-      [ bench "someFunc" $ nfIO someFunc
-      ]
+    [ bgroup
+        "Bench"
+        [ bench "someFunc" $ nfIO someFunc
+        ]
     ]

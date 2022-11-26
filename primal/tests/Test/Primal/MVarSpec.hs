@@ -3,18 +3,19 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Test.Primal.MVarSpec (spec) where
 
 import qualified Control.Concurrent as Base
 import Data.Maybe
 import Primal.Concurrent
 import Primal.Concurrent.MVar
+import Primal.Element.Unbox
 import Primal.Exception
 import Primal.Memory.GC (performGC)
 import Primal.Memory.Weak
-import Primal.Element.Unbox
 import Test.Hspec
-import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
+import Test.Primal.ArraySpec (ExpectedException (..), impreciseExpectedException)
 
 instance Typeable a => Show (MVar a RW) where
   show _ = "MVar " ++ showsType (Proxy :: Proxy a) " RW"
@@ -26,7 +27,7 @@ failAfter n test =
     Nothing -> expectationFailure $ "Did not finish within " ++ show (n `div` 1000) ++ " ms. "
     Just () -> pure ()
 
-wit :: HasCallStack => String -> Expectation-> Spec
+wit :: HasCallStack => String -> Expectation -> Spec
 wit n t = it n $ failAfter 1000000 t
 
 spec :: Spec
@@ -74,7 +75,7 @@ spec = do
       putMVar n (raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
       takeMVar n `shouldReturn` "World"
 
-      putMVar n ('f':raiseImprecise ExpectedException)
+      putMVar n ('f' : raiseImprecise ExpectedException)
       res <- takeMVar n
       head res `shouldBe` 'f'
       deepeval res `shouldThrow` impreciseExpectedException
@@ -199,26 +200,35 @@ spec = do
       res `shouldBe` Unmasked
 
       -- check restoration of value on exception
-      withMVar m (\_ -> do
-        isEmptyMVar m `shouldReturn` True
-        raiseM ExpectedException)
+      withMVar
+        m
+        ( \_ -> do
+            isEmptyMVar m `shouldReturn` True
+            raiseM ExpectedException
+        )
         `shouldThrow` (== ExpectedException)
       readMVar m `shouldReturn` "Hello"
 
-       -- check that it is interruptible and that the value is overwritten
+      -- check that it is interruptible and that the value is overwritten
       timeout 50000 (withMVar m (\_ -> putMVar m "World")) `shouldReturn` Nothing
       readMVar m `shouldReturn` "World"
 
-       -- check that it is interruptible in the exception handler and that the value is
-       -- overwritten
-      timeout 50000 (withMVar m (\_ -> do
-                                    putMVar m "Goodbye"
-                                    () <$ raiseM ExpectedException
-                                )) `shouldReturn` Nothing
+      -- check that it is interruptible in the exception handler and that the value is
+      -- overwritten
+      timeout
+        50000
+        ( withMVar
+            m
+            ( \_ -> do
+                putMVar m "Goodbye"
+                () <$ raiseM ExpectedException
+            )
+        )
+        `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
-      -- -- check that it is interruptible on empty
-      -- timeout 50000 (withMVar m pure) `shouldReturn` Nothing
+    -- -- check that it is interruptible on empty
+    -- timeout 50000 (withMVar m pure) `shouldReturn` Nothing
 
     wit "withMVarMasked" $ do
       m <- newMVar "Hello"
@@ -229,9 +239,12 @@ spec = do
       res `shouldBe` MaskedInterruptible
 
       -- check restoration of value on exception
-      withMVarMasked m (\_ -> do
-        isEmptyMVar m `shouldReturn` True
-        raise ExpectedException)
+      withMVarMasked
+        m
+        ( \_ -> do
+            isEmptyMVar m `shouldReturn` True
+            raise ExpectedException
+        )
         `shouldThrow` (== ExpectedException)
       readMVar m `shouldReturn` "Hello"
 
@@ -239,12 +252,18 @@ spec = do
       timeout 50000 (withMVarMasked m (\_ -> putMVar m "World")) `shouldReturn` Nothing
       readMVar m `shouldReturn` "World"
 
-       -- check that it is interruptible in the exception handler and that the value is
-       -- overwritten
-      timeout 50000 (withMVarMasked m (\_ -> do
-                                    putMVar m "Goodbye"
-                                    () <$ raise ExpectedException
-                                )) `shouldReturn` Nothing
+      -- check that it is interruptible in the exception handler and that the value is
+      -- overwritten
+      timeout
+        50000
+        ( withMVarMasked
+            m
+            ( \_ -> do
+                putMVar m "Goodbye"
+                () <$ raise ExpectedException
+            )
+        )
+        `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
       -- check that it is interruptible on empty
@@ -260,10 +279,13 @@ spec = do
         pure $ x ++ " World"
 
       -- Verify value restoration on WHNF evaluation error
-      modifyMVar_ m (\x -> do
-        isEmptyMVar m  `shouldReturn` True
-        x `shouldBe` "Hello World"
-        pure $ raiseImprecise ExpectedException)
+      modifyMVar_
+        m
+        ( \x -> do
+            isEmptyMVar m `shouldReturn` True
+            x `shouldBe` "Hello World"
+            pure $ raiseImprecise ExpectedException
+        )
         `shouldThrow` impreciseExpectedException
       readMVar m `shouldReturn` "Hello World"
 
@@ -271,12 +293,18 @@ spec = do
       timeout 50000 (modifyMVar_ m (\_ -> putMVar m "Foo" >> pure "Bar")) `shouldReturn` Nothing
       readMVar m `shouldReturn` "Foo"
 
-       -- check that it is interruptible in the exception handler and that the value is
-       -- overwritten
-      timeout 50000 (modifyMVar_ m (\_ -> do
-                                    putMVar m "Goodbye"
-                                    "World" <$ raise ExpectedException
-                                )) `shouldReturn` Nothing
+      -- check that it is interruptible in the exception handler and that the value is
+      -- overwritten
+      timeout
+        50000
+        ( modifyMVar_
+            m
+            ( \_ -> do
+                putMVar m "Goodbye"
+                "World" <$ raise ExpectedException
+            )
+        )
+        `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
       -- check that it is interruptible on empty
@@ -291,10 +319,13 @@ spec = do
         pure $ x ++ " World"
 
       -- Verify value restoration on WHNF evaluation error
-      modifyMVarMasked_ m (\x -> do
-        isEmptyMVar m  `shouldReturn` True
-        x `shouldBe` "Hello World"
-        pure $ raiseImprecise ExpectedException)
+      modifyMVarMasked_
+        m
+        ( \x -> do
+            isEmptyMVar m `shouldReturn` True
+            x `shouldBe` "Hello World"
+            pure $ raiseImprecise ExpectedException
+        )
         `shouldThrow` impreciseExpectedException
       readMVar m `shouldReturn` "Hello World"
 
@@ -303,12 +334,18 @@ spec = do
         `shouldReturn` Nothing
       readMVar m `shouldReturn` "Foo"
 
-       -- check that it is interruptible in the exception handler and that the value is
-       -- overwritten
-      timeout 50000 (modifyMVarMasked_ m (\_ -> do
-                                    putMVar m "Goodbye"
-                                    "World" <$ raise ExpectedException
-                                )) `shouldReturn` Nothing
+      -- check that it is interruptible in the exception handler and that the value is
+      -- overwritten
+      timeout
+        50000
+        ( modifyMVarMasked_
+            m
+            ( \_ -> do
+                putMVar m "Goodbye"
+                "World" <$ raise ExpectedException
+            )
+        )
+        `shouldReturn` Nothing
       takeMVar m `shouldReturn` "Goodbye"
 
       -- check that it is interruptible on empty
@@ -317,28 +354,28 @@ spec = do
       m <- newMVar "Hello"
       modifyFetchOldMVar m (pure . (++ " World")) `shouldReturn` "Hello"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchOldMVar m (\ _ -> pure $ raiseImprecise ExpectedException)
+      modifyFetchOldMVar m (\_ -> pure $ raiseImprecise ExpectedException)
         `shouldThrow` impreciseExpectedException
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchOldMVarMasked" $ do
       m <- newMVar "Hello"
       modifyFetchOldMVarMasked m (pure . (++ " World")) `shouldReturn` "Hello"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchOldMVarMasked m (\ _ -> pure $ raiseImprecise ExpectedException)
+      modifyFetchOldMVarMasked m (\_ -> pure $ raiseImprecise ExpectedException)
         `shouldThrow` impreciseExpectedException
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchNewMVar" $ do
       m <- newMVar "Hello"
       modifyFetchNewMVar m (pure . (++ " World")) `shouldReturn` "Hello World"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchNewMVar m (\ _ -> pure $ raiseImprecise ExpectedException)
+      modifyFetchNewMVar m (\_ -> pure $ raiseImprecise ExpectedException)
         `shouldThrow` impreciseExpectedException
       takeMVar m `shouldReturn` "Hello World"
     wit "modifyFetchNewMVarMasked" $ do
       m <- newMVar "Hello"
       modifyFetchNewMVarMasked m (pure . (++ " World")) `shouldReturn` "Hello World"
       readMVar m `shouldReturn` "Hello World"
-      modifyFetchNewMVarMasked m (\ _ -> pure $ raiseImprecise ExpectedException)
+      modifyFetchNewMVarMasked m (\_ -> pure $ raiseImprecise ExpectedException)
         `shouldThrow` impreciseExpectedException
       takeMVar m `shouldReturn` "Hello World"
     -- xit "modifyMVar" (pure () :: IO ())
@@ -370,4 +407,3 @@ spec = do
             readMVar m' `shouldReturn` "Hello"
         finalizeWeak weak
         takeMVar sem `shouldReturn` ()
-

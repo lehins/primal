@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      : Primal.Mutable.Freeze
 -- Copyright   : (c) Alexey Kuleshevich 2021-2022
@@ -11,7 +12,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Mutable.Freeze
   ( thaw
   , thawClone
@@ -29,10 +29,10 @@ module Primal.Mutable.Freeze
     )
   ) where
 
-import Primal.Monad
+import Data.Text.Array as T
 import Primal.Array
 import Primal.Foreign
-import Data.Text.Array as T
+import Primal.Monad
 
 -- | Injective type family that relates the frozen and thawed types together into
 -- one-to-one correspondance. Their kind should be the same, except additional type
@@ -82,8 +82,6 @@ class MutFreeze mut where
   freezeCloneMutST = freezeMutST <=< cloneMutST
   {-# INLINE freezeCloneMutST #-}
 
-
-
 type instance Frozen (BMArray e) = BArray e
 
 instance MutFreeze (BMArray e) where
@@ -116,7 +114,6 @@ instance MutFreeze (SBMArray e) where
   freezeCloneMutST marr = getSizeOfSBMArray marr >>= freezeCloneSliceSBMArray marr 0
   {-# INLINE freezeCloneMutST #-}
 
-
 type instance Frozen (UMArray e) = UArray e
 
 instance MutFreeze (UMArray e) where
@@ -131,8 +128,6 @@ instance MutFreeze (UMArray e) where
   freezeMutST = freezeUMArray
   {-# INLINE freezeMutST #-}
 
-
-
 type instance Frozen (UBMArray e) = UBArray e
 
 instance (Unlift e) => MutFreeze (UBMArray e) where
@@ -146,8 +141,6 @@ instance (Unlift e) => MutFreeze (UBMArray e) where
   {-# INLINE freezeCloneMutST #-}
   cloneMutST ma = getSizeOfUBMArray ma >>= cloneSliceUBMArray ma 0
   {-# INLINE cloneMutST #-}
-
-
 
 -- TODO: move to primal-containers since it is only applicable to nested mutable arrays
 
@@ -176,7 +169,6 @@ instance (Unlift e) => MutFreeze (UBMArray e) where
 --     makeMutUBMArray sz (readMutUBMArray ma)
 --   {-# INLINE cloneMutST #-}
 
-
 -- | Convert a pure immutable type into the corresponding mutable one. Most likely
 -- it will be implemented as type cast without any data copy.
 --
@@ -188,8 +180,9 @@ instance (Unlift e) => MutFreeze (UBMArray e) where
 -- allocation and efficient data copy.
 --
 -- @since 1.0.0
-thaw ::
-     forall mut m s. (MutFreeze mut, Primal s m)
+thaw
+  :: forall mut m s
+   . (MutFreeze mut, Primal s m)
   => Frozen mut
   -> m (mut s)
 thaw = liftST . thawST
@@ -204,19 +197,20 @@ thaw = liftST . thawST
 -- which avoids this problem with fresh allocation and efficient data copy.
 --
 -- @since 1.0.0
-freezeMut ::
-     forall mut m s. (MutFreeze mut, Primal s m)
+freezeMut
+  :: forall mut m s
+   . (MutFreeze mut, Primal s m)
   => mut s
   -> m (Frozen mut)
 freezeMut = liftST . freezeMutST
 {-# INLINE freezeMut #-}
 
-
 -- | Make an exact copy of the mutable type.
 --
 -- @since 1.0.0
-cloneMut ::
-     forall mut m s. (MutFreeze mut, Primal s m)
+cloneMut
+  :: forall mut m s
+   . (MutFreeze mut, Primal s m)
   => mut s
   -> m (mut s)
 cloneMut = liftST . cloneMutST
@@ -226,8 +220,9 @@ cloneMut = liftST . cloneMutST
 -- one. Unlike `thaw`, this function does copy all of the data.
 --
 -- @since 1.0.0
-thawClone ::
-     forall mut m s. (MutFreeze mut, Primal s m)
+thawClone
+  :: forall mut m s
+   . (MutFreeze mut, Primal s m)
   => Frozen mut
   -> m (mut s)
 thawClone = liftST . thawCloneST
@@ -237,13 +232,13 @@ thawClone = liftST . thawCloneST
 -- one. Unlike `freezeMut`, this function does copy all of the data.
 --
 -- @since 1.0.0
-freezeCloneMut ::
-     forall mut m s. (MutFreeze mut, Primal s m)
+freezeCloneMut
+  :: forall mut m s
+   . (MutFreeze mut, Primal s m)
   => mut s
   -> m (Frozen mut)
 freezeCloneMut = liftST . freezeCloneMutST
 {-# INLINE freezeCloneMut #-}
-
 
 type instance Frozen T.MArray = T.Array
 

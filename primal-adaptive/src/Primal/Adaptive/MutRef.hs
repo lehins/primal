@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+
 -- |
 -- Module      : Data.Prim.Adaptive.MRef
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -11,26 +12,24 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Data.Prim.Adaptive.MRef
-  ( AMRef(..)
-  , AdaptMRef(..)
+  ( AMRef (..)
+  , AdaptMRef (..)
   , AdaptAtomicMRef
   , newAMRef
   ) where
 
-import Primal.Monad
-import Primal.Prim
+import Data.Prim.Adaptive.Rep
+import Primal.Container.Internal
 import Primal.Container.Mutable.Ref
 import Primal.Container.Mutable.Ref.Atomic
 import Primal.Data.Ref
-import Data.Prim.Adaptive.Rep
-import Primal.Container.Internal
+import Primal.Monad
+import Primal.Prim
 
 type ABWrap e = AWrap (AdaptRep Ref e) (IsAtomic e) e
 
 newtype AMRef e s = AMRef (AdaptRep Ref e (ABWrap e) s)
-
 
 class (Coercible e (ABWrap e), MRef (AdaptRep Ref e) (ABWrap e)) => AdaptMRef e where
   wrap :: e -> ABWrap e
@@ -68,7 +67,6 @@ instance AdaptAtomicMRef e => AtomicMRef AMRef e where
 
 newAMRef :: (Primal s m, AdaptMRef e) => e -> m (AMRef e s)
 newAMRef = newMRef
-
 
 bar :: (Primal s m, AdaptAtomicMRef b) => b -> m b
 bar i = do

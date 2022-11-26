@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Ref.Unboxed
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -12,53 +13,60 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Ref.Unboxed
-  ( URef(..)
-  -- * Create
-  -- ** Initialized
+  ( URef (..)
+
+    -- * Create
+
+    -- ** Initialized
   , newURef
   , newPinnedURef
   , newAlignedPinnedURef
   , isSameURef
-  -- ** Uninitialized
+
+    -- ** Uninitialized
   , newRawURef
   , newRawPinnedURef
   , newRawAlignedPinnedURef
   , zeroURef
-  -- * Read/write
+
+    -- * Read/write
   , readURef
   , writeURef
   , writeFetchOldURef
-  -- * Swap
+
+    -- * Swap
   , swapURefs
   , swapURefs_
-  -- * Modify
-  -- ** With pure function
+
+    -- * Modify
+
+    -- ** With pure function
   , modifyURef
   , modifyURef_
-  -- ** With monadic action
+
+    -- ** With monadic action
   , modifyFetchOldURef
   , modifyFetchNewURef
   , modifyURefM
   , modifyURefM_
   , modifyFetchOldURefM
   , modifyFetchNewURefM
-  -- * Weak Pointer
+
+    -- * Weak Pointer
   , mkWeakURef
   ) where
 
+import Primal.Element.Unbox
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Weak
 import Primal.Monad
-import Primal.Element.Unbox
 
 -- | Mutable variable that can hold an unboxed value.
 --
 -- @since 1.0.0
 data URef e s = URef (MutableByteArray# s)
-
 
 -- | Values are already written into `URef` in NF, this instance is trivial.
 instance NFData (URef e s) where
@@ -81,7 +89,6 @@ isSameURef :: URef e s -> URef e s -> Bool
 isSameURef (URef ref1#) (URef ref2#) = isTrue# (isSameMutableByteArray# ref1# ref2#)
 {-# INLINE isSameURef #-}
 
-
 -- | Create a mutable variable in unpinned memory (i.e. GC can move it) with an initial
 -- value. This is a prefered way to create a mutable variable, since it will not
 -- contribute to memory fragmentation. For pinned memory versions see `newPinnedURef` and
@@ -103,19 +110,18 @@ newURef v = do
   pvar <$ writeURef pvar v
 {-# INLINE newURef #-}
 
-
 -- | Create a mutable variable in unpinned and unititialized memory
 --
 -- @since 1.0.0
-newRawURef ::
-     forall e m s. (Primal s m, Unbox e)
+newRawURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => m (URef e s)
 newRawURef =
   primal $ \s# ->
     case newByteArray# (unCountBytes# (1 :: Count e)) s# of
       (# s'#, mba# #) -> (# s'#, URef mba# #)
 {-# INLINE newRawURef #-}
-
 
 -- | Create a mutable variable in pinned memory with an initial value.
 --
@@ -126,12 +132,12 @@ newPinnedURef e = do
   pvar <$ writeURef pvar e
 {-# INLINE newPinnedURef #-}
 
-
 -- | Create a mutable variable in pinned memory with uninitialized memory.
 --
 -- @since 2.0.0
-newRawPinnedURef ::
-     forall e m s. (Primal s m, Unbox e)
+newRawPinnedURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => m (URef e s)
 newRawPinnedURef =
   primal $ \s# ->
@@ -139,13 +145,13 @@ newRawPinnedURef =
       (# s'#, mba# #) -> (# s'#, URef mba# #)
 {-# INLINE newRawPinnedURef #-}
 
-
 -- | Create a mutable variable in pinned memory with an initial value and aligned
 -- according to its `alignment`
 --
 -- @since 1.0.0
-newAlignedPinnedURef ::
-     forall e m s. (Primal s m, Unbox e)
+newAlignedPinnedURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => e
   -> m (URef e s)
 newAlignedPinnedURef v = do
@@ -154,12 +160,12 @@ newAlignedPinnedURef v = do
   return pvar
 {-# INLINE newAlignedPinnedURef #-}
 
-
 -- | Create a mutable variable in pinned uninitialized memory.
 --
 -- @since 1.0.0
-newRawAlignedPinnedURef ::
-     forall e m s. (Primal s m, Unbox e)
+newRawAlignedPinnedURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => m (URef e s)
 newRawAlignedPinnedURef =
   primal $ \s# ->
@@ -169,17 +175,16 @@ newRawAlignedPinnedURef =
           (# s'#, mba# #) -> (# s'#, URef mba# #)
 {-# INLINE newRawAlignedPinnedURef #-}
 
-
 -- | Reset contents of a mutable variable to zero.
 --
 -- @since 1.0.0
-zeroURef ::
-     forall e m s. (Primal s m, Unbox e)
+zeroURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> m ()
 zeroURef (URef mba#) = primal_ (setByteArray# mba# 0# (unCountBytes# (1 :: Count e)) 0#)
 {-# INLINE zeroURef #-}
-
 
 ----------------
 -- Read/Write --
@@ -195,13 +200,13 @@ zeroURef (URef mba#) = primal_ (setByteArray# mba# 0# (unCountBytes# (1 :: Count
 -- Just 'a'
 --
 -- @since 1.0.0
-readURef ::
-     forall e m s. (Primal s m, Unbox e)
+readURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> m e
 readURef (URef mba#) = primal (readMutableByteArray# mba# 0#)
 {-# INLINE readURef #-}
-
 
 -- | Swap the contents of a mutable variable with a new value, while retrieving the old one.
 --
@@ -214,14 +219,17 @@ readURef (URef mba#) = primal (readMutableByteArray# mba# 0#)
 -- Right 3.141592653589793
 --
 -- @since 1.0.0
-writeFetchOldURef ::
-     forall e m s. (Primal s m, Unbox e)
-  => URef e s -- ^ Mutable variable to write a new value into
-  -> e -- ^ New value to write into the variable
-  -> m e -- ^ Returns the old value
+writeFetchOldURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
+  => URef e s
+  -- ^ Mutable variable to write a new value into
+  -> e
+  -- ^ New value to write into the variable
+  -> m e
+  -- ^ Returns the old value
 writeFetchOldURef ref e = readURef ref <* writeURef ref e
 {-# INLINE writeFetchOldURef #-}
-
 
 -- | Write a value into a mutable unboxed variable.
 --
@@ -236,7 +244,6 @@ writeFetchOldURef ref e = readURef ref <* writeURef ref e
 writeURef :: (Primal s m, Unbox e) => URef e s -> e -> m ()
 writeURef (URef mba#) v = primal_ (writeMutableByteArray# mba# 0# v)
 {-# INLINE writeURef #-}
-
 
 -- | Swap contents of two mutable variables. Returns their old values.
 --
@@ -257,19 +264,18 @@ swapURefs_ :: forall e m s. (Primal s m, Unbox e) => URef e s -> URef e s -> m (
 swapURefs_ ref1 ref2 = void $ swapURefs ref1 ref2
 {-# INLINE swapURefs_ #-}
 
-
 ------------
 -- Modify --
 ------------
-
 
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the
 -- artifact produced by the modifying function. Artifact is not forced, therfore it cannot
 -- affect the outcome of modification.
 --
 -- @since 1.0.0
-modifyURef ::
-     forall e a m s. (Primal s m, Unbox e)
+modifyURef
+  :: forall e a m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> (e, a))
   -> m a
@@ -279,8 +285,9 @@ modifyURef ref f = modifyURefM ref (pure . f)
 -- | Apply a pure function to the contents of a mutable variable strictly.
 --
 -- @since 1.0.0
-modifyURef_ ::
-     forall e m s. (Primal s m, Unbox e)
+modifyURef_
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m ()
@@ -290,8 +297,9 @@ modifyURef_ ref f = modifyURefM_ ref (pure . f)
 -- | Apply a pure function to the contents of a mutable variable strictly. Returns the new value.
 --
 -- @since 1.0.0
-modifyFetchNewURef ::
-     forall e m s. (Primal s m, Unbox e)
+modifyFetchNewURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m e
@@ -311,16 +319,14 @@ modifyFetchNewURef ref f = modifyFetchNewURefM ref (pure . f)
 -- 2010
 --
 -- @since 1.0.0
-modifyFetchOldURef ::
-     forall e m s. (Primal s m, Unbox e)
+modifyFetchOldURef
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> e)
   -> m e
 modifyFetchOldURef ref f = modifyFetchOldURefM ref (pure . f)
 {-# INLINE modifyFetchOldURef #-}
-
-
-
 
 -- | Modify value of a mutable variable with a monadic action. It is not strict in a
 -- return value of type @b@.
@@ -335,7 +341,6 @@ modifyURefM ref f = do
   b <$ writeURef ref a
 {-# INLINE modifyURefM #-}
 
-
 -- | Modify value of a mutable variable with a monadic action.
 --
 -- ==== __Examples__
@@ -347,8 +352,9 @@ modifyURefM ref f = do
 -- Nothing
 --
 -- @since 1.0.0
-modifyURefM_ ::
-     forall e m s. (Primal s m, Unbox e)
+modifyURefM_
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m ()
@@ -370,8 +376,9 @@ modifyURefM_ ref f = readURef ref >>= f >>= writeURef ref
 -- 5600
 --
 -- @since 1.0.0
-modifyFetchOldURefM ::
-     forall e m s. (Primal s m, Unbox e)
+modifyFetchOldURefM
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m e
@@ -380,12 +387,12 @@ modifyFetchOldURefM ref f = do
   a <$ (writeURef ref =<< f a)
 {-# INLINE modifyFetchOldURefM #-}
 
-
 -- | Apply a monadic action to the contents of a mutable. Returns the new value.
 --
 -- @since 1.0.0
-modifyFetchNewURefM ::
-     forall e m s. (Primal s m, Unbox e)
+modifyFetchNewURefM
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => URef e s
   -> (e -> m e)
   -> m e
@@ -395,18 +402,19 @@ modifyFetchNewURefM ref f = do
   a' <$ writeURef ref a'
 {-# INLINE modifyFetchNewURefM #-}
 
-
 -- | Create a `Weak` pointer associated with the supplied `URef`.
 --
 -- Same as `Data.IORef.mkWeakRef` from @base@, but for `URef` and works in any `UnliftPrimal`
 -- with `RealWorld` state token.
 --
 -- @since 1.0.0
-mkWeakURef ::
-     forall a b m. UnliftPrimal RW m
+mkWeakURef
+  :: forall a b m
+   . UnliftPrimal RW m
   => URef a RW
-  -> m b -- ^ An action that will get executed whenever `URef` gets garbage collected by
-         -- the runtime.
+  -> m b
+  -- ^ An action that will get executed whenever `URef` gets garbage collected by
+  -- the runtime.
   -> m (Weak (URef a RW))
 mkWeakURef ref@(URef ref#) !finalizer =
   runInPrimalState finalizer $ \f# s ->

@@ -5,5 +5,4 @@ import Common
 spec :: Spec
 spec = do
   describe "someFunc" $ do
-    xit "DoesSomething" $ property $ \ a@() -> () === a
-
+    xit "DoesSomething" $ property $ \a@() -> () === a

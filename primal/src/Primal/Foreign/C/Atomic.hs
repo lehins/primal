@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+
 -- |
 -- Module      : Primal.Foreign.C.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -12,16 +13,15 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Foreign.C.Atomic
   ( module Primal.Foreign.C.Atomic
   ) where
 
-import Primal.Monad.Unsafe
 import GHC.Exts
 import GHC.Int
 import GHC.Word
 import Primal.Foreign.C.LtGHC802
+import Primal.Monad.Unsafe
 
 #include "MachDeps.h"
 
@@ -31,7 +31,6 @@ ioCBoolToBoolBase m s =
   case unsafePrimalState m s of
     (# s', CBool (W8# w#) #) -> (# s', isTrue# (word2Int# w#) #)
 {-# INLINE ioCBoolToBoolBase #-}
-
 
 -- | [Memory barrier](https://en.wikipedia.org/wiki/Memory_barrier). This will
 -- ensure that the cache is fully updated before continuing.
@@ -50,7 +49,6 @@ withMemBarrier_# f s = f (syncSynchronize# s)
 foreign import ccall unsafe "primal_atomic.c primal_sync_synchronize"
   syncSynchronize :: IO ()
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_test_set"
   syncLockTestSetInt8ArrayIO :: MutableByteArray# s -> Int# -> IO Int8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_test_set"
@@ -59,7 +57,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_release"
   syncLockReleaseInt8ArrayIO :: MutableByteArray# s -> Int# -> IO ()
 foreign import ccall unsafe "primal_atomic.c primal_sync8_lock_release"
   syncLockReleaseInt8AddrIO :: Addr# -> Int# -> IO ()
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync8_cas_bool"
   syncCasInt8BoolAddrIO :: Addr# -> Int# -> Int8 -> Int8 -> IO CBool
@@ -97,7 +94,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_add_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync8_add_fetch"
   syncAddFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_sub"
   syncSubFetchOldInt8AddrIO :: Addr# -> Int# -> Int8 -> IO Int8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_sub"
@@ -115,7 +111,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_sub_fetch"
   syncSubFetchNewWord8AddrIO :: Addr# -> Int# -> Word8 -> IO Word8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_sub_fetch"
   syncSubFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_and"
   syncAndFetchOldInt8AddrIO :: Addr# -> Int# -> Int8 -> IO Int8
@@ -135,7 +130,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_and_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync8_and_fetch"
   syncAndFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_nand"
   syncNandFetchOldInt8AddrIO :: Addr# -> Int# -> Int8 -> IO Int8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_nand"
@@ -153,7 +147,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_nand_fetch"
   syncNandFetchNewWord8AddrIO :: Addr# -> Int# -> Word8 -> IO Word8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_nand_fetch"
   syncNandFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_or"
   syncOrFetchOldInt8AddrIO :: Addr# -> Int# -> Int8 -> IO Int8
@@ -173,7 +166,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_or_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync8_or_fetch"
   syncOrFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_xor"
   syncXorFetchOldInt8AddrIO :: Addr# -> Int# -> Int8 -> IO Int8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_fetch_xor"
@@ -191,14 +183,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync8_xor_fetch"
   syncXorFetchNewWord8AddrIO :: Addr# -> Int# -> Word8 -> IO Word8
 foreign import ccall unsafe "primal_atomic.c primal_sync8_xor_fetch"
   syncXorFetchNewWord8ArrayIO :: MutableByteArray# s -> Int# -> Word8 -> IO Word8
-
-
-
-
-
-
-
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync16_cas_bool"
   syncCasInt16BoolAddrIO :: Addr# -> Int# -> Int16 -> Int16 -> IO CBool
@@ -236,7 +220,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_add_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync16_add_fetch"
   syncAddFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_sub"
   syncSubFetchOldInt16AddrIO :: Addr# -> Int# -> Int16 -> IO Int16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_sub"
@@ -254,7 +237,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_sub_fetch"
   syncSubFetchNewWord16AddrIO :: Addr# -> Int# -> Word16 -> IO Word16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_sub_fetch"
   syncSubFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_and"
   syncAndFetchOldInt16AddrIO :: Addr# -> Int# -> Int16 -> IO Int16
@@ -274,7 +256,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_and_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync16_and_fetch"
   syncAndFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_nand"
   syncNandFetchOldInt16AddrIO :: Addr# -> Int# -> Int16 -> IO Int16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_nand"
@@ -292,7 +273,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_nand_fetch"
   syncNandFetchNewWord16AddrIO :: Addr# -> Int# -> Word16 -> IO Word16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_nand_fetch"
   syncNandFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_or"
   syncOrFetchOldInt16AddrIO :: Addr# -> Int# -> Int16 -> IO Int16
@@ -312,7 +292,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_or_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync16_or_fetch"
   syncOrFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_xor"
   syncXorFetchOldInt16AddrIO :: Addr# -> Int# -> Int16 -> IO Int16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_fetch_xor"
@@ -330,9 +309,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync16_xor_fetch"
   syncXorFetchNewWord16AddrIO :: Addr# -> Int# -> Word16 -> IO Word16
 foreign import ccall unsafe "primal_atomic.c primal_sync16_xor_fetch"
   syncXorFetchNewWord16ArrayIO :: MutableByteArray# s -> Int# -> Word16 -> IO Word16
-
-
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync32_cas_bool"
   syncCasInt32BoolAddrIO :: Addr# -> Int# -> Int32 -> Int32 -> IO CBool
@@ -370,7 +346,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_add_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync32_add_fetch"
   syncAddFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_sub"
   syncSubFetchOldInt32AddrIO :: Addr# -> Int# -> Int32 -> IO Int32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_sub"
@@ -388,7 +363,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_sub_fetch"
   syncSubFetchNewWord32AddrIO :: Addr# -> Int# -> Word32 -> IO Word32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_sub_fetch"
   syncSubFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_and"
   syncAndFetchOldInt32AddrIO :: Addr# -> Int# -> Int32 -> IO Int32
@@ -408,7 +382,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_and_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync32_and_fetch"
   syncAndFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_nand"
   syncNandFetchOldInt32AddrIO :: Addr# -> Int# -> Int32 -> IO Int32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_nand"
@@ -426,7 +399,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_nand_fetch"
   syncNandFetchNewWord32AddrIO :: Addr# -> Int# -> Word32 -> IO Word32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_nand_fetch"
   syncNandFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_or"
   syncOrFetchOldInt32AddrIO :: Addr# -> Int# -> Int32 -> IO Int32
@@ -446,7 +418,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_or_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync32_or_fetch"
   syncOrFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_xor"
   syncXorFetchOldInt32AddrIO :: Addr# -> Int# -> Int32 -> IO Int32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_fetch_xor"
@@ -464,10 +435,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync32_xor_fetch"
   syncXorFetchNewWord32AddrIO :: Addr# -> Int# -> Word32 -> IO Word32
 foreign import ccall unsafe "primal_atomic.c primal_sync32_xor_fetch"
   syncXorFetchNewWord32ArrayIO :: MutableByteArray# s -> Int# -> Word32 -> IO Word32
-
-
-
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync_cas_bool"
   syncCasIntBoolAddrIO :: Addr# -> Int# -> Int -> Int -> IO CBool
@@ -505,7 +472,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_add_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync_add_fetch"
   syncAddFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_sub"
   syncSubFetchOldIntAddrIO :: Addr# -> Int# -> Int -> IO Int
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_sub"
@@ -523,7 +489,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_sub_fetch"
   syncSubFetchNewWordAddrIO :: Addr# -> Int# -> Word -> IO Word
 foreign import ccall unsafe "primal_atomic.c primal_sync_sub_fetch"
   syncSubFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_and"
   syncAndFetchOldIntAddrIO :: Addr# -> Int# -> Int -> IO Int
@@ -543,7 +508,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_and_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync_and_fetch"
   syncAndFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_nand"
   syncNandFetchOldIntAddrIO :: Addr# -> Int# -> Int -> IO Int
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_nand"
@@ -561,7 +525,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_nand_fetch"
   syncNandFetchNewWordAddrIO :: Addr# -> Int# -> Word -> IO Word
 foreign import ccall unsafe "primal_atomic.c primal_sync_nand_fetch"
   syncNandFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
-
 
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_or"
   syncOrFetchOldIntAddrIO :: Addr# -> Int# -> Int -> IO Int
@@ -581,7 +544,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_or_fetch"
 foreign import ccall unsafe "primal_atomic.c primal_sync_or_fetch"
   syncOrFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
 
-
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_xor"
   syncXorFetchOldIntAddrIO :: Addr# -> Int# -> Int -> IO Int
 foreign import ccall unsafe "primal_atomic.c primal_sync_fetch_xor"
@@ -599,9 +561,6 @@ foreign import ccall unsafe "primal_atomic.c primal_sync_xor_fetch"
   syncXorFetchNewWordAddrIO :: Addr# -> Int# -> Word -> IO Word
 foreign import ccall unsafe "primal_atomic.c primal_sync_xor_fetch"
   syncXorFetchNewWordArrayIO :: MutableByteArray# s -> Int# -> Word -> IO Word
-
-
-
 
 #if WORD_SIZE_IN_BITS >= 64
 

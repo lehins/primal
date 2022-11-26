@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+
 -- |
 -- Module      : Primal.Concurrent
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -12,9 +13,8 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Concurrent
-  ( GHC.ThreadId(..)
+  ( GHC.ThreadId (..)
   , fork
   , forkFinally
   , forkOn
@@ -22,11 +22,9 @@ module Primal.Concurrent
   , forkOS
   , killThread
   , yield
-
   , threadDelay
   , timeout
   , timeout_
-
   , myThreadId
   , threadIdToCInt
   , threadStatus
@@ -35,24 +33,26 @@ module Primal.Concurrent
   , threadCapability
   , getNumCapabilities
   , setNumCapabilities
-  -- * Sparks
+
+    -- * Sparks
   , spark
   , numSparks
   , runSparks
-  -- * Single threaded RTS
+
+    -- * Single threaded RTS
   , delay
   , waitRead
   , waitWrite
   , module Primal.Monad
   ) where
 
-import qualified Control.Exception as GHC
 import qualified Control.Concurrent as GHC
+import qualified Control.Exception as GHC
+import qualified GHC.Conc as GHC
 import Primal.Exception
 import qualified Primal.Exception.Interruptible as EI
-import Primal.Monad
 import Primal.Foreign
-import qualified GHC.Conc as GHC
+import Primal.Monad
 import qualified System.Timeout as GHC
 
 spark :: Primal s m => a -> m a
@@ -86,7 +86,6 @@ waitRead !fd =
   case fromIntegral fd of
     I# i# -> primal_ (waitRead# i#)
 
-
 -- | Wrapper for `waitWrite#`. Block and wait until output is possible on the `Fd`.
 -- Not designed for threaded runtime: __Errors out when compiled with @-threaded@__
 waitWrite :: Primal s m => Fd -> m ()
@@ -116,8 +115,8 @@ forkOn (I# cap#) action =
     case forkOn# cap# (IO action#) s of
       (# s', tid# #) -> (# s', GHC.ThreadId tid# #)
 
-forkOnFinally ::
-     UnliftPrimal RW m
+forkOnFinally
+  :: UnliftPrimal RW m
   => Int
   -> m a
   -> (Either SomeException a -> m ())
@@ -125,11 +124,9 @@ forkOnFinally ::
 forkOnFinally cap action handler =
   EI.mask $ \restore -> forkOn cap $ tryAll (restore action) >>= handler
 
-
 -- | Lifted version of `GHC.forkOS`
 forkOS :: UnliftPrimal RW m => m () -> m GHC.ThreadId
 forkOS action = withRunInIO $ \run -> GHC.forkOS (run action)
-
 
 -- | Wrapper around `killThread#`, which throws `GHC.ThreadKilled` exception in the target
 -- thread. Use `throwTo` if you want a different exception to be thrown.
@@ -151,8 +148,6 @@ timeout !n !action = withRunInIO $ \run -> GHC.timeout n (run action)
 -- @since 0.3.0
 timeout_ :: UnliftPrimal RW m => Int -> m a -> m ()
 timeout_ n = void . timeout n
-
-
 
 -- | Just like `Control.Concurrent.yield` this is a Wrapper around `yield#` primop ,
 -- except that this version works for any state token. It is safe to use within `ST`
@@ -195,8 +190,6 @@ getNumCapabilities = liftIO GHC.getNumCapabilities
 setNumCapabilities :: Primal RW m => Int -> m ()
 setNumCapabilities = liftIO . GHC.setNumCapabilities
 
-
-
 -- | Something that is not exported from @base@: convert a `GHC.ThreadId` to a regular
 -- integral type.
 --
@@ -209,5 +202,3 @@ id2TSO (GHC.ThreadId t) = t
 
 -- Relevant ticket: https://gitlab.haskell.org/ghc/ghc/-/issues/8281
 foreign import ccall unsafe "rts_getThreadId" getThreadId :: ThreadId# -> CInt
-
-

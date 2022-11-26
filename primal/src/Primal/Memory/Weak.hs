@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Memory.Weak
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -8,9 +9,8 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Memory.Weak
-  ( Weak(..)
+  ( Weak (..)
   , mkWeak -- TODO: validate pre ghc-8.2 mkWeak#
   , mkWeakNoFinalizer
   , mkWeakPtr
@@ -23,10 +23,10 @@ module Primal.Memory.Weak
   ) where
 
 import Control.Monad
-import Primal.Monad
-import GHC.Weak (Weak(..))
-import Primal.Foreign
 import qualified Foreign.ForeignPtr as GHC (FinalizerEnvPtr, FinalizerPtr)
+import GHC.Weak (Weak (..))
+import Primal.Foreign
+import Primal.Monad
 
 -- | Same as `System.Mem.Weak.mkWeak`, except it requires a finalizer to be
 -- supplied. For a version without finalizers use `mkWeakNoFinalizer`
@@ -52,19 +52,18 @@ mkWeakPtr key = mkWeak key key
 mkWeakPtrNoFinalizer :: Primal RW m => k -> m (Weak k)
 mkWeakPtrNoFinalizer key = mkWeakNoFinalizer key key
 
-
 -- | Same as `System.Mem.Weak.addFinalizer`.
 addFinalizer :: UnliftPrimal RW m => k -> m b -> m ()
 addFinalizer key = void . mkWeakPtr key
 
 -- | Add a foreign function finalizer with a single argument. Returns `True` on success or
 -- `False` when weak pointer is already dead.
-addCFinalizer ::
-     Primal RW m
+addCFinalizer
+  :: Primal RW m
   => GHC.FinalizerPtr a
-     -- ^ Pointer to the C function to be called when finalizers are being invoked
+  -- ^ Pointer to the C function to be called when finalizers are being invoked
   -> Ptr a
-     -- ^ Argument that will be supplied to the finalizer function
+  -- ^ Argument that will be supplied to the finalizer function
   -> Weak v
   -> m Bool
 addCFinalizer (FunPtr faddr#) (Ptr addr#) (Weak weak#) =
@@ -74,14 +73,14 @@ addCFinalizer (FunPtr faddr#) (Ptr addr#) (Weak weak#) =
 
 -- | Add a foreign function finalizer with two arguments. Returns `True` on success or
 -- `False` when weak pointer is already dead.
-addCFinalizerEnv ::
-     Primal RW m
+addCFinalizerEnv
+  :: Primal RW m
   => GHC.FinalizerEnvPtr env a
-     -- ^ Pointer to the C function to be called when finalizers are being invoked
+  -- ^ Pointer to the C function to be called when finalizers are being invoked
   -> Ptr env
-     -- ^ First argument that will be supplied to the finalizer function
+  -- ^ First argument that will be supplied to the finalizer function
   -> Ptr a
-     -- ^ Second argument that will be supplied to the finalizer function
+  -- ^ Second argument that will be supplied to the finalizer function
   -> Weak v
   -> m Bool
 addCFinalizerEnv (FunPtr faddr#) (Ptr envAddr#) (Ptr addr#) (Weak weak#) =
@@ -96,7 +95,6 @@ deRefWeak (Weak weak#) =
     case deRefWeak# weak# s of
       (# s', 0#, _ #) -> (# s', Nothing #)
       (# s', _, a #) -> (# s', Just a #)
-
 
 -- | Runs associated finalizer, same as `System.Mem.Weak.finalize`
 finalizeWeak :: Primal RW m => Weak v -> m ()

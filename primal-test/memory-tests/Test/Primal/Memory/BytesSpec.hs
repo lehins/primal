@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 module Test.Primal.Memory.BytesSpec
   ( module Test.Primal.Memory.BytesSpec
   , module Primal.Memory.Bytes
@@ -29,19 +30,19 @@ import System.Timeout
 import Test.Primal
 import Test.Primal.Memory
 
-
 type NEBytes p e = NEMem (MBytes p) e
 
 -- This spec is called in MemSpec module
-bytesSpec ::
-     forall (p :: Pinned) e.
-     (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable p, Typeable e)
+bytesSpec
+  :: forall (p :: Pinned) e
+   . (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable p, Typeable e)
   => Spec
 bytesSpec = do
   let bytesTypeName =
-        showsType (Proxy :: Proxy (Bytes p)) .
-        (' ' :) . showsType (Proxy :: Proxy e) $
-        ""
+        showsType (Proxy :: Proxy (Bytes p))
+          . (' ' :)
+          . showsType (Proxy :: Proxy e)
+          $ ""
   describe bytesTypeName $ do
     memSpec @(MBytes p) @e
     describe "memset" $ do
@@ -57,11 +58,11 @@ bytesSpec = do
         setMBytes mb off c e
         zipWithM_ (\i x -> readOffMBytes mb i `shouldReturn` x) [0 ..] (take o xs)
         forM_ [o .. unCount c - 1] $ \i ->
-            readOffMBytes mb (Off i) `shouldReturn` e
+          readOffMBytes mb (Off i) `shouldReturn` e
     describe "List" $ do
-      prop "concatBytes (empty)" $ \ (NonNegative n) ->
+      prop "concatBytes (empty)" $ \(NonNegative n) ->
         concatBytes (replicate n (emptyBytes :: Bytes p)) === (emptyBytes :: Bytes p)
-      prop "concatBytes" $ \ (xs :: [Bytes p]) ->
+      prop "concatBytes" $ \(xs :: [Bytes p]) ->
         (concatBytes xs :: Bytes p) === fromListBytes (foldMap toList xs)
     describe "Allocation" $ do
       prop "resizeMBytes" $ prop_resizeMBytes @p @e
@@ -73,7 +74,7 @@ bytesSpec = do
           let c = min (countBytes b1 - Count (unOff i1)) (countBytes b2 - Count (unOff i2))
           mb2x <- thawBytes b2
           copyBytesToMBytes b1 i1 mb2x i2 c
-          by <- withCloneMBytes_ b2 $ \ mb2y -> do
+          by <- withCloneMBytes_ b2 $ \mb2y -> do
             mb1 <- thawBytes b1
             moveMBytesToMBytes mb1 i1 mb2y i2 c
           bx <- freezeMBytes mb2x
@@ -85,22 +86,23 @@ bytesSpec = do
         b' <- freezeMBytes mb
         take (unCount c) (toListBytes b') `shouldBe` drop (unOff i) xs
 
-prop_resizeMBytes ::
-     forall p e. (Unbox e, Eq e, Show e, Typeable p)
+prop_resizeMBytes
+  :: forall p e
+   . (Unbox e, Eq e, Show e, Typeable p)
   => NEBytes p e
   -> NonNegative Int
   -> Property
 prop_resizeMBytes (NEMem _ xs b) (NonNegative n') =
   monadicIO $
-  run $ do
-    mb <- thawBytes $ cloneBytes b
-    mbr <- resizeMBytes mb (Count n' :: Count Int)
-    br <- freezeMBytes mbr
-    pure $ conjoin $ zipWith (===) xs (toListBytes br :: [e])
+    run $ do
+      mb <- thawBytes $ cloneBytes b
+      mbr <- resizeMBytes mb (Count n' :: Count Int)
+      br <- freezeMBytes mbr
+      pure $ conjoin $ zipWith (===) xs (toListBytes br :: [e])
 
-
-bytesBinarySpec ::
-     forall (p :: Pinned). (Typeable p)
+bytesBinarySpec
+  :: forall (p :: Pinned)
+   . (Typeable p)
   => Spec
 bytesBinarySpec = do
   let bytesTypeName = showsType (Proxy :: Proxy (Bytes p)) ""
@@ -135,20 +137,20 @@ bytesBinarySpec = do
         isSameMBytes mb1 mb2 `shouldBe` True
       prop "(non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
         monadicIO $
-        run $ do
-          mb1 <- thawBytes b1
-          mb2 <- thawBytes b2
-          pure $
-            not (isEmptyBytes b1 && isEmptyBytes b2) ==>
-            not (isSameMBytes mb1 mb2)
+          run $ do
+            mb1 <- thawBytes b1
+            mb2 <- thawBytes b2
+            pure $
+              not (isEmptyBytes b1 && isEmptyBytes b2)
+                ==> not (isSameMBytes mb1 mb2)
       prop "Pin (non-empty) False" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
         not (isEmptyBytes b1 && isEmptyBytes b2) ==> not (isSameBytes b1 b2)
     describe "toList" $ do
       prop "Inc" $ \(b1 :: Bytes p) (b2 :: Bytes p) ->
         (b1 == b2) === (toListBytes b1 == (toListBytes b2 :: [Word8]))
       prop "Inc+Pin" $ \(b1 :: Bytes p) (b2 :: Bytes 'Pin) ->
-        (toIncBytes b1 == relaxPinnedBytes b2) ===
-        (toListBytes b1 == (toListBytes b2 :: [Word8]))
+        (toIncBytes b1 == relaxPinnedBytes b2)
+          === (toListBytes b1 == (toListBytes b2 :: [Word8]))
     describe "ensurePinned" $ do
       prop "Bytes" $ \(b :: Bytes p) ->
         let b' = ensurePinnedBytes b
@@ -164,14 +166,15 @@ bytesBinarySpec = do
         b === fromListN (coerce (byteCountBytes b)) (toList b)
     describe "Show" $
       prop "fromBuilder . toList" $ \(b :: Bytes p) ->
-        show b ===
-        BSL8.unpack (toLazyByteString $
-           "[" <>
-           mconcat
-             (List.intersperse "," ["0x" <> word8HexFixed w8 | w8 <- toList b]) <>
-           "]")
+        show b
+          === BSL8.unpack
+            ( toLazyByteString $
+                "["
+                  <> mconcat
+                    (List.intersperse "," ["0x" <> word8HexFixed w8 | w8 <- toList b])
+                  <> "]"
+            )
     memBinarySpec @(MBytes p)
-
 
 spec :: Spec
 spec = do
@@ -196,8 +199,10 @@ spec = do
       prop "Large (Inc) - isPinned" $ \(NonNegative n) ->
         pinnedExpectation (allocMBytes (n + leastThreshold) :: IO (MBytes 'Inc RealWorld)) True
       prop "Inc - isUninned" $ \(NonNegative n) ->
-        (n <= mostThreshold) ==> monadicIO $ run $
-        pinnedExpectation (allocMBytes n :: IO (MBytes 'Inc RealWorld)) False
+        (n <= mostThreshold)
+          ==> monadicIO
+          $ run
+          $ pinnedExpectation (allocMBytes n :: IO (MBytes 'Inc RealWorld)) False
       prop "Pin - isPinned" $ \(NonNegative (n :: Count Word8)) ->
         pinnedExpectation (allocMBytes n :: IO (MBytes 'Pin RealWorld)) True
       prop "Pin (aligned) - isPinned" $ \(NonNegative (n :: Count Word8)) ->
@@ -218,23 +223,21 @@ spec = do
       prop "Test avoidance of GHC bug #18061" $
         prop_WorkArounBugGHC18061 allocAlignedPinnedMBytes withNoHaltPtrMBytes
 
-
-prop_WorkArounBugGHC18061 ::
-     (Count Word32 -> IO t)
+prop_WorkArounBugGHC18061
+  :: (Count Word32 -> IO t)
   -> (t -> (Ptr Word32 -> IO a) -> IO ())
   -> Positive Int
   -> IO ()
 prop_WorkArounBugGHC18061 alloc withPtr (Positive n) =
   void $
-  timeout (1000 * n) $ do
-    replicateM_ 49 $ threadDelay 1
-    fptr <- alloc (4 :: Count Word32)
-    withPtr fptr $ \p ->
-      forever $ do
-        poke p (0xDEADBEEF :: Word32)
-        threadDelay 10
-        x <- peek p
-        unless (x == 0xDEADBEEF) $
-          error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
+    timeout (1000 * n) $ do
+      replicateM_ 49 $ threadDelay 1
+      fptr <- alloc (4 :: Count Word32)
+      withPtr fptr $ \p ->
+        forever $ do
+          poke p (0xDEADBEEF :: Word32)
+          threadDelay 10
+          x <- peek p
+          unless (x == 0xDEADBEEF) $
+            error ("Heap corruption detected: deadbeef /= " ++ showHex x "")
 {-# INLINE prop_WorkArounBugGHC18061 #-}
-

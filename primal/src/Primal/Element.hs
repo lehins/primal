@@ -5,7 +5,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Element
   ( module Primal.Element.Unbox
   , module Primal.Element.Unbox.Atom

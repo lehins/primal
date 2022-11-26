@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      : Test.Primal.MutArray
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -14,7 +15,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Test.Primal.MutArray where
 
 import Primal.Array
@@ -31,7 +31,6 @@ deriving instance (Show e, Show (Frozen (ma e))) => Show (MEArray ma e)
 data MEMutArray ma e s = MEMutArray ![e] !(ma e s)
 
 type instance Elt (MEMutArray ma) e = Elt ma e
-
 
 data NEArrayIx ma e = NEArrayIx !Int ![e] !(Frozen (ma e))
 deriving instance (Eq e, Eq (Frozen (ma e))) => Eq (NEArrayIx ma e)
@@ -71,7 +70,6 @@ instance MutFreeze (ma e) => MutFreeze (MEMutArray ma e) where
 -- cloneMutST ma =
 --    getSizeOfMutArray ma >>= \sz -> newRawMutArray sz >>= \ma' -> ma' <$ moveMutArray ma 0 ma' 0 sz
 
-
 instance MutArray ma => MutArray (MEMutArray ma) where
   sizeOfArray (MEArray _ a) = sizeOfArray a
   {-# INLINE sizeOfArray #-}
@@ -102,15 +100,14 @@ instance MutArray ma => MutArray (MEMutArray ma) where
   resizeMutArrayST (MEMutArray xs ma) sz = MEMutArray xs <$> resizeMutArray ma sz
   {-# INLINE resizeMutArrayST #-}
 
-
 instance (MutArray ma, Elt ma e, Arbitrary e) => Arbitrary (MEArray ma e) where
   arbitrary = do
     NonNegative n <- arbitrary
     xs :: [e] <- vectorOf n arbitrary
     pure $
       MEArray xs $
-      createArrayST_ (Size n) $ \ma ->
-        zipWithM_ (writeMutArray ma) [0 ..] xs
+        createArrayST_ (Size n) $ \ma ->
+          zipWithM_ (writeMutArray ma) [0 ..] xs
 
 instance MutArray ma => MutRef (NEMutArrayIx ma) where
   newMutRefST e = NEMutArrayIx 0 [e] <$> newMutRef e
@@ -167,8 +164,6 @@ instance AtomicBitsMutArray ma => AtomicBitsMutRef (NEMutArrayIx ma) where
   atomicNotFetchNewMutRefST (NEMutArrayIx i _ ma) = atomicNotFetchNewMutArray ma i
   {-# INLINE atomicNotFetchNewMutRefST #-}
 
-
-
 type instance Frozen (NEMutArrayIx ma e) = NEArrayIx ma e
 
 instance MutFreeze (ma e) => MutFreeze (NEMutArrayIx ma e) where
@@ -221,7 +216,6 @@ instance MutArray ma => MutArray (NEMutArrayIx ma) where
   resizeMutArrayST (NEMutArrayIx i xs ma) sz = NEMutArrayIx i xs <$> resizeMutArray ma sz
   {-# INLINE resizeMutArrayST #-}
 
-
 instance (MutArray ma, Elt ma e, Arbitrary e) => Arbitrary (NEArrayIx ma e) where
   arbitrary = do
     Positive n <- arbitrary
@@ -230,11 +224,12 @@ instance (MutArray ma, Elt ma e, Arbitrary e) => Arbitrary (NEArrayIx ma e) wher
     xs :: [e] <- vectorOf n arbitrary
     pure $
       NEArrayIx i xs $
-      createArrayST_ (Size n) $ \ma -> zipWithM_ (writeMutArray ma) [0 ..] xs
+        createArrayST_ (Size n) $
+          \ma -> zipWithM_ (writeMutArray ma) [0 ..] xs
 
-
-prop_writeRead ::
-     forall ma e. (Eq e, Show e, MutArray ma, Elt ma e)
+prop_writeRead
+  :: forall ma e
+   . (Eq e, Show e, MutArray ma, Elt ma e)
   => NEArrayIx ma e
   -> e
   -> Property
@@ -244,8 +239,9 @@ prop_writeRead nea e' = propIO $ do
   e `shouldBe` (xs !! i)
   expectWriteReadMutRef ma e'
 
-prop_writeReadAtomic ::
-    forall ma e. (Eq e, Show e, AtomicMutArray ma, AtomicElt ma e, Elt ma e)
+prop_writeReadAtomic
+  :: forall ma e
+   . (Eq e, Show e, AtomicMutArray ma, AtomicElt ma e, Elt ma e)
   => NEArrayIx ma e
   -> e
   -> Property
@@ -255,11 +251,9 @@ prop_writeReadAtomic nea e' = propIO $ do
   e `shouldBe` (xs !! i)
   expectWriteReadAtomicMutRef ma e'
 
-
-
-specMutArray ::
-     forall ma e.
-     ( Eq e
+specMutArray
+  :: forall ma e
+   . ( Eq e
      , Show e
      , Arbitrary e
      , Show (Array ma e)

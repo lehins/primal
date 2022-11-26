@@ -7,18 +7,19 @@
 module Main (main) where
 
 import Criterion.Main
-import Primal.Memory
-import Primal.Memory.Addr
-import Primal.Memory.Bytes
-import Primal.Memory.ByteString
-import Primal.Memory.PUArray
 import qualified Data.Primitive.ByteArray as BA
 import Data.Primitive.PrimArray
+import Primal.Memory
+import Primal.Memory.Addr
+import Primal.Memory.ByteString
+import Primal.Memory.Bytes
+import Primal.Memory.PUArray
 
 main :: IO ()
 main = do
-  let n = 1000000 :: Count a
-      n64 = n :: Count Word64
+  let
+    n = 1000000 :: Count a
+    n64 = n :: Count Word64
   -- Ensure that arrays are equal by filling them with zeros
   bEq1 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
   bEq2 <- freezeMBytes =<< allocZeroAlignedPinnedMBytes n64
@@ -28,33 +29,34 @@ main = do
   BA.setByteArray mbaEq2 0 (unCount n64) (0 :: Word64)
   baEq1 <- BA.unsafeFreezeByteArray mbaEq1
   baEq2 <- BA.unsafeFreezeByteArray mbaEq2
-  let paEq1 = PUArray bEq1 :: PUArray 'Pin Word64
-      paEq2 = PUArray bEq2 :: PUArray 'Pin Word64
-      bsEq1 = convertMem bEq1 :: ByteString
-      bsEq2 = convertMem bEq2 :: ByteString
-      addrEq1 = fromBytesAddr bEq1 :: Addr Word64
-      addrEq2 = fromBytesAddr bEq2 :: Addr Word64
-      primEq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word64
-      primEq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word64
-      pa8Eq1 = PUArray bEq1 :: PUArray 'Pin Word8
-      pa8Eq2 = PUArray bEq2 :: PUArray 'Pin Word8
-      addr8Eq1 = fromBytesAddr bEq1 :: Addr Word8
-      addr8Eq2 = fromBytesAddr bEq2 :: Addr Word8
-      prim8Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word8
-      prim8Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word8
+  let
+    paEq1 = PUArray bEq1 :: PUArray 'Pin Word64
+    paEq2 = PUArray bEq2 :: PUArray 'Pin Word64
+    bsEq1 = convertMem bEq1 :: ByteString
+    bsEq2 = convertMem bEq2 :: ByteString
+    addrEq1 = fromBytesAddr bEq1 :: Addr Word64
+    addrEq2 = fromBytesAddr bEq2 :: Addr Word64
+    primEq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word64
+    primEq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word64
+    pa8Eq1 = PUArray bEq1 :: PUArray 'Pin Word8
+    pa8Eq2 = PUArray bEq2 :: PUArray 'Pin Word8
+    addr8Eq1 = fromBytesAddr bEq1 :: Addr Word8
+    addr8Eq2 = fromBytesAddr bEq2 :: Addr Word8
+    prim8Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word8
+    prim8Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word8
 
-      addr16Eq1 = fromBytesAddr bEq1 :: Addr Word16
-      addr16Eq2 = fromBytesAddr bEq2 :: Addr Word16
-      pa16Eq1 = PUArray bEq1 :: PUArray 'Pin Word16
-      pa16Eq2 = PUArray bEq2 :: PUArray 'Pin Word16
-      prim16Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word16
-      prim16Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word16
-      addr32Eq1 = fromBytesAddr bEq1 :: Addr Word32
-      addr32Eq2 = fromBytesAddr bEq2 :: Addr Word32
-      pa32Eq1 = PUArray bEq1 :: PUArray 'Pin Word32
-      pa32Eq2 = PUArray bEq2 :: PUArray 'Pin Word32
-      prim32Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word32
-      prim32Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word32
+    addr16Eq1 = fromBytesAddr bEq1 :: Addr Word16
+    addr16Eq2 = fromBytesAddr bEq2 :: Addr Word16
+    pa16Eq1 = PUArray bEq1 :: PUArray 'Pin Word16
+    pa16Eq2 = PUArray bEq2 :: PUArray 'Pin Word16
+    prim16Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word16
+    prim16Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word16
+    addr32Eq1 = fromBytesAddr bEq1 :: Addr Word32
+    addr32Eq2 = fromBytesAddr bEq2 :: Addr Word32
+    pa32Eq1 = PUArray bEq1 :: PUArray 'Pin Word32
+    pa32Eq2 = PUArray bEq2 :: PUArray 'Pin Word32
+    prim32Eq1 = PrimArray (toByteArray# bEq1) :: PrimArray Word32
+    prim32Eq2 = PrimArray (toByteArray# bEq2) :: PrimArray Word32
   defaultMain
     [ bgroup
         "eq"

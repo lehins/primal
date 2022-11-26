@@ -5,7 +5,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Monad
   ( module Primal.Monad.Internal
   , eval
@@ -15,7 +14,8 @@ module Primal.Monad
   , deepevalM
   , whenM
   , unlessM
-  -- * Re-export
+
+    -- * Re-export
   , asIO
   , asST
   , module Control.Monad
@@ -26,14 +26,12 @@ import Control.Monad.ST
 import Primal.Eval
 import Primal.Monad.Internal
 
-
 -- | Similar to `when`, but condional is supplied in a form of monadic action rather than a
 -- pure value.
 --
 -- @since 0.3.0
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM m action = m >>= (`when` action)
-
 
 -- | Similar to `unless`, but condional is supplied in a form of monadic action rather than a
 -- pure value.

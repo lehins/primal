@@ -11,20 +11,19 @@ import Primal.Memory.Endianness
 import Primal.Ref.Unboxed
 import Test.Primal.Memory.Common
 
-
-
-roundTripEndianness ::
-     forall e. (Unbox (LE e), Unbox (BE e), Typeable e, Arbitrary e, Eq e, Show e)
+roundTripEndianness
+  :: forall e
+   . (Unbox (LE e), Unbox (BE e), Typeable e, Arbitrary e, Eq e, Show e)
   => Spec
 roundTripEndianness =
   prop (showsType (Proxy :: Proxy e) "") $ \(e :: e) ->
-  monadicIO $
-  run $ do
-    refBE@(URef mba) <- newURef (BE e)
-    readURef refBE `shouldReturn` BE e
-    let refLE = URef mba
-    writeURef refLE (LE e)
-    readURef refLE `shouldReturn` LE e
+    monadicIO $
+      run $ do
+        refBE@(URef mba) <- newURef (BE e)
+        readURef refBE `shouldReturn` BE e
+        let refLE = URef mba
+        writeURef refLE (LE e)
+        readURef refLE `shouldReturn` LE e
 
 -- Sanity check. TODO more tests in primal-tests
 spec :: Spec

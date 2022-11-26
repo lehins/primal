@@ -1,30 +1,34 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Main where
 
+import qualified Control.Concurrent.MVar as Base
 import Control.DeepSeq
 import qualified Control.Exception as Base
-import qualified Control.Concurrent.MVar as Base
-import Control.Prim.Exception
-import Control.Prim.Eval
 import Control.Prim.Concurrent.MVar
+import Control.Prim.Eval
+import Control.Prim.Exception
 import Criterion.Main
 import Data.IORef as IO
---import Data.Atomics
---import Data.Prim.Atomic
+
+-- import Data.Atomics
+-- import Data.Prim.Atomic
 import Data.Prim.Memory
 import Data.Prim.Memory.Addr
+
 -- import Data.Prim.MArray.Boxed.Small
 -- import Data.Prim.MRef
-import Data.Prim.Ref
-import qualified Data.Prim.PVar as PV
-import qualified UnliftIO.MVar as Unlift
-import qualified UnliftIO.Exception as Unlift
+
 import qualified Data.Mutable as M
+import qualified Data.Prim.PVar as PV
+import Data.Prim.Ref
 import qualified Data.Primitive.Types as P
 import qualified Data.Vector.Unboxed as U
 import qualified Foreign.Storable as S
+import qualified UnliftIO.Exception as Unlift
+import qualified UnliftIO.MVar as Unlift
 
 main :: IO ()
 main = do
@@ -32,31 +36,31 @@ main = do
       !i1 = 17 :: Int
       !w0 = 18 :: Word
       !w1 = 19 :: Word
-      envPVar ::
-           (PV.Prim e, NFData e)
+      envPVar
+        :: (PV.Prim e, NFData e)
         => e
         -> (PV.PVar e RW -> Benchmark)
         -> Benchmark
       envPVar e g = e `deepseq` env (BNF <$> PV.newPVar e) $ \(BNF var) -> g var
-      envMAddr ::
-           (Prim e, NFData e) => e -> (MAddr e RW -> Benchmark) -> Benchmark
+      envMAddr
+        :: (Prim e, NFData e) => e -> (MAddr e RW -> Benchmark) -> Benchmark
       envMAddr e g = e `deepseq` env (BNF <$> newMAddr e) $ \(BNF var) -> g var
       envRef :: NFData e => e -> (Ref e RW -> Benchmark) -> Benchmark
       envRef e g = e `deepseq` env (BNF <$> newRef e) $ \ref -> g (coerce ref)
       envIORef :: NFData e => e -> (IO.IORef e -> Benchmark) -> Benchmark
       envIORef e g =
         e `deepseq` env (BNF <$> newIORef e) $ \ref -> g (coerce ref)
-      envPRef ::
-           (P.Prim e, NFData e) => e -> (M.PRef RW e -> Benchmark) -> Benchmark
+      envPRef
+        :: (P.Prim e, NFData e) => e -> (M.PRef RW e -> Benchmark) -> Benchmark
       envPRef e g = e `deepseq` env (BNF <$> M.newRef e) $ \(BNF var) -> g var
-      envSRef ::
-           (S.Storable e, NFData e)
+      envSRef
+        :: (S.Storable e, NFData e)
         => e
         -> (M.SRef RW e -> Benchmark)
         -> Benchmark
       envSRef e g = e `deepseq` env (BNF <$> M.newRef e) $ \(BNF var) -> g var
-      envURef ::
-           (U.Unbox e, NFData e) => e -> (M.URef RW e -> Benchmark) -> Benchmark
+      envURef
+        :: (U.Unbox e, NFData e) => e -> (M.URef RW e -> Benchmark) -> Benchmark
       envURef e g = e `deepseq` env (BNF <$> M.newRef e) $ \(BNF var) -> g var
       envMVar :: (NFData e) => e -> (MVar e RW -> Benchmark) -> Benchmark
       envMVar e g = e `deepseq` env (BNF <$> newMVar e) $ \(BNF var) -> g var
@@ -111,10 +115,12 @@ main = do
                 bench "MVar" $ whnfIO $ modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "MVar (base)" $
-                whnfIO $ Base.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Base.modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "MVar (unliftio)" $
-                whnfIO $ Unlift.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Unlift.modifyMVar_ ref (pure . (+ i1))
             ]
         , bgroup
             "masked"
@@ -124,16 +130,22 @@ main = do
                 bench "modifyMVarMasked_" $ whnfIO $ modifyMVarMasked_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "mask_ $ modifyMVar_ (base)" $
-                whnfIO $ Base.mask_ $ Base.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Base.mask_ $
+                      Base.modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVarMasked_ (base)" $
-                whnfIO $ Base.modifyMVarMasked_ ref (pure . (+ i1))
+                  whnfIO $
+                    Base.modifyMVarMasked_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "mask_ $ modifyMVar_ (unliftio)" $
-                whnfIO $ Unlift.mask_ $ Unlift.modifyMVar_ ref (pure . (+ i1))
+                  whnfIO $
+                    Unlift.mask_ $
+                      Unlift.modifyMVar_ ref (pure . (+ i1))
             , envBaseMVar i0 $ \ref ->
                 bench "modifyMVarMasked_ (unliftio)" $
-                whnfIO $ Unlift.modifyMVarMasked_ ref (pure . (+ i1))
+                  whnfIO $
+                    Unlift.modifyMVarMasked_ ref (pure . (+ i1))
             ]
         ]
     , bgroup

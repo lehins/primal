@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 -- |
 -- Module      : Primal.Memory.GC
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -6,12 +7,12 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Memory.GC
   ( -- * Garbage collection
     performGC
   , performMajorGC
   , performMinorGC
+
     -- * Allocation counter and limits
   , setAllocationCounter
   , getAllocationCounter
@@ -19,9 +20,9 @@ module Primal.Memory.GC
   , disableAllocationLimit
   ) where
 
-import qualified System.Mem as Mem
-import Primal.Monad
 import Data.Int
+import Primal.Monad
+import qualified System.Mem as Mem
 
 -- | Lifted version of `Mem.performGC`
 --
@@ -53,13 +54,11 @@ setAllocationCounter = liftIO . Mem.setAllocationCounter
 getAllocationCounter :: PrimalIO m => m Int64
 getAllocationCounter = liftIO Mem.getAllocationCounter
 
-
 -- | Lifted version of `Mem.enableAllocationLimit`
 --
 -- @since 1.0.0
 enableAllocationLimit :: PrimalIO m => m ()
 enableAllocationLimit = liftIO Mem.enableAllocationLimit
-
 
 -- | Lifted version of `Mem.disableAllocationLimit`
 --

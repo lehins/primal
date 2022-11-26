@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Memory.ForeignPtr
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -15,24 +16,25 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Memory.ForeignPtr
-  ( MemPtr(..)
+  ( MemPtr (..)
   , withPtrMutMem
   , withNoHaltPtrMutMem
-  , MemForeignPtr(..)
+  , MemForeignPtr (..)
+
     -- * ForeignPtr
-  , ForeignPtr(..)
+  , ForeignPtr (..)
   , castForeignPtr
   , unsafeForeignPtrToPtr
-  , MForeignPtr(..)
+  , MForeignPtr (..)
   , castMForeignPtr
   , allocMForeignPtr
   , allocAlignedMForeignPtr
   , withMForeignPtr
   , withNoHaltMForeignPtr
-  , ForeignPtrContents(..)
-  -- * Pointer arithmetic
+  , ForeignPtrContents (..)
+
+    -- * Pointer arithmetic
   , plusOffForeignPtr
   , plusByteOffForeignPtr
   , minusOffForeignPtr
@@ -40,16 +42,19 @@ module Primal.Memory.ForeignPtr
   , minusByteOffForeignPtr
   , withForeignPtr
   , withNoHaltForeignPtr
-  -- ** PlainPtr
+
+    -- ** PlainPtr
   , mallocPlainForeignPtr
   , mallocCountPlainForeignPtr
   , mallocCountPlainForeignPtrAligned
   , mallocByteCountPlainForeignPtr
   , mallocByteCountPlainForeignPtrAligned
-  -- ** With Finalizers
+
+    -- ** With Finalizers
   , finalizeForeignPtr
   , finalizeMForeignPtr
-  -- *** Foreign finalizer
+
+    -- *** Foreign finalizer
   , FinalizerPtr
   , newForeignPtr
   , newForeignPtr_
@@ -60,15 +65,19 @@ module Primal.Memory.ForeignPtr
   , mallocByteCountForeignPtr
   , mallocByteCountForeignPtrAligned
   , addForeignPtrFinalizer
-  -- *** With environment
+
+    -- *** With environment
   , FinalizerEnvPtr
   , newForeignPtrEnv
   , addForeignPtrFinalizerEnv
-  -- *** Haskell finalizer
+
+    -- *** Haskell finalizer
   , newConcForeignPtr
   , addForeignPtrConcFinalizer
-  -- * Conversion
-  -- ** Bytes
+
+    -- * Conversion
+
+    -- ** Bytes
   , toForeignPtrBytes
   , toMForeignPtrMBytes
   ) where
@@ -77,20 +86,19 @@ import qualified Foreign.ForeignPtr as GHC
 import GHC.ForeignPtr
   ( FinalizerEnvPtr
   , FinalizerPtr
-  , ForeignPtr(..)
-  , ForeignPtrContents(..)
+  , ForeignPtr (..)
+  , ForeignPtrContents (..)
   , castForeignPtr
   , unsafeForeignPtrToPtr
   )
 import qualified GHC.ForeignPtr as GHC
+import Primal.Element.Unbox
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.Bytes.Internal
 import Primal.Memory.Ptr
 import Primal.Monad
 import Primal.Monad.Unsafe
-import Primal.Element.Unbox
-
 
 newtype MForeignPtr e s = MForeignPtr (ForeignPtr e)
 
@@ -145,7 +153,6 @@ instance MemWrite (MForeignPtr e) where
 -- simplest way is to create an instance for `MemForeignPtr` and other functions will come
 -- for free.
 class MemWrite mp => MemPtr mp where
-
   -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
   -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
   -- treat the memory content.
@@ -176,9 +183,9 @@ allocMForeignPtr =
 
 allocAlignedMForeignPtr :: (Unbox e, Primal s m) => Count e -> m (MForeignPtr e s)
 allocAlignedMForeignPtr c =
-  MForeignPtr <$>
-  unsafeIOToPrimal
-    (GHC.mallocForeignPtrAlignedBytes (unCountBytes c) (alignmentProxy c))
+  MForeignPtr
+    <$> unsafeIOToPrimal
+      (GHC.mallocForeignPtrAlignedBytes (unCountBytes c) (alignmentProxy c))
 {-# INLINE allocAlignedMForeignPtr #-}
 
 -- | Any pinned memory that can be converted to a `ForeignPtr` without copy
@@ -202,18 +209,15 @@ instance MemPtr (MBytes 'Pin) where
   withNoHaltPtrMutMemST = withNoHaltPtrMBytes
   {-# INLINE withNoHaltPtrMutMemST #-}
 
-
 toForeignPtrBytes :: Bytes 'Pin -> ForeignPtr e
 toForeignPtrBytes (Bytes ba#) =
   ForeignPtr (byteArrayContents# ba#) (PlainPtr (unsafeCoerce# ba#))
 {-# INLINE toForeignPtrBytes #-}
 
-
 toMForeignPtrMBytes :: MBytes 'Pin s -> MForeignPtr e s
 toMForeignPtrMBytes (MBytes mba#) =
   MForeignPtr (ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)))
 {-# INLINE toMForeignPtrMBytes #-}
-
 
 -- | Apply an action to the raw memory `Ptr` to which the data type points to. Type of data
 -- stored in memory is left ambiguous intentionaly, so that the user can choose how to
@@ -248,12 +252,11 @@ withForeignPtr (ForeignPtr addr# ptrContents) f = do
 -- `withNoHaltPtrAccess` for more information on how this differes from `withForeignPtr`.
 --
 -- @since 0.1.0
-withNoHaltForeignPtr ::
-     UnliftPrimal RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
+withNoHaltForeignPtr
+  :: UnliftPrimal RW m => ForeignPtr e -> (Ptr e -> m b) -> m b
 withNoHaltForeignPtr (ForeignPtr addr# ptrContents) f =
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltForeignPtr #-}
-
 
 -- | Apply an action to the raw pointer. It is unsafe to return the actual pointer back from
 -- the action because memory itself might get garbage collected or cleaned up by
@@ -273,13 +276,11 @@ withMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f = do
 -- `withNoHaltPtrAccess` for more information on how this differes from `withMForeignPtr`.
 --
 -- @since 1.0.0
-withNoHaltMForeignPtr ::
-     UnliftPrimal s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
+withNoHaltMForeignPtr
+  :: UnliftPrimal s m => MForeignPtr e s -> (Ptr e -> m b) -> m b
 withNoHaltMForeignPtr (MForeignPtr (ForeignPtr addr# ptrContents)) f =
   keepAlive ptrContents $ f (Ptr addr#)
 {-# INLINE withNoHaltMForeignPtr #-}
-
-
 
 -- | Lifted version of `GHC.touchForeignPtr`.
 touchForeignPtr :: Primal s m => ForeignPtr e -> m ()
@@ -293,15 +294,13 @@ newForeignPtr fin = liftP . GHC.newForeignPtr fin
 newForeignPtrEnv :: Primal RW m => FinalizerEnvPtr env e -> Ptr env -> Ptr e -> m (ForeignPtr e)
 newForeignPtrEnv finEnv envPtr = liftP . GHC.newForeignPtrEnv finEnv envPtr
 
-
 -- | Lifted version of `GHC.newForeignPtr_`.
 newForeignPtr_ :: Primal RW m => Ptr e -> m (ForeignPtr e)
 newForeignPtr_ = liftP . GHC.newForeignPtr_
 
 -- | Similar to `GHC.mallocForeignPtr`, except it operates on `Unbox`, instead of `Storable`.
-mallocForeignPtr :: forall e m . (Primal RW m, Unbox e) => m (ForeignPtr e)
+mallocForeignPtr :: forall e m. (Primal RW m, Unbox e) => m (ForeignPtr e)
 mallocForeignPtr = mallocCountForeignPtrAligned (1 :: Count e)
-
 
 -- | Similar to `Foreign.ForeignPtr.mallocForeignPtrArray`, except instead of `Storable` we
 -- use `Unbox`.
@@ -318,30 +317,30 @@ mallocByteCountForeignPtr :: Primal RW m => Count Word8 -> m (ForeignPtr e)
 mallocByteCountForeignPtr = liftP . GHC.mallocForeignPtrBytes . coerce
 
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
-mallocByteCountForeignPtrAligned ::
-     Primal RW m
-  => Count Word8 -- ^ Number of bytes to allocate
-  -> Int -- ^ Alignment in bytes
+mallocByteCountForeignPtrAligned
+  :: Primal RW m
+  => Count Word8
+  -- ^ Number of bytes to allocate
+  -> Int
+  -- ^ Alignment in bytes
   -> m (ForeignPtr e)
 mallocByteCountForeignPtrAligned count =
   liftP . GHC.mallocForeignPtrAlignedBytes (coerce count)
-
 
 -- | Lifted version of `GHC.addForeignPtrFinalizer`
 addForeignPtrFinalizer :: Primal RW m => FinalizerPtr e -> ForeignPtr e -> m ()
 addForeignPtrFinalizer fin = liftP . GHC.addForeignPtrFinalizer fin
 
-
 -- | Lifted version of `GHC.addForeignPtrFinalizerEnv`
-addForeignPtrFinalizerEnv ::
-     Primal RW m => FinalizerEnvPtr env e -> Ptr env -> ForeignPtr e -> m ()
+addForeignPtrFinalizerEnv
+  :: Primal RW m => FinalizerEnvPtr env e -> Ptr env -> ForeignPtr e -> m ()
 addForeignPtrFinalizerEnv fin envPtr = liftP . GHC.addForeignPtrFinalizerEnv fin envPtr
-
 
 -- | Similar to `GHC.mallocPlainForeignPtr`, except instead of `Storable` we use `Unbox` and
 -- we are not restricted to `IO`, since finalizers are not possible with `PlaintPtr`
-mallocPlainForeignPtr ::
-     forall e m s. (Primal s m, Unbox e)
+mallocPlainForeignPtr
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => m (ForeignPtr e)
 mallocPlainForeignPtr = mallocCountPlainForeignPtr (1 :: Count e)
 {-# INLINE mallocPlainForeignPtr #-}
@@ -353,8 +352,9 @@ mallocCountPlainForeignPtr = mallocByteCountPlainForeignPtr . toByteCount
 {-# INLINE mallocCountPlainForeignPtr #-}
 
 -- | Just like `mallocCountForeignPtr`, but memory is also aligned according to `Unbox` instance
-mallocCountPlainForeignPtrAligned ::
-     forall e m s. (Primal s m, Unbox e)
+mallocCountPlainForeignPtrAligned
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => Count e
   -> m (ForeignPtr e)
 mallocCountPlainForeignPtrAligned c =
@@ -375,27 +375,25 @@ mallocByteCountPlainForeignPtr (Count (I# c#)) =
         (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
 {-# INLINE mallocByteCountPlainForeignPtr #-}
 
-
 -- | Lifted version of `GHC.mallocForeignPtrAlignedBytes`.
-mallocByteCountPlainForeignPtrAligned ::
-     forall e m s. (Primal s m, Unbox e)
-  => Count Word8 -- ^ Number of bytes to allocate
+mallocByteCountPlainForeignPtrAligned
+  :: forall e m s
+   . (Primal s m, Unbox e)
+  => Count Word8
+  -- ^ Number of bytes to allocate
   -> m (ForeignPtr e)
 mallocByteCountPlainForeignPtrAligned (Count (I# c#)) =
   primal $ \s ->
-     let a# = alignment# (proxy# :: Proxy# e)
+    let a# = alignment# (proxy# :: Proxy# e)
      in case newAlignedPinnedByteArray# c# a# s of
-      (# s', mba# #) ->
-        (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
+          (# s', mba# #) ->
+            (# s', ForeignPtr (mutableByteArrayContents# mba#) (PlainPtr (unsafeCoerce# mba#)) #)
 {-# INLINE mallocByteCountPlainForeignPtrAligned #-}
-
-
 
 -- | Unlifted version of `GHC.newConcForeignPtr`
 newConcForeignPtr :: UnliftPrimal RW m => Ptr e -> m () -> m (ForeignPtr e)
 newConcForeignPtr ptr fin =
   withRunInIO $ \run -> liftP (GHC.newConcForeignPtr ptr (run fin))
-
 
 -- | Unlifted version of `GHC.addForeignPtrConcFinalizer`
 addForeignPtrConcFinalizer :: UnliftPrimal RW m => ForeignPtr a -> m () -> m ()
@@ -418,7 +416,6 @@ plusOffForeignPtr :: Unbox e => ForeignPtr e -> Off e -> ForeignPtr e
 plusOffForeignPtr (ForeignPtr addr# content) off =
   ForeignPtr (addr# `plusAddr#` unOffBytes# off) content
 {-# INLINE plusOffForeignPtr #-}
-
 
 -- | Advances the given address by the given offset in bytes. This operation does not
 -- affect associated finalizers in any way.

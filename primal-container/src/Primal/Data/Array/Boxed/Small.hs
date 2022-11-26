@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Data.Array.Boxed.Small
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -11,18 +12,20 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Data.Array.Boxed.Small
-  ( SBArray(..)
-  , SBMArray(..)
-  , Size(..)
-  -- * Immutable
+  ( SBArray (..)
+  , SBMArray (..)
+  , Size (..)
+
+    -- * Immutable
   , makeSBArray
   , makeSBArrayM
   , sizeOfSBArray
   , indexSBArray
-  -- * Mutable
-  -- ** Create
+
+    -- * Mutable
+
+    -- ** Create
   , newSBMArray
   , newRawSBMArray
   , newLazySBMArray
@@ -30,19 +33,20 @@ module Primal.Data.Array.Boxed.Small
   , createSBArrayM
   , createSBArrayM_
   , getSizeOfSBMArray
-  -- ** Access
+
+    -- ** Access
   , readSBMArray
   , writeSBMArray
   , writeLazySBMArray
   , writeDeepSBMArray
-  -- *** Atomic
+
+    -- *** Atomic
   , casSBMArray
   , atomicModifyFetchNewSBMArray
   , atomicModifyFetchOldSBMArray
   , atomicModifySBMArray
   , atomicModifySBMArray_
   , atomicModifySBMArray2
-  -- *
   , thawSBArray
   , thawCloneSliceSBArray
   , freezeSBMArray
@@ -51,28 +55,24 @@ module Primal.Data.Array.Boxed.Small
   , moveSBMArray
   , cloneSBArray
   , cloneSBMArray
-  -- * List
+
+    -- * List
   , fromListSBArray
   , fromListSBArrayN
   , toListSBArray
-  -- * Helpers
+
+    -- * Helpers
   , foldrSBArray
   , traverseSBArray
   ) where
 
-import Primal.Monad
 import Data.Bits
-import Primal.Data.Array
 import qualified Primal.Container.Mutable.Array.Internal as I
 import Primal.Container.Mutable.Ref.Atomic
 import Primal.Container.Mutable.Ref.Internal
+import Primal.Data.Array
 import Primal.Foreign
-
-
-
-
-
-
+import Primal.Monad
 
 atomicModifySBMArray# :: Primal s m => SBMArray e s -> Int -> (e -> (# e, b #)) -> m b
 atomicModifySBMArray# ma@(SBMArray ma#) i@(I# i#) f = do
@@ -82,11 +82,10 @@ atomicModifySBMArray# ma@(SBMArray ma#) i@(I# i#) f = do
           case f expected of
             (# new, artifact #) ->
               case casSmallArray# ma# i# expected new s of
-                (# s', 0#, _ #)     -> (# s', artifact #)
+                (# s', 0#, _ #) -> (# s', artifact #)
                 (# s', _, actual #) -> go actual s'
      in go current0
 {-# INLINE atomicModifySBMArray# #-}
-
 
 atomicModifyFetchNewSBMArray :: Primal s m => SBMArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchNewSBMArray ma i f =
@@ -98,24 +97,20 @@ atomicModifyFetchOldSBMArray ma i f =
   atomicModifySBMArray# ma i (\a -> (# f a, a #))
 {-# INLINE atomicModifyFetchOldSBMArray #-}
 
-
 atomicModifySBMArray :: Primal s m => SBMArray e s -> Int -> (e -> (e, b)) -> m b
 atomicModifySBMArray ma i f =
   atomicModifySBMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
 {-# INLINE atomicModifySBMArray #-}
-
 
 atomicModifySBMArray_ :: Primal s m => SBMArray e s -> Int -> (e -> e) -> m ()
 atomicModifySBMArray_ ma i f =
   atomicModifySBMArray# ma i (\a -> let a' = f a in (# a', () #))
 {-# INLINE atomicModifySBMArray_ #-}
 
-
 atomicModifySBMArray2 :: Primal s m => SBMArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
 atomicModifySBMArray2 ma i f =
   atomicModifySBMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
 {-# INLINE atomicModifySBMArray2 #-}
-
 
 -- | Strict right fold
 foldrSBArray :: (e -> b -> b) -> b -> SBArray e -> b
@@ -137,7 +132,6 @@ createSBArrayM = I.createArrayM
 createSBArrayM_ :: Primal s m => Size -> (SBMArray e s -> m b) -> m (SBArray e)
 createSBArrayM_ = I.createArrayM_
 {-# INLINE createSBArrayM_ #-}
-
 
 -- | Traverse an array with a monadic action.
 --

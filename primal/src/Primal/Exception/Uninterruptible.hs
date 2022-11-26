@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+
 -- |
 -- Module      : Primal.Exception.Uninterruptible
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -8,7 +9,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Exception.Uninterruptible
   ( onException
   -- TODO: Implement:
@@ -29,11 +29,10 @@ module Primal.Exception.Uninterruptible
 
 import qualified Control.Exception as GHC
 import Control.Monad
-import Primal.Monad.Internal
-import Primal.Monad.Unsafe
 import Primal.Exception
 import Primal.Exception.Unsafe
-
+import Primal.Monad.Internal
+import Primal.Monad.Unsafe
 
 -- | Run an action, while invoking an exception handler when that action fails
 -- for some reason. Exception handling function has async exceptions masked, but
@@ -44,14 +43,13 @@ import Primal.Exception.Unsafe
 -- > uninterruptibleMask $ \restore -> withException (restore action) handler
 --
 -- @since 1.0.0
-withException ::
-     (UnliftPrimal RW m, GHC.Exception e) => m a -> (e -> m b) -> m a
+withException
+  :: (UnliftPrimal RW m, GHC.Exception e) => m a -> (e -> m b) -> m a
 withException action handler =
   mask $ \restore -> do
     catch
       (restore action)
       (\exc -> catchAllSync (void $ handler exc) (\_ -> pure ()) >> raise exc)
-
 
 -- | Same as `withException`, but will invoke exception handling function on all
 -- synchronous exceptions.
@@ -69,7 +67,6 @@ withAnyException thing after =
 -- @since 1.0.0
 onException :: UnliftPrimal RW m => m a -> m b -> m a
 onException thing after = withAnyException thing (const after)
-
 
 --
 -- @since 1.0.0
@@ -101,14 +98,10 @@ finally action cleanup =
         raise exc
     result <$ cleanup
 
-
-
 --
 -- @since 1.0.0
 bracket_ :: UnliftPrimal RW m => m a -> m b -> m c -> m c
 bracket_ acquire cleanup action = bracket acquire (const cleanup) (const action)
-
-
 
 -- | Mask all async exceptions and make sure evaluation cannot be
 -- interrupted. It is polymorphic in the state token because it is perfectly
@@ -126,7 +119,7 @@ mask_ action =
     GHC.Unmasked -> blockUninterruptible action
     GHC.MaskedInterruptible -> blockUninterruptible action
     _ -> action
-{-# INLINEABLE mask_  #-}
+{-# INLINEABLE mask_ #-}
 
 -- | Run an action with asychronous exceptions masked and mark it as
 -- uninterruptible. In other words same as
@@ -136,8 +129,9 @@ mask_ action =
 -- within `ST` monad.
 --
 -- @since 1.0.0
-mask ::
-     forall a m s. UnliftPrimal s m
+mask
+  :: forall a m s
+   . UnliftPrimal s m
   => ((forall b. m b -> m b) -> m a)
   -> m a
 mask action = do
@@ -146,7 +140,6 @@ mask action = do
     GHC.MaskedInterruptible -> blockUninterruptible $ action blockAsyncExceptions
     GHC.MaskedUninterruptible -> action blockUninterruptible
 {-# INLINEABLE mask #-}
-
 
 -- | Similar to `mask_`, but allows a wider range of target monads
 --
@@ -157,11 +150,11 @@ liftMask_ action =
     GHC.Unmasked -> liftBlockUninterruptible action
     GHC.MaskedInterruptible -> liftBlockUninterruptible action
     _ -> liftP action
-{-# INLINEABLE liftMask_  #-}
+{-# INLINEABLE liftMask_ #-}
 
-
-liftMask ::
-     forall a n m s. (PrimalState s n, Primal s m)
+liftMask
+  :: forall a n m s
+   . (PrimalState s n, Primal s m)
   => ((forall b. n b -> n b) -> n a)
   -> m a
 liftMask action = do

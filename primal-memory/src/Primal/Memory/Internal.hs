@@ -20,9 +20,9 @@
 -- Stability   : experimental
 -- Portability : non-portable
 module Primal.Memory.Internal
-  ( module Primal.Memory.Internal,
-    module Primal.Memory.Bytes.Internal,
-    Frozen,
+  ( module Primal.Memory.Internal
+  , module Primal.Memory.Bytes.Internal
+  , Frozen
   )
 where
 
@@ -34,8 +34,8 @@ import qualified Data.Semigroup as Semigroup
 import GHC.Word
 import Numeric (showHex)
 import Primal.Array
-import qualified Primal.Exception.Uninterruptible as EUI
 import Primal.Element
+import qualified Primal.Exception.Uninterruptible as EUI
 import Primal.Foreign
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes.Internal
@@ -43,7 +43,7 @@ import Primal.Memory.ForeignPtr
 import Primal.Monad
 import Primal.Mutable.Freeze
 
---TODO: implement:
+-- TODO: implement:
 -- - cloneSliceMutMem, cloneByteOffSliceMutMem
 -- - thawByteOffCopyMem, freezeByteOffCopyMutMem
 
@@ -59,42 +59,42 @@ import Primal.Mutable.Freeze
 --
 --
 -- @since 0.1.0
-copyByteOffToPtrMem ::
-  forall e mr m s.
-  (Primal s m, MemRead mr, Unbox e) =>
-  -- | /memSourceRead/ - Source from where to copy
-  mr ->
-  -- | /memSourceOff/ - Offset into source memory in number of bytes
+copyByteOffToPtrMem
+  :: forall e mr m s
+   . (Primal s m, MemRead mr, Unbox e)
+  => mr
+  -- ^ /memSourceRead/ - Source from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memSourceOff
   --
   -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-  Off Word8 ->
-  -- | /memTargetWrite/ - Pointer to the target mutable memory
+  -> Ptr e
+  -- ^ /memTargetWrite/ - Pointer to the target mutable memory
   --
   -- /__Preconditions:__/
   --
   -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
   -- still belong to the same region of memory @memTargetWrite@
-  Ptr e ->
-  -- | /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
+  -> Off Word8
+  -- ^ /memTargetOff/ - Number of bytes to advance the pointer @memTargetWrite@ forward
   --
   -- /__Precondition:__/
   --
   -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
   -- memory region @memTargetWrite@
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memCount
   --
   -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 copyByteOffToPtrMem src srcOff dst dstOff c =
   liftST $ copyByteOffToPtrMemST src srcOff dst dstOff c
 {-# INLINE copyByteOffToPtrMem #-}
@@ -107,34 +107,35 @@ copyByteOffToPtrMem src srcOff dst dstOff c =
 -- unpredictable output or failure with a segfault.
 --
 -- @since 0.1.0
-compareByteOffToPtrMem ::
-  forall e mr m s.
-  (Primal s m, MemRead mr, Unbox e) =>
-  -- | /memRead1/ - First memory region
-  mr ->
-  -- | /memOff1/ - Offset for @memRead1@ in number of bytes
+compareByteOffToPtrMem
+  :: forall e mr m s
+   . (Primal s m, MemRead mr, Unbox e)
+  => mr
+  -- ^ /memRead1/ - First memory region
+  -> Off Word8
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memOff1
   --
   -- > unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-  Off Word8 ->
-  -- | /memRead2/- Second memory region that can be accessed by a pointer
+  -> Ptr e
+  -- ^ /memRead2/- Second memory region that can be accessed by a pointer
   --
   -- /__Preconditions__/
   --
   -- Once the pointer is advanced by @memOff2@ the next @unCountBytes memCount@ bytes must
   -- still belong to the same region of memory @memRead2@
-  Ptr e ->
-  -- | /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
+  -> Off Word8
+  -- ^ /memOff2/ - Number of bytes to advance the pointer @memRead2@ forward
   --
   -- /__Precondition:__/
   --
   -- Once the pointer is advanced by @memOff2@ it must still refer to the same memory
   -- region @memRead2@
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to compare as binary
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
   -- ^ /memCount/ - Number of elements of type __@e@__ to compare as binary
   --
   -- /__Preconditions:__/
@@ -142,8 +143,7 @@ compareByteOffToPtrMem ::
   -- > 0 <= memCount
   --
   -- > unCountBytes memCount + unOff memOff1 <= unCount (byteCountMem memRead1 - byteCountType @e)
-  Count e ->
-  m Ordering
+  -> m Ordering
 compareByteOffToPtrMem src srcOff dst dstOff c =
   liftST $ compareByteOffToPtrMemST src srcOff dst dstOff c
 {-# INLINE compareByteOffToPtrMem #-}
@@ -158,30 +158,31 @@ compareByteOffToPtrMem src srcOff dst dstOff c =
 -- failure with a segfault.
 --
 -- @since 0.1.0
-copyByteOffToMBytesMem ::
-  forall e mr p m s.
-  (Primal s m, MemRead mr, Unbox e) =>
-  -- | /memSourceRead/ - Source from where to copy
-  mr ->
-  -- | /memSourceOff/ - Offset into source memory in number of bytes
+copyByteOffToMBytesMem
+  :: forall e mr p m s
+   . (Primal s m, MemRead mr, Unbox e)
+  => mr
+  -- ^ /memSourceRead/ - Source from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memSourceOff
   --
   -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-  Off Word8 ->
-  -- | /memTargetWrite/ - Target mutable memory
-  MBytes p s ->
-  -- | /memTargetOff/ -  Offset into target memory in number of bytes
+  -> MBytes p s
+  -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memTargetOff
   --
   -- > unOff memTargetOff <= unCount (byteCountMem memTargetWrite - byteCountType @e)
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -190,8 +191,7 @@ copyByteOffToMBytesMem ::
   -- > unCountBytes memCount + unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
   --
   -- > unCountBytes memCount + unOff memTargetOff <= unCount (byteCountMem memTargetRead - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 copyByteOffToMBytesMem src srcOff dst dstOff c =
   liftST $ copyByteOffToMBytesMemST src srcOff dst dstOff c
 {-# INLINE copyByteOffToMBytesMem #-}
@@ -203,12 +203,13 @@ copyByteOffToMBytesMem src srcOff dst dstOff c =
 -- result is either unpredictable output or failure with a segfault.
 --
 -- @since 0.3.0
-readOffMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memRead/ - Memory region to read an element from
-  mw s ->
-  -- | /off/ - Offset in number of elements from the beginning of @memRead@
+readOffMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memRead/ - Memory region to read an element from
+  -> Off e
+  -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
   --
   -- /__Preconditions:__/
   --
@@ -219,8 +220,7 @@ readOffMutMem ::
   --
   -- > count <- getByteCountMutMem memRead
   -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-  Off e ->
-  m e
+  -> m e
 readOffMutMem mw = liftST . readOffMutMemST mw
 {-# INLINE readOffMutMem #-}
 
@@ -230,12 +230,13 @@ readOffMutMem mw = liftST . readOffMutMemST mw
 -- result is either unpredictable output or failure with a segfault.
 --
 -- @since 0.3.0
-readByteOffMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memRead/ - Memory region to read an element from
-  mw s ->
-  -- | /off/ - Offset in number of elements from the beginning of @memRead@
+readByteOffMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memRead/ - Memory region to read an element from
+  -> Off Word8
+  -- ^ /off/ - Offset in number of elements from the beginning of @memRead@
   --
   -- /__Preconditions:__/
   --
@@ -246,8 +247,7 @@ readByteOffMutMem ::
   --
   -- > count <- getByteCountMutMem memRead
   -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-  Off Word8 ->
-  m e
+  -> m e
 readByteOffMutMem mw = liftST . readByteOffMutMemST mw
 {-# INLINE readByteOffMutMem #-}
 
@@ -258,12 +258,13 @@ readByteOffMutMem mw = liftST . readByteOffMutMemST mw
 -- outcome is either heap corruption or failure with a segfault.
 --
 -- @since 0.3.0
-writeOffMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memWrite/ - Memory region to write an element into
-  mw s ->
-  -- | /off/ - Offset in number of elements from the beginning of @memWrite@
+writeOffMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memWrite/ - Memory region to write an element into
+  -> Off e
+  -- ^ /off/ - Offset in number of elements from the beginning of @memWrite@
   --
   -- /__Preconditions:__/
   --
@@ -274,10 +275,9 @@ writeOffMutMem ::
   --
   -- > count <- getByteCountMutMem memWrite
   -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-  Off e ->
-  -- | /elt/ - Element to write
-  e ->
-  m ()
+  -> e
+  -- ^ /elt/ - Element to write
+  -> m ()
 writeOffMutMem mw off = liftST . writeOffMutMemST mw off
 {-# INLINE writeOffMutMem #-}
 
@@ -287,12 +287,13 @@ writeOffMutMem mw off = liftST . writeOffMutMemST mw off
 -- outcome is either heap corruption or failure with a segfault.
 --
 -- @since 0.3.0
-writeByteOffMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memWrite/ - Memory region to write an element into
-  mw s ->
-  -- | /off/ - Offset in number of bytes from the beginning of @memWrite@
+writeByteOffMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memWrite/ - Memory region to write an element into
+  -> Off Word8
+  -- ^ /off/ - Offset in number of bytes from the beginning of @memWrite@
   --
   -- /__Preconditions:__/
   --
@@ -303,10 +304,9 @@ writeByteOffMutMem ::
   --
   -- > count <- getByteCountMutMem memWrite
   -- > unOff (toByteOff off) <= unCount (count - byteCountType @e)
-  Off Word8 ->
-  -- | /elt/ - Element to write into memory at the supplied offset
-  e ->
-  m ()
+  -> e
+  -- ^ /elt/ - Element to write into memory at the supplied offset
+  -> m ()
 writeByteOffMutMem mw off = liftST . writeByteOffMutMemST mw off
 {-# INLINE writeByteOffMutMem #-}
 
@@ -319,12 +319,13 @@ writeByteOffMutMem mw off = liftST . writeByteOffMutMemST mw off
 -- a segfault.
 --
 -- @since 0.3.0
-moveByteOffToMBytesMutMem ::
-  forall e mw p m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memSource/ - Source memory from where to copy
-  mw s ->
-  -- | /memSourceOff/ - Offset in number of bytes into source memory
+moveByteOffToMBytesMutMem
+  :: forall e mw p m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
   --
   -- /__Preconditions:__/
   --
@@ -335,10 +336,10 @@ moveByteOffToMBytesMutMem ::
   --
   -- > sourceByteCount <- getByteCountMutMem memSource
   -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memTarget/ - Target memory into where to copy
-  MBytes p s ->
-  -- | /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  -> MBytes p s
+  -- ^ /memTarget/ - Target memory into where to copy
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
   --
   -- /__Preconditions:__/
   --
@@ -349,8 +350,8 @@ moveByteOffToMBytesMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -365,8 +366,7 @@ moveByteOffToMBytesMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 moveByteOffToMBytesMutMem src srcOff dst dstOff c =
   liftST $ moveByteOffToMBytesMutMemST src srcOff dst dstOff c
 {-# INLINE moveByteOffToMBytesMutMem #-}
@@ -380,12 +380,13 @@ moveByteOffToMBytesMutMem src srcOff dst dstOff c =
 -- @memSource@, heap corruption or failure with a segfault.
 --
 -- @since 0.3.0
-moveByteOffToPtrMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memSource/ - Source memory from where to copy
-  mw s ->
-  -- | /memSourceOff/ - Offset in number of bytes into source memory
+moveByteOffToPtrMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
   --
   -- /__Preconditions:__/
   --
@@ -396,15 +397,15 @@ moveByteOffToPtrMutMem ::
   --
   -- > sourceByteCount <- getByteCountMutMem memSource
   -- > unOff (toByteOff memSourceOff) <= unCount (sourceByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memTarget/ - Target memory into where to copy
+  -> Ptr e
+  -- ^ /memTarget/ - Target memory into where to copy
   --
   -- /__Precondition:__/
   --
   -- Once the pointer is advanced by @memTargetOff@ the next @unCountBytes memCount@ bytes must
   -- still belong to the same region of memory @memTargetWrite@
-  Ptr e ->
-  -- | /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
   --
   -- /__Preconditions:__/
   --
@@ -412,8 +413,8 @@ moveByteOffToPtrMutMem ::
   --
   -- Once the pointer is advanced by @memTargetOff@ it must still refer to the same
   -- memory region @memTarget@
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -425,8 +426,7 @@ moveByteOffToPtrMutMem ::
   --
   -- > sourceByteCount <- getByteCountMutMem memSource
   -- > unOff memSourceOff + unCountBytes memCount <= unCount (sourceByteCount - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 moveByteOffToPtrMutMem src srcOff dst dstOff c =
   liftST $ moveByteOffToPtrMutMemST src srcOff dst dstOff c
 {-# INLINE moveByteOffToPtrMutMem #-}
@@ -442,22 +442,23 @@ moveByteOffToPtrMutMem src srcOff dst dstOff c =
 -- a segfault.
 --
 -- @since 0.1.0
-copyByteOffMutMem ::
-  forall e mr mw m s.
-  (Primal s m, MemWrite mw, MemRead mr, Unbox e) =>
-  -- | /memSourceRead/ - Read-only source memory region from where to copy
-  mr ->
-  -- | /memSourceOff/ - Offset into source memory in number of bytes
+copyByteOffMutMem
+  :: forall e mr mw m s
+   . (Primal s m, MemWrite mw, MemRead mr, Unbox e)
+  => mr
+  -- ^ /memSourceRead/ - Read-only source memory region from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset into source memory in number of bytes
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memSourceOff
   --
   -- > unOff memSourceOff <= unCount (byteCountMem memSourceRead - byteCountType @e)
-  Off Word8 ->
-  -- | /memTargetWrite/ - Target mutable memory
-  mw s ->
-  -- | /memTargetOff/ -  Offset into target memory in number of bytes
+  -> mw s
+  -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
   --
   -- /__Preconditions:__/
   --
@@ -468,8 +469,8 @@ copyByteOffMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTargetWrite
   -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -484,8 +485,7 @@ copyByteOffMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTargetWrite
   -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 copyByteOffMutMem src srcOff dst dstOff c =
   liftST $ copyByteOffMutMemST src srcOff dst dstOff c
 {-# INLINE copyByteOffMutMem #-}
@@ -499,12 +499,13 @@ copyByteOffMutMem src srcOff dst dstOff c =
 -- a segfault.
 --
 -- @since 0.3.0
-moveByteOffMutMem ::
-  forall e mw' mw m s.
-  (Primal s m, MemWrite mw', MemWrite mw, Unbox e) =>
-  -- | /memSource/ - Source memory from where to copy
-  mw' s ->
-  -- | /memSourceOff/ - Offset in number of bytes into source memory
+moveByteOffMutMem
+  :: forall e mw' mw m s
+   . (Primal s m, MemWrite mw', MemWrite mw, Unbox e)
+  => mw' s
+  -- ^ /memSource/ - Source memory from where to copy
+  -> Off Word8
+  -- ^ /memSourceOff/ - Offset in number of bytes into source memory
   --
   -- /__Preconditions:__/
   --
@@ -515,10 +516,10 @@ moveByteOffMutMem ::
   --
   -- > sourceByteCount <- getByteCountMutMem memSource
   -- > unOffBytes memSourceOff <= unCount (sourceByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memTarget/ - Target memory into where to copy
-  mw s ->
-  -- | /memTargetOff/ -  Offset into target memory in number of bytes
+  -> mw s
+  -- ^ /memTarget/ - Target memory into where to copy
+  -> Off Word8
+  -- ^ /memTargetOff/ -  Offset into target memory in number of bytes
   --
   -- /__Preconditions:__/
   --
@@ -529,8 +530,8 @@ moveByteOffMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOffBytes (toByteOff memTargetOff) <= unCount (targetByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -545,8 +546,7 @@ moveByteOffMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff + unCountBytes memCount <= unCount (targetByteCount - byteCountType @e)
-  Count e ->
-  m ()
+  -> m ()
 moveByteOffMutMem src srcOff dst dstOff c =
   liftST $ moveByteOffMutMemST src srcOff dst dstOff c
 {-# INLINE moveByteOffMutMem #-}
@@ -554,14 +554,14 @@ moveByteOffMutMem src srcOff dst dstOff c =
 -- | Same as `setMutMem`, except that the offset supplied is in number of bytes.
 --
 -- @since 1.0.0
-setByteOffMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  mw s ->
-  Off Word8 ->
-  Count e ->
-  e ->
-  m ()
+setByteOffMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -> Off Word8
+  -> Count e
+  -> e
+  -> m ()
 setByteOffMutMem mw off c = liftST . setByteOffMutMemST mw off c
 
 -- | Write the same value @memCount@ times into each cell of @memTarget@ starting at an
@@ -571,12 +571,13 @@ setByteOffMutMem mw off c = liftST . setByteOffMutMemST mw off c
 -- violated the outcome is either heap corruption or failure with a segfault.
 --
 -- @since 0.3.0
-setMutMem ::
-  forall e mw m s.
-  (Primal s m, MemWrite mw, Unbox e) =>
-  -- | /memTarget/ - Target memory into where to write the element
-  mw s ->
-  -- | /memTargetOff/ - Offset into target memory in number of elements at which element
+setMutMem
+  :: forall e mw m s
+   . (Primal s m, MemWrite mw, Unbox e)
+  => mw s
+  -- ^ /memTarget/ - Target memory into where to write the element
+  -> Off e
+  -- ^ /memTargetOff/ - Offset into target memory in number of elements at which element
   -- setting should start.
   --
   -- /__Preconditions:__/
@@ -588,8 +589,8 @@ setMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOffBytes memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Off e ->
-  -- | /memCount/ - Number of times the element @elt@ should be written
+  -> Count e
+  -- ^ /memCount/ - Number of times the element @elt@ should be written
   --
   -- /__Preconditions:__/
   --
@@ -601,12 +602,11 @@ setMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unCountBytes memCount + unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Count e ->
-  -- | /elt/ - Element to write into memory cells. This function is strict with
+  -> e
+  -- ^ /elt/ - Element to write into memory cells. This function is strict with
   -- respect to element, which means that the even @memCount = 0@ it might be still
   -- fully evaluated.
-  e ->
-  m ()
+  -> m ()
 setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
 {-# INLINE setMutMem #-}
 
@@ -623,11 +623,11 @@ setMutMem dst dstOff c = liftST . setMutMemST dst dstOff c
 -- Count {unCount = 80}
 --
 -- @since 0.3.0
-getByteCountMutMem ::
-  forall ma m s.
-  (Primal s m, MemFreeze ma) =>
-  ma s ->
-  m (Count Word8)
+getByteCountMutMem
+  :: forall ma m s
+   . (Primal s m, MemFreeze ma)
+  => ma s
+  -> m (Count Word8)
 getByteCountMutMem = liftST . getByteCountMutMemST
 {-# INLINE getByteCountMutMem #-}
 
@@ -644,10 +644,11 @@ getByteCountMutMem = liftST . getByteCountMutMemST
 -- non-determinstic.
 --
 -- @since 0.3.0
-allocMutMem ::
-  forall e ma m s.
-  (Primal s m, MemAlloc ma, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+allocMutMem
+  :: forall e ma m s
+   . (Primal s m, MemAlloc ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -659,8 +660,7 @@ allocMutMem ::
   -- > memCount <= fromByteCount maxBound
   --
   -- When converted to bytes the value should be less then available physical memory
-  Count e ->
-  m (ma s)
+  -> m (ma s)
 allocMutMem = liftST . allocMutMemST
 {-# INLINE allocMutMem #-}
 
@@ -679,20 +679,20 @@ allocMutMem = liftST . allocMutMemST
 -- notice from `allocMutMem` with regards to @memCount@ is applicable here as well.
 --
 -- @since 0.3.0
-reallocMutMem ::
-  forall e ma m s.
-  (Primal s m, MemFreeze ma, Unbox e) =>
-  -- | /memSource/ - Source memory region to resize
-  ma s ->
-  -- | /memCount/ - Number of elements for the reallocated memory region
+reallocMutMem
+  :: forall e ma m s
+   . (Primal s m, MemFreeze ma, Unbox e)
+  => ma s
+  -- ^ /memSource/ - Source memory region to resize
+  -> Count e
+  -- ^ /memCount/ - Number of elements for the reallocated memory region
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memCount
   --
   -- Should be less then available physical memory
-  Count e ->
-  m (ma s)
+  -> m (ma s)
 reallocMutMem ma = liftST . reallocMutMemST ma
 {-# INLINE reallocMutMem #-}
 
@@ -704,37 +704,37 @@ reallocMutMem ma = liftST . reallocMutMemST ma
 
 --
 -- @since 0.3.0
-modifyFetchOldMutMem ::
-  forall e mw m s.
-  (MemWrite mw, Primal s m, Unbox e) =>
-  mw s ->
-  Off e ->
-  (e -> e) ->
-  m e
+modifyFetchOldMutMem
+  :: forall e mw m s
+   . (MemWrite mw, Primal s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> e)
+  -> m e
 modifyFetchOldMutMem mem o f = modifyFetchOldMutMemM mem o (pure . f)
 {-# INLINE modifyFetchOldMutMem #-}
 
 --
 -- @since 0.3.0
-modifyFetchNewMutMem ::
-  forall e mw m s.
-  (MemWrite mw, Primal s m, Unbox e) =>
-  mw s ->
-  Off e ->
-  (e -> e) ->
-  m e
+modifyFetchNewMutMem
+  :: forall e mw m s
+   . (MemWrite mw, Primal s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> e)
+  -> m e
 modifyFetchNewMutMem mem o f = modifyFetchNewMutMemM mem o (pure . f)
 {-# INLINE modifyFetchNewMutMem #-}
 
 --
 -- @since 0.3.0
-modifyFetchOldMutMemM ::
-  forall e mw m s.
-  (MemWrite mw, Primal s m, Unbox e) =>
-  mw s ->
-  Off e ->
-  (e -> m e) ->
-  m e
+modifyFetchOldMutMemM
+  :: forall e mw m s
+   . (MemWrite mw, Primal s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> m e)
+  -> m e
 modifyFetchOldMutMemM mem o f = do
   a <- readOffMutMem mem o
   a <$ (writeOffMutMem mem o =<< f a)
@@ -742,13 +742,13 @@ modifyFetchOldMutMemM mem o f = do
 
 --
 -- @since 0.3.0
-modifyFetchNewMutMemM ::
-  forall e mw m s.
-  (MemWrite mw, Primal s m, Unbox e) =>
-  mw s ->
-  Off e ->
-  (e -> m e) ->
-  m e
+modifyFetchNewMutMemM
+  :: forall e mw m s
+   . (MemWrite mw, Primal s m, Unbox e)
+  => mw s
+  -> Off e
+  -> (e -> m e)
+  -> m e
 modifyFetchNewMutMemM mem o f = do
   a <- readOffMutMem mem o
   a' <- f a
@@ -769,22 +769,22 @@ modifyFetchNewMutMemM mem o f = do
 -- [0xde,0xad,0xbe,0xef,0xde,0xad,0xbe,0xef]
 --
 -- @since 0.1.0
-cycleMemN ::
-  forall ma mr.
-  (MemFreeze ma, MemRead mr) =>
-  Int ->
-  mr ->
-  Frozen ma
+cycleMemN
+  :: forall ma mr
+   . (MemFreeze ma, MemRead mr)
+  => Int
+  -> mr
+  -> Frozen ma
 cycleMemN n r
   | n <= 0 = emptyMem
   | otherwise =
-    runST $ do
-      let bc@(Count chunk) = byteCountMem r
-          c@(Count c8) = Count n * bc
-      mem <- allocMutMem c
-      let go i = when (i < c8) $ copyByteOffMutMem r 0 mem (Off i) bc >> go (i + chunk)
-      go 0
-      freezeMut mem
+      runST $ do
+        let bc@(Count chunk) = byteCountMem r
+            c@(Count c8) = Count n * bc
+        mem <- allocMutMem c
+        let go i = when (i < c8) $ copyByteOffMutMem r 0 mem (Off i) bc >> go (i + chunk)
+        go 0
+        freezeMut mem
 {-# INLINE cycleMemN #-}
 
 -- | Construct an immutable memory region that can't hold any data. Same as @`mempty` ::
@@ -799,10 +799,10 @@ cycleMemN n r
 -- []
 --
 -- @since 0.1.0
-emptyMem ::
-  forall ma.
-  MemFreeze ma =>
-  Frozen ma
+emptyMem
+  :: forall ma
+   . MemFreeze ma
+  => Frozen ma
 emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 {-# INLINE emptyMem #-}
 
@@ -817,12 +817,12 @@ emptyMem = createMemST_ (0 :: Count Word8) (\_ -> pure ())
 -- [255,255]
 --
 -- @since 0.1.0
-singletonMem ::
-  forall e ma.
-  (MemFreeze ma, Unbox e) =>
-  -- | The single element that will be stored in the newly allocated region of memory
-  e ->
-  Frozen ma
+singletonMem
+  :: forall e ma
+   . (MemFreeze ma, Unbox e)
+  => e
+  -- ^ The single element that will be stored in the newly allocated region of memory
+  -> Frozen ma
 singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 {-# INLINE singletonMem #-}
 
@@ -844,10 +844,11 @@ singletonMem a = createMemST_ (1 :: Count e) $ \mem -> writeOffMutMem mem 0 a
 -- [0,0,0,0,0,0,0,0,0,0]
 --
 -- @since 0.3.0
-allocZeroMutMem ::
-  forall e ma m s.
-  (MemAlloc ma, Primal s m, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+allocZeroMutMem
+  :: forall e ma m s
+   . (MemAlloc ma, Primal s m, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -859,8 +860,7 @@ allocZeroMutMem ::
   -- > memCount <= fromByteCount maxBound
   --
   -- When converted to bytes the value should be less then available physical memory
-  Count e ->
-  m (ma s)
+  -> m (ma s)
 allocZeroMutMem n = do
   m <- allocMutMem n
   m <$ setMutMem m 0 (toByteCount n) (0 :: Word8)
@@ -874,10 +874,11 @@ allocZeroMutMem n = do
 -- [Unsafe] Same caviats as in `allocMutMem`
 --
 -- @since 0.1.0
-createMemST ::
-  forall e b ma.
-  (MemFreeze ma, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+createMemST
+  :: forall e b ma
+   . (MemFreeze ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -889,19 +890,19 @@ createMemST ::
   -- > memCount <= fromByteCount maxBound
   --
   -- When converted to bytes the value should be less then available physical memory
-  Count e ->
-  -- | /memFillAction/ - This action will be used to modify the contents of newly
+  -> (forall s. ma s -> ST s b)
+  -- ^ /memFillAction/ - This action will be used to modify the contents of newly
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
-  (forall s. ma s -> ST s b) ->
-  (b, Frozen ma)
+  -> (b, Frozen ma)
 createMemST n f = runST $ allocMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 {-# INLINE createMemST #-}
 
-createMemST_ ::
-  forall e b ma.
-  (MemFreeze ma, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+createMemST_
+  :: forall e b ma
+   . (MemFreeze ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -913,12 +914,11 @@ createMemST_ ::
   -- > memCount <= fromByteCount maxBound
   --
   -- When converted to bytes the value should be less then available physical memory
-  Count e ->
-  -- | /memFillAction/ - This action will be used to modify the contents of newly
+  -> (forall s. ma s -> ST s b)
+  -- ^ /memFillAction/ - This action will be used to modify the contents of newly
   -- allocated memory. Make sure to overwrite all of it, otherwise it might lead to
   -- breaking referential transparency.
-  (forall s. ma s -> ST s b) ->
-  Frozen ma
+  -> Frozen ma
 createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMut m)
 {-# INLINE createMemST_ #-}
 
@@ -929,10 +929,11 @@ createMemST_ n f = runST (allocMutMem n >>= \m -> f m >> freezeMut m)
 -- result in undefined behavior or `Control.Exception.HeapOverflow` async exception.
 --
 -- @since 0.1.0
-createZeroMemST ::
-  forall e ma b.
-  (MemFreeze ma, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+createZeroMemST
+  :: forall e ma b
+   . (MemFreeze ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -944,12 +945,11 @@ createZeroMemST ::
   -- > memCount <= fromByteCount maxBound
   --
   -- When converted to bytes the value should be less then available physical memory
-  Count e ->
-  -- | /fillAction/ -- Action that will be used to modify contents of newly allocated
+  -> (forall s. ma s -> ST s b)
+  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
-  (forall s. ma s -> ST s b) ->
-  (b, Frozen ma)
+  -> (b, Frozen ma)
 createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freezeMut m
 {-# INLINE createZeroMemST #-}
 
@@ -972,10 +972,11 @@ createZeroMemST n f = runST $ allocZeroMutMem n >>= \m -> (,) <$> f m <*> freeze
 -- "Haskell"
 --
 -- @since 0.1.0
-createZeroMemST_ ::
-  forall e ma b.
-  (MemFreeze ma, Unbox e) =>
-  -- | /memCount/ - Amount of memory to allocate for the region in number of elements of
+createZeroMemST_
+  :: forall e ma b
+   . (MemFreeze ma, Unbox e)
+  => Count e
+  -- ^ /memCount/ - Amount of memory to allocate for the region in number of elements of
   -- type __@e@__
   --
   -- /__Preconditions:__/
@@ -988,12 +989,11 @@ createZeroMemST_ ::
   -- Possibility of overflow:
   --
   -- > memCount <= fromByteCount maxBound
-  Count e ->
-  -- | /fillAction/ -- Action that will be used to modify contents of newly allocated
+  -> (forall s. ma s -> ST s b)
+  -- ^ /fillAction/ -- Action that will be used to modify contents of newly allocated
   -- memory. It is not required to overwrite the full region, since the whole thing will
   -- be reset to zeros before applying this action.
-  (forall s. ma s -> ST s b) ->
-  Frozen ma
+  -> Frozen ma
 createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMut m)
 {-# INLINE createZeroMemST_ #-}
 
@@ -1014,12 +1014,12 @@ createZeroMemST_ n f = runST (allocZeroMutMem n >>= \m -> f m >> freezeMut m)
 -- "Bytes equal: True, their pointers equal: False"
 --
 -- @since 0.2.0
-cloneMem ::
-  forall ma.
-  MemFreeze ma =>
-  -- | /memSource/ - immutable source memory.
-  Frozen ma ->
-  Frozen ma
+cloneMem
+  :: forall ma
+   . MemFreeze ma
+  => Frozen ma
+  -- ^ /memSource/ - immutable source memory.
+  -> Frozen ma
 cloneMem = clone
 {-# INLINE cloneMem #-}
 
@@ -1035,23 +1035,24 @@ cloneMem = clone
 -- a segfault.
 --
 -- @since 0.1.0
-copyMem ::
-  forall e mr mw m s.
-  (Primal s m, MemRead mr, MemWrite mw, Unbox e) =>
-  -- | /memSourceRead/ - Read-only source memory region from which the data will
+copyMem
+  :: forall e mr mw m s
+   . (Primal s m, MemRead mr, MemWrite mw, Unbox e)
+  => mr
+  -- ^ /memSourceRead/ - Read-only source memory region from which the data will
   -- copied
-  mr ->
-  -- | /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
+  -> Off e
+  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memSourceOff
   --
   -- > unOff memSourceOff < unCount (countMem memSourceRead)
-  Off e ->
-  -- | /memTargetWrite/ - Target mutable memory
-  mw s ->
-  -- | /memTargetOff/ -  Offset into target memory in number of elements
+  -> mw s
+  -- ^ /memTargetWrite/ - Target mutable memory
+  -> Off e
+  -- ^ /memTargetOff/ -  Offset into target memory in number of elements
   --
   -- /__Preconditions:__/
   --
@@ -1062,8 +1063,8 @@ copyMem ::
   --
   -- > targetCount <- getCountMutMem memTargetWrite
   -- > unOff memTargetOff < unCount targetCount
-  Off e ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
@@ -1078,36 +1079,35 @@ copyMem ::
   --
   -- > targetCount <- getCountMutMem memTargetWrite
   -- > unOff memTargetOff + unCount memCount < unCount targetCount
-  Count e ->
-  m ()
+  -> m ()
 copyMem src srcOff dst dstOff = copyByteOffMutMem src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE copyMem #-}
 
 --
 -- @since 0.3.0
-moveMutMem ::
-  forall e mw1 mw2 m s.
-  (Primal s m, MemWrite mw1, MemWrite mw2, Unbox e) =>
-  -- | Source memory region
-  mw1 s ->
-  -- | Offset into the source in number of elements
-  Off e ->
-  -- | Destination memory region
-  mw2 s ->
-  -- | Offset into destination in number of elements
-  Off e ->
-  -- | Number of elements to copy over
-  Count e ->
-  m ()
+moveMutMem
+  :: forall e mw1 mw2 m s
+   . (Primal s m, MemWrite mw1, MemWrite mw2, Unbox e)
+  => mw1 s
+  -- ^ Source memory region
+  -> Off e
+  -- ^ Offset into the source in number of elements
+  -> mw2 s
+  -- ^ Destination memory region
+  -> Off e
+  -- ^ Offset into destination in number of elements
+  -> Count e
+  -- ^ Number of elements to copy over
+  -> m ()
 moveMutMem src srcOff dst dstOff = moveByteOffMutMem src (toByteOff srcOff) dst (toByteOff dstOff)
 {-# INLINE moveMutMem #-}
 
-appendMem ::
-  forall mr1 mr2 ma.
-  (MemRead mr1, MemRead mr2, MemFreeze ma) =>
-  mr1 ->
-  mr2 ->
-  Frozen ma
+appendMem
+  :: forall mr1 mr2 ma
+   . (MemRead mr1, MemRead mr2, MemFreeze ma)
+  => mr1
+  -> mr2
+  -> Frozen ma
 appendMem r1 r2 =
   createMemST_ (n1 + n2) $ \mem -> do
     copyMem r1 0 mem 0 n1
@@ -1117,11 +1117,11 @@ appendMem r1 r2 =
     n2 = byteCountMem r2
 {-# INLINEABLE appendMem #-}
 
-concatMem ::
-  forall mr ma.
-  (MemRead mr, MemFreeze ma) =>
-  [mr] ->
-  Frozen ma
+concatMem
+  :: forall mr ma
+   . (MemRead mr, MemFreeze ma)
+  => [mr]
+  -> Frozen ma
 concatMem xs = do
   let c = Foldable.foldl' (\ !acc b -> acc + byteCountMem b) 0 xs
   createMemST_ c $ \mb -> do
@@ -1142,11 +1142,11 @@ concatMem xs = do
 -- shared by many invocations to `thawMem`.
 --
 -- @since 0.1.0
-thawMem ::
-  forall ma m s.
-  (MemFreeze ma, Primal s m) =>
-  Frozen ma ->
-  m (ma s)
+thawMem
+  :: forall ma m s
+   . (MemFreeze ma, Primal s m)
+  => Frozen ma
+  -> m (ma s)
 thawMem = liftST . thawST
 {-# INLINE thawMem #-}
 
@@ -1158,11 +1158,11 @@ thawMem = liftST . thawST
 -- reflected in the frozen immutable type as well.
 --
 -- @since 0.3.0
-freezeMutMem ::
-  forall ma m s.
-  (MemFreeze ma, Primal s m) =>
-  ma s ->
-  m (Frozen ma)
+freezeMutMem
+  :: forall ma m s
+   . (MemFreeze ma, Primal s m)
+  => ma s
+  -> m (Frozen ma)
 freezeMutMem = liftST . freezeMutST
 {-# INLINE freezeMutMem #-}
 
@@ -1185,11 +1185,11 @@ freezeMutMem = liftST . freezeMutST
 -- [0x01,0x02,0x03,0x04]
 --
 -- @since 0.1.0
-thawCloneMem ::
-  forall ma m s.
-  (MemFreeze ma, Primal s m) =>
-  Frozen ma ->
-  m (ma s)
+thawCloneMem
+  :: forall ma m s
+   . (MemFreeze ma, Primal s m)
+  => Frozen ma
+  -> m (ma s)
 thawCloneMem a = thawCloneSliceMem a 0 (byteCountMem a)
 {-# INLINE thawCloneMem #-}
 
@@ -1214,29 +1214,29 @@ thawCloneMem a = thawCloneSliceMem a 0 (byteCountMem a)
 -- [0x01,0x02,0x03,0x04,0x05]
 --
 -- @since 0.1.0
-thawCloneSliceMem ::
-  forall e ma m s.
-  (Unbox e, MemFreeze ma, Primal s m) =>
-  -- | /memSource/ - Read-only source memory region from which the data
+thawCloneSliceMem
+  :: forall e ma m s
+   . (Unbox e, MemFreeze ma, Primal s m)
+  => Frozen ma
+  -- ^ /memSource/ - Read-only source memory region from which the data
   -- will copied and thawed
-  Frozen ma ->
-  -- | /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
+  -> Off e
+  -- ^ /memSourceOff/ - Offset into source memory in number of elements of type __@e@__
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memSourceOff
   --
   -- > unOff memSourceOff < unCount (countMem memSource)
-  Off e ->
-  -- | /memCount/ - Number of elements of type __@e@__ to copy
+  -> Count e
+  -- ^ /memCount/ - Number of elements of type __@e@__ to copy
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memCount
   --
   -- > unOff memSourceOff + unCount memCount < unCount (countMem memSource)
-  Count e ->
-  m (ma s)
+  -> m (ma s)
 thawCloneSliceMem a off c = do
   mem <- allocMutMem c
   mem <$ copyMem a off mem 0 c
@@ -1244,13 +1244,13 @@ thawCloneSliceMem a off c = do
 
 --
 -- @since 0.3.0
-freezeCloneSliceMutMem ::
-  forall e ma m s.
-  (Unbox e, MemFreeze ma, Primal s m) =>
-  ma s ->
-  Off e ->
-  Count e ->
-  m (Frozen ma)
+freezeCloneSliceMutMem
+  :: forall e ma m s
+   . (Unbox e, MemFreeze ma, Primal s m)
+  => ma s
+  -> Off e
+  -> Count e
+  -> m (Frozen ma)
 freezeCloneSliceMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r off c >>= freezeMut
 {-# INLINE freezeCloneSliceMutMem #-}
 
@@ -1274,11 +1274,11 @@ freezeCloneSliceMutMem mem off c = freezeMut mem >>= \r -> thawCloneSliceMem r o
 -- [0x00,0xab,0xff,0x00]
 --
 -- @since 0.3.0
-freezeCloneMutMem ::
-  forall ma m s.
-  (MemFreeze ma, Primal s m) =>
-  ma s ->
-  m (Frozen ma)
+freezeCloneMutMem
+  :: forall ma m s
+   . (MemFreeze ma, Primal s m)
+  => ma s
+  -> m (Frozen ma)
 freezeCloneMutMem = freezeCloneMut
 {-# INLINE freezeCloneMutMem #-}
 
@@ -1316,11 +1316,11 @@ convertMem m =
 -- Count {unCount = 0}
 --
 -- @since 0.1.0
-countMem ::
-  forall e mr.
-  (MemRead mr, Unbox e) =>
-  mr ->
-  Count e
+countMem
+  :: forall e mr
+   . (MemRead mr, Unbox e)
+  => mr
+  -> Count e
 countMem = fromByteCount . byteCountMem
 {-# INLINE countMem #-}
 
@@ -1383,11 +1383,11 @@ getCountMutMem = fmap (fromByteCount . coerce) . getByteCountMutMem
 -- (Count {unCount = 0},Count {unCount = 6})
 --
 -- @since 0.3.0
-getCountRemMutMem ::
-  forall e ma m s.
-  (MemFreeze ma, Primal s m, Unbox e) =>
-  ma s ->
-  m (Count e, Count Word8)
+getCountRemMutMem
+  :: forall e ma m s
+   . (MemFreeze ma, Primal s m, Unbox e)
+  => ma s
+  -> m (Count e, Count Word8)
 getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
 {-# INLINE getCountRemMutMem #-}
 
@@ -1395,11 +1395,11 @@ getCountRemMutMem = fmap (fromByteCountRem . coerce) . getByteCountMutMem
 -- data over.
 --
 -- @since 0.3.0
-cloneMutMem ::
-  forall ma m s.
-  (MemFreeze ma, Primal s m) =>
-  ma s ->
-  m (ma s)
+cloneMutMem
+  :: forall ma m s
+   . (MemFreeze ma, Primal s m)
+  => ma s
+  -> m (ma s)
 cloneMutMem = cloneMut
 {-# INLINE cloneMutMem #-}
 
@@ -1407,25 +1407,26 @@ cloneMutMem = cloneMut
 -- first mismatch, but it is `MemRead` implementation specific.
 --
 -- @since 0.3.0
-eqByteOffMem ::
-  (MemRead mr1, MemRead mr2) =>
-  -- | /memRead1/ - First region of memory
-  mr1 ->
-  -- | /memOff1/ - Offset for @memRead1@ in number of bytes
+eqByteOffMem
+  :: (MemRead mr1, MemRead mr2)
+  => mr1
+  -- ^ /memRead1/ - First region of memory
+  -> Off Word8
+  -- ^ /memOff1/ - Offset for @memRead1@ in number of bytes
   --
   -- /__Precondition:__/
   --
   -- > 0 <= memOff1
-  Off Word8 ->
-  -- | /memRead2/ - Second region of memory
-  mr2 ->
-  -- | /memOff2/ - Offset for @memRead1@ in number of bytes
+  -> mr2
+  -- ^ /memRead2/ - Second region of memory
+  -> Off Word8
+  -- ^ /memOff2/ - Offset for @memRead1@ in number of bytes
   --
   -- /__Precondition:__/
   --
   -- > 0 <= memOff2
-  Off Word8 ->
-  -- | /memCount/ - Number of bytes compare
+  -> Count Word8
+  -- ^ /memCount/ - Number of bytes compare
   --
   -- /__Preconditions:__/
   --
@@ -1434,8 +1435,7 @@ eqByteOffMem ::
   -- > offToCount memOff1 + memCount < countMem memRead1
   --
   -- > offToCount memOff2 + memCount < countMem memRead2
-  Count Word8 ->
-  Bool
+  -> Bool
 eqByteOffMem b1 off1 b2 off2 n = compareByteOffMem b1 off1 b2 off2 n == EQ
 {-# INLINE eqByteOffMem #-}
 
@@ -1509,11 +1509,11 @@ toListMem ba = build (\c n -> foldrCountMem (countMem ba) c n ba)
 -- ([506097522914230528],[8,9,10])
 --
 -- @since 0.1.0
-toListSlackMem ::
-  forall e mr.
-  (MemRead mr, Unbox e) =>
-  mr ->
-  ([e], [Word8])
+toListSlackMem
+  :: forall e mr
+   . (MemRead mr, Unbox e)
+  => mr
+  -> ([e], [Word8])
 toListSlackMem mem =
   (build (\c n -> foldrCountMem k c n mem), getSlack (k8 + r8) [])
   where
@@ -1522,8 +1522,8 @@ toListSlackMem mem =
     getSlack i !acc
       | i == k8 = acc
       | otherwise =
-        let i' = i - 1
-         in getSlack i' (indexByteOffMem mem (Off i') : acc)
+          let i' = i - 1
+           in getSlack i' (indexByteOffMem mem (Off i') : acc)
 {-# INLINEABLE toListSlackMem #-}
 
 -- | Right fold that is useful for converting to a list while tapping into list fusion.
@@ -1538,8 +1538,8 @@ foldrCountMem (Count k) c nil bs = go 0
     go i
       | i == k = nil
       | otherwise =
-        let !v = indexOffMem bs (Off i)
-         in v `c` go (i + 1)
+          let !v = indexOffMem bs (Off i)
+           in v `c` go (i + 1)
 {-# INLINE [0] foldrCountMem #-}
 
 ---------------
@@ -1560,11 +1560,11 @@ foldrCountMem (Count k) c nil bs = go 0
 -- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00]
 --
 -- @since 0.1.0
-fromListMem ::
-  forall e ma.
-  (Unbox e, MemFreeze ma) =>
-  [e] ->
-  Frozen ma
+fromListMem
+  :: forall e ma
+   . (Unbox e, MemFreeze ma)
+  => [e]
+  -> Frozen ma
 fromListMem xs =
   let count = coerce (length xs) `countForProxyTypeOf` xs
    in createMemST_ count (loadListMutMemN_ count xs)
@@ -1580,11 +1580,11 @@ fromListMem xs =
 -- [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a]
 --
 -- @since 0.1.0
-fromByteListMem ::
-  forall ma.
-  MemFreeze ma =>
-  [Word8] ->
-  Frozen ma
+fromByteListMem
+  :: forall ma
+   . MemFreeze ma
+  => [Word8]
+  -> Frozen ma
 fromByteListMem = fromListMem
 {-# INLINE fromByteListMem #-}
 
@@ -1625,20 +1625,20 @@ fromByteListMem = fromListMem
 -- Right (Count {unCount = 2})
 --
 -- @since 0.2.0
-fromListMemN ::
-  forall e ma.
-  (Unbox e, MemFreeze ma) =>
-  -- | /memCount/ - Expected number of elements in the list, which exactly how much
+fromListMemN
+  :: forall e ma
+   . (Unbox e, MemFreeze ma)
+  => Count e
+  -- ^ /memCount/ - Expected number of elements in the list, which exactly how much
   -- memory will be allocated.
   --
   -- /__Preconditions:__/
   --
   -- > 0 <= memCount
   -- > unCount memCount <= length list
-  Count e ->
-  -- | /list/ - A list of elements to load into the newly allocated memory region.
-  [e] ->
-  (Either [e] (Count e), Frozen ma)
+  -> [e]
+  -- ^ /list/ - A list of elements to load into the newly allocated memory region.
+  -> (Either [e] (Count e), Frozen ma)
 fromListMemN count xs =
   createMemST count $ \mm -> do
     (ys, loadedCount) <- loadListOffMutMemN count xs mm 0
@@ -1659,13 +1659,13 @@ fromListMemN count xs =
 -- (Right (Count {unCount = 2}),[0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
 --
 -- @since 0.2.0
-fromListZeroMemN ::
-  forall e ma.
-  (Unbox e, MemFreeze ma) =>
-  -- | /memCount/ - Number of elements to load from the list.
-  Count e ->
-  [e] ->
-  (Either [e] (Count e), Frozen ma)
+fromListZeroMemN
+  :: forall e ma
+   . (Unbox e, MemFreeze ma)
+  => Count e
+  -- ^ /memCount/ - Number of elements to load from the list.
+  -> [e]
+  -> (Either [e] (Count e), Frozen ma)
 fromListZeroMemN count xs =
   createMemST (max 0 count) $ \mm -> do
     (ys, loadedCount) <- loadListOffMutMemN count xs mm 0
@@ -1687,28 +1687,28 @@ fromListZeroMemN count xs =
 -- [0x48,0x00,0x00,0x00,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
 --
 -- @since 0.2.0
-fromListZeroMemN_ ::
-  forall e ma.
-  (Unbox e, MemFreeze ma) =>
-  Count e ->
-  [e] ->
-  Frozen ma
+fromListZeroMemN_
+  :: forall e ma
+   . (Unbox e, MemFreeze ma)
+  => Count e
+  -> [e]
+  -> Frozen ma
 fromListZeroMemN_ !n = snd . fromListZeroMemN n
 {-# INLINE fromListZeroMemN_ #-}
 
 -- Mutable loading --
 
-loadListByteOffHelper ::
-  (MemWrite mw, Primal s m, Unbox e) =>
-  [e] ->
-  mw s ->
-  -- | Offset
-  Off Word8 ->
-  -- | Upper bound
-  Off Word8 ->
-  -- | Element size
-  Off Word8 ->
-  m ([e], Count e)
+loadListByteOffHelper
+  :: (MemWrite mw, Primal s m, Unbox e)
+  => [e]
+  -> mw s
+  -> Off Word8
+  -- ^ Offset
+  -> Off Word8
+  -- ^ Upper bound
+  -> Off Word8
+  -- ^ Element size
+  -> m ([e], Count e)
 loadListByteOffHelper ys mw byteOff k step =
   let go [] i = pure ([], toLoadedCount i)
       go a@(x : xs) i
@@ -1746,9 +1746,10 @@ loadListByteOffHelper ys mw byteOff k step =
 -- [0x00,0x00,0x01,0x02,0x03,0x04,0x02,0x03,0x04,0x05,0x03,0x04,0x05,0x06,0x04,0x05,0x06,0x07,0x05,0x06,0x07,0x08,0x00,0x00]
 --
 -- @since 0.2.0
-loadListByteOffMutMemN ::
-  (MemWrite mw, Primal s m, Unbox e) =>
-  -- | /elemCount/ - Maximum number of elements to load from list into the memory region
+loadListByteOffMutMemN
+  :: (MemWrite mw, Primal s m, Unbox e)
+  => Count e
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
   -- /__Preconditions:__/
   --
@@ -1760,12 +1761,12 @@ loadListByteOffMutMemN ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff + unCountBytes elemCount <= unCount (targetByteCount - byteCountType @e)
-  Count e ->
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  mw s ->
-  -- | /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+  -> [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
   --
   -- /__Preconditions:__/
   --
@@ -1777,9 +1778,8 @@ loadListByteOffMutMemN ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff k step
   where
     k = byteOff + countToOff (toByteCount count)
@@ -1809,13 +1809,14 @@ loadListByteOffMutMemN count ys mw byteOff = loadListByteOffHelper ys mw byteOff
 -- [0x48,0xff,0xff,0xff,0x65,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
 -- @since 0.3.0
-loadListByteOffMutMem ::
-  (MemFreeze ma, Primal s m, Unbox e) =>
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  ma s ->
-  -- | /memTargetOff/ - Offset in number of bytes into target memory where writing will start
+loadListByteOffMutMem
+  :: (MemFreeze ma, Primal s m, Unbox e)
+  => [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> ma s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> Off Word8
+  -- ^ /memTargetOff/ - Offset in number of bytes into target memory where writing will start
   --
   -- /__Preconditions:__/
   --
@@ -1827,9 +1828,8 @@ loadListByteOffMutMem ::
   --
   -- > targetByteCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff <= unCount (targetByteCount - byteCountType @e)
-  Off Word8 ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListByteOffMutMem ys ma byteOff = do
   bCount <- getByteCountMutMem ma
   let k = countToOff bCount - byteOff
@@ -1845,9 +1845,10 @@ loadListByteOffMutMem ys ma byteOff = do
 -- failure with a segfault.
 --
 -- @since 0.2.0
-loadListOffMutMemN ::
-  (MemWrite mw, Primal s m, Unbox e) =>
-  -- | /elemCount/ - Maximum number of elements to load from list into the memory region
+loadListOffMutMemN
+  :: (MemWrite mw, Primal s m, Unbox e)
+  => Count e
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
   -- /__Preconditions:__/
   --
@@ -1859,12 +1860,12 @@ loadListOffMutMemN ::
   --
   -- > targetCount <- getCountMutMem memTarget
   -- > unOff memTargetOff + unCount elemCount < unCount targetCount
-  Count e ->
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  mw s ->
-  -- | /memTargetOff/ - Offset in number of elements into target memory where writing will start
+  -> [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> Off e
+  -- ^ /memTargetOff/ - Offset in number of elements into target memory where writing will start
   --
   -- /__Preconditions:__/
   --
@@ -1876,9 +1877,8 @@ loadListOffMutMemN ::
   --
   -- > targetCount <- getByteCountMutMem memTarget
   -- > unOff memTargetOff < unCount targetCount
-  Off e ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListOffMutMemN count ys mw off =
   let go [] i = pure ([], toLoadedCount i)
       go a@(x : xs) i
@@ -1895,10 +1895,11 @@ loadListOffMutMemN count ys mw off =
 -- this function can result in heap corruption or failure with a segfault.
 --
 -- @since 0.2.0
-loadListMutMemN ::
-  forall e mw m s.
-  (MemWrite mw, Primal s m, Unbox e) =>
-  -- | /elemCount/ - Maximum number of elements to load from list into the memory region
+loadListMutMemN
+  :: forall e mw m s
+   . (MemWrite mw, Primal s m, Unbox e)
+  => Count e
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
   -- /__Preconditions:__/
   --
@@ -1909,13 +1910,12 @@ loadListMutMemN ::
   --
   -- > targetCount <- getCountMutMem memTarget
   -- > elemCount <= targetCount
-  Count e ->
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  mw s ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+  -> [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListMutMemN count xs mw = loadListOffMutMemN count xs mw 0
 {-# INLINEABLE loadListMutMemN #-}
 
@@ -1925,10 +1925,11 @@ loadListMutMemN count xs mw = loadListOffMutMemN count xs mw 0
 -- to this function can result in heap corruption or failure with a segfault.
 --
 -- @since 0.2.0
-loadListMutMemN_ ::
-  forall e mw m s.
-  (Unbox e, MemWrite mw, Primal s m) =>
-  -- | /elemCount/ - Maximum number of elements to load from list into the memory region
+loadListMutMemN_
+  :: forall e mw m s
+   . (Unbox e, MemWrite mw, Primal s m)
+  => Count e
+  -- ^ /elemCount/ - Maximum number of elements to load from list into the memory region
   --
   -- /__Preconditions:__/
   --
@@ -1939,12 +1940,11 @@ loadListMutMemN_ ::
   --
   -- > targetCount <- getCountMutMem memTarget
   -- > elemCount <= targetCount
-  Count e ->
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  mw s ->
-  m ()
+  -> [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> mw s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> m ()
 loadListMutMemN_ (Count n) ys mb =
   let go [] _ = pure ()
       go (x : xs) i = when (i < n) $ writeOffMutMem mb (Off i) x >> go xs (i + 1)
@@ -1958,14 +1958,15 @@ loadListMutMemN_ (Count n) ys mb =
 -- to this function can result in heap corruption or failure with a segfault.
 --
 -- @since 0.3.0
-loadListOffMutMem ::
-  forall e ma m s.
-  (Unbox e, MemFreeze ma, Primal s m) =>
-  -- | /listSource/ - List with elements that should be loaded
-  [e] ->
-  -- | /memTarget/ - Memory region where to load the elements into
-  ma s ->
-  -- | /memTargetOff/ - Offset in number of elements into target memory where writing will
+loadListOffMutMem
+  :: forall e ma m s
+   . (Unbox e, MemFreeze ma, Primal s m)
+  => [e]
+  -- ^ /listSource/ - List with elements that should be loaded
+  -> ma s
+  -- ^ /memTarget/ - Memory region where to load the elements into
+  -> Off e
+  -- ^ /memTargetOff/ - Offset in number of elements into target memory where writing will
   -- start
   --
   -- /__Preconditions:__/
@@ -1978,9 +1979,8 @@ loadListOffMutMem ::
   --
   -- > targetCount <- getCountMutMem memTarget
   -- > unOff memTargetOff < unCount targetCount
-  Off e ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c - offToCount off) ys ma off
 {-# INLINE loadListOffMutMem #-}
 
@@ -2001,15 +2001,15 @@ loadListOffMutMem ys ma off = getCountMutMem ma >>= \c -> loadListOffMutMemN (c 
 -- [0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x6c,0x00,0x00,0x00,0x6c,0x00,0x00,0x00,0x6f,0x00,0x00,0x00]
 --
 -- @since 0.3.0
-loadListMutMem ::
-  forall e ma m s.
-  (Unbox e, MemFreeze ma, Primal s m) =>
-  -- | /listSource/ - List with elements to load
-  [e] ->
-  -- | /memTarget/ - Mutable region where to load elements from the list
-  ma s ->
-  -- | Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
-  m ([e], Count e)
+loadListMutMem
+  :: forall e ma m s
+   . (Unbox e, MemFreeze ma, Primal s m)
+  => [e]
+  -- ^ /listSource/ - List with elements to load
+  -> ma s
+  -- ^ /memTarget/ - Mutable region where to load elements from the list
+  -> m ([e], Count e)
+  -- ^ Leftover part of the @listSource@ if any and the exact count of elements that have been loaded.
 loadListMutMem ys ma = getCountMutMem ma >>= \c -> loadListOffMutMemN (c `countForProxyTypeOf` ys) ys ma 0
 {-# INLINE loadListMutMem #-}
 
@@ -2018,14 +2018,14 @@ loadListMutMem ys ma = getCountMutMem ma >>= \c -> loadListOffMutMemN (c `countF
 -- prop> let c = fromInteger (abs i) :: Count Int in (createZeroMemST_ c (loadListMutMem_ (xs :: [Int])) :: Bytes 'Inc) == createZeroMemST_ c (void . loadListMutMem xs)
 --
 -- @since 0.2.0
-loadListMutMem_ ::
-  forall e ma m s.
-  (Unbox e, MemFreeze ma, Primal s m) =>
-  -- | /listSource/ - List with elements to load
-  [e] ->
-  -- | /memTarget/ - Mutable region where to load elements from the list
-  ma s ->
-  m ()
+loadListMutMem_
+  :: forall e ma m s
+   . (Unbox e, MemFreeze ma, Primal s m)
+  => [e]
+  -- ^ /listSource/ - List with elements to load
+  -> ma s
+  -- ^ /memTarget/ - Mutable region where to load elements from the list
+  -> m ()
 loadListMutMem_ ys mb = getCountMutMem mb >>= \c -> loadListMutMemN_ (c `countForProxyTypeOf` ys) ys mb
 {-# INLINE loadListMutMem_ #-}
 
@@ -2038,11 +2038,11 @@ loadListMutMem_ ys mb = getCountMutMem mb >>= \c -> loadListMutMemN_ (c `countFo
 -- [0,1,2,3,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0
-toByteListMem ::
-  forall ma.
-  MemFreeze ma =>
-  Frozen ma ->
-  [Word8]
+toByteListMem
+  :: forall ma
+   . MemFreeze ma
+  => Frozen ma
+  -> [Word8]
 toByteListMem = toListMem
 {-# INLINE toByteListMem #-}
 
@@ -2053,12 +2053,12 @@ toByteListMem = toListMem
 --   -> (Frozen ma, [Word8])
 -- mapMem f = undefined
 
-mapByteMem ::
-  forall e mr ma.
-  (MemRead mr, MemFreeze ma, Unbox e) =>
-  (Word8 -> e) ->
-  mr ->
-  Frozen ma
+mapByteMem
+  :: forall e mr ma
+   . (MemRead mr, MemFreeze ma, Unbox e)
+  => (Word8 -> e)
+  -> mr
+  -> Frozen ma
 mapByteMem f = imapByteOffMem (const f)
 
 -- Map an index aware function over memory region
@@ -2071,25 +2071,25 @@ mapByteMem f = imapByteOffMem (const f)
 -- [0x00,0xf1,0x01,0xf2,0x02,0xf3,0x03,0xf4,0x04,0xf5,0x05,0xf6,0x06,0xf7,0x07,0xf8,0x08,0xf9,0x09,0xfa]
 --
 -- @since 0.1.0
-imapByteOffMem ::
-  (MemRead mr, MemFreeze ma, Unbox e) => (Off Word8 -> Word8 -> e) -> mr -> Frozen ma
+imapByteOffMem
+  :: (MemRead mr, MemFreeze ma, Unbox e) => (Off Word8 -> Word8 -> e) -> mr -> Frozen ma
 imapByteOffMem f r = runST $ mapByteOffMemM (\i -> pure . f i) r
 
 -- @since 0.1.0
-mapByteMemM ::
-  (MemRead mr, MemFreeze ma, Primal s m, Unbox e) =>
-  (Word8 -> m e) ->
-  mr ->
-  m (Frozen ma)
+mapByteMemM
+  :: (MemRead mr, MemFreeze ma, Primal s m, Unbox e)
+  => (Word8 -> m e)
+  -> mr
+  -> m (Frozen ma)
 mapByteMemM f = mapByteOffMemM (const f)
 
 -- @since 0.1.0
-mapByteOffMemM ::
-  forall e mr ma m s.
-  (MemRead mr, MemFreeze ma, Primal s m, Unbox e) =>
-  (Off Word8 -> Word8 -> m e) ->
-  mr ->
-  m (Frozen ma)
+mapByteOffMemM
+  :: forall e mr ma m s
+   . (MemRead mr, MemFreeze ma, Primal s m, Unbox e)
+  => (Off Word8 -> Word8 -> m e)
+  -> mr
+  -> m (Frozen ma)
 mapByteOffMemM f r = do
   let bc@(Count n) = byteCountMem r
       c = Count n `countForProxyTypeOf` f 0 0
@@ -2104,13 +2104,13 @@ mapByteOffMemM f r = do
   freezeMut mem
 
 -- | Iterate over a region of memory
-forByteOffMemM_ ::
-  (MemRead mr, Primal s m, Unbox e) =>
-  mr ->
-  Off Word8 ->
-  Count e ->
-  (Off Word8 -> e -> m b) ->
-  m (Off Word8)
+forByteOffMemM_
+  :: (MemRead mr, Primal s m, Unbox e)
+  => mr
+  -> Off Word8
+  -> Count e
+  -> (Off Word8 -> e -> m b)
+  -> m (Off Word8)
 forByteOffMemM_ r (Off byteOff) c f =
   let n = coerce (toByteCount c) + byteOff
       Count k = byteCountProxy c
@@ -2264,47 +2264,47 @@ foldlShortMem off count g f = ifoldlShortMem off count g (\a _ -> f a)
 --    in go byteOff
 
 data MemView a = MemView
-  { mvOffset :: {-# UNPACK #-} !(Off Word8),
-    mvCount :: {-# UNPACK #-} !(Count Word8),
-    mvMem :: !a
+  { mvOffset :: {-# UNPACK #-} !(Off Word8)
+  , mvCount :: {-# UNPACK #-} !(Count Word8)
+  , mvMem :: !a
   }
 
 data MMemView a s = MMemView
-  { mmvOffset :: {-# UNPACK #-} !(Off Word8),
-    mmvCount :: {-# UNPACK #-} !(Count Word8),
-    mmvMem :: !(a s)
+  { mmvOffset :: {-# UNPACK #-} !(Off Word8)
+  , mmvCount :: {-# UNPACK #-} !(Count Word8)
+  , mmvMem :: !(a s)
   }
 
-izipWithByteOffMemM_ ::
-  (MemRead mr1, MemRead mr2, Primal s m, Unbox e) =>
-  mr1 ->
-  Off Word8 ->
-  mr2 ->
-  Off Word8 ->
-  Count e ->
-  (Off Word8 -> e -> Off Word8 -> e -> m b) ->
-  m (Off Word8)
+izipWithByteOffMemM_
+  :: (MemRead mr1, MemRead mr2, Primal s m, Unbox e)
+  => mr1
+  -> Off Word8
+  -> mr2
+  -> Off Word8
+  -> Count e
+  -> (Off Word8 -> e -> Off Word8 -> e -> m b)
+  -> m (Off Word8)
 izipWithByteOffMemM_ r1 (Off byteOff1) r2 off2 c f =
   let n = coerce (toByteCount c) + byteOff1
       Count k = byteCountProxy c
       go i
         | i < n =
-          let o1 = Off i
-              o2 = Off i + off2
-           in f o1 (indexByteOffMem r1 o1) o2 (indexByteOffMem r2 o2)
-                >> go (i + k)
+            let o1 = Off i
+                o2 = Off i + off2
+             in f o1 (indexByteOffMem r1 o1) o2 (indexByteOffMem r2 o2)
+                  >> go (i + k)
         | otherwise = pure $ Off i
    in go byteOff1
 
-izipWithOffMemM_ ::
-  (MemRead mr1, MemRead mr2, Primal s m, Unbox e1, Unbox e2) =>
-  mr1 ->
-  Off e1 ->
-  mr2 ->
-  Off e2 ->
-  Int ->
-  (Off e1 -> e1 -> Off e2 -> e2 -> m b) ->
-  m ()
+izipWithOffMemM_
+  :: (MemRead mr1, MemRead mr2, Primal s m, Unbox e1, Unbox e2)
+  => mr1
+  -> Off e1
+  -> mr2
+  -> Off e2
+  -> Int
+  -> (Off e1 -> e1 -> Off e2 -> e2 -> m b)
+  -> m ()
 izipWithOffMemM_ r1 off1 r2 off2 nc f =
   let n = nc + coerce off1
       go o1@(Off i) o2 =
@@ -2446,12 +2446,12 @@ fromStringMem = fromListMem . map fromChar8
 -- memory buffer and the associated `Ptr` are only safe to use within the supplied action
 --
 -- @since 0.3.0
-withScrubbedMutMem ::
-  forall e ma m a.
-  (UnliftPrimal RW m, Unbox e, MemAlloc ma, MemPtr ma) =>
-  Count e ->
-  (ma RW -> Ptr e -> m a) ->
-  m a
+withScrubbedMutMem
+  :: forall e ma m a
+   . (UnliftPrimal RW m, Unbox e, MemAlloc ma, MemPtr ma)
+  => Count e
+  -> (ma RW -> Ptr e -> m a)
+  -> m a
 withScrubbedMutMem c f = do
   mem <- allocZeroMutMem c
   withNoHaltPtrMutMem mem $ \ptr ->

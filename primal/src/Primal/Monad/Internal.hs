@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      : Primal.Monad.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -16,15 +17,14 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Monad.Internal
   ( RW
   , RealWorld
   , PrimalIO
-  , Primal(..)
-  , PrimalState(..)
+  , Primal (..)
+  , PrimalState (..)
   , UnliftPrimalIO
-  , UnliftPrimal(..)
+  , UnliftPrimal (..)
   , ST
   , unIO
   , unIO_
@@ -47,11 +47,11 @@ import Control.Exception (SomeException)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
 import Control.Monad.Trans.Except (ExceptT)
-import Control.Monad.Trans.Identity (IdentityT(..))
+import Control.Monad.Trans.Identity (IdentityT (..))
 import Control.Monad.Trans.Maybe (MaybeT)
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
-import Control.Monad.Trans.Reader (ReaderT(..))
+import Control.Monad.Trans.Reader (ReaderT (..))
 import Control.Monad.Trans.State.Lazy as Lazy (StateT)
 import Control.Monad.Trans.State.Strict as Strict (StateT)
 import Control.Monad.Trans.Writer.Lazy as Lazy (WriterT)
@@ -81,24 +81,24 @@ class Raises m => Primal s m | m -> s where
   -- | Construct a primal action from a state passing function.
   primal :: (State# s -> (# State# s, a #)) -> m a
 
-
 class Primal s m => UnliftPrimal s m where
-
   withRunInST :: ((forall a. m a -> ST s a) -> ST s b) -> m b
 
-  runInPrimalState1 ::
-       (a -> m b)
-    -> ( (a -> State# s -> (# State# s, b #)) -> State# s -> (# State# s, c #) )
+  runInPrimalState1
+    :: (a -> m b)
+    -> ((a -> State# s -> (# State# s, b #)) -> State# s -> (# State# s, c #))
     -> m c
   runInPrimalState1 m f# = runInPrimalState2 (\_ -> pure ()) m (\_ -> f#)
   {-# INLINE runInPrimalState1 #-}
 
-  runInPrimalState2 ::
-       (a -> m b)
+  runInPrimalState2
+    :: (a -> m b)
     -> (c -> m d)
     -> ( (a -> State# s -> (# State# s, b #))
-      -> (c -> State# s -> (# State# s, d #))
-      -> State# s -> (# State# s, e #)   )
+         -> (c -> State# s -> (# State# s, d #))
+         -> State# s
+         -> (# State# s, e #)
+       )
     -> m e
   runInPrimalState2 m1 m2 f# =
     withRunInST $ \run ->
@@ -115,11 +115,9 @@ class Primal s m => UnliftPrimal s m where
 -- @@@
 -- 'primal' ('primalState' m) === m
 -- @@@
---
 class UnliftPrimal s m => PrimalState s m where
   -- | Get the state passing function from the primal action
   primalState :: m a -> State# s -> (# State# s, a #)
-
 
 instance PrimalState RealWorld IO where
   primalState (IO m) = m
@@ -133,33 +131,30 @@ instance PrimalState s m => PrimalState s (IdentityT m) where
   primalState (IdentityT m) = primalState m
   {-# INLINE primalState #-}
 
-runInPrimalState ::
-     forall s m a b. UnliftPrimal s m
+runInPrimalState
+  :: forall s m a b
+   . UnliftPrimal s m
   => m a
   -> ((State# s -> (# State# s, a #)) -> State# s -> (# State# s, b #))
   -> m b
 runInPrimalState f g# = runInPrimalState1 (const f) (\f# -> g# (f# ()))
 {-# INLINE runInPrimalState #-}
 
-
-
-withRunInIO ::
-     forall m b. UnliftPrimal RW m
+withRunInIO
+  :: forall m b
+   . UnliftPrimal RW m
   => ((forall a. m a -> IO a) -> IO b)
   -> m b
 withRunInIO f = withRunInST $ \run -> coerce (f (coerce . run))
 {-# INLINE withRunInIO #-}
 
-
-withRunInPrimalState ::
-     (UnliftPrimal s m, PrimalState s n)
+withRunInPrimalState
+  :: (UnliftPrimal s m, PrimalState s n)
   => ((forall a. m a -> n a) -> n b)
   -> m b
 withRunInPrimalState inner =
   withRunInST $ \run -> liftP (inner (liftST . run))
 {-# INLINE withRunInPrimalState #-}
-
-
 
 instance UnliftPrimal RealWorld IO where
   withRunInST inner = coerce (inner liftP)
@@ -196,7 +191,6 @@ instance UnliftPrimal s m => UnliftPrimal s (ReaderT r m) where
     ReaderT $ \r -> runInPrimalState2 (\x -> runReaderT (rm1 x) r) (\x -> runReaderT (rm2 x) r) f#
   {-# INLINE runInPrimalState2 #-}
 
-
 instance Primal RealWorld IO where
   primal = IO
   {-# INLINE primal #-}
@@ -204,7 +198,6 @@ instance Primal RealWorld IO where
 instance Primal s (ST s) where
   primal = ST
   {-# INLINE primal #-}
-
 
 instance Primal s m => Primal s (ContT r m) where
   primal = lift . primal
@@ -225,7 +218,6 @@ instance Primal s m => Primal s (MaybeT m) where
 instance Primal s m => Primal s (ReaderT r m) where
   primal = lift . primal
   {-# INLINE primal #-}
-
 
 instance (Monoid w, Primal s m) => Primal s (Lazy.RWST r w st m) where
   primal = lift . primal
@@ -248,7 +240,6 @@ instance (Monoid w, Primal s m) => Primal s (Strict.WriterT w m) where
   primal = lift . primal
   {-# INLINE primal #-}
 
-
 #if MIN_VERSION_transformers(0, 5, 3)
 
 instance (Monoid w, Primal s m) => Primal s (AccumT w m) where
@@ -269,7 +260,6 @@ instance Primal s m => Primal s (CPS.WriterT w m) where
 
 #endif
 #endif
-
 
 -- | Get out the inner state token passing function from the `PrimalState` monad action.
 --
@@ -304,10 +294,11 @@ liftST (ST m) = primal m
 -- same state token.
 liftP :: (PrimalState s n, Primal s m) => n a -> m a
 liftP m = primal (primalState m)
-{-# INLINE[0] liftP #-}
+{-# INLINE [0] liftP #-}
+
 {-# RULES
- "liftP/id" liftP = id
- #-}
+"liftP/id" liftP = id
+  #-}
 
 -- | Restrict a `PrimalState` action that works with `RealWorld` to `IO`.
 primalStateToIO :: PrimalState RealWorld m => m a -> IO a
@@ -319,12 +310,10 @@ primalStateToST :: PrimalState s m => m a -> ST s a
 primalStateToST = liftP
 {-# INLINE primalStateToST #-}
 
-
 -- | Unwrap `ST` action
 unST :: ST s a -> State# s -> (# State# s, a #)
 unST (ST m) = m
 {-# INLINE unST #-}
-
 
 -- | Unwrap `ST` action that returns unit
 unST_ :: ST s () -> State# s -> State# s
@@ -332,7 +321,6 @@ unST_ (ST m) s =
   case m s of
     (# s', () #) -> s'
 {-# INLINE unST_ #-}
-
 
 -- | Unwrap `IO` action that returns unit
 unIO_ :: IO () -> State# RW -> State# RW

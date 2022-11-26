@@ -4,6 +4,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Monad.Unsafe
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -11,7 +12,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Monad.Unsafe
   ( unsafeCastDataState
   , unsafePrimal
@@ -27,31 +27,33 @@ module Primal.Monad.Unsafe
   , unsafeLiftPrimalState
   , noDuplicate
   , unsafeDupablePerformPrimalState
-  -- * Inline
+
+    -- * Inline
   , unsafeInlineIO
   , unsafeInlineST
   , unsafeInlinePrimalState
-  -- * Interleave
+
+    -- * Interleave
   , unsafeInterleavePrimalState
   , unsafeDupableInterleavePrimalState
-  -- * Re-exports
+
+    -- * Re-exports
   , unsafePerformIO
   , unsafeDupablePerformIO
   , unsafeInterleaveIO
   , unsafeDupableInterleaveIO
   ) where
 
-import System.IO.Unsafe
-import Primal.Monad.Internal
-import GHC.IO hiding (noDuplicate)
-import GHC.Exts
 import Data.Kind
+import GHC.Exts
+import GHC.IO hiding (noDuplicate)
+import Primal.Monad.Internal
+import System.IO.Unsafe
 
 -- | Take some mutable data type and unsafely change its state token to match the monad it
 -- should operate in.
 --
 -- === Highly unsafe!
---
 unsafeCastDataState :: forall (f :: Type -> Type) s' m s. Primal s m => f s' -> m (f s)
 unsafeCastDataState f = pure (unsafeCoerce# f)
 
@@ -64,7 +66,6 @@ unsafePrimal :: Primal s m => (State# s' -> (# State# s', a #)) -> m a
 unsafePrimal m = primal (unsafeCoerce# m)
 {-# INLINE unsafePrimal #-}
 
-
 -- | Coerce the state token of primal operation and wrap it into a `Primal` action.
 --
 -- === Highly unsafe!
@@ -73,7 +74,6 @@ unsafePrimal m = primal (unsafeCoerce# m)
 unsafePrimal_ :: Primal s m => (State# s' -> State# s') -> m ()
 unsafePrimal_ m = primal_ (unsafeCoerce# m)
 {-# INLINE unsafePrimal_ #-}
-
 
 -- | Unwrap any `PrimalState` action while coercing the state token
 --
@@ -136,7 +136,6 @@ noDuplicate = primal_ noDuplicate#
 noDuplicate = unsafeIOToPrimal $ primal_ noDuplicate#
 #endif
 
-
 -- | Same as `unsafeDupablePerformIO`, except works not only with `IO`, but with other
 -- `PrimalState` actions as well. Reading and writing values into memory is safe, as
 -- long as writing action is idempotent. On the other hand things like memory or resource
@@ -162,7 +161,6 @@ unsafeDupablePerformPrimalState m = unsafeDupablePerformIO (unsafePrimalStateToI
 --
 -- * [Stack overflow question](https://stackoverflow.com/questions/61021205/what-is-the-difference-between-unsafedupableperformio-and-accursedunutterableper)
 -- * [Reddit discussion](https://www.reddit.com/r/haskell/comments/2cbgpz/flee_traveller_flee_or_you_will_be_corrupted_and/)
---
 unsafeInlineIO :: IO a -> a
 unsafeInlineIO (IO m) = case m realWorld# of (# _, r #) -> r
 {-# INLINE unsafeInlineIO #-}
@@ -175,7 +173,6 @@ unsafeInlineST :: ST s a -> a
 unsafeInlineST = unsafeInlinePrimalState
 {-# INLINE unsafeInlineST #-}
 
-
 -- | Take any `PrimalState` action and compute it as a pure value, while inlining the
 -- action. Same as `unsafeInlineIO`, but applied to any `PrimalState` action.
 --
@@ -184,26 +181,23 @@ unsafeInlinePrimalState :: PrimalState s m => m a -> a
 unsafeInlinePrimalState m = unsafeInlineIO (unsafePrimalStateToIO m)
 {-# INLINE unsafeInlinePrimalState #-}
 
-
 -- | Same as `unsafeInterleaveIO`, except works in any `PrimalState`
 unsafeInterleavePrimalState :: PrimalState s m => m a -> m a
 unsafeInterleavePrimalState x = unsafeDupableInterleavePrimalState (noDuplicate >> x)
 {-# INLINE unsafeInterleavePrimalState #-}
-
 
 -- | Same as `unsafeDupableInterleaveIO`, except works in any `PrimalState`
 unsafeDupableInterleavePrimalState :: PrimalState s m => m a -> m a
 unsafeDupableInterleavePrimalState x =
   primal $ \s ->
     let r = case primalState x s of
-              (# _, res #) -> res
+          (# _, res #) -> res
      in (# s, r #)
 {-# NOINLINE unsafeDupableInterleavePrimalState #-}
 
 -- | A version of `liftP` that coerce the state token.
 --
 -- === Highly unsafe!
---
 unsafeLiftPrimalState :: forall sn n sm m a. (PrimalState sn n, Primal sm m) => n a -> m a
 unsafeLiftPrimalState m = primal (unsafePrimalState m)
 {-# INLINE unsafeLiftPrimalState #-}

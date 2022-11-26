@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Eval
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -13,47 +14,46 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Eval
   ( -- * Liveness
     touch
   , touch#
   , keepAlive
   , keepAlive#
+
     -- * Weak-Head Normal Form
   , seq
   , eval
   , evalM
   , evalMaybe
+
     -- * Normal Form
   , deepeval
   , deepevalM
   , deepevalMaybe
   , rnfMut
-  , MutNFData(..)
-  , BNF(..)
+  , MutNFData (..)
+  , BNF (..)
   , module Control.DeepSeq
-  -- * References
+
+    -- * References
+
   --
-  -- $references
-  --
+    -- $references
   ) where
 
 import Control.DeepSeq
-import Primal.Monad.Internal
-import Primal.Monad.Unsafe
 import qualified GHC.Exts as GHC
 import Primal.Exception
-
+import Primal.Monad.Internal
+import Primal.Monad.Unsafe
 
 -- | Same as `GHC.Exts.touch#`, except it is not restricted to `RealWorld` state token.
 touch# :: a -> GHC.State# s -> GHC.State# s
 touch# a = GHC.unsafeCoerce# (GHC.touch# a)
 {-# INLINE touch# #-}
 
-
 ------- Evaluation
-
 
 -- | This is an action that ensures that the value is still available and garbage
 -- collector has not cleaned it up.
@@ -68,7 +68,6 @@ touch :: Primal s m => a -> m ()
 touch x = primal_ (touch# x)
 {-# INLINE touch #-}
 
-
 -- | Forward compatible operator that was introduced in ghc-9.0. [The tale of
 -- `keepAlive#`](https://www.haskell.org/ghc/blog/20210607-the-keepAlive-story.html).
 --
@@ -79,8 +78,8 @@ touch x = primal_ (touch# x)
 -- on the `touch` function.
 --
 -- @since 0.1.0
-keepAlive# ::
-     a
+keepAlive#
+  :: a
   -- ^ The value to preserve
   -> (GHC.State# s -> (# GHC.State# s, r #))
   -- ^ The continuation in which the value will be preserved
@@ -99,8 +98,8 @@ keepAlive# a m s =
 -- | Similar to `touch`. See `withAlive#` for more info.
 --
 -- @since 0.3.0
-keepAlive ::
-     UnliftPrimal s m
+keepAlive
+  :: UnliftPrimal s m
   => a
   -- ^ The value to preserve
   -> m b
@@ -108,8 +107,6 @@ keepAlive ::
   -> m b
 keepAlive a m = runInPrimalState m (keepAlive# a)
 {-# INLINE keepAlive #-}
-
-
 
 -- | An action that evaluates a value to Weak Head Normal Form (WHNF). Same as
 -- `Control.Exception.evaluate`, except it works in `Primal`. This function provides
@@ -128,7 +125,6 @@ eval a = primal (GHC.seq# a)
 evalM :: Primal s m => m a -> m a
 evalM = (>>= eval)
 {-# INLINE evalM #-}
-
 
 -- | Evalute the supplied value to Weak-Head Normal Form and fail with `Nothing`
 -- if an exception was raised.
@@ -170,9 +166,7 @@ evalMaybe e = unsafeInlineIO $ do
     Right val -> pure $ Just val
 {-# INLINE evalMaybe #-}
 
-
 -- Normal Form
-
 
 -- | An action that evaluates a value to Normal Form (NF). This function provides stronger
 -- guarantees than `deepseq` with respect to ordering of operations.
@@ -189,7 +183,6 @@ deepeval = eval . force
 deepevalM :: (Primal s m, NFData a) => m a -> m a
 deepevalM m = eval . force =<< m
 {-# INLINE deepevalM #-}
-
 
 -- | Same as `evalMaybe`, except evalute the value to Normal Form and fail with
 -- `Nothing` if at any point during evaluation an exception was raised.
@@ -215,7 +208,6 @@ deepevalMaybe e =
       Left _ -> pure Nothing
       Right val -> pure $ Just val
 {-# INLINE deepevalMaybe #-}
-
 
 -- | Bogus Normal Form. This is useful in places where `NFData` constraint is required,
 -- but an instance can't really be created in any meaningful way for the type at

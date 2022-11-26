@@ -3,21 +3,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Test.Primal.Memory.PtrSpec
   ( spec
   , primPtrSpec
   ) where
 
 import Control.Monad
-import Primal.Memory.Ptr
 import Primal.Memory
+import Primal.Memory.Ptr
 import Test.Primal
 import Test.Primal.Memory
 import Test.Primal.Memory.BytesSpec hiding (spec)
 
-
-primPtrSpec ::
-     forall a. (Eq a, Show a, Unbox a, Arbitrary a, Typeable a)
+primPtrSpec
+  :: forall a
+   . (Eq a, Show a, Unbox a, Arbitrary a, Typeable a)
   => Spec
 primPtrSpec = do
   let ptrTypeName = ("Ptr " ++) . showsType (Proxy :: Proxy a) $ ""
@@ -74,14 +75,14 @@ primPtrSpec = do
         mb2x <- thawBytes b2
         withPtrMBytes mb2x $ \xptr -> copyMBytesToPtr mb1 i1 xptr i2 c
         bx <- freezeMBytes mb2x
-        take (unCount c) (drop (unOff i2) (toListBytes bx)) `shouldBe`
-          take (unCount c) (drop (unOff i1) xs)
+        take (unCount c) (drop (unOff i2) (toListBytes bx))
+          `shouldBe` take (unCount c) (drop (unOff i1) xs)
     describe "PtrAccess" $ do
-      prop "readPtr" $ \ (NEMem _ xs b :: NEBytes 'Pin a) -> do
+      prop "readPtr" $ \(NEMem _ xs b :: NEBytes 'Pin a) -> do
         x <- thawBytes b >>= \mb -> withPtrMBytes mb readPtr
         x `shouldBe` indexOffBytes b 0
         x `shouldBe` head xs
-      prop "readOffPtr" $ \ (NEMem i xs b :: NEBytes 'Pin a) -> do
+      prop "readOffPtr" $ \(NEMem i xs b :: NEBytes 'Pin a) -> do
         x <- thawBytes b >>= \mb -> withPtrMBytes mb (`readOffPtr` i)
         x `shouldBe` indexOffBytes b i
         x `shouldBe` (xs !! unOff i)

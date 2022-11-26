@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Container.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -9,16 +10,15 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Container.Internal where
 
 import Data.Kind
-import Primal.Concurrent.MVar
 import Primal.Array
-import Primal.Ref
+import Primal.Concurrent.MVar
 import Primal.Memory.Addr
 import Primal.Memory.FAddr
 import Primal.Memory.PUArray
+import Primal.Ref
 
 -- | Container element constraint.
 type family Elt (c :: k) e :: Constraint

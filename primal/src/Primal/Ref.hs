@@ -5,7 +5,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Ref
   ( module Primal.Ref.Boxed
   , module Primal.Ref.Boxed.Atomic

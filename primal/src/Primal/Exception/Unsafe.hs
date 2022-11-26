@@ -2,6 +2,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Exception.Unsafe
 -- Copyright   : (c) Alexey Kuleshevich 2021-2022
@@ -9,7 +10,6 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Exception.Unsafe
   ( maskAsyncExceptions
   , maskUninterruptible
@@ -25,8 +25,8 @@ module Primal.Exception.Unsafe
   , liftUnblockAsyncExceptions
   ) where
 
-import Primal.Monad.Internal
 import GHC.Exts
+import Primal.Monad.Internal
 
 -- | Version of `maskAsyncExceptions` that works with any state token. Very unsafe.
 blockAsyncExceptions :: UnliftPrimal s m => m b -> m b
@@ -63,19 +63,17 @@ liftUnblockAsyncExceptions action = primal (unmaskAsyncExceptionsInternal# (prim
 -- therefire it can turn uninterrubtable state into interruptable.
 maskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
 maskAsyncExceptions action = runInPrimalState action maskAsyncExceptions#
-{-# INLINEABLE maskAsyncExceptions  #-}
-
+{-# INLINEABLE maskAsyncExceptions #-}
 
 -- | A direct wrapper around `unmaskAsyncExceptions#` primop.
 unmaskAsyncExceptions :: forall a m. UnliftPrimal RW m => m a -> m a
 unmaskAsyncExceptions action = runInPrimalState action unmaskAsyncExceptions#
-{-# INLINEABLE unmaskAsyncExceptions  #-}
+{-# INLINEABLE unmaskAsyncExceptions #-}
 
 -- | A direct wrapper around `maskUninterruptible#` primop.
 maskUninterruptible :: forall a m. UnliftPrimal RW m => m a -> m a
 maskUninterruptible action = runInPrimalState action maskUninterruptible#
 {-# INLINEABLE maskUninterruptible #-}
-
 
 maskAsyncExceptionsInternal# :: (State# s -> (# State# s, a #)) -> State# s -> (# State# s, a #)
 maskAsyncExceptionsInternal# = unsafeCoerce# maskAsyncExceptions#

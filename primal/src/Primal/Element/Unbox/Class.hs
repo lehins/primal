@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Module      : Primal.Element.Unbox.Class
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -14,9 +15,8 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
 module Primal.Element.Unbox.Class
-  ( Unbox(..)
+  ( Unbox (..)
   , setMutableByteArray#
   , setOffAddr#
   , setByteOffAddr#
@@ -26,10 +26,9 @@ module Primal.Element.Unbox.Class
   ) where
 
 import Data.Kind
-import Primal.Foreign hiding (Any)
-import qualified Primal.Exception as Exception (errorWithoutStackTrace)
 import GHC.TypeLits as Nats
-
+import qualified Primal.Exception as Exception (errorWithoutStackTrace)
+import Primal.Foreign hiding (Any)
 
 -- | Invariants:
 --
@@ -46,7 +45,6 @@ import GHC.TypeLits as Nats
 --   is selfcontained in `Unbox` class and representation is not expected to stay the same
 --   between different versions of this library. Primitive types like `Int`, `Word`,
 --   `Char` are an exception to this rule for obvious reasons.
---
 class Unbox a where
   type UnboxIso a :: Type
 
@@ -75,7 +73,6 @@ class Unbox a where
   alignment# _ = alignment# (proxy# :: Proxy# (UnboxIso a))
   {-# INLINE alignment# #-}
 
-
   indexByteOffByteArray# :: ByteArray# -> Int# -> a
   default indexByteOffByteArray# :: Unbox (UnboxIso a) => ByteArray# -> Int# -> a
   indexByteOffByteArray# ba# i# = fromUnboxIso (indexByteOffByteArray# ba# i# :: UnboxIso a)
@@ -103,24 +100,24 @@ class Unbox a where
   {-# INLINE indexByteOffAddr# #-}
 
   readByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  default readByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
+  default readByteOffMutableByteArray#
+    :: Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readByteOffMutableByteArray# mba# i# s = case readByteOffMutableByteArray# mba# i# s of
-                                             (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
+    (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readByteOffMutableByteArray# #-}
 
   readMutableByteArray# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
-  default readMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
+  default readMutableByteArray#
+    :: Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> State# s -> (# State# s, a #)
   readMutableByteArray# mba# i# s = case readMutableByteArray# mba# i# s of
-                                      (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
+    (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readMutableByteArray# #-}
 
   readOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
-  default readOffAddr# ::
-    Unbox (UnboxIso a) => Addr# -> Int# -> State# s -> (# State# s, a #)
+  default readOffAddr#
+    :: Unbox (UnboxIso a) => Addr# -> Int# -> State# s -> (# State# s, a #)
   readOffAddr# addr# i# s = case readOffAddr# addr# i# s of
-                              (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
+    (# s', pa :: UnboxIso a #) -> (# s', fromUnboxIso pa #)
   {-# INLINE readOffAddr# #-}
 
   readByteOffAddr# :: Addr# -> Int# -> State# s -> (# State# s, a #)
@@ -128,15 +125,15 @@ class Unbox a where
   {-# INLINE readByteOffAddr# #-}
 
   writeByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  default writeByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
+  default writeByteOffMutableByteArray#
+    :: Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
   writeByteOffMutableByteArray# mba# i# a =
     writeByteOffMutableByteArray# mba# i# (toUnboxIso a)
   {-# INLINE writeByteOffMutableByteArray# #-}
 
   writeMutableByteArray# :: MutableByteArray# s -> Int# -> a -> State# s -> State# s
-  default writeMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
+  default writeMutableByteArray#
+    :: Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> a -> State# s -> State# s
   writeMutableByteArray# mba# i# a = writeMutableByteArray# mba# i# (toUnboxIso a)
   {-# INLINE writeMutableByteArray# #-}
 
@@ -151,8 +148,8 @@ class Unbox a where
 
   -- | Set the region of MutableByteArray to the same value. Offset is in number of bytes.
   setByteOffMutableByteArray# :: MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
-  default setByteOffMutableByteArray# ::
-    Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
+  default setByteOffMutableByteArray#
+    :: Unbox (UnboxIso a) => MutableByteArray# s -> Int# -> Int# -> a -> State# s -> State# s
   setByteOffMutableByteArray# mba# o# n# a = setByteOffMutableByteArray# mba# o# n# (toUnboxIso a)
   {-# INLINE setByteOffMutableByteArray# #-}
 
@@ -162,10 +159,10 @@ class Unbox a where
   setAddr# addr# n# a = setAddr# addr# n# (toUnboxIso a)
   {-# INLINE setAddr# #-}
 
-
 -- | Set the region of MutableByteArray to the same value. Offset is in number of elements
-setMutableByteArray# ::
-     forall a s. Unbox a
+setMutableByteArray#
+  :: forall a s
+   . Unbox a
   => MutableByteArray# s
   -> Int#
   -> Int#
@@ -174,7 +171,6 @@ setMutableByteArray# ::
   -> State# s
 setMutableByteArray# mba# o# = setByteOffMutableByteArray# mba# (o# *# sizeOf# (proxy# :: Proxy# a))
 {-# INLINE setMutableByteArray# #-}
-
 
 -- | Set the region of memory to the same value. Offset is in number of elements
 setOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s -> State# s
@@ -186,12 +182,12 @@ setByteOffAddr# :: forall a s. Unbox a => Addr# -> Int# -> Int# -> a -> State# s
 setByteOffAddr# addr# i# = setAddr# (addr# `plusAddr#` i#)
 {-# INLINE setByteOffAddr# #-}
 
-
 -- | A loop that uses `writeByteOffMutableByteArray#` to set the values in the region. It is a
 -- suboptimal way to fill the memory with a single value that is why it is only provided
 -- here for convenience
-setByteOffMutableByteArrayLoop# ::
-     forall a s. Unbox a
+setByteOffMutableByteArrayLoop#
+  :: forall a s
+   . Unbox a
   => MutableByteArray# s
   -> Int#
   -> Int#
@@ -220,7 +216,6 @@ setByteOffMutableByteArrayLoop# mba# o# n# a = go o#
 --       | otherwise = s
 -- {-# INLINE setAddrLoop# #-}
 
-
 setAddrLoop# :: Unbox a => Addr# -> Int# -> a -> State# s -> State# s
 setAddrLoop# addr# n# a = go 0#
   where
@@ -228,7 +223,6 @@ setAddrLoop# addr# n# a = go 0#
       | isTrue# (i# <# n#) = go (i# +# 1#) (writeOffAddr# addr# i# a s)
       | otherwise = s
 {-# INLINE setAddrLoop# #-}
-
 
 errorImpossible :: String -> String -> a
 errorImpossible fname msg =
