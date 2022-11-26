@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Memory.Addr
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -16,129 +17,132 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Memory.Addr
-  ( -- * Immutable Addr
-    Addr(..)
-  , emptyAddr
-  , isSameAddr
-  , castAddr
-  , fromBytesAddr
-  , curOffAddr
-  , byteCountAddr
-  , countAddr
-  , plusOffAddr
-  , plusByteOffAddr
-  , minusCountAddr
-  , minusByteCountAddr
-  , indexAddr
-  , indexOffAddr
-  , indexByteOffAddr
-  , readAddr
-  , readOffAddr
-  , readByteOffAddr
-  , thawAddr
-  , freezeMAddr
-  , withPtrAddr
-  , withAddrAddr#
-  , withNoHaltPtrAddr
+module Primal.Memory.Addr (
+  -- * Immutable Addr
+  Addr (..),
+  emptyAddr,
+  isSameAddr,
+  castAddr,
+  fromBytesAddr,
+  curOffAddr,
+  byteCountAddr,
+  countAddr,
+  plusOffAddr,
+  plusByteOffAddr,
+  minusCountAddr,
+  minusByteCountAddr,
+  indexAddr,
+  indexOffAddr,
+  indexByteOffAddr,
+  readAddr,
+  readOffAddr,
+  readByteOffAddr,
+  thawAddr,
+  freezeMAddr,
+  withPtrAddr,
+  withAddrAddr#,
+  withNoHaltPtrAddr,
 
-   -- * Mutable MAddr
-  , MAddr(..)
-  , isSameMAddr
-  , castMAddr
-  , singletonMAddr
-  , allocMAddr
-  , allocAlignedMAddr
-  , allocZeroMAddr
-  , allocZeroAlignedMAddr
-  , reallocMAddr
-  , shrinkMAddr
-  , shrinkByteCountMAddr
-  , setMAddr
-  , setOffMAddr
-  , setByteOffMAddr
-  , curOffMAddr
-  , getByteCountMAddr
-  , getCountMAddr
-  , plusOffMAddr
-  , plusByteOffMAddr
+  -- * Mutable MAddr
+  MAddr (..),
+  isSameMAddr,
+  castMAddr,
+  singletonMAddr,
+  allocMAddr,
+  allocAlignedMAddr,
+  allocZeroMAddr,
+  allocZeroAlignedMAddr,
+  reallocMAddr,
+  shrinkMAddr,
+  shrinkByteCountMAddr,
+  setMAddr,
+  setOffMAddr,
+  setByteOffMAddr,
+  curOffMAddr,
+  getByteCountMAddr,
+  getCountMAddr,
+  plusOffMAddr,
+  plusByteOffMAddr,
   -- TODO:
   -- , minusCountMAddr
   -- , minusByteCountMAddr
-  , readMAddr
-  , readOffMAddr
-  , readByteOffMAddr
-  , writeMAddr
-  , writeOffMAddr
-  , writeByteOffMAddr
-  , copyAddrToMAddr
-  , moveMAddrToMAddr
+  readMAddr,
+  readOffMAddr,
+  readByteOffMAddr,
+  writeMAddr,
+  writeOffMAddr,
+  writeByteOffMAddr,
+  copyAddrToMAddr,
+  moveMAddrToMAddr,
+  modifyMAddr,
+  modifyMAddr_,
+  modifyFetchOldMAddr,
+  modifyFetchNewMAddr,
+  modifyMAddrM,
+  modifyMAddrM_,
+  modifyFetchOldMAddrM,
+  modifyFetchNewMAddrM,
+  swapMAddrs_,
+  swapMAddrs,
+  withPtrMAddr,
+  withAddrMAddr#,
+  withNoHaltPtrMAddr,
+  toForeignPtrAddr,
+  toMForeignPtrMAddr,
+  fromForeignPtrAddr,
+  fromForeignPtrMAddr,
 
-
-  , modifyMAddr
-  , modifyMAddr_
-  , modifyFetchOldMAddr
-  , modifyFetchNewMAddr
-  , modifyMAddrM
-  , modifyMAddrM_
-  , modifyFetchOldMAddrM
-  , modifyFetchNewMAddrM
-  , swapMAddrs_
-  , swapMAddrs
-
-  , withPtrMAddr
-  , withAddrMAddr#
-  , withNoHaltPtrMAddr
-  , toForeignPtrAddr
-  , toMForeignPtrMAddr
-  , fromForeignPtrAddr
-  , fromForeignPtrMAddr
   -- * Conversion
+
   -- ** ByteString
-  , toByteStringAddr
-  , toShortByteStringAddr
-  , fromShortByteStringAddr
-  , fromByteStringAddr
-  , fromByteStringMAddr
+  toByteStringAddr,
+  toShortByteStringAddr,
+  fromShortByteStringAddr,
+  fromByteStringAddr,
+  fromByteStringMAddr,
 
   -- * Atomic
-  , casOffMAddr
-  , casBoolOffMAddr
-  , casBoolFetchOffMAddr
-  , atomicReadOffMAddr
-  , atomicWriteOffMAddr
-  , atomicModifyOffMAddr
-  , atomicModifyOffMAddr_
-  , atomicModifyFetchOldOffMAddr
-  , atomicModifyFetchNewOffMAddr
+  casOffMAddr,
+  casBoolOffMAddr,
+  casBoolFetchOffMAddr,
+  atomicReadOffMAddr,
+  atomicWriteOffMAddr,
+  atomicModifyOffMAddr,
+  atomicModifyOffMAddr_,
+  atomicModifyFetchOldOffMAddr,
+  atomicModifyFetchNewOffMAddr,
+
   -- ** Numeric
-  , atomicAddFetchOldOffMAddr
-  , atomicAddFetchNewOffMAddr
-  , atomicSubFetchOldOffMAddr
-  , atomicSubFetchNewOffMAddr
+  atomicAddFetchOldOffMAddr,
+  atomicAddFetchNewOffMAddr,
+  atomicSubFetchOldOffMAddr,
+  atomicSubFetchNewOffMAddr,
+
   -- ** Binary
-  , atomicAndFetchOldOffMAddr
-  , atomicAndFetchNewOffMAddr
-  , atomicNandFetchOldOffMAddr
-  , atomicNandFetchNewOffMAddr
-  , atomicOrFetchOldOffMAddr
-  , atomicOrFetchNewOffMAddr
-  , atomicXorFetchOldOffMAddr
-  , atomicXorFetchNewOffMAddr
-  , atomicNotFetchOldOffMAddr
-  , atomicNotFetchNewOffMAddr
+  atomicAndFetchOldOffMAddr,
+  atomicAndFetchNewOffMAddr,
+  atomicNandFetchOldOffMAddr,
+  atomicNandFetchNewOffMAddr,
+  atomicOrFetchOldOffMAddr,
+  atomicOrFetchNewOffMAddr,
+  atomicXorFetchOldOffMAddr,
+  atomicXorFetchNewOffMAddr,
+  atomicNotFetchOldOffMAddr,
+  atomicNotFetchNewOffMAddr,
+
   -- * Re-export
-  , module Primal.Element.Unbox
-  ) where
+  module Primal.Element.Unbox,
+) where
 
 import Control.Arrow (first)
 import Data.ByteString.Internal
 import Data.ByteString.Short.Internal
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Monoid as Monoid
 import qualified Data.Semigroup as Semigroup
 import Primal.Array
+import Primal.Element.Unbox
+import Primal.Element.Unbox.Atomic
 import Primal.Eval
 import Primal.Foreign
 import Primal.Memory.ByteString
@@ -153,25 +157,23 @@ import Primal.Monad.Unsafe
 import Primal.Mutable.Eq
 import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
-import Primal.Element.Unbox
-import Primal.Element.Unbox.Atomic
 import Unsafe.Coerce
-
 
 -- | Immutable read-only address
 data Addr e = Addr
   { aAddr# :: Addr#
   , aBytes :: Bytes 'Pin
   }
+
 type role Addr nominal
 
 -- | Mutable address
 data MAddr e s = MAddr
-  { maAddr#  :: Addr#
+  { maAddr# :: Addr#
   , maMBytes :: MBytes 'Pin s
   }
-type role MAddr nominal nominal
 
+type role MAddr nominal nominal
 
 instance (Eq e, Unbox e) => Eq (Addr e) where
   (==) = eqMem @e
@@ -208,7 +210,7 @@ instance Unbox e => IsList (Addr e) where
 instance Unbox e => Semigroup.Semigroup (Addr e) where
   (<>) = appendMem
   {-# INLINE (<>) #-}
-  sconcat (x :| xs) = concatMem (x:xs)
+  sconcat (x :| xs) = concatMem (x : xs)
   {-# INLINE sconcat #-}
   stimes i = cycleMemN (fromIntegral i)
   {-# INLINE stimes #-}
@@ -288,13 +290,11 @@ allocMAddr c = fromMBytesMAddr <$> allocPinnedMBytes c
 allocZeroMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
 allocZeroMAddr c = fromMBytesMAddr <$> allocZeroPinnedMBytes c
 
-
 allocAlignedMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
 allocAlignedMAddr c = fromMBytesMAddr <$> allocAlignedPinnedMBytes c
 
 allocZeroAlignedMAddr :: forall e m s. (Primal s m, Unbox e) => Count e -> m (MAddr e s)
 allocZeroAlignedMAddr c = fromMBytesMAddr <$> allocZeroAlignedPinnedMBytes c
-
 
 -- | Shrink mutable address to new specified size in number of elements. The new count
 -- must be less than or equal to the current as reported by `getCountMAddr`.
@@ -308,21 +308,20 @@ shrinkByteCountMAddr :: Primal s m => MAddr e s -> Count Word8 -> m ()
 shrinkByteCountMAddr maddr@(MAddr _ mb) c = shrinkMBytes mb (c + coerce (curByteOffMAddr maddr))
 {-# INLINE shrinkByteCountMAddr #-}
 
-
 reallocMAddr :: (Primal s m, Unbox e) => MAddr e s -> Count e -> m (MAddr e s)
 reallocMAddr maddr c = do
   oldByteCount <- getByteCountMAddr maddr
   let newByteCount = toByteCount c
   if newByteCount <= oldByteCount
-    then maddr <$
-         when (newByteCount < oldByteCount) (shrinkByteCountMAddr maddr newByteCount)
+    then
+      maddr
+        <$ when (newByteCount < oldByteCount) (shrinkByteCountMAddr maddr newByteCount)
     else do
       addr <- freezeMAddr maddr
       maddr' <- allocMAddr newByteCount
-      castMAddr maddr' <$
-        copyAddrToMAddr (castAddr addr) 0 maddr' 0 oldByteCount
+      castMAddr maddr'
+        <$ copyAddrToMAddr (castAddr addr) 0 maddr' 0 oldByteCount
 {-# INLINE reallocMAddr #-}
-
 
 plusOffAddr :: Unbox e => Addr e -> Off e -> Addr e
 plusOffAddr (Addr addr# b) off = Addr (addr# `plusAddr#` unOffBytes# off) b
@@ -348,7 +347,6 @@ minusByteCountAddr :: Addr e1 -> Addr e2 -> Count Word8
 minusByteCountAddr (Addr addr1# _) (Addr addr2# _) = Count (I# (addr1# `minusAddr#` addr2#))
 {-# INLINE minusByteCountAddr #-}
 
-
 curOffAddr :: Unbox e => Addr e -> Off e
 curOffAddr a@(Addr addr# b) = (Ptr addr# `minusOffPtr` toPtrBytes b) `offForProxyTypeOf` a
 {-# INLINE curOffAddr #-}
@@ -357,8 +355,9 @@ curByteOffAddr :: Addr e -> Off Word8
 curByteOffAddr (Addr addr# b) = Ptr addr# `minusByteOffPtr` toPtrBytes b
 {-# INLINE curByteOffAddr #-}
 
-countAddr ::
-     forall e. Unbox e
+countAddr
+  :: forall e
+   . Unbox e
   => Addr e
   -> Count e
 countAddr addr@(Addr _ b) = countBytes b - coerce (curOffAddr addr)
@@ -408,11 +407,11 @@ withNoHaltPtrAddr :: UnliftPrimal s m => Addr e -> (Ptr e -> m b) -> m b
 withNoHaltPtrAddr (Addr addr# b) f = keepAlive b $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrAddr #-}
 
-curOffMAddr :: forall e s . Unbox e => MAddr e s -> Off e
+curOffMAddr :: forall e s. Unbox e => MAddr e s -> Off e
 curOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusOffPtr` toPtrMBytes mb
 {-# INLINE curOffMAddr #-}
 
-curByteOffMAddr :: forall e s . MAddr e s -> Off Word8
+curByteOffMAddr :: forall e s. MAddr e s -> Off Word8
 curByteOffMAddr (MAddr addr# mb) = (Ptr addr# :: Ptr e) `minusByteOffPtr` toPtrMBytes mb
 {-# INLINE curByteOffMAddr #-}
 
@@ -420,11 +419,8 @@ withPtrMAddr :: Primal s m => MAddr e s -> (Ptr e -> m b) -> m b
 withPtrMAddr maddr f = withAddrMAddr# maddr $ \addr# -> f (Ptr addr#)
 {-# INLINE withPtrMAddr #-}
 
-
-
 toForeignPtrAddr :: Addr e -> ForeignPtr e
 toForeignPtrAddr (Addr addr# (Bytes ba#)) = ForeignPtr addr# (PlainPtr (unsafeCoerce# ba#))
-
 
 toMForeignPtrMAddr :: MAddr e s -> MForeignPtr e s
 toMForeignPtrMAddr (MAddr addr# (MBytes mba#)) =
@@ -439,7 +435,6 @@ fromForeignPtrAddr :: ForeignPtr e -> Maybe (Addr e)
 fromForeignPtrAddr fptr =
   unsafePerformIO $ fromForeignPtrIO fptr >>= traverse freezeMAddr
 
-
 -- | Discarding the original ForeignPtr will trigger finalizers that were attached to it,
 -- because `MAddr` does not retain any finalizers. Pointer created with @malloc@ cannot be
 -- converted to `MAddr` and will result in `Nothing`
@@ -448,11 +443,11 @@ fromForeignPtrAddr fptr =
 fromForeignPtrMAddr :: ForeignPtr e -> Maybe (MAddr e s)
 fromForeignPtrMAddr fptr =
   unsafePerformIO (fmap castStateMAddr <$> fromForeignPtrIO fptr)
-  -- case c of
-  --   PlainPtr mba#    -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
-  --   MallocPtr mba# _ -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
-  --   _                -> Nothing
 
+-- case c of
+--   PlainPtr mba#    -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+--   MallocPtr mba# _ -> Just (MAddr addr# (MBytes (unsafeCoerce# mba#)))
+--   _                -> Nothing
 
 fromForeignPtrIO :: ForeignPtr e -> IO (Maybe (MAddr e RW))
 fromForeignPtrIO fptr =
@@ -475,7 +470,6 @@ withNoHaltPtrMAddr :: UnliftPrimal s m => MAddr e s -> (Ptr e -> m b) -> m b
 withNoHaltPtrMAddr (MAddr addr# mb) f = keepAlive mb $ f (Ptr addr#)
 {-# INLINE withNoHaltPtrMAddr #-}
 
-
 instance MemForeignPtr (MAddr e) where
   toMForeignPtrMem = toMForeignPtrMAddr . castMAddr
   {-# INLINE toMForeignPtrMem #-}
@@ -485,8 +479,6 @@ instance MemPtr (MAddr e) where
   {-# INLINE withPtrMutMemST #-}
   withNoHaltPtrMutMemST maddr = withNoHaltPtrMAddr (castMAddr maddr)
   {-# INLINE withNoHaltPtrMutMemST #-}
-
-
 
 instance MemAlloc (MAddr e) where
   allocMutMemST = fmap castMAddr . allocMAddr
@@ -501,7 +493,6 @@ instance MemFreeze (MAddr e) where
   {-# INLINE getByteCountMutMemST #-}
   reallocMutMemST maddr = fmap castMAddr . reallocMAddr (castMAddr maddr)
   {-# INLINE reallocMutMemST #-}
-
 
 instance MemRead (Addr e) where
   accessMem addr _ g o =
@@ -547,27 +538,25 @@ instance MemWrite (MAddr e) where
   writeByteOffMutMemST a = writeByteOffMAddr (castMAddr a)
   {-# INLINE writeByteOffMutMemST #-}
   moveByteOffToPtrMutMemST src srcOff dstPtr dstOff c =
-    withAddrMAddr# src $ \ srcAddr# ->
+    withAddrMAddr# src $ \srcAddr# ->
       moveByteOffPtrToPtr (Ptr srcAddr#) srcOff dstPtr dstOff c
   {-# INLINE moveByteOffToPtrMutMemST #-}
   moveByteOffToMBytesMutMemST src srcOff dst dstOff c =
-    withAddrMAddr# src $ \ srcAddr# ->
+    withAddrMAddr# src $ \srcAddr# ->
       moveByteOffPtrToMBytes (Ptr srcAddr#) srcOff dst dstOff c
   {-# INLINE moveByteOffToMBytesMutMemST #-}
   copyByteOffMutMemST src srcOff dst dstOff c =
-    withAddrMAddr# dst $ \ dstAddr# ->
+    withAddrMAddr# dst $ \dstAddr# ->
       copyByteOffToPtrMem src srcOff (Ptr dstAddr#) dstOff c
   {-# INLINE copyByteOffMutMemST #-}
   moveByteOffMutMemST src srcOff dst dstOff c =
-    withAddrMAddr# dst $ \ dstAddr# ->
+    withAddrMAddr# dst $ \dstAddr# ->
       moveByteOffToPtrMutMemST src srcOff (Ptr dstAddr#) dstOff c
   {-# INLINE moveByteOffMutMemST #-}
   setByteOffMutMemST maddr = setByteOffMAddr (castMAddr maddr)
   {-# INLINE setByteOffMutMemST #-}
   setMutMemST maddr = setOffMAddr (castMAddr maddr)
   {-# INLINE setMutMemST #-}
-
-
 
 thawAddr :: Primal s m => Addr e -> m (MAddr e s)
 thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
@@ -576,7 +565,6 @@ thawAddr (Addr addr# b) = MAddr addr# <$> thawBytes b
 freezeMAddr :: Primal s m => MAddr e s -> m (Addr e)
 freezeMAddr (MAddr addr# mb) = Addr addr# <$> freezeMBytes mb
 {-# INLINE freezeMAddr #-}
-
 
 readAddr :: (Primal s m, Unbox e) => Addr e -> m e
 readAddr (Addr addr# b) = do
@@ -629,20 +617,19 @@ writeByteOffMAddr (MAddr addr# mb) (Off (I# off#)) a =
   primal_ $ \s -> touch# mb (writeByteOffAddr# addr# off# a s)
 {-# INLINE writeByteOffMAddr #-}
 
-
-copyAddrToMAddr ::
-     (Primal s m, Unbox e) => Addr e -> Off e -> MAddr e s -> Off e -> Count e -> m ()
+copyAddrToMAddr
+  :: (Primal s m, Unbox e) => Addr e -> Off e -> MAddr e s -> Off e -> Count e -> m ()
 copyAddrToMAddr src srcOff dst dstOff c =
-  withPtrAddr src $ \ srcPtr ->
-    withPtrMAddr dst $ \ dstPtr ->
+  withPtrAddr src $ \srcPtr ->
+    withPtrMAddr dst $ \dstPtr ->
       copyPtrToPtr srcPtr srcOff dstPtr dstOff c
 {-# INLINE copyAddrToMAddr #-}
 
-moveMAddrToMAddr ::
-     (Primal s m, Unbox e) => MAddr e s -> Off e -> MAddr e s -> Off e -> Count e -> m ()
+moveMAddrToMAddr
+  :: (Primal s m, Unbox e) => MAddr e s -> Off e -> MAddr e s -> Off e -> Count e -> m ()
 moveMAddrToMAddr src srcOff dst dstOff c =
-  withPtrMAddr src $ \ srcPtr ->
-    withPtrMAddr dst $ \ dstPtr ->
+  withPtrMAddr src $ \srcPtr ->
+    withPtrMAddr dst $ \dstPtr ->
       movePtrToPtr srcPtr srcOff dstPtr dstOff c
 {-# INLINE moveMAddrToMAddr #-}
 
@@ -660,8 +647,6 @@ setByteOffMAddr (MAddr addr# mb) (Off (I# off#)) (Count (I# n#)) a =
   primal_ (setByteOffAddr# addr# off# n# a) >> touch mb
 {-# INLINE setByteOffMAddr #-}
 
-
-
 -- | Apply a pure function to the contents of a mutable variable. Returns the artifact of
 -- computation.
 --
@@ -677,7 +662,6 @@ modifyMAddr_ :: (Primal s m, Unbox a) => MAddr a s -> (a -> a) -> m ()
 modifyMAddr_ maddr f = modifyMAddrM_ maddr (return . f)
 {-# INLINE modifyMAddr_ #-}
 
-
 -- | Apply a pure function to the contents of a mutable variable. Returns the old value.
 --
 -- @since 2.0.0
@@ -691,7 +675,6 @@ modifyFetchOldMAddr maddr f = modifyFetchOldMAddrM maddr (return . f)
 modifyFetchNewMAddr :: (Primal s m, Unbox a) => MAddr a s -> (a -> a) -> m a
 modifyFetchNewMAddr maddr f = modifyFetchNewMAddrM maddr (return . f)
 {-# INLINE modifyFetchNewMAddr #-}
-
 
 -- | Apply a monadic action to the contents of a mutable variable. Returns the artifact of
 -- computation.
@@ -713,7 +696,6 @@ modifyFetchOldMAddrM maddr f = do
   a <$ (writeMAddr maddr =<< f a)
 {-# INLINE modifyFetchOldMAddrM #-}
 
-
 -- | Apply a monadic action to the contents of a mutable variable. Returns the new value.
 --
 -- @since 2.0.0
@@ -723,7 +705,6 @@ modifyFetchNewMAddrM maddr f = do
   a' <- f a
   a' <$ writeMAddr maddr a'
 {-# INLINE modifyFetchNewMAddrM #-}
-
 
 -- | Apply a monadic action to the contents of a mutable variable.
 --
@@ -748,8 +729,6 @@ swapMAddrs maddr1 maddr2 = do
 swapMAddrs_ :: (Primal s m, Unbox a) => MAddr a s -> MAddr a s -> m ()
 swapMAddrs_ maddr1 maddr2 = void $ swapMAddrs maddr1 maddr2
 {-# INLINE swapMAddrs_ #-}
-
-
 
 -- | /O(1)/ - Cast an immutable `Addr` to an immutable `ByteString`
 --
@@ -794,8 +773,6 @@ fromByteStringMAddr (PS fptr i n) =
     Just maddr -> (maddr `plusOffMAddr` Off i, Count n)
     Nothing -> byteStringConvertError "It was allocated outside of 'bytestring' package"
 
-
-
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index. Returns the artifact of computation @__b__@.  Offset is in number of elements,
 -- rather than bytes. Implies a full memory barrier.
@@ -803,17 +780,20 @@ fromByteStringMAddr (PS fptr i n) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-casOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> e -- ^ Expected old value
-  -> e -- ^ New value
+casOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> e
+  -- ^ Expected old value
+  -> e
+  -- ^ New value
   -> m e
 casOffMAddr maddr (Off (I# i#)) old new =
-  withAddrMAddr# maddr $ \ addr# -> primal $ casOffAddr# addr# i# old new
+  withAddrMAddr# maddr $ \addr# -> primal $ casOffAddr# addr# i# old new
 {-# INLINE casOffMAddr #-}
-
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index. Returns `True` if swap was successfull and false otherwise.  Offset is in number
@@ -822,15 +802,19 @@ casOffMAddr maddr (Off (I# i#)) old new =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-casBoolOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> e -- ^ Expected old value
-  -> e -- ^ New value
+casBoolOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> e
+  -- ^ Expected old value
+  -> e
+  -- ^ New value
   -> m Bool
 casBoolOffMAddr maddr (Off (I# i#)) old new =
-  withAddrMAddr# maddr $ \ addr# -> primal $ casBoolOffAddr# addr# i# old new
+  withAddrMAddr# maddr $ \addr# -> primal $ casBoolOffAddr# addr# i# old new
 {-# INLINE casBoolOffMAddr #-}
 
 -- | Just like `casBoolOffMAddr`, but also returns the actual value, which will match the
@@ -839,12 +823,16 @@ casBoolOffMAddr maddr (Off (I# i#)) old new =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-casBoolFetchOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> e -- ^ Expected old value
-  -> e -- ^ New value
+casBoolFetchOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> e
+  -- ^ Expected old value
+  -> e
+  -- ^ New value
   -> m (Bool, e)
 casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
   withAddrMAddr# maddr $ \addr# ->
@@ -853,10 +841,9 @@ casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
         (# s', isCasSucc #)
           | isCasSucc -> (# s', (True, new) #)
           | otherwise ->
-            case readOffAddr# addr# i# s' of
-              (# s'', actual #) -> (# s'', (False, actual) #)
+              case readOffAddr# addr# i# s' of
+                (# s'', actual #) -> (# s'', (False, actual) #)
 {-# INLINE casBoolFetchOffMAddr #-}
-
 
 -- | Perform atomic read of an element in the `MAddr` at the supplied offset. Offset is in
 -- number of elements, rather than bytes. Implies a full memory barrier.
@@ -864,13 +851,15 @@ casBoolFetchOffMAddr maddr (Off (I# i#)) expected new = do
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicReadOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
+atomicReadOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
   -> m e
 atomicReadOffMAddr maddr (Off (I# i#)) =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicReadOffAddr# addr# i#
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicReadOffAddr# addr# i#
 {-# INLINE atomicReadOffMAddr #-}
 
 -- | Perform atomic write of an element in the `MAddr` at the supplied offset. Offset is in
@@ -879,16 +868,17 @@ atomicReadOffMAddr maddr (Off (I# i#)) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicWriteOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
+atomicWriteOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
   -> e
   -> m ()
 atomicWriteOffMAddr maddr (Off (I# i#)) e =
-  withAddrMAddr# maddr $ \ addr# -> primal_ $ atomicWriteOffAddr# addr# i# e
+  withAddrMAddr# maddr $ \addr# -> primal_ $ atomicWriteOffAddr# addr# i# e
 {-# INLINE atomicWriteOffMAddr #-}
-
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index. Returns the artifact of computation @__b__@.  Offset is in number of elements,
@@ -897,18 +887,21 @@ atomicWriteOffMAddr maddr (Off (I# i#)) e =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> (e -> (e, b)) -- ^ Function that is applied to the old value and returns new value
-                   -- and some artifact of computation @__b__@
+atomicModifyOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> (e -> (e, b))
+  -- ^ Function that is applied to the old value and returns new value
+  -- and some artifact of computation @__b__@
   -> m b
 atomicModifyOffMAddr maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> primal $
-  atomicModifyOffAddr# addr# i# $ \a ->
-    case f a of
-      (a', b) -> (# a', b #)
+  withAddrMAddr# maddr $ \addr# -> primal $
+    atomicModifyOffAddr# addr# i# $ \a ->
+      case f a of
+        (a', b) -> (# a', b #)
 {-# INLINE atomicModifyOffMAddr #-}
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
@@ -918,16 +911,18 @@ atomicModifyOffMAddr maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyOffMAddr_ ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> (e -> e) -- ^ Function that is applied to the current value
+atomicModifyOffMAddr_
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> (e -> e)
+  -- ^ Function that is applied to the current value
   -> m ()
 atomicModifyOffMAddr_ maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> primal_ $ atomicModifyOffAddr_# addr# i# f
+  withAddrMAddr# maddr $ \addr# -> primal_ $ atomicModifyOffAddr_# addr# i# f
 {-# INLINE atomicModifyOffMAddr_ #-}
-
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index. Returns the previous value.  Offset is in number of elements, rather than
@@ -936,16 +931,19 @@ atomicModifyOffMAddr_ maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyFetchOldOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes.
-  -> (e -> e) -- ^ Function that is applied to the old value
-  -> m e -- ^ Returns the old value
+atomicModifyFetchOldOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes.
+  -> (e -> e)
+  -- ^ Function that is applied to the old value
+  -> m e
+  -- ^ Returns the old value
 atomicModifyFetchOldOffMAddr maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicModifyFetchOldOffAddr# addr# i# f
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicModifyFetchOldOffAddr# addr# i# f
 {-# INLINE atomicModifyFetchOldOffMAddr #-}
-
 
 -- | Perform atomic modification of an element in the `MAddr` at the supplied
 -- index.  Offset is in number of elements, rather than bytes. Implies a full memory
@@ -954,17 +952,19 @@ atomicModifyFetchOldOffMAddr maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicModifyFetchNewOffMAddr ::
-     (Primal s m, Atomic e)
-  => MAddr e s -- ^ Array to be mutated
-  -> Off e -- ^ Index is in elements of @__e__@, rather than bytes
-  -> (e -> e) -- ^ Function that is applied to the old value
-  -> m e -- ^ Returns the new value
+atomicModifyFetchNewOffMAddr
+  :: (Primal s m, Atomic e)
+  => MAddr e s
+  -- ^ Array to be mutated
+  -> Off e
+  -- ^ Index is in elements of @__e__@, rather than bytes
+  -> (e -> e)
+  -- ^ Function that is applied to the old value
+  -> m e
+  -- ^ Returns the new value
 atomicModifyFetchNewOffMAddr maddr (Off (I# i#)) f =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicModifyFetchNewOffAddr# addr# i# f
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicModifyFetchNewOffAddr# addr# i# f
 {-# INLINE atomicModifyFetchNewOffMAddr #-}
-
-
 
 -- | Add a numeric value to an element of a `MAddr`, corresponds to @(`+`)@ done
 -- atomically. Returns the previous value.  Offset is in number of elements, rather
@@ -973,14 +973,14 @@ atomicModifyFetchNewOffMAddr maddr (Off (I# i#)) f =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAddFetchOldOffMAddr ::
-     (Primal s m, AtomicCount e)
+atomicAddFetchOldOffMAddr
+  :: (Primal s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicAddFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicAddFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicAddFetchOldOffAddr# addr# i# a
 {-# INLINE atomicAddFetchOldOffMAddr #-}
 
 -- | Add a numeric value to an element of a `MAddr`, corresponds to @(`+`)@ done
@@ -990,17 +990,15 @@ atomicAddFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAddFetchNewOffMAddr ::
-     (Primal s m, AtomicCount e)
+atomicAddFetchNewOffMAddr
+  :: (Primal s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicAddFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicAddFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicAddFetchNewOffAddr# addr# i# a
 {-# INLINE atomicAddFetchNewOffMAddr #-}
-
-
 
 -- | Subtract a numeric value from an element of a `MAddr`, corresponds to
 -- @(`-`)@ done atomically. Returns the previous value.  Offset is in number of elements, rather
@@ -1009,14 +1007,14 @@ atomicAddFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicSubFetchOldOffMAddr ::
-     (Primal s m, AtomicCount e)
+atomicSubFetchOldOffMAddr
+  :: (Primal s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicSubFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicSubFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicSubFetchOldOffAddr# addr# i# a
 {-# INLINE atomicSubFetchOldOffMAddr #-}
 
 -- | Subtract a numeric value from an element of a `MAddr`, corresponds to
@@ -1026,17 +1024,15 @@ atomicSubFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicSubFetchNewOffMAddr ::
-     (Primal s m, AtomicCount e)
+atomicSubFetchNewOffMAddr
+  :: (Primal s m, AtomicCount e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicSubFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicSubFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicSubFetchNewOffAddr# addr# i# a
 {-# INLINE atomicSubFetchNewOffMAddr #-}
-
-
 
 -- | Binary conjunction (AND) of an element of a `MAddr` with the supplied value,
 -- corresponds to @(`Data.Bits..&.`)@ done atomically. Returns the previous value. Offset
@@ -1045,14 +1041,14 @@ atomicSubFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAndFetchOldOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicAndFetchOldOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicAndFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicAndFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicAndFetchOldOffAddr# addr# i# a
 {-# INLINE atomicAndFetchOldOffMAddr #-}
 
 -- | Binary conjunction (AND) of an element of a `MAddr` with the supplied value,
@@ -1062,17 +1058,15 @@ atomicAndFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicAndFetchNewOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicAndFetchNewOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicAndFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicAndFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicAndFetchNewOffAddr# addr# i# a
 {-# INLINE atomicAndFetchNewOffMAddr #-}
-
-
 
 -- | Negation of binary conjunction (NAND) of an element of a `MAddr` with the
 -- supplied value, corresponds to @\\x y -> `Data.Bits.complement` (x `Data.Bits..&.` y)@
@@ -1082,14 +1076,14 @@ atomicAndFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNandFetchOldOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicNandFetchOldOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicNandFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicNandFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicNandFetchOldOffAddr# addr# i# a
 {-# INLINE atomicNandFetchOldOffMAddr #-}
 
 -- | Negation of binary conjunction (NAND)  of an element of a `MAddr` with the supplied
@@ -1100,18 +1094,15 @@ atomicNandFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNandFetchNewOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicNandFetchNewOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicNandFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicNandFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicNandFetchNewOffAddr# addr# i# a
 {-# INLINE atomicNandFetchNewOffMAddr #-}
-
-
-
 
 -- | Binary disjunction (OR) of an element of a `MAddr` with the supplied value,
 -- corresponds to @(`Data.Bits..|.`)@ done atomically. Returns the previous value. Offset
@@ -1120,14 +1111,14 @@ atomicNandFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicOrFetchOldOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicOrFetchOldOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicOrFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicOrFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicOrFetchOldOffAddr# addr# i# a
 {-# INLINE atomicOrFetchOldOffMAddr #-}
 
 -- | Binary disjunction (OR) of an element of a `MAddr` with the supplied value,
@@ -1137,17 +1128,15 @@ atomicOrFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicOrFetchNewOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicOrFetchNewOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicOrFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicOrFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicOrFetchNewOffAddr# addr# i# a
 {-# INLINE atomicOrFetchNewOffMAddr #-}
-
-
 
 -- | Binary exclusive disjunction (XOR) of an element of a `MAddr` with the supplied value,
 -- corresponds to @`Data.Bits.xor`@ done atomically. Returns the previous value. Offset
@@ -1156,14 +1145,14 @@ atomicOrFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicXorFetchOldOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicXorFetchOldOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicXorFetchOldOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicXorFetchOldOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicXorFetchOldOffAddr# addr# i# a
 {-# INLINE atomicXorFetchOldOffMAddr #-}
 
 -- | Binary exclusive disjunction (XOR) of an element of a `MAddr` with the supplied value,
@@ -1173,19 +1162,15 @@ atomicXorFetchOldOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicXorFetchNewOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicXorFetchNewOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> e
   -> m e
 atomicXorFetchNewOffMAddr maddr (Off (I# i#)) a =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicXorFetchNewOffAddr# addr# i# a
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicXorFetchNewOffAddr# addr# i# a
 {-# INLINE atomicXorFetchNewOffMAddr #-}
-
-
-
-
 
 -- | Binary negation (NOT) of an element of a `MAddr`, corresponds to
 -- @(`Data.Bits.complement`)@ done atomically. Returns the previous value. Offset is in
@@ -1194,13 +1179,13 @@ atomicXorFetchNewOffMAddr maddr (Off (I# i#)) a =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNotFetchOldOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicNotFetchOldOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> m e
 atomicNotFetchOldOffMAddr maddr (Off (I# i#)) =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicNotFetchOldOffAddr# addr# i#
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicNotFetchOldOffAddr# addr# i#
 {-# INLINE atomicNotFetchOldOffMAddr #-}
 
 -- | Binary negation (NOT) of an element of a `MAddr`, corresponds to
@@ -1210,11 +1195,11 @@ atomicNotFetchOldOffMAddr maddr (Off (I# i#)) =
 -- /Note/ - Bounds are not checked, therefore this function is unsafe.
 --
 -- @since 0.1.0
-atomicNotFetchNewOffMAddr ::
-     (Primal s m, AtomicBits e)
+atomicNotFetchNewOffMAddr
+  :: (Primal s m, AtomicBits e)
   => MAddr e s
   -> Off e
   -> m e
 atomicNotFetchNewOffMAddr maddr (Off (I# i#)) =
-  withAddrMAddr# maddr $ \ addr# -> primal $ atomicNotFetchNewOffAddr# addr# i#
+  withAddrMAddr# maddr $ \addr# -> primal $ atomicNotFetchNewOffAddr# addr# i#
 {-# INLINE atomicNotFetchNewOffMAddr #-}

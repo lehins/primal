@@ -2,26 +2,26 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-module Test.Primal.MutArraySpec
-  ( spec
-  ) where
+
+module Test.Primal.MutArraySpec (
+  spec,
+) where
 
 import Primal.Array.Boxed
 import Primal.Array.Boxed.Small
 import Primal.Array.Unboxed
 import Primal.Memory.Addr
-import Primal.Memory.FAddr
 import Primal.Memory.Bytes
+import Primal.Memory.FAddr
 import Primal.Memory.PUArray
 import Primal.Ref
 import Test.Primal
 import Test.Primal.MutArray
 import qualified Test.Primal.MutRef as MutRef
 
-
-primMutRefSpec ::
-     forall e.
-     (Show e, Arbitrary e, Typeable e, Num e, AtomicCount e, AtomicBits e)
+primMutRefSpec
+  :: forall e
+   . (Show e, Arbitrary e, Typeable e, Num e, AtomicCount e, AtomicBits e)
   => Spec
 primMutRefSpec = do
   MutRef.spec @MAddr @e
@@ -33,7 +33,6 @@ primMutRefSpec = do
   MutRef.spec @(NEMutArrayIx (PUMArray 'Inc)) @e
   MutRef.spec @(NEMutArrayIx (PUMArray 'Pin)) @e
   MutRef.spec @(NEMutArrayIx UMArray) @e
-
 
 spec :: Spec
 spec = do

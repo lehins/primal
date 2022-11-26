@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UnliftedFFITypes #-}
+
 -- |
 -- Module      : Primal.Foreign.C.LtGHC806
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -10,57 +11,54 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Foreign.C.LtGHC806
-  (
+module Primal.Foreign.C.LtGHC806 (
   -- ** GHC 8.6
-    indexWord8ArrayAsChar#
-  , readWord8ArrayAsChar#
-  , writeWord8ArrayAsChar#
-  , indexWord8ArrayAsWideChar#
-  , readWord8ArrayAsWideChar#
-  , writeWord8ArrayAsWideChar#
-  , indexWord8ArrayAsAddr#
-  , readWord8ArrayAsAddr#
-  , writeWord8ArrayAsAddr#
-  , indexWord8ArrayAsStablePtr#
-  , readWord8ArrayAsStablePtr#
-  , writeWord8ArrayAsStablePtr#
-  , indexWord8ArrayAsFloat#
-  , readWord8ArrayAsFloat#
-  , writeWord8ArrayAsFloat#
-  , indexWord8ArrayAsDouble#
-  , readWord8ArrayAsDouble#
-  , writeWord8ArrayAsDouble#
-  , indexWord8ArrayAsInt16#
-  , readWord8ArrayAsInt16#
-  , writeWord8ArrayAsInt16#
-  , indexWord8ArrayAsInt32#
-  , readWord8ArrayAsInt32#
-  , writeWord8ArrayAsInt32#
-  , indexWord8ArrayAsInt64#
-  , readWord8ArrayAsInt64#
-  , writeWord8ArrayAsInt64#
-  , indexWord8ArrayAsInt#
-  , readWord8ArrayAsInt#
-  , writeWord8ArrayAsInt#
-  , indexWord8ArrayAsWord16#
-  , readWord8ArrayAsWord16#
-  , writeWord8ArrayAsWord16#
-  , indexWord8ArrayAsWord32#
-  , readWord8ArrayAsWord32#
-  , writeWord8ArrayAsWord32#
-  , indexWord8ArrayAsWord64#
-  , readWord8ArrayAsWord64#
-  , writeWord8ArrayAsWord64#
-  , indexWord8ArrayAsWord#
-  , readWord8ArrayAsWord#
-  , writeWord8ArrayAsWord#
-
-  , atomicModifyMutVar_#
-  , atomicModifyMutVar2#
-  , module Primal.Foreign.C.LtGHC802
-  ) where
+  indexWord8ArrayAsChar#,
+  readWord8ArrayAsChar#,
+  writeWord8ArrayAsChar#,
+  indexWord8ArrayAsWideChar#,
+  readWord8ArrayAsWideChar#,
+  writeWord8ArrayAsWideChar#,
+  indexWord8ArrayAsAddr#,
+  readWord8ArrayAsAddr#,
+  writeWord8ArrayAsAddr#,
+  indexWord8ArrayAsStablePtr#,
+  readWord8ArrayAsStablePtr#,
+  writeWord8ArrayAsStablePtr#,
+  indexWord8ArrayAsFloat#,
+  readWord8ArrayAsFloat#,
+  writeWord8ArrayAsFloat#,
+  indexWord8ArrayAsDouble#,
+  readWord8ArrayAsDouble#,
+  writeWord8ArrayAsDouble#,
+  indexWord8ArrayAsInt16#,
+  readWord8ArrayAsInt16#,
+  writeWord8ArrayAsInt16#,
+  indexWord8ArrayAsInt32#,
+  readWord8ArrayAsInt32#,
+  writeWord8ArrayAsInt32#,
+  indexWord8ArrayAsInt64#,
+  readWord8ArrayAsInt64#,
+  writeWord8ArrayAsInt64#,
+  indexWord8ArrayAsInt#,
+  readWord8ArrayAsInt#,
+  writeWord8ArrayAsInt#,
+  indexWord8ArrayAsWord16#,
+  readWord8ArrayAsWord16#,
+  writeWord8ArrayAsWord16#,
+  indexWord8ArrayAsWord32#,
+  readWord8ArrayAsWord32#,
+  writeWord8ArrayAsWord32#,
+  indexWord8ArrayAsWord64#,
+  readWord8ArrayAsWord64#,
+  writeWord8ArrayAsWord64#,
+  indexWord8ArrayAsWord#,
+  readWord8ArrayAsWord#,
+  writeWord8ArrayAsWord#,
+  atomicModifyMutVar_#,
+  atomicModifyMutVar2#,
+  module Primal.Foreign.C.LtGHC802,
+) where
 
 import GHC.Exts
 import Primal.Foreign.C.LtGHC802
@@ -73,7 +71,6 @@ import Primal.Monad.Unsafe
 
 #include "MachDeps.h"
 #endif
-
 
 #if __GLASGOW_HASKELL__ <= 806
 

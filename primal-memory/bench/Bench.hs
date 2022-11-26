@@ -4,20 +4,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main (main) where
 
-import GHC.Exts
+import Control.DeepSeq
+import Criterion.Main
+import qualified Data.Primitive.ByteArray as BA
+import qualified Data.Primitive.Types as BA
 import Data.Proxy
 import Data.Typeable
-import Criterion.Main
+import Foreign.ForeignPtr
+import Foreign.Storable as S
+import GHC.Exts
+import GHC.ForeignPtr
 import Primal.Memory.Bytes
 import Primal.Memory.Ptr
-import qualified Data.Primitive.Types as BA
-import qualified Data.Primitive.ByteArray as BA
-import Foreign.Storable as S
-import Foreign.ForeignPtr
-import GHC.ForeignPtr
-import Control.DeepSeq
 
 instance NFData (ForeignPtr a) where
   rnf !_ = ()
@@ -60,7 +61,7 @@ main = do
             , setBytesBench mb1 mb2 mba 0 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 0 (n :: Count Double)
             , bench "setMBytes/Bool" $
-              nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) False)
+                nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) False)
             ]
         , bgroup
             "regular"
@@ -71,7 +72,7 @@ main = do
             , setBytesBench mb1 mb2 mba 123 (n * 2 :: Count Float)
             , setBytesBench mb1 mb2 mba 123 (n :: Count Double)
             , bench "setMBytes/Bool" $
-              nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) True)
+                nfIO (setMBytes mb1 0 (n * 8 :: Count Bool) True)
             ]
         , bgroup
             "symmetric"
@@ -117,8 +118,9 @@ main = do
         ]
     ]
 
-benchIndex ::
-     forall a p. (Typeable a, Unbox a, BA.Prim a)
+benchIndex
+  :: forall a p
+   . (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> Bytes p
   -> BA.ByteArray
@@ -129,10 +131,12 @@ benchIndex px b ba =
     [ bench "Bytes" $ whnf (indexOffBytes b) (Off i :: Off a)
     , bench "ByteArray" $ whnf (BA.indexByteArray ba :: Int -> a) i
     ]
-  where i = 100
+  where
+    i = 100
 
-benchRead ::
-     forall a p. (Typeable a, Unbox a, BA.Prim a)
+benchRead
+  :: forall a p
+   . (Typeable a, Unbox a, BA.Prim a)
   => Proxy a
   -> MBytes p RealWorld
   -> BA.MutableByteArray RealWorld
@@ -143,10 +147,12 @@ benchRead px mb mba =
     [ bench "Bytes" $ whnfIO (readOffMBytes mb (Off i :: Off a))
     , bench "ByteArray" $ whnfIO (BA.readByteArray mba i :: IO a)
     ]
-  where i = 100
+  where
+    i = 100
 
-benchPeek ::
-     forall a. (Typeable a, Unbox a, S.Storable a)
+benchPeek
+  :: forall a
+   . (Typeable a, Unbox a, S.Storable a)
   => Proxy a
   -> MBytes 'Pin RealWorld
   -> ForeignPtr a
@@ -158,8 +164,9 @@ benchPeek px mb fptr =
     , bench "ForeignPtr" $ whnfIO $ withForeignPtr fptr S.peek
     ]
 
-setBytesBench ::
-     forall a . (Typeable a, BA.Prim a, Unbox a)
+setBytesBench
+  :: forall a
+   . (Typeable a, BA.Prim a, Unbox a)
   => MBytes 'Pin RealWorld
   -> MBytes 'Pin RealWorld
   -> BA.MutableByteArray RealWorld
@@ -167,8 +174,9 @@ setBytesBench ::
   -> Count a
   -> Benchmark
 setBytesBench mb1 mb2 mba a c@(Count n) =
-  bgroup (showsType (Proxy :: Proxy a) "")
+  bgroup
+    (showsType (Proxy :: Proxy a) "")
     [ bench "setMBytes" $ nfIO (setMBytes mb1 0 c a)
-    , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ ptr -> setOffPtr ptr 0 c a :: IO ())
+    , bench "setOffPtr" $ nfIO (withPtrMBytes mb2 $ \ptr -> setOffPtr ptr 0 c a :: IO ())
     , bench "setByteArray" $ nfIO (BA.setByteArray mba 0 n a)
     ]

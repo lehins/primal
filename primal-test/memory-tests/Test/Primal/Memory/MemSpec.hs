@@ -8,34 +8,35 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Test.Primal.Memory.MemSpec
-  ( module Test.Primal.Memory.MemSpec
-  , module Primal.Memory.Bytes
-  ) where
 
-import  Test.Primal.Memory.BytesSpec
+module Test.Primal.Memory.MemSpec (
+  module Test.Primal.Memory.MemSpec,
+  module Primal.Memory.Bytes,
+) where
+
 import Control.DeepSeq
 import Data.Complex
 import Data.Functor.Identity
 import Data.Ratio
+import Data.Semigroup
 import GHC.Fingerprint.Type
 import GHC.IO.Device
-import Data.Semigroup
 import Primal.Array
 import Primal.Foreign hiding (Any)
 import Primal.Foreign.StablePtr
 import Primal.Memory.Addr
-import Primal.Memory.FAddr
 import Primal.Memory.ByteString
 import Primal.Memory.Bytes
+import Primal.Memory.FAddr
 import Primal.Memory.PUArray
 import Primal.Memory.Text
 import Test.Primal
 import Test.Primal.Memory
+import Test.Primal.Memory.BytesSpec
 
-
-eqTypeSpec ::
-     forall e. (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable e)
+eqTypeSpec
+  :: forall e
+   . (NFData e, Eq e, Show e, Unbox e, Arbitrary e, Typeable e)
   => Spec
 eqTypeSpec = do
   bytesSpec @'Pin @e
@@ -49,9 +50,9 @@ eqTypeSpec = do
   memSpec @MArray @e
   memSpec @MByteString @e
 
-
-ordTypeSpec ::
-     forall e. (NFData e, Ord e, Show e, Unbox e, Arbitrary e, Typeable e)
+ordTypeSpec
+  :: forall e
+   . (NFData e, Ord e, Show e, Unbox e, Arbitrary e, Typeable e)
   => Spec
 ordTypeSpec = do
   eqTypeSpec @e
@@ -61,8 +62,6 @@ ordTypeSpec = do
   memOrdSpec @UMArray @e
   memOrdSpec @(PUMArray 'Inc) @e
   memOrdSpec @(PUMArray 'Pin) @e
-
-
 
 spec :: Spec
 spec = do
@@ -102,4 +101,3 @@ spec = do
   eqTypeSpec @SeekMode
   eqTypeSpec @((), Ptr (), FunPtr (), StablePtr ())
   eqTypeSpec @(All, Any, Fingerprint, IntPtr, WordPtr)
-

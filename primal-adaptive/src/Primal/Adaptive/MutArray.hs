@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+
 -- |
 -- Module      : Data.Prim.Adaptive.MArray
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -11,20 +12,19 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Data.Prim.Adaptive.MArray
-  ( AArray(..)
-  , AMArray(..)
-  , newAMArray
-  , createAArrayM
-  , Atom(..)
-  ) where
+module Data.Prim.Adaptive.MArray (
+  AArray (..),
+  AMArray (..),
+  newAMArray,
+  createAArrayM,
+  Atom (..),
+) where
 
 import Data.Coerce
 import Data.Prim.Adaptive.Rep
 import Primal.Container.Internal
-import Primal.Container.Mutable.Ref
 import Primal.Container.Mutable.Array
+import Primal.Container.Mutable.Ref
 import Primal.Data.Array
 import Primal.Monad
 import Primal.Prim
@@ -34,7 +34,6 @@ type ABWrap e = AWrap (AdaptRep BMArray e) (IsAtomic e) e
 newtype AArray e = AArray (Frozen (AdaptRep BMArray e) (ABWrap e))
 
 newtype AMArray e s = AMArray (AdaptRep BMArray e (ABWrap e) s)
-
 
 class (Coercible e (ABWrap e), MArray (AdaptRep BMArray e) (ABWrap e)) => AdaptMArray e where
   wrap :: e -> ABWrap e
@@ -48,7 +47,6 @@ instance (Coercible e (ABWrap e), MArray (AdaptRep BMArray e) (ABWrap e)) => Ada
 
 type instance Elt AArray e = (AdaptMArray e)
 type instance Elt AMArray e = (AdaptMArray e)
-
 
 instance AdaptMArray e => MRef AMArray e where
   newRawMRef = AMArray <$> newRawMRef
@@ -86,14 +84,12 @@ instance AdaptMArray e => MArray AMArray e where
   setMArray (AMArray ma) i sz e = setMArray ma i sz (wrap e)
   {-# INLINE setMArray #-}
 
-
 newAMArray :: (Primal s m, AdaptMArray e) => Size -> e -> m (AMArray e s)
 newAMArray = newMArray
 
-createAArrayM ::
-     (Primal s m, AdaptMArray e)
+createAArrayM
+  :: (Primal s m, AdaptMArray e)
   => Size
   -> (AMArray e s -> m b)
   -> m (b, AArray e)
 createAArrayM = createArrayM
-

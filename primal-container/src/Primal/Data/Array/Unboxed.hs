@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Data.Array.Unboxed
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -13,72 +14,75 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Data.Array.Unboxed
-  ( UArray(..)
-  , UMArray(..)
-  , Size(..)
+module Primal.Data.Array.Unboxed (
+  UArray (..),
+  UMArray (..),
+  Size (..),
+
   -- * Immutable
-  , makeUArray
-  , makeUArrayM
-  , sizeOfUArray
-  , indexUArray
+  makeUArray,
+  makeUArrayM,
+  sizeOfUArray,
+  indexUArray,
+
   -- * Mutable
+
   -- ** Create
-  , newUMArray
-  , newRawUMArray
-  , makeUMArray
-  , createUArrayM
-  , createUArrayM_
+  newUMArray,
+  newRawUMArray,
+  makeUMArray,
+  createUArrayM,
+  createUArrayM_,
+
   -- ** Access
-  , readUMArray
-  , writeUMArray
+  readUMArray,
+  writeUMArray,
+
   -- *** Atomic
+
   -- , casUMArray
   -- , atomicModifyFetchNewUMArray
   -- , atomicModifyFetchOldUMArray
   -- , atomicModifyUMArray
   -- , atomicModifyUMArray_
   -- , atomicModifyUMArray2
-  -- *
-  , shrinkUMArray
-  , resizeUMArray
-  , thawUArray
-  , thawCloneSliceUArray
-  , freezeUMArray
-  , freezeCloneSliceUMArray
-  , copyUArray
-  , moveUMArray
-  , cloneUArray
-  , cloneUMArray
+
+  shrinkUMArray,
+  resizeUMArray,
+  thawUArray,
+  thawCloneSliceUArray,
+  freezeUMArray,
+  freezeCloneSliceUMArray,
+  copyUArray,
+  moveUMArray,
+  cloneUArray,
+  cloneUMArray,
+
   -- * PUArray
-  , toPUArray
-  , fromPUArray
-  , toPUMArray
-  , fromPUMArray
+  toPUArray,
+  fromPUArray,
+  toPUMArray,
+  fromPUMArray,
+
   -- * List
-  , fromListUArray
-  , fromListUArrayN
-  , toListUArray
+  fromListUArray,
+  fromListUArrayN,
+  toListUArray,
+
   -- * Helpers
-  , foldrUArray
-  , traverseUArray
-  ) where
+  foldrUArray,
+  traverseUArray,
+) where
 
 import Control.Prim.Monad
 import Data.Bits
 import Data.Prim
+import Data.Prim.Array
 import qualified Data.Prim.MArray.Internal as I
-import Data.Prim.Memory.PUArray
-import Data.Prim.Memory.Bytes
 import Data.Prim.MRef.Atomic
 import Data.Prim.MRef.Internal
-import Data.Prim.Array
-
-
-
-
-
+import Data.Prim.Memory.Bytes
+import Data.Prim.Memory.PUArray
 
 instance Prim e => MRef (UMArray e) where
   type Elt (UMArray e) = e
@@ -88,7 +92,6 @@ instance Prim e => MRef (UMArray e) where
   {-# INLINE readMRef #-}
   writeMRef uma = writeUMArray uma 0
   {-# INLINE writeMRef #-}
-
 
 instance Atomic e => AtomicMRef (UMArray e) where
   atomicReadMRef mba = atomicReadMBytes (fromUMArrayMBytes mba) (0 :: Off e)
@@ -100,7 +103,6 @@ instance Atomic e => AtomicMRef (UMArray e) where
   atomicModifyMRef mba = atomicModifyMBytes (fromUMArrayMBytes mba) (0 :: Off e)
   {-# INLINE atomicModifyMRef #-}
 
-
 instance (Num e, AtomicCount e) => AtomicCountMRef (UMArray e) where
   atomicAddFetchOldMRef mba = atomicAddFetchOldMBytes (fromUMArrayMBytes mba) (0 :: Off e)
   {-# INLINE atomicAddFetchOldMRef #-}
@@ -110,7 +112,6 @@ instance (Num e, AtomicCount e) => AtomicCountMRef (UMArray e) where
   {-# INLINE atomicSubFetchOldMRef #-}
   atomicSubFetchNewMRef mba = atomicSubFetchNewMBytes (fromUMArrayMBytes mba) (0 :: Off e)
   {-# INLINE atomicSubFetchNewMRef #-}
-
 
 instance (Bits e, AtomicBits e) => AtomicBitsMRef (UMArray e) where
   atomicAndFetchOldMRef mba = atomicAndFetchOldMBytes (fromUMArrayMBytes mba) (0 :: Off e)
@@ -133,7 +134,6 @@ instance (Bits e, AtomicBits e) => AtomicBitsMRef (UMArray e) where
   {-# INLINE atomicNotFetchOldMRef #-}
   atomicNotFetchNewMRef mba = atomicNotFetchNewMBytes (fromUMArrayMBytes mba) (0 :: Off e)
   {-# INLINE atomicNotFetchNewMRef #-}
-
 
 instance Prim e => I.MArray (UMArray e) where
   type Array (UMArray e) = UArray e
@@ -164,7 +164,6 @@ instance Prim e => I.MArray (UMArray e) where
   resizeMArray = resizeUMArray
   {-# INLINE resizeMArray #-}
 
-
 -- | /O(1)/ - Cast an unboxed array into a `PUArray`
 --
 -- @since 0.1.0
@@ -178,7 +177,6 @@ toPUArray (UArray a#) = PUArray (fromByteArray# a#)
 fromPUArray :: PUArray p e -> UArray e
 fromPUArray (PUArray ba) = UArray (toByteArray# ba)
 {-# INLINE fromPUArray #-}
-
 
 -- | /O(1)/ - Cast a mutable unboxed array into a `PUMArray`
 --
@@ -194,10 +192,6 @@ fromPUMArray :: PUMArray p e s -> UMArray e s
 fromPUMArray (PUMArray mb) = UMArray (toMutableByteArray# mb)
 {-# INLINE fromPUMArray #-}
 
-
-
-
-
 thawCloneSliceUArray :: (Prim e, Primal s m) => UArray e -> Int -> Size -> m (UMArray e s)
 thawCloneSliceUArray = I.thawCloneSliceArray
 {-# INLINE thawCloneSliceUArray #-}
@@ -206,8 +200,8 @@ freezeCloneSliceUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size ->
 freezeCloneSliceUMArray = I.freezeCloneSliceMArray
 {-# INLINE freezeCloneSliceUMArray #-}
 
-
 -- | Make an exact copy of a subsection of a pure immutable array.
+
 ---
 -- [Unsafe offset] Offset cannot be negative or larger than the size of an array,
 -- otherwise it can result in an unchecked exception
@@ -240,7 +234,6 @@ cloneUArray = I.cloneArray
 cloneUMArray :: (Prim e, Primal s m) => UMArray e s -> Int -> Size -> m (UMArray e s)
 cloneUMArray = I.cloneMArray
 {-# INLINE cloneUMArray #-}
-
 
 -- | Strict right fold
 foldrUArray :: Prim e => (e -> b -> b) -> b -> UArray e -> b

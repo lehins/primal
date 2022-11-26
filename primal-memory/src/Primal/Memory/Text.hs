@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Memory.Text
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -9,27 +10,26 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Memory.Text
-  ( Text(..)
-  , MText(..)
-  , toIncMText
-  , ensurePinnedText
-  , ensurePinnedMText
-  , Array(..)
-  , MArray(..)
-  , fromTextArrayBytes
-  , toTextArrayBytes
-  , fromTextMArrayMBytes
-  , toTextMArrayMBytes
-  ) where
+module Primal.Memory.Text (
+  Text (..),
+  MText (..),
+  toIncMText,
+  ensurePinnedText,
+  ensurePinnedMText,
+  Array (..),
+  MArray (..),
+  fromTextArrayBytes,
+  toTextArrayBytes,
+  fromTextMArrayMBytes,
+  toTextMArrayMBytes,
+) where
 
-import Primal.Monad
 import Data.Text.Array
 import Data.Text.Internal as T
-import Primal.Mutable.Freeze
 import Primal.Element.Unbox
 import Primal.Memory.Internal
+import Primal.Monad
+import Primal.Mutable.Freeze
 
 -- | This is a text code unit size. Depending on the version of text library it
 -- can either be `Word16` or `Word8`. Prior to @text-2.0@ the library was using
@@ -42,12 +42,11 @@ type TCUSize = Word16
 #endif
 
 -- | Mutable version of a `Text`
-data MText (p :: Pinned) s =
-  MText
-    {-# UNPACK #-}!(MBytes p s)   -- payload (TCUSize elements)
-    {-# UNPACK #-}!(Off TCUSize)   -- offset (units of TCUSize, not Char)
-    {-# UNPACK #-}!(Count TCUSize) -- length (units of TCUSize, not Char)
-
+data MText (p :: Pinned) s
+  = MText
+      {-# UNPACK #-} !(MBytes p s) -- payload (TCUSize elements)
+      {-# UNPACK #-} !(Off TCUSize) -- offset (units of TCUSize, not Char)
+      {-# UNPACK #-} !(Count TCUSize) -- length (units of TCUSize, not Char)
 
 type instance Frozen (MText 'Inc) = Text
 
@@ -112,7 +111,8 @@ instance MemFreeze (MText 'Inc) where
         ma' <- allocMutMemST c'
         moveByteOffMutMemST ma (toByteOff o) ma' 0 k
         pure $ MText ma' 0 k'
-     where k' = toTCUSizeCount c'
+    where
+      k' = toTCUSizeCount c'
   {-# INLINE reallocMutMemST #-}
 
 toTCUSizeCount :: Unbox e => Count e -> Count TCUSize

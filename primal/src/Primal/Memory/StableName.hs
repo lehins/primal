@@ -3,6 +3,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Module      : Primal.Memory.StableName
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -10,17 +11,16 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Memory.StableName
-  ( StableName(..)
-  , makeStableName
-  , makeAnyStableName
-  , hashStableName
-  , eqStableName
-  ) where
+module Primal.Memory.StableName (
+  StableName (..),
+  makeStableName,
+  makeAnyStableName,
+  hashStableName,
+  eqStableName,
+) where
 
-import Primal.Monad
 import GHC.Exts
+import Primal.Monad
 #if MIN_VERSION_base(4,12,0)
 import GHC.StableName (StableName(..), eqStableName, hashStableName)
 
@@ -84,5 +84,3 @@ makeAnyStableName a =
   primal $ \s ->
     case makeStableName# a s of
       (# s', sn# #) -> (# s', StableName (unsafeCoerce# sn#) #)
-
-

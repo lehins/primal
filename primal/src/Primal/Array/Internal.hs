@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Array.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2020-2021
@@ -12,37 +13,37 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Array.Internal
-  ( Size(..)
-    -- * Helper functions
-  , uninitialized
-  , makeMutWith
-  , fromListMutWith
-  , foldrWithFB
-  , eqWith
-  , eqWithST
-  , compareWith
-  , compareWithST
-  , appendWith
-  , concatWith
-  , cycleWith
-  , liftEqWith
-  , liftCompareWith
-  , liftShowsPrecArray
-  , module Data.Semigroup
-  ) where
+module Primal.Array.Internal (
+  Size (..),
 
-import Primal.Monad
-import Primal.Exception
+  -- * Helper functions
+  uninitialized,
+  makeMutWith,
+  fromListMutWith,
+  foldrWithFB,
+  eqWith,
+  eqWithST,
+  compareWith,
+  compareWithST,
+  appendWith,
+  concatWith,
+  cycleWith,
+  liftEqWith,
+  liftCompareWith,
+  liftShowsPrecArray,
+  module Data.Semigroup,
+) where
+
 import qualified Data.Foldable as F
-import Primal.Element.Unbox
 import Data.Semigroup
+import Primal.Element.Unbox
+import Primal.Exception
+import Primal.Monad
 
 -- | Number of elements contained in the data structure
 --
 -- @since 0.3.0
-newtype Size = Size { unSize :: Int }
+newtype Size = Size {unSize :: Int}
   deriving (Show, Eq, Ord, Num, Real, Integral, Bounded, Enum)
 
 instance Unbox Size where
@@ -53,42 +54,51 @@ instance Unbox Size where
 -- ======= --
 
 -- | Default "raw" element for boxed arrays.
-uninitialized ::
-     HasCallStack
-  => String -- ^ Module name
-  -> String -- ^ Function name
+uninitialized
+  :: HasCallStack
+  => String
+  -- ^ Module name
+  -> String
+  -- ^ Function name
   -> a
 uninitialized mname fname = raiseImprecise $ UndefinedElement $ mname ++ "." ++ fname
 {-# NOINLINE uninitialized #-}
 
 -- | Convert a list to a mutable array
-fromListMutWith ::
-     Monad m
-  => (Size -> m b) -- ^ Function for array creation
-  -> (b -> Int -> a -> m ()) -- ^ Function for writing elements
-  -> Size -- ^ Size for the created array
-  -> [a] -- ^ Function for generating elements from array index
+fromListMutWith
+  :: Monad m
+  => (Size -> m b)
+  -- ^ Function for array creation
+  -> (b -> Int -> a -> m ())
+  -- ^ Function for writing elements
+  -> Size
+  -- ^ Size for the created array
+  -> [a]
+  -- ^ Function for generating elements from array index
   -> m b
 fromListMutWith new write sz@(Size n) ls = do
   ma <- new sz
   let go i =
         \case
-          x:xs
+          x : xs
             | i < n -> write ma i x >> go (i + 1) xs
           _ -> pure ()
   ma <$ go 0 ls
 {-# INLINE fromListMutWith #-}
 
-
 -- | Helper for generating mutable arrays
 --
 -- @since 0.3.0
-makeMutWith ::
-     Monad m
-  => (Size -> m b) -- ^ Function for array creation
-  -> (b -> Int -> a -> m ()) -- ^ Function for writing elements
-  -> Size -- ^ Size for the created array
-  -> (Int -> m a) -- ^ Function for generating elements from array index
+makeMutWith
+  :: Monad m
+  => (Size -> m b)
+  -- ^ Function for array creation
+  -> (b -> Int -> a -> m ())
+  -- ^ Function for writing elements
+  -> Size
+  -- ^ Size for the created array
+  -> (Int -> m a)
+  -- ^ Function for generating elements from array index
   -> m b
 makeMutWith new write sz@(Size n) f = do
   ma <- new sz
@@ -96,17 +106,21 @@ makeMutWith new write sz@(Size n) f = do
   ma <$ go 0
 {-# INLINE makeMutWith #-}
 
-
 -- | Right fold that is strict on the element. The key feature of this function is that it
 --  can be used to convert an array to a list by integrating with list fusion using `build`.
 --
 -- @since 0.3.0
-foldrWithFB ::
-     (a e -> Size) -- ^ Function that produces the size of an array
-  -> (a e -> Int -> e) -- ^ Indexing function
-  -> (e -> b -> b) -- ^ Folding functions
-  -> b -- ^ Initial accumulator
-  -> a e -- ^ Array to fold over
+foldrWithFB
+  :: (a e -> Size)
+  -- ^ Function that produces the size of an array
+  -> (a e -> Int -> e)
+  -- ^ Indexing function
+  -> (e -> b -> b)
+  -- ^ Folding functions
+  -> b
+  -- ^ Initial accumulator
+  -> a e
+  -- ^ Array to fold over
   -> b
 foldrWithFB size index c nil a = go 0
   where
@@ -114,20 +128,25 @@ foldrWithFB size index c nil a = go 0
     go i
       | i >= k = nil
       | otherwise =
-        let v = index a i
-         in v `seq` (v `c` go (i + 1))
-{-# INLINE[0] foldrWithFB #-}
+          let v = index a i
+           in v `seq` (v `c` go (i + 1))
+{-# INLINE [0] foldrWithFB #-}
 
 -- | Check for equality of two arrays
 --
 -- @since 0.3.0
-eqWith ::
-     Eq e
-  => (a e -> a e -> Bool) -- ^ Pointer equality
-  -> (a e -> Size) -- ^ Get the size of array
-  -> (a e -> Int -> e) -- ^ Index an element of an array
-  -> a e -- ^ First array
-  -> a e -- ^ Second array
+eqWith
+  :: Eq e
+  => (a e -> a e -> Bool)
+  -- ^ Pointer equality
+  -> (a e -> Size)
+  -- ^ Get the size of array
+  -> (a e -> Int -> e)
+  -- ^ Index an element of an array
+  -> a e
+  -- ^ First array
+  -> a e
+  -- ^ Second array
   -> Bool
 eqWith isSame sizeOf index a1 a2 = isSame a1 a2 || (sz1 == sizeOf a2 && loop 0)
   where
@@ -140,41 +159,51 @@ eqWith isSame sizeOf index a1 a2 = isSame a1 a2 || (sz1 == sizeOf a2 && loop 0)
 -- | Check for equality of two mutable arrays
 --
 -- @since 0.3.0
-eqWithST ::
-     Eq e
-  => (a e s -> a e s -> Bool) -- ^ Pointer equality
-  -> (a e s -> ST s Size) -- ^ Get the size of array
-  -> (a e s -> Int -> ST s e) -- ^ Read an element from the mutable array
-  -> a e s -- ^ First array
-  -> a e s -- ^ Second array
+eqWithST
+  :: Eq e
+  => (a e s -> a e s -> Bool)
+  -- ^ Pointer equality
+  -> (a e s -> ST s Size)
+  -- ^ Get the size of array
+  -> (a e s -> Int -> ST s e)
+  -- ^ Read an element from the mutable array
+  -> a e s
+  -- ^ First array
+  -> a e s
+  -- ^ Second array
   -> ST s Bool
 eqWithST isSameMut getSizeOfMut readMut ma1 ma2
   | isSameMut ma1 ma2 = pure True
   | otherwise = do
-    sz1@(Size n) <- getSizeOfMut ma1
-    sz2 <- getSizeOfMut ma2
-    let loop i
-          | i < n = do
-            eltEq <- (==) <$> readMut ma1 i <*> readMut ma2 i
-            if eltEq
-              then loop (i + 1)
-              else pure False
-          | otherwise = pure True
-    if sz1 /= sz2
-      then pure False
-      else loop 0
+      sz1@(Size n) <- getSizeOfMut ma1
+      sz2 <- getSizeOfMut ma2
+      let loop i
+            | i < n = do
+                eltEq <- (==) <$> readMut ma1 i <*> readMut ma2 i
+                if eltEq
+                  then loop (i + 1)
+                  else pure False
+            | otherwise = pure True
+      if sz1 /= sz2
+        then pure False
+        else loop 0
 {-# INLINE eqWithST #-}
 
 -- | Compare two mutable arrays using supplied functions
 --
 -- @since 1.0.0
-compareWithST ::
-     Ord e
-  => (a e s -> a e s -> Bool) -- ^ Pointer equality
-  -> (a e s -> ST s Size) -- ^ Get the size of array
-  -> (a e s -> Int -> ST s e) -- ^ Read an element from the mutable array
-  -> a e s -- ^ First array
-  -> a e s -- ^ Second array
+compareWithST
+  :: Ord e
+  => (a e s -> a e s -> Bool)
+  -- ^ Pointer equality
+  -> (a e s -> ST s Size)
+  -- ^ Get the size of array
+  -> (a e s -> Int -> ST s e)
+  -- ^ Read an element from the mutable array
+  -> a e s
+  -- ^ First array
+  -> a e s
+  -- ^ Second array
   -> ST s Ordering
 compareWithST isSameMut getSizeOfMut readMut ma1 ma2
   | isSameMut ma1 ma2 = pure EQ
@@ -183,11 +212,11 @@ compareWithST isSameMut getSizeOfMut readMut ma1 ma2
       sz2 <- getSizeOfMut ma2
       let loop i
             | i < n = do
-              x1 <- readMut ma1 i
-              x2 <- readMut ma2 i
-              case compare x1 x2 of
-                EQ -> loop (i + 1)
-                c  -> pure c
+                x1 <- readMut ma1 i
+                x2 <- readMut ma2 i
+                case compare x1 x2 of
+                  EQ -> loop (i + 1)
+                  c -> pure c
             | otherwise = pure $ compare sz1 sz2
       loop 0
 {-# INLINE compareWithST #-}
@@ -195,13 +224,18 @@ compareWithST isSameMut getSizeOfMut readMut ma1 ma2
 -- | Compare two arrays using supplied functions
 --
 -- @since 0.3.0
-compareWith ::
-     Ord e
-  => (a e -> a e -> Bool) -- ^ Pointer equality
-  -> (a e -> Size) -- ^ Get the size of array
-  -> (a e -> Int -> e) -- ^ Index an element of an array
-  -> a e -- ^ First array
-  -> a e -- ^ Second array
+compareWith
+  :: Ord e
+  => (a e -> a e -> Bool)
+  -- ^ Pointer equality
+  -> (a e -> Size)
+  -- ^ Get the size of array
+  -> (a e -> Int -> e)
+  -- ^ Index an element of an array
+  -> a e
+  -- ^ First array
+  -> a e
+  -- ^ Second array
   -> Ordering
 compareWith isSame sizeOf index a1 a2
   | isSame a1 a2 = EQ
@@ -215,16 +249,19 @@ compareWith isSame sizeOf index a1 a2
       | otherwise = compare sz1 sz2
 {-# INLINE compareWith #-}
 
-
 -- | Compare two arrays using supplied functions
 --
 -- @since 1.0.0
-liftCompareWith ::
-     (forall e. a e -> Size) -- ^ Get the size of array
-  -> (forall e. a e -> Int -> e) -- ^ Index an element of an array
+liftCompareWith
+  :: (forall e. a e -> Size)
+  -- ^ Get the size of array
+  -> (forall e. a e -> Int -> e)
+  -- ^ Index an element of an array
   -> (b -> c -> Ordering)
-  -> a b -- ^ First array
-  -> a c -- ^ Second array
+  -> a b
+  -- ^ First array
+  -> a c
+  -- ^ Second array
   -> Ordering
 liftCompareWith sizeOf index comp a1 a2 = loop 0
   where
@@ -234,16 +271,19 @@ liftCompareWith sizeOf index comp a1 a2 = loop 0
       | otherwise = compare (sizeOf a1) (sizeOf a2)
 {-# INLINE liftCompareWith #-}
 
-
 -- | Check for equality of two arrays
 --
 -- @since 1.0.0
-liftEqWith ::
-     (forall e. a e -> Size) -- ^ Get the size of array
-  -> (forall e. a e -> Int -> e) -- ^ Index an element of an array
+liftEqWith
+  :: (forall e. a e -> Size)
+  -- ^ Get the size of array
+  -> (forall e. a e -> Int -> e)
+  -- ^ Index an element of an array
   -> (b -> c -> Bool)
-  -> a b -- ^ First array
-  -> a c -- ^ Second array
+  -> a b
+  -- ^ First array
+  -> a c
+  -- ^ Second array
   -> Bool
 liftEqWith sizeOf index eq a1 a2 = sz1 == sizeOf a2 && loop 0
   where
@@ -263,12 +303,11 @@ liftShowsPrecArray tyName listShows n arr
   where
     inner = (tyName ++) . (' ' :) . listShows (F.toList arr)
 
-
 -- | Append two arrays together using supplied functions
 --
 -- @since 0.3.0
-appendWith ::
-     (forall s. Size -> ST s (ma e s))
+appendWith
+  :: (forall s. Size -> ST s (ma e s))
   -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
   -> (forall s. ma e s -> ST s (a e))
   -> (a e -> Size)
@@ -285,12 +324,11 @@ appendWith newRaw copy freeze sizeOf a1 a2 =
     freeze ma
 {-# INLINE appendWith #-}
 
-
 -- | Concat many arrays together using supplied functions
 --
 -- @since 0.3.0
-concatWith ::
-     (forall s. Size -> ST s (ma e s))
+concatWith
+  :: (forall s. Size -> ST s (ma e s))
   -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
   -> (forall s. ma e s -> ST s (a e))
   -> (a e -> Size)
@@ -306,12 +344,11 @@ concatWith newRaw copy freeze sizeOf xs =
     freeze ma
 {-# INLINE concatWith #-}
 
-
 -- | Repeat an array N times and concat them together using supplied functions
 --
 -- @since 1.0.0
-cycleWith ::
-     Monoid (a e)
+cycleWith
+  :: Monoid (a e)
   => (forall s. Size -> ST s (ma e s))
   -> (forall s. a e -> Int -> ma e s -> Int -> Size -> ST s ())
   -> (forall s. ma e s -> ST s (a e))
@@ -322,10 +359,10 @@ cycleWith ::
 cycleWith newRaw copy freeze sizeOf k a
   | k <= 0 = mempty
   | otherwise =
-    runST $ do
-      let sz@(Size n) = sizeOf a
-      ma <- newRaw (Size k * sz)
-      let load i = when (i < k) $ copy a 0 ma (i * n) sz >> load (i + 1)
-      load 0
-      freeze ma
+      runST $ do
+        let sz@(Size n) = sizeOf a
+        ma <- newRaw (Size k * sz)
+        let load i = when (i < k) $ copy a 0 ma (i * n) sz >> load (i + 1)
+        load 0
+        freeze ma
 {-# INLINE cycleWith #-}

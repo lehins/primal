@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Array.Boxed.Unlifted
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -13,61 +14,63 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Array.Boxed.Unlifted
-  ( Size(..)
-    -- * Unlifted Array
-    -- ** Immutable
-  , UBArray(..)
-  , sizeOfUBArray
-  , indexUBArray
-  , cloneSliceUBArray
-  , copyUBArray
-  , thawUBArray
-  , thawCloneSliceUBArray
-  , toListUBArray
-  , fromListUBArray
-  , fromListUBArrayN
-  -- ** Mutable
-  , UBMArray(..)
-  , isSameUBMArray
-  , getSizeOfUBMArray
-  , readUBMArray
-  , writeUBMArray
-  , newUBMArray
-  , newRawUBMArray
-  , makeUBMArray
-  , fromListUBMArray
-  , fromListUBMArrayN
+module Primal.Array.Boxed.Unlifted (
+  Size (..),
 
-  , moveUBMArray
-  , cloneSliceUBMArray
-  , setUBMArray -- TODO implement using recursive copy region logic.
-  , shrinkUBMArray
-  , resizeUBMArray
-  , freezeUBMArray
-  , freezeCloneSliceUBMArray
+  -- * Unlifted Array
+
+  -- ** Immutable
+  UBArray (..),
+  sizeOfUBArray,
+  indexUBArray,
+  cloneSliceUBArray,
+  copyUBArray,
+  thawUBArray,
+  thawCloneSliceUBArray,
+  toListUBArray,
+  fromListUBArray,
+  fromListUBArrayN,
+
+  -- ** Mutable
+  UBMArray (..),
+  isSameUBMArray,
+  getSizeOfUBMArray,
+  readUBMArray,
+  writeUBMArray,
+  newUBMArray,
+  newRawUBMArray,
+  makeUBMArray,
+  fromListUBMArray,
+  fromListUBMArrayN,
+  moveUBMArray,
+  cloneSliceUBMArray,
+  setUBMArray, -- TODO implement using recursive copy region logic.
+  shrinkUBMArray,
+  resizeUBMArray,
+  freezeUBMArray,
+  freezeCloneSliceUBMArray,
+
   -- *** Mutable content
-  , readMutUBMArray
-  , writeMutUBMArray
-  , makeMutUBMArray
+  readMutUBMArray,
+  writeMutUBMArray,
+  makeMutUBMArray,
+
   -- * Re-export
-  , Primal
-  , Unlift
-  , MutUnlift
-  ) where
+  Primal,
+  Unlift,
+  MutUnlift,
+) where
 
 import qualified Data.List.NonEmpty as NE (toList)
 import Primal.Array.Internal
+import Primal.Element.Unlift
 import Primal.Eval
 import Primal.Foreign
 import Primal.Monad
-import Primal.Element.Unlift
 
 --------------------------
 -- Unlifted Boxed Array --
 -- ==================== --
-
 
 -- Immutable Unlifted Boxed Array --
 ------------------------------------
@@ -95,7 +98,6 @@ instance (Unlift e, NFData e) => NFData (UBArray e) where
   rnf = foldrWithFB sizeOfUBArray indexUBArray deepseq ()
   {-# INLINE rnf #-}
 
-
 instance (Unlift e, Eq e) => Eq (UBArray e) where
   (==) = eqWith isSameUBArray sizeOfUBArray indexUBArray
   {-# INLINE (==) #-}
@@ -103,7 +105,6 @@ instance (Unlift e, Eq e) => Eq (UBArray e) where
 instance (Unlift e, Ord e) => Ord (UBArray e) where
   compare = compareWith isSameUBArray sizeOfUBArray indexUBArray
   {-# INLINE compare #-}
-
 
 instance Unlift e => Semigroup (UBArray e) where
   (<>) = appendWith newRawUBMArray copyUBArray freezeUBMArray sizeOfUBArray
@@ -121,7 +122,6 @@ instance Unlift e => Monoid (UBArray e) where
   mconcat = concatWith newRawUBMArray copyUBArray freezeUBMArray sizeOfUBArray
   {-# INLINE mconcat #-}
 
-
 instance Unlift (UBArray e) where
   type UnliftIso (UBArray e) = UBArray e
 
@@ -129,25 +129,24 @@ instance Unlift (UBArray e) where
   {-# INLINE indexArrayArray# #-}
 
   readMutableArrayArray# maa# i# s = case readArrayArrayArray# maa# i# s of
-                                      (# s', ba# #) -> (# s', UBArray ba# #)
+    (# s', ba# #) -> (# s', UBArray ba# #)
   {-# INLINE readMutableArrayArray# #-}
 
   writeMutableArrayArray# maa# i# (UBArray aa#) = writeArrayArrayArray# maa# i# aa#
   {-# INLINE writeMutableArrayArray# #-}
-
 
 -- | /O(1)/ - Get the size of an immutable array in number of elements.
 --
 -- Documentation for utilized primop: `sizeofArrayArray#`.
 --
 -- @since 1.0.0
-sizeOfUBArray ::
-     forall e. Unlift e
+sizeOfUBArray
+  :: forall e
+   . Unlift e
   => UBArray e
   -> Size
 sizeOfUBArray (UBArray a#) = Size (I# (sizeofArrayArray# a#))
 {-# INLINE sizeOfUBArray #-}
-
 
 -- | Compare pointers for two immutable arrays and see if they refer to the
 -- exact same one. Note, that this function can give false negatives.
@@ -184,8 +183,9 @@ isSameUBArray a1 a2 =
 -- UArray [1.4142135623730951]
 --
 -- @since 1.0.0
-indexUBArray ::
-     forall e. Unlift e
+indexUBArray
+  :: forall e
+   . Unlift e
   => UBArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
@@ -199,7 +199,6 @@ indexUBArray ::
   -> e
 indexUBArray (UBArray aa#) (I# i#) = indexArrayArray# aa# i#
 {-# INLINE indexUBArray #-}
-
 
 -- | /O(sz)/ - Make an exact copy of a subsection of a pure immutable array.
 --
@@ -215,8 +214,9 @@ indexUBArray (UBArray aa#) (I# i#) = indexArrayArray# aa# i#
 -- UBArray [UArray "abcdefghijklmnopqrstuvwxyz",UArray "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 --
 -- @since 1.0.0
-cloneSliceUBArray ::
-     forall e. Unlift e
+cloneSliceUBArray
+  :: forall e
+   . Unlift e
   => UBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -252,8 +252,9 @@ cloneSliceUBArray arr off sz = runST $ thawCloneSliceUBArray arr off sz >>= free
 -- failure with a segfault.
 --
 -- @since 1.0.0
-copyUBArray ::
-     forall e m s. (Unlift e, Primal s m)
+copyUBArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => UBArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -269,7 +270,8 @@ copyUBArray ::
   -- > 0 <= srcStartIx
   --
   -- > srcStartIx < unSize (sizeOfUBArray srcArray)
-  -> UBMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> UBMArray e s
+  -- ^ /dstMutArray/ - Destination mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the destination mutable array where the copy should start
   -- at
@@ -295,7 +297,6 @@ copyUBArray ::
 copyUBArray (UBArray src#) (I# srcOff#) (UBMArray dst#) (I# dstOff#) (Size (I# n#)) =
   primal_ (copyArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copyUBArray #-}
-
 
 -- | /O(1)/ - Convert a pure immutable array into a mutable array. Use `freezeUBMArray`
 -- in order to go in the opposite direction.
@@ -341,7 +342,6 @@ thawUBArray (UBArray a#) =
       (# s', ma# #) -> (# s', UBMArray (unsafeCoerce# ma#) #)
 {-# INLINE thawUBArray #-}
 
-
 -- | /O(sz)/ - Create a new mutable array with size @sz@ and copy that number of elements
 -- from source immutable @srcArray@ starting at an offset @startIx@ into the newly created
 -- @dstMutArray@. This function can help avoid an issue with referential transparency that
@@ -363,8 +363,9 @@ thawUBArray (UBArray a#) =
 -- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [0,1,2,3,4]]
 --
 -- @since 1.0.0
-thawCloneSliceUBArray ::
-     forall e m s. (Unlift e, Primal s m)
+thawCloneSliceUBArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => UBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -392,17 +393,16 @@ thawCloneSliceUBArray arr off sz =
   newRawUBMArray sz >>= \marr -> marr <$ copyUBArray arr off marr 0 sz
 {-# INLINE thawCloneSliceUBArray #-}
 
-
-
 -- | /O(n)/ - Convert a pure boxed array into a list. It should work fine with GHC built-in list
 -- fusion.
 --
 -- @since 0.1.0
-toListUBArray ::
-     forall e. Unlift e
+toListUBArray
+  :: forall e
+   . Unlift e
   => UBArray e
   -> [e]
-toListUBArray ba = build (\ c n -> foldrWithFB sizeOfUBArray indexUBArray c n ba)
+toListUBArray ba = build (\c n -> foldrWithFB sizeOfUBArray indexUBArray c n ba)
 {-# INLINE toListUBArray #-}
 
 -- | /O(min(length list, sz))/ - Same as `fromListUBArray`, except it will allocate an
@@ -422,14 +422,16 @@ toListUBArray ba = build (\ c n -> foldrWithFB sizeOfUBArray indexUBArray c n ba
 -- UBArray [UArray "Hello"]
 --
 -- @since 0.1.0
-fromListUBArrayN ::
-     forall e. Unlift e
-  => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to bew loaded into the array
+fromListUBArrayN
+  :: forall e
+   . Unlift e
+  => Size
+  -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e]
+  -- ^ /list/ - A list to bew loaded into the array
   -> UBArray e
 fromListUBArrayN sz xs = runST $ fromListUBMArrayN sz xs >>= freezeUBMArray
 {-# INLINE fromListUBArrayN #-}
-
 
 -- | /O(length list)/ - Convert a list of unliftable elements into an immutable boxed
 -- array. It is more efficient to use `fromListUBArrayN` when the number of elements is
@@ -444,8 +446,9 @@ fromListUBArrayN sz xs = runST $ fromListUBMArrayN sz xs >>= freezeUBMArray
 -- UBArray [UArray "Hello",UArray "Haskell"]
 --
 -- @since 1.0.0
-fromListUBArray ::
-     forall e. Unlift e
+fromListUBArray
+  :: forall e
+   . Unlift e
   => [e]
   -> UBArray e
 fromListUBArray xs = fromListUBArrayN (coerce (length xs)) xs
@@ -483,13 +486,11 @@ instance MutUnlift (UBMArray e) where
   type MutUnliftIso (UBMArray e) = UBMArray e
 
   readMutMutableArrayArray# maa# i# s = case readMutableArrayArrayArray# maa# i# s of
-                                          (# s', nmaa# #) -> (# s', UBMArray nmaa# #)
+    (# s', nmaa# #) -> (# s', UBMArray nmaa# #)
   {-# INLINE readMutMutableArrayArray# #-}
 
   writeMutMutableArrayArray# maa# i# (UBMArray nmaa#) = writeMutableArrayArrayArray# maa# i# nmaa#
   {-# INLINE writeMutMutableArrayArray# #-}
-
-
 
 -- | /O(1)/ - Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
@@ -512,16 +513,15 @@ isSameUBMArray (UBMArray ma1#) (UBMArray ma2#) = isTrue# (sameMutableArrayArray#
 -- Size {unSize = 2}
 --
 -- @since 1.0.0
-getSizeOfUBMArray ::
-     forall e m s. Primal s m
+getSizeOfUBMArray
+  :: forall e m s
+   . Primal s m
   => UBMArray e s
   -> m Size
 getSizeOfUBMArray (UBMArray ma#) =
   primal $ \s -> case getSizeofMutableArrayArray# ma# s of
-                   (# s', n# #) -> (# s', Size (I# n#) #)
+    (# s', n# #) -> (# s', Size (I# n#) #)
 {-# INLINE getSizeOfUBMArray #-}
-
-
 
 -- | /O(1)/ - Read an element from a mutable array at the supplied index.
 --
@@ -535,9 +535,11 @@ getSizeOfUBMArray (UBMArray ma#) =
 -- UArray [0,1,2,3,4]
 --
 -- @since 1.0.0
-readUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
-  => UBMArray e s -- ^ /srcMutArray/ - Array to read an element from
+readUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
+  => UBMArray e s
+  -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
   --
@@ -550,7 +552,6 @@ readUBMArray ::
   -> m e
 readUBMArray (UBMArray maa#) (I# i#) = primal (readMutableArrayArray# maa# i#)
 {-# INLINE readUBMArray #-}
-
 
 -- | /O(1)/ - Write an element into a mutable array at a supplied index.
 --
@@ -567,18 +568,15 @@ readUBMArray (UBMArray maa#) (I# i#) = primal (readMutableArrayArray# maa# i#)
 -- UBArray [UArray [0,1,2],UArray [0,1,2,3],UArray [3,2,1]]
 --
 -- @since 1.0.0
-writeUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+writeUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => UBMArray e s
   -> Int
   -> e
   -> m ()
 writeUBMArray (UBMArray ma#) (I# i#) a = primal_ (writeMutableArrayArray# ma# i# a)
 {-# INLINE writeUBMArray #-}
-
-
-
-
 
 -- | /O(1)/ - Read a mutable element from a mutable array at the supplied index.
 --
@@ -597,9 +595,11 @@ writeUBMArray (UBMArray ma#) (I# i#) a = primal_ (writeMutableArrayArray# ma# i#
 -- 2
 --
 -- @since 1.0.0
-readMutUBMArray ::
-     forall me m s. (MutUnlift me, Primal s m)
-  => UBMArray me s -- ^ /srcMutArray/ - Array to read an element from
+readMutUBMArray
+  :: forall me m s
+   . (MutUnlift me, Primal s m)
+  => UBMArray me s
+  -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index for the element we need within the the @srcMutArray@
   --
@@ -612,7 +612,6 @@ readMutUBMArray ::
   -> m (me s)
 readMutUBMArray (UBMArray maa#) (I# i#) = primal (readMutMutableArrayArray# maa# i#)
 {-# INLINE readMutUBMArray #-}
-
 
 -- | /O(1)/ - Write a mutable element into a mutable array at a supplied index.
 --
@@ -631,8 +630,9 @@ readMutUBMArray (UBMArray maa#) (I# i#) = primal (readMutMutableArrayArray# maa#
 -- 2
 --
 -- @since 1.0.0
-writeMutUBMArray ::
-     forall me m s. (Primal s m, MutUnlift me)
+writeMutUBMArray
+  :: forall me m s
+   . (Primal s m, MutUnlift me)
   => UBMArray me s
   -> Int
   -> me s
@@ -640,9 +640,8 @@ writeMutUBMArray ::
 writeMutUBMArray (UBMArray maa#) (I# i#) a = primal_ (writeMutMutableArrayArray# maa# i# a)
 {-# INLINE writeMutUBMArray #-}
 
-
-
 -- prop> newUBMArray sz a === makeUBMArray sz (const (pure a))
+
 -- | /O(sz)/ - Allocate new mutable unboxed array. Similar to `newRawUBMArray`, except all
 -- elements are initialized to the supplied initial value. This is equivalent to
 -- @makeUBMArray sz (const (pure a))@ but often will be more efficient.
@@ -664,8 +663,9 @@ writeMutUBMArray (UBMArray maa#) (I# i#) a = primal_ (writeMutMutableArrayArray#
 -- UBArray [UArray "Hello World!",UArray "Hi Haskell!",UArray "Hello World!"]
 --
 -- @since 1.0.0
-newUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+newUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -679,8 +679,6 @@ newUBMArray ::
   -> m (UBMArray e s)
 newUBMArray sz e = makeUBMArray sz (pure . const e)
 {-# INLINE newUBMArray #-}
-
-
 
 -- | Create new mutable unboxed array of the supplied size and fill it with a monadic action
 -- that is applied to indices of each array cell.
@@ -696,26 +694,26 @@ newUBMArray sz e = makeUBMArray sz (pure . const e)
 -- UBArray [UArray "",UArray "a",UArray "ab",UArray "abc",UArray "abcd"]
 --
 -- @since 1.0.0
-makeUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+makeUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => Size
   -> (Int -> m e)
   -> m (UBMArray e s)
 makeUBMArray = makeMutWith newRawUBMArray writeUBMArray
 {-# INLINE makeUBMArray #-}
 
-
 -- | Just like `makeUBMArray` but elements are themselves mutable
 --
 -- @since 1.0.0
-makeMutUBMArray ::
-     forall e m s. (MutUnlift e, Primal s m)
+makeMutUBMArray
+  :: forall e m s
+   . (MutUnlift e, Primal s m)
   => Size
   -> (Int -> m (e s))
   -> m (UBMArray e s)
 makeMutUBMArray = makeMutWith newRawUBMArray writeMutUBMArray
 {-# INLINE makeMutUBMArray #-}
-
 
 -- | /O(1)/ - Allocate new mutable array. None of the elements are initialized so
 -- expect a segfault when reading uninitialized array.
@@ -736,8 +734,9 @@ makeMutUBMArray = makeMutWith newRawUBMArray writeMutUBMArray
 -- UBArray ["0123456789","ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"]
 --
 -- @since 1.0.0
-newRawUBMArray ::
-     forall e m s. Primal s m
+newRawUBMArray
+  :: forall e m s
+   . Primal s m
   => Size
   -- ^ /sz/ - Size of the array in number of elements.
   --
@@ -753,8 +752,6 @@ newRawUBMArray (Size (I# n#)) =
     case newArrayArray# n# s of
       (# s', ma# #) -> (# s', UBMArray ma# #)
 {-# INLINE newRawUBMArray #-}
-
-
 
 -- | /O(min(length list, sz))/ - Same as `fromListUBMArray`, except it will allocate an
 -- array exactly of @n@ size, as such it will not convert any portion of the list that
@@ -773,14 +770,16 @@ newRawUBMArray (Size (I# n#)) =
 -- UBArray [UArray "Hello"]
 --
 -- @since 0.1.0
-fromListUBMArrayN ::
-     forall e m s. (Unlift e, Primal s m)
-  => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to bew loaded into the array
+fromListUBMArrayN
+  :: forall e m s
+   . (Unlift e, Primal s m)
+  => Size
+  -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e]
+  -- ^ /list/ - A list to bew loaded into the array
   -> m (UBMArray e s)
 fromListUBMArrayN sz xs = fromListMutWith newRawUBMArray writeUBMArray sz xs
 {-# INLINE fromListUBMArrayN #-}
-
 
 -- | /O(length list)/ - Convert a list of unliftable elements into an mutable boxed
 -- array. It is more efficient to use `fromListUBMArrayN` when the number of elements is
@@ -797,13 +796,13 @@ fromListUBMArrayN sz xs = fromListMutWith newRawUBMArray writeUBMArray sz xs
 -- UBArray [UArray "Hello",UArray "World"]
 --
 -- @since 1.0.0
-fromListUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+fromListUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => [e]
   -> m (UBMArray e s)
 fromListUBMArray xs = fromListUBMArrayN (coerce (length xs)) xs
 {-# INLINE fromListUBMArray #-}
-
 
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copyBArray`, memory ia allowed to overlap between
@@ -816,9 +815,11 @@ fromListUBMArray xs = fromListUBMArrayN (coerce (length xs)) xs
 -- failure with a segfault.
 --
 -- @since 1.0.0
-moveUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
-  => UBMArray e s -- ^ /srcMutArray/ - Source mutable array
+moveUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
+  => UBMArray e s
+  -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
   --
@@ -828,7 +829,8 @@ moveUBMArray ::
   --
   -- > srcSize <- getSizeOfMUBArray srcMutArray
   -- > srcStartIx < unSize srcSize
-  -> UBMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> UBMArray e s
+  -- ^ /dstMutArray/ - Destination mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the destination mutable array where copy should start to
   --
@@ -855,16 +857,17 @@ moveUBMArray (UBMArray src#) (I# srcOff#) (UBMArray dst#) (I# dstOff#) (Size (I#
   primal_ (copyMutableArrayArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveUBMArray #-}
 
-
 -- | /O(n)/ - Write the same element into the @dstMutArray@ mutable array @n@ times starting
 -- at @dstStartIx@ offset.
 --
 -- [Unsafe]
 --
 -- @since 0.3.0
-setUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
-  => UBMArray e s -- ^ /dstMutArray/ - Mutable array
+setUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
+  => UBMArray e s
+  -- ^ /dstMutArray/ - Mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the mutable array
   --
@@ -883,11 +886,11 @@ setUBMArray ::
   --
   -- > dstSize <- getSizeOfMUArray dstMutArray
   -- > dstStartIx + unSize n < unSize dstSize
-  -> e -- ^ /elt/ - Value to overwrite the cells with in the specified block
+  -> e
+  -- ^ /elt/ - Value to overwrite the cells with in the specified block
   -> m ()
 setUBMArray ma o (Size n) e = forM_ [o .. n - 1] $ \i -> writeUBMArray ma i e
 {-# INLINE setUBMArray #-}
-
 
 -- | /O(1)/ - Reduce the size of a mutable array.
 --
@@ -896,9 +899,11 @@ setUBMArray ma o (Size n) e = forM_ [o .. n - 1] $ \i -> writeUBMArray ma i e
 -- [Unsafe] - Violation of preconditions for @sz@ leads to undefined behavior
 --
 -- 0.3.0
-shrinkUBMArray ::
-     forall e m s. (Primal s m, Unlift e)
-  => UBMArray e s -- ^ /mutArray/ - Mutable array to be shrunk
+shrinkUBMArray
+  :: forall e m s
+   . (Primal s m, Unlift e)
+  => UBMArray e s
+  -- ^ /mutArray/ - Mutable array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
   --
@@ -926,9 +931,11 @@ shrinkUBMArray (UBMArray mb#) (Size (I# n#)) = primal_ (shrinkMutableArrayArray#
 -- hence a potential problem for referential transparency.
 --
 -- 0.3.0
-resizeUBMArray ::
-     forall e m s. (Primal s m, Unlift e)
-  => UBMArray e s -- ^ /srcMutArray/ - Mutable unboxed array to be shrunk
+resizeUBMArray
+  :: forall e m s
+   . (Primal s m, Unlift e)
+  => UBMArray e s
+  -- ^ /srcMutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
   --
@@ -938,14 +945,13 @@ resizeUBMArray ::
   --
   -- Should be below some upper limit that is dictated by the operating system and the total
   -- amount of available memory
-  -> m (UBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+  -> m (UBMArray e s)
+  -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
 resizeUBMArray (UBMArray mb#) (Size (I# n#)) =
   primal $ \s ->
     case resizeMutableArrayArray# mb# n# s of
       (# s', mb'# #) -> (# s', UBMArray mb'# #)
 {-# INLINE resizeUBMArray #-}
-
-
 
 -- | /O(1)/ - Convert a mutable unboxed array into an immutable one. Use `thawUBArray` in order
 -- to go in the opposite direction.
@@ -958,15 +964,15 @@ resizeUBMArray (UBMArray mb#) (Size (I# n#)) =
 -- fresh allocation.
 --
 -- @since 1.0.0
-freezeUBMArray ::
-     forall e m s. Primal s m
+freezeUBMArray
+  :: forall e m s
+   . Primal s m
   => UBMArray e s
   -> m (UBArray e)
 freezeUBMArray (UBMArray ma#) = primal $ \s ->
   case unsafeFreezeArrayArray# ma# s of
     (# s', a# #) -> (# s', UBArray a# #)
 {-# INLINE freezeUBMArray #-}
-
 
 -- | /O(sz)/ - Similar to `freezeUBMArray`, except it creates a new array with the copy of a
 -- subsection of a mutable array before converting it into an immutable.
@@ -978,8 +984,9 @@ freezeUBMArray (UBMArray ma#) = primal $ \s ->
 -- failure with a segfault or out of memory exception.
 --
 -- @since 1.0.0
-freezeCloneSliceUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+freezeCloneSliceUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => UBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1017,8 +1024,9 @@ freezeCloneSliceUBMArray marr off sz = cloneSliceUBMArray marr off sz >>= freeze
 -- too large.
 --
 -- @since 1.0.0
-cloneSliceUBMArray ::
-     forall e m s. (Unlift e, Primal s m)
+cloneSliceUBMArray
+  :: forall e m s
+   . (Unlift e, Primal s m)
   => UBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int

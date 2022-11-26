@@ -17,47 +17,50 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Array.Boxed.Small
-  ( Size(..)
-    -- * Small Boxed Array
-    -- ** Immutable
-  , SBArray(..)
-  , isSameSBArray
-  , sizeOfSBArray
-  , indexSBArray
-  , copySBArray
-  , cloneSliceSBArray
-  , thawSBArray
-  , thawCloneSliceSBArray
-  , toListSBArray
-  , fromListSBArray
-  , fromListSBArrayN
-    -- ** Mutable
-  , SBMArray(..)
-  , isSameSBMArray
-  , getSizeOfSBMArray
-  , readSBMArray
-  , writeSBMArray
-  , writeLazySBMArray
-  , writeDeepSBMArray
-  , newSBMArray
-  , newLazySBMArray
-  , newRawSBMArray
-  , makeSBMArray
-  , fromListSBMArray
-  , fromListSBMArrayN
-  , moveSBMArray
-  , cloneSliceSBMArray
-  , shrinkSBMArray
-  , resizeSBMArray
-  , resizeRawSBMArray
-  , freezeSBMArray
-  , freezeCloneSliceSBMArray
-  , casSBMArray
+module Primal.Array.Boxed.Small (
+  Size (..),
+
+  -- * Small Boxed Array
+
+  -- ** Immutable
+  SBArray (..),
+  isSameSBArray,
+  sizeOfSBArray,
+  indexSBArray,
+  copySBArray,
+  cloneSliceSBArray,
+  thawSBArray,
+  thawCloneSliceSBArray,
+  toListSBArray,
+  fromListSBArray,
+  fromListSBArrayN,
+
+  -- ** Mutable
+  SBMArray (..),
+  isSameSBMArray,
+  getSizeOfSBMArray,
+  readSBMArray,
+  writeSBMArray,
+  writeLazySBMArray,
+  writeDeepSBMArray,
+  newSBMArray,
+  newLazySBMArray,
+  newRawSBMArray,
+  makeSBMArray,
+  fromListSBMArray,
+  fromListSBMArrayN,
+  moveSBMArray,
+  cloneSliceSBMArray,
+  shrinkSBMArray,
+  resizeSBMArray,
+  resizeRawSBMArray,
+  freezeSBMArray,
+  freezeCloneSliceSBMArray,
+  casSBMArray,
+
   -- * Re-export
-  , Primal
-  ) where
+  Primal,
+) where
 
 import Data.Functor.Classes
 import qualified Data.List.NonEmpty as NE (toList)
@@ -71,21 +74,20 @@ import Primal.Monad
 -- Small Boxed Array --
 -- ================= --
 
-
 -- Immutable Small Boxed Array --
 ---------------------------------
 
 -- | Small boxed immutable array
 data SBArray e = SBArray (SmallArray# e)
 
-
 -- | @since 0.3.0
 instance Functor SBArray where
   fmap f a =
     runST $
-    makeSBMArray
-      (sizeOfSBArray a)
-      (pure . f . indexSBArray a) >>= freezeSBMArray
+      makeSBMArray
+        (sizeOfSBArray a)
+        (pure . f . indexSBArray a)
+        >>= freezeSBMArray
   {-# INLINE fmap #-}
   (<$) x a = runST $ newLazySBMArray (sizeOfSBArray a) x >>= freezeSBMArray
   {-# INLINE (<$) #-}
@@ -98,13 +100,6 @@ instance Foldable SBArray where
   {-# INLINE length #-}
   foldr = foldrWithFB sizeOfSBArray indexSBArray
   {-# INLINE foldr #-}
-
-instance Show1 SBArray where
-#if MIN_VERSION_transformers(0,5,0)
-  liftShowsPrec _ = liftShowsPrecArray "SBArray"
-#else
-  showsPrec1 = liftShowsPrecArray "SBArray" showList
-#endif
 
 instance Show e => Show (SBArray e) where
   showsPrec = showsPrec1
@@ -126,7 +121,6 @@ instance NFData e => NFData (SBArray e) where
   rnf = foldrWithFB sizeOfSBArray indexSBArray deepseq ()
   {-# INLINE rnf #-}
 
-
 instance Eq e => Eq (SBArray e) where
   (==) = eqWith isSameSBArray sizeOfSBArray indexSBArray
   {-# INLINE (==) #-}
@@ -135,24 +129,30 @@ instance Ord e => Ord (SBArray e) where
   compare = compareWith isSameSBArray sizeOfSBArray indexSBArray
   {-# INLINE compare #-}
 
-instance Eq1 SBArray where
 #if MIN_VERSION_transformers(0,5,0)
+instance Show1 SBArray where
+  liftShowsPrec _ = liftShowsPrecArray "SBArray"
+
+instance Eq1 SBArray where
   liftEq = liftEqWith sizeOfSBArray indexSBArray
   {-# INLINE liftEq #-}
-#else
-  eq1 = liftEqWith sizeOfSBArray indexSBArray (==)
-  {-# INLINE eq1 #-}
-#endif
 
 instance Ord1 SBArray where
-#if MIN_VERSION_transformers(0,5,0)
   liftCompare = liftCompareWith sizeOfSBArray indexSBArray
   {-# INLINE liftCompare #-}
+
 #else
+instance Show1 SBArray where
+  showsPrec1 = liftShowsPrecArray "SBArray" showList
+
+instance Eq1 SBArray where
+  eq1 = liftEqWith sizeOfSBArray indexSBArray (==)
+  {-# INLINE eq1 #-}
+
+instance Ord1 SBArray where
   compare1 = liftCompareWith sizeOfSBArray indexSBArray compare
   {-# INLINE compare1 #-}
 #endif
-
 
 instance Semigroup (SBArray e) where
   (<>) = appendWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray
@@ -169,7 +169,6 @@ instance Monoid (SBArray e) where
   {-# INLINE mappend #-}
   mconcat = concatWith newRawSBMArray copySBArray freezeSBMArray sizeOfSBArray
   {-# INLINE mconcat #-}
-
 
 -- | Compare pointers of two immutable arrays and see if they refer to the
 -- exact same one. Note, that this function can give false negatives.
@@ -196,7 +195,6 @@ sizeOfSBArray :: forall e. SBArray e -> Size
 sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 {-# INLINE sizeOfSBArray #-}
 
-
 -- | /O(1)/ - Index an element in the immutable small boxed array.
 --
 -- Documentation for utilized primop: `indexSmallArray#`.
@@ -214,9 +212,9 @@ sizeOfSBArray (SBArray a#) = Size (I# (sizeofSmallArray# a#))
 -- [0,1,2,3,4,5]
 --
 -- @since 0.3.0
-indexSBArray ::
-     forall e.
-     SBArray e
+indexSBArray
+  :: forall e
+   . SBArray e
   -- ^ /array/ - Array where to lookup an element from
   -> Int
   -- ^ /ix/ - Position of the element within the @array@
@@ -231,8 +229,6 @@ indexSBArray (SBArray a#) (I# i#) =
   case indexSmallArray# a# i# of
     (# x #) -> x
 {-# INLINE indexSBArray #-}
-
-
 
 -- | /O(sz)/ - Make an exact copy of a subsection of a pure immutable array.
 --
@@ -252,9 +248,9 @@ indexSBArray (SBArray a#) (I# i#) =
 -- SBArray "xyz"
 --
 -- @since 0.3.0
-cloneSliceSBArray ::
-     forall e.
-     SBArray e
+cloneSliceSBArray
+  :: forall e
+   . SBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
   -- ^ /startIx/ - Location within @srcArray@ where the copy of elements should start from
@@ -279,8 +275,6 @@ cloneSliceSBArray ::
 cloneSliceSBArray (SBArray a#) (I# i#) (Size (I# n#)) = SBArray (cloneSmallArray# a# i# n#)
 {-# INLINE cloneSliceSBArray #-}
 
-
-
 -- | /O(1)/ - Reduce the size of a mutable small boxed array.
 --
 -- Documentation for utilized primop: `shrinkSmallMutableArray#`.
@@ -288,9 +282,11 @@ cloneSliceSBArray (SBArray a#) (I# i#) (Size (I# n#)) = SBArray (cloneSmallArray
 -- [Unsafe] - Violation of preconditions for @sz@ leads to undefined behavior
 --
 -- 0.3.0
-shrinkSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /mutArray/ - Mutable unboxed array to be shrunk
+shrinkSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /mutArray/ - Mutable unboxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
   --
@@ -305,7 +301,6 @@ shrinkSBMArray (SBMArray ma#) (Size (I# sz#)) =
   primal_ (shrinkSmallMutableArray# ma# sz#)
 {-# INLINE shrinkSBMArray #-}
 
-
 -- | /O(1)/ - Either grow or shrink the size of a mutable unboxed array. Shrinking happens
 -- in-place without new array creation and data copy, while growing the array is
 -- implemented with creating new array and copy of the data over from the source array
@@ -318,9 +313,11 @@ shrinkSBMArray (SBMArray ma#) (Size (I# sz#)) =
 -- [Unsafe] - Same reasons as in `newRawSBMArray`.
 --
 -- 0.3.0
-resizeSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+resizeSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
   --
@@ -332,7 +329,8 @@ resizeSBMArray ::
   -- amount of available memory
   -> e
   -- ^ /elt/ - Element to write into extra space at the end when growing the array.
-  -> m (SBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+  -> m (SBMArray e s)
+  -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
 resizeSBMArray (SBMArray ma#) (Size (I# sz#)) e =
   primal $ \s ->
     case resizeSmallMutableArray# ma# sz# e s of
@@ -349,9 +347,11 @@ resizeSBMArray (SBMArray ma#) (Size (I# sz#)) e =
 -- [Unsafe] - Same reasons as in `newSBMArray`.
 --
 -- 0.3.0
-resizeRawSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
+resizeRawSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /srcMutArray/ - Mutable boxed array to be shrunk
   -> Size
   -- ^ /sz/ - New size for the array in number of elements
   --
@@ -361,10 +361,10 @@ resizeRawSBMArray ::
   --
   -- Should be below some upper limit that is dictated by the operating system and the total
   -- amount of available memory
-  -> m (SBMArray e s) -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
+  -> m (SBMArray e s)
+  -- ^ /dstMutArray/ - produces a resized version of /srcMutArray/.
 resizeRawSBMArray ma sz = resizeSBMArray ma sz (uninitialized "Primal.Array.SmallBoxed" "resizeRawSBMArray")
 {-# INLINE resizeRawSBMArray #-}
-
 
 -- | /O(sz)/ - Copy a subsection of an immutable array into a subsection of a mutable
 -- array. Source and destination arrays must not be the same array in different states.
@@ -376,8 +376,9 @@ resizeRawSBMArray ma sz = resizeSBMArray ma sz (uninitialized "Primal.Array.Smal
 -- likely a failure with a segfault.
 --
 -- @since 0.3.0
-copySBArray ::
-     forall e m s. Primal s m
+copySBArray
+  :: forall e m s
+   . Primal s m
   => SBArray e
   -- ^ /srcArray/ - Source immutable array
   --
@@ -393,7 +394,8 @@ copySBArray ::
   -- > 0 <= srcStartIx
   --
   -- > srcStartIx < unSize (sizeOfSBArray srcArray)
-  -> SBMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> SBMArray e s
+  -- ^ /dstMutArray/ - Destination mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the destination mutable array where the copy should start
   -- at
@@ -419,7 +421,6 @@ copySBArray ::
 copySBArray (SBArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n#)) =
   primal_ (copySmallArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE copySBArray #-}
-
 
 -- | /O(1)/ - Convert a pure immutable boxed array into a mutable boxed array. Use
 -- `freezeSBMArray` in order to go in the opposite direction.
@@ -457,8 +458,9 @@ copySBArray (SBArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n
 -- `Int`s and it is not expected to be mutated ever.
 --
 -- @since 0.3.0
-thawSBArray ::
-     forall e m s. Primal s m
+thawSBArray
+  :: forall e m s
+   . Primal s m
   => SBArray e
   -- ^ /array/ - Source immutable array that will be thawed
   -> m (SBMArray e s)
@@ -466,7 +468,6 @@ thawSBArray (SBArray a#) = primal $ \s ->
   case unsafeThawSmallArray# a# s of
     (# s', ma# #) -> (# s', SBMArray ma# #)
 {-# INLINE thawSBArray #-}
-
 
 -- | /O(sz)/ - Create a new mutable array with size @sz@ and copy that number of elements
 -- from source immutable @srcArray@ starting at an offset @startIx@ into the newly created
@@ -491,8 +492,9 @@ thawSBArray (SBArray a#) = primal $ \s ->
 -- SBArray [1,2,3,4,5]
 --
 -- @since 0.3.0
-thawCloneSliceSBArray ::
-     forall e m s. Primal s m
+thawCloneSliceSBArray
+  :: forall e m s
+   . Primal s m
   => SBArray e
   -- ^ /srcArray/ - Immutable source array
   -> Int
@@ -521,17 +523,13 @@ thawCloneSliceSBArray (SBArray a#) (I# i#) (Size (I# n#)) = primal $ \s ->
     (# s', ma# #) -> (# s', SBMArray ma# #)
 {-# INLINE thawCloneSliceSBArray #-}
 
-
-
 -- | Convert a pure boxed array into a list. It should work fine with GHC built-in list
 -- fusion.
 --
 -- @since 0.1.0
 toListSBArray :: forall e. SBArray e -> [e]
-toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba)
+toListSBArray ba = build (\c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba)
 {-# INLINE toListSBArray #-}
-
-
 
 -- | /O(min(length list, sz))/ - Same as `fromListSBArray`, except that it will allocate
 -- an array exactly of @n@ size, as such it will not convert any portion of the list that
@@ -553,15 +551,17 @@ toListSBArray ba = build (\ c n -> foldrWithFB sizeOfSBArray indexSBArray c n ba
 -- SBArray [1,2,3]
 --
 -- @since 0.1.0
-fromListSBArrayN ::
-     forall e. HasCallStack
-  => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to be loaded into the array
+fromListSBArrayN
+  :: forall e
+   . HasCallStack
+  => Size
+  -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e]
+  -- ^ /list/ - A list to be loaded into the array
   -> SBArray e
 fromListSBArrayN sz xs =
   runST $ fromListMutWith newRawSBMArray writeSBMArray sz xs >>= freezeSBMArray
 {-# INLINE fromListSBArrayN #-}
-
 
 -- | /O(length list)/ - Convert a list into an immutable boxed array. It is more efficient to use
 -- `fromListSBArrayN` when the number of elements is known ahead of time. The reason for this
@@ -578,7 +578,6 @@ fromListSBArrayN sz xs =
 fromListSBArray :: forall e. [e] -> SBArray e
 fromListSBArray xs = fromListSBArrayN (coerce (length xs)) xs
 {-# INLINE fromListSBArray #-}
-
 
 -- Mutable Small Boxed Array --
 -------------------------------
@@ -603,7 +602,6 @@ instance NFData e => MutNFData (SBMArray e) where
     loop 0
   {-# INLINE rnfMutST #-}
 
-
 -- | Compare pointers for two mutable arrays and see if they refer to the exact same one.
 --
 -- Documentation for utilized primop: `sameSmallMutableArray#`.
@@ -613,7 +611,6 @@ isSameSBMArray :: forall a s. SBMArray a s -> SBMArray a s -> Bool
 isSameSBMArray (SBMArray ma1#) (SBMArray ma2#) =
   isTrue# (sameSmallMutableArray# ma1# ma2#)
 {-# INLINE isSameSBMArray #-}
-
 
 -- | /O(1)/ - Get the size of a mutable boxed array
 --
@@ -648,9 +645,11 @@ getSizeOfSBMArray (SBMArray ma#) =
 -- "Element ix: 5"
 --
 -- @since 0.1.0
-readSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /srcMutArray/ - Array to read an element from
+readSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /srcMutArray/ - Array to read an element from
   -> Int
   -- ^ /ix/ - Index that refers to an element we need within the the @srcMutArray@
   --
@@ -662,8 +661,6 @@ readSBMArray ::
   -> m e
 readSBMArray (SBMArray ma#) (I# i#) = primal (readSmallArray# ma# i#)
 {-# INLINE readSBMArray #-}
-
-
 
 -- | /O(1)/ - Write an element @elt@ into the mutable small boxed array @dstMutArray@ at
 -- the supplied index @ix@. The actual element will be evaluated to WHNF prior to
@@ -701,9 +698,11 @@ readSBMArray (SBMArray ma#) (I# i#) = primal (readSmallArray# ma# i#)
 -- Either `deepseq` or `writeDeepSBMArray` can be used to alleviate that.
 --
 -- @since 0.3.0
-writeSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /dstMutArray/ - An array to have the element written to
+writeSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /dstMutArray/ - An array to have the element written to
   -> Int
   -- ^ /ix/ - Index within the the @dstMutArray@ that a refernce to the supplied element
   -- @elt@ will be written to.
@@ -719,7 +718,6 @@ writeSBMArray ::
 writeSBMArray ma i !x = writeLazySBMArray ma i x
 {-# INLINE writeSBMArray #-}
 
-
 -- | /O(1)/ - Same as `writeSBMArray` but allows to write a thunk into an array instead of an
 -- evaluated element. Careful with memory leaks and thunks that evaluate to exceptions.
 --
@@ -728,8 +726,9 @@ writeSBMArray ma i !x = writeLazySBMArray ma i x
 -- [Unsafe] Same reasons as `writeSBMArray`
 --
 -- @since 0.3.0
-writeLazySBMArray ::
-     forall e m s. Primal s m
+writeLazySBMArray
+  :: forall e m s
+   . Primal s m
   => SBMArray e s
   -> Int
   -> e
@@ -737,15 +736,15 @@ writeLazySBMArray ::
 writeLazySBMArray (SBMArray ma#) (I# i#) a = primal_ (writeSmallArray# ma# i# a)
 {-# INLINE writeLazySBMArray #-}
 
-
 -- | /O(1)/ - Same as `writeSBMArray`, except it ensures that the value being written is
 -- fully evaluated, i.e. to Normal Form (NF).
 --
 -- [Unsafe] Same reasons as `writeSBMArray`
 --
 -- @since 0.3.0
-writeDeepSBMArray ::
-     forall e m s. (Primal s m, NFData e)
+writeDeepSBMArray
+  :: forall e m s
+   . (Primal s m, NFData e)
   => SBMArray e s
   -> Int
   -> e
@@ -754,8 +753,6 @@ writeDeepSBMArray ma i !x =
   case rnf x of
     () -> writeLazySBMArray ma i x
 {-# INLINE writeDeepSBMArray #-}
-
-
 
 -- | Create a mutable boxed array where each element is set to the supplied initial value
 -- @elt@, which is evaluated before array allocation happens. See `newLazySBMArray` for
@@ -771,8 +768,9 @@ writeDeepSBMArray ma i !x =
 -- SBArray "AAAAAAAAAA"
 --
 -- @since 0.3.0
-newSBMArray ::
-     forall e m s. Primal s m
+newSBMArray
+  :: forall e m s
+   . Primal s m
   => Size
   -- ^ /sz/ - Size of the array
   --
@@ -782,7 +780,8 @@ newSBMArray ::
   --
   -- Should be below some upper limit that is dictated by the operating system and the total
   -- amount of available memory
-  -> e -- ^ /elt/ - Value to use for all array cells
+  -> e
+  -- ^ /elt/ - Value to use for all array cells
   -> m (SBMArray e s)
 newSBMArray sz x = x `seq` newLazySBMArray sz x
 {-# INLINE newSBMArray #-}
@@ -794,8 +793,9 @@ newSBMArray sz x = x `seq` newLazySBMArray sz x
 -- [Unsafe] Same reasons as `newSBMArray`
 --
 -- @since 0.3.0
-newLazySBMArray ::
-     forall e m s. Primal s m
+newLazySBMArray
+  :: forall e m s
+   . Primal s m
   => Size
   -> e
   -> m (SBMArray e s)
@@ -804,9 +804,6 @@ newLazySBMArray (Size (I# n#)) a =
     case newSmallArray# n# a s of
       (# s', ma# #) -> (# s', SBMArray ma# #)
 {-# INLINE newLazySBMArray #-}
-
-
-
 
 -- | Create new mutable array, where each element is initilized to a thunk that throws an
 -- error when evaluated. This is useful when there is a plan to later iterate over the whole
@@ -828,14 +825,13 @@ newLazySBMArray (Size (I# n#)) a =
 -- SBArray "Hello Haskell"
 --
 -- @since 0.3.0
-newRawSBMArray ::
-     forall e m s. (HasCallStack, Primal s m)
+newRawSBMArray
+  :: forall e m s
+   . (HasCallStack, Primal s m)
   => Size
   -> m (SBMArray e s)
 newRawSBMArray sz = newLazySBMArray sz (uninitialized "Primal.Array.SmallBoxed" "newRawSBMArray")
 {-# INLINE newRawSBMArray #-}
-
-
 
 -- | Create new mutable boxed array of the supplied size and fill it with a monadic action
 -- that is applied to indices of each array cell.
@@ -854,15 +850,14 @@ newRawSBMArray sz = newLazySBMArray sz (uninitialized "Primal.Array.SmallBoxed" 
 -- SBArray "abcde"
 --
 -- @since 0.3.0
-makeSBMArray ::
-     forall e m s. Primal s m
+makeSBMArray
+  :: forall e m s
+   . Primal s m
   => Size
   -> (Int -> m e)
   -> m (SBMArray e s)
 makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 {-# INLINE makeSBMArray #-}
-
-
 
 -- | /O(min(length list, sz))/ - Same as `fromListSBMArray`, except that it will allocate
 -- an array exactly of @n@ size, as such it will not convert any portion of the list that
@@ -887,14 +882,16 @@ makeSBMArray = makeMutWith newRawSBMArray writeSBMArray
 -- SBArray [1,2,2022,4,5,6,7,8,9,10]
 --
 -- @since 0.1.0
-fromListSBMArrayN ::
-     forall e m s. (HasCallStack, Primal s m)
-  => Size -- ^ /sz/ - Expected number of elements in the @list@
-  -> [e] -- ^ /list/ - A list to be loaded into the array
+fromListSBMArrayN
+  :: forall e m s
+   . (HasCallStack, Primal s m)
+  => Size
+  -- ^ /sz/ - Expected number of elements in the @list@
+  -> [e]
+  -- ^ /list/ - A list to be loaded into the array
   -> m (SBMArray e s)
 fromListSBMArrayN = fromListMutWith newRawSBMArray writeSBMArray
 {-# INLINE fromListSBMArrayN #-}
-
 
 -- | /O(length list)/ - Convert a list into an mutable boxed array. It is more efficient to use
 -- `fromListSBMArrayN` when the number of elements is known ahead of time. The reason for this
@@ -910,14 +907,13 @@ fromListSBMArrayN = fromListMutWith newRawSBMArray writeSBMArray
 -- SBArray ["Hello","Haskell"]
 --
 -- @since 0.3.0
-fromListSBMArray ::
-     forall e m s. (HasCallStack, Primal s m)
+fromListSBMArray
+  :: forall e m s
+   . (HasCallStack, Primal s m)
   => [e]
   -> m (SBMArray e s)
 fromListSBMArray xs = fromListSBMArrayN (coerce (length xs)) xs
 {-# INLINE fromListSBMArray #-}
-
-
 
 -- | /O(1)/ - Convert a mutable boxed array into an immutable one. Use `thawSBArray` in order
 -- to go in the opposite direction.
@@ -930,16 +926,15 @@ fromListSBMArray xs = fromListSBMArrayN (coerce (length xs)) xs
 -- fresh allocation.
 --
 -- @since 0.3.0
-freezeSBMArray ::
-     forall e m s. Primal s m
+freezeSBMArray
+  :: forall e m s
+   . Primal s m
   => SBMArray e s
   -> m (SBArray e)
 freezeSBMArray (SBMArray ma#) = primal $ \s ->
   case unsafeFreezeSmallArray# ma# s of
     (# s', a# #) -> (# s', SBArray a# #)
 {-# INLINE freezeSBMArray #-}
-
-
 
 -- | /O(sz)/ - Similar to `freezeSBMArray`, except it creates a new array with the copy of a
 -- subsection of a mutable array before converting it into an immutable.
@@ -951,8 +946,9 @@ freezeSBMArray (SBMArray ma#) = primal $ \s ->
 -- failure with a segfault or out of memory exception.
 --
 -- @since 0.3.0
-freezeCloneSliceSBMArray ::
-     forall e m s. Primal s m
+freezeCloneSliceSBMArray
+  :: forall e m s
+   . Primal s m
   => SBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -992,8 +988,9 @@ freezeCloneSliceSBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) = primal $ \s ->
 -- too large.
 --
 -- @since 0.3.0
-cloneSliceSBMArray ::
-     forall e m s. Primal s m
+cloneSliceSBMArray
+  :: forall e m s
+   . Primal s m
   => SBMArray e s
   -- ^ /srcArray/ - Source mutable array
   -> Int
@@ -1022,7 +1019,6 @@ cloneSliceSBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) =
       (# s', ma'# #) -> (# s', SBMArray ma'# #)
 {-# INLINE cloneSliceSBMArray #-}
 
-
 -- | /O(sz)/ - Copy a subsection of a mutable array into a subsection of another or the same
 -- mutable array. Therefore, unlike `copySBArray`, memory ia allowed to overlap between source
 -- and destination.
@@ -1034,9 +1030,11 @@ cloneSliceSBMArray (SBMArray ma#) (I# i#) (Size (I# n#)) =
 -- likely a failure with a segfault.
 --
 -- @since 0.3.0
-moveSBMArray ::
-     forall e m s. Primal s m
-  => SBMArray e s -- ^ /srcMutArray/ - Source mutable array
+moveSBMArray
+  :: forall e m s
+   . Primal s m
+  => SBMArray e s
+  -- ^ /srcMutArray/ - Source mutable array
   -> Int
   -- ^ /srcStartIx/ - Offset into the source mutable array where copy should start from
   --
@@ -1046,7 +1044,8 @@ moveSBMArray ::
   --
   -- > srcSize <- getSizeOfSBMArray srcMutArray
   -- > srcStartIx < unSize srcSize
-  -> SBMArray e s -- ^ /dstMutArray/ - Destination mutable array
+  -> SBMArray e s
+  -- ^ /dstMutArray/ - Destination mutable array
   -> Int
   -- ^ /dstStartIx/ - Offset into the destination mutable array where copy should start to
   --
@@ -1068,13 +1067,10 @@ moveSBMArray ::
   --
   -- > dstSize <- getSizeOfSBMArray dstMutArray
   -- > dstStartIx + unSize sz < unSize dstSize
-  --
   -> m ()
 moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I# n#)) =
   primal_ (copySmallMutableArray# src# srcOff# dst# dstOff# n#)
 {-# INLINE moveSBMArray #-}
-
-
 
 -- | Compare-and-swap operation that can be used as a concurrency primitive for
 -- implementing atomic operations on the mutable array. Returns a boolean value, which
@@ -1120,12 +1116,16 @@ moveSBMArray (SBMArray src#) (I# srcOff#) (SBMArray dst#) (I# dstOff#) (Size (I#
 -- by using the returned value.
 --
 -- @since 1.0.0
-casSBMArray ::
-     Primal s m
-  => SBMArray e s -- ^ Mutable array to mutate
-  -> Int -- ^ Index at which the cell should be set to the new value
-  -> e -- ^ Reference to the expected boxed value
-  -> e -- ^ New value to update the cell with
+casSBMArray
+  :: Primal s m
+  => SBMArray e s
+  -- ^ Mutable array to mutate
+  -> Int
+  -- ^ Index at which the cell should be set to the new value
+  -> e
+  -- ^ Reference to the expected boxed value
+  -> e
+  -- ^ New value to update the cell with
   -> m (Bool, e)
 casSBMArray (SBMArray ma#) (I# i#) expected new =
   primal $ \s ->

@@ -5,11 +5,10 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Container.Ref
-  ( module Primal.Container.Ref.Internal
-  , module Primal.Container.Ref.Atomic
-  ) where
+module Primal.Container.Ref (
+  module Primal.Container.Ref.Internal,
+  module Primal.Container.Ref.Atomic,
+) where
 
-import Primal.Container.Ref.Internal
 import Primal.Container.Ref.Atomic
+import Primal.Container.Ref.Internal

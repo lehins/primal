@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Data.Array.Boxed
 -- Copyright   : (c) Alexey Kuleshevich 2020
@@ -11,65 +12,69 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Data.Array.Boxed
-  ( BArray(..)
-  , BMArray(..)
-  , Size(..)
-  -- * Immutable
-  , makeBArray
-  , makeBArrayM
-  , sizeOfBArray
-  , indexBArray
-  -- * Mutable
-  -- ** Create
-  , newBMArray
-  , newRawBMArray
-  , newLazyBMArray
-  , makeBMArray
-  , createBArrayM
-  , createBArrayM_
-  , getSizeOfBMArray
-  -- ** Access
-  , readBMArray
-  , writeBMArray
-  , writeLazyBMArray
-  , writeDeepBMArray
-  -- *** Atomic
-  , casBMArray
-  , atomicModifyFetchNewBMArray
-  , atomicModifyFetchOldBMArray
-  , atomicModifyBMArray
-  , atomicModifyBMArray_
-  , atomicModifyBMArray2
-  -- * Mutable
-  , thawBArray
-  , thawCloneSliceBArray
-  , freezeBMArray
-  , freezeCloneSliceBMArray
-  , copyBArray
-  , moveBMArray
-  , cloneBArray
-  , cloneBMArray
-  -- * List
-  , fromListBArray
-  , fromListBArrayN
-  , toListBArray
-  -- * Helpers
-  , foldrBArray
-  , traverseBArray
-  ) where
+module Primal.Data.Array.Boxed (
+  BArray (..),
+  BMArray (..),
+  Size (..),
 
-import Primal.Monad
+  -- * Immutable
+  makeBArray,
+  makeBArrayM,
+  sizeOfBArray,
+  indexBArray,
+
+  -- * Mutable
+
+  -- ** Create
+  newBMArray,
+  newRawBMArray,
+  newLazyBMArray,
+  makeBMArray,
+  createBArrayM,
+  createBArrayM_,
+  getSizeOfBMArray,
+
+  -- ** Access
+  readBMArray,
+  writeBMArray,
+  writeLazyBMArray,
+  writeDeepBMArray,
+
+  -- *** Atomic
+  casBMArray,
+  atomicModifyFetchNewBMArray,
+  atomicModifyFetchOldBMArray,
+  atomicModifyBMArray,
+  atomicModifyBMArray_,
+  atomicModifyBMArray2,
+
+  -- * Mutable
+  thawBArray,
+  thawCloneSliceBArray,
+  freezeBMArray,
+  freezeCloneSliceBMArray,
+  copyBArray,
+  moveBMArray,
+  cloneBArray,
+  cloneBMArray,
+
+  -- * List
+  fromListBArray,
+  fromListBArrayN,
+  toListBArray,
+
+  -- * Helpers
+  foldrBArray,
+  traverseBArray,
+) where
+
 import Data.Bits
 import qualified Primal.Container.Mutable.Array.Internal as I
 import Primal.Container.Mutable.Ref.Atomic
 import Primal.Container.Mutable.Ref.Internal
-import Primal.Foreign
 import Primal.Data.Array
-
-
-
+import Primal.Foreign
+import Primal.Monad
 
 atomicModifyBMArray# :: Primal s m => BMArray e s -> Int -> (e -> (# e, b #)) -> m b
 atomicModifyBMArray# ma@(BMArray ma#) i@(I# i#) f = do
@@ -79,11 +84,10 @@ atomicModifyBMArray# ma@(BMArray ma#) i@(I# i#) f = do
           case f expected of
             (# new, artifact #) ->
               case casArray# ma# i# expected new s of
-                (# s', 0#, _ #)     -> (# s', artifact #)
+                (# s', 0#, _ #) -> (# s', artifact #)
                 (# s', _, actual #) -> go actual s'
      in go current0
 {-# INLINE atomicModifyBMArray# #-}
-
 
 atomicModifyFetchNewBMArray :: Primal s m => BMArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchNewBMArray ma i f =
@@ -98,49 +102,44 @@ atomicModifyFetchNewBMArray ma i f =
 --             (# s', 0#, actual #) -> go actual s'
 --             (# s', _, current #) -> (# s', current #)
 --     in go current0 s0
-  -- let go e =
-  --       casBMArray ma i e (f e) >>= \case
-  --         (True, new) -> pure new
-  --         (_, current) -> go current
-  --  in readBMArray ma i >>= go
+-- let go e =
+--       casBMArray ma i e (f e) >>= \case
+--         (True, new) -> pure new
+--         (_, current) -> go current
+--  in readBMArray ma i >>= go
 
 atomicModifyFetchOldBMArray :: Primal s m => BMArray e s -> Int -> (e -> e) -> m e
 atomicModifyFetchOldBMArray ma i f =
   atomicModifyBMArray# ma i (\a -> (# f a, a #))
 {-# INLINE atomicModifyFetchOldBMArray #-}
-  -- let go e =
-  --       casBMArray ma i e (f e) >>= \case
-  --         (True, _new) -> pure e
-  --         (_, current) -> go current
-  --  in readBMArray ma i >>= go
 
-
+-- let go e =
+--       casBMArray ma i e (f e) >>= \case
+--         (True, _new) -> pure e
+--         (_, current) -> go current
+--  in readBMArray ma i >>= go
 
 atomicModifyBMArray :: Primal s m => BMArray e s -> Int -> (e -> (e, b)) -> m b
 atomicModifyBMArray ma i f =
   atomicModifyBMArray# ma i (\a -> let (a', b) = f a in (# a', b #))
 {-# INLINE atomicModifyBMArray #-}
-  -- let go e =
-  --       let (new, artifact) = f e
-  --        in casBMArray ma i e new >>= \case
-  --             (True, _new) -> pure artifact
-  --             (_, current) -> go current
-  --  in readBMArray ma i >>= go
 
+-- let go e =
+--       let (new, artifact) = f e
+--        in casBMArray ma i e new >>= \case
+--             (True, _new) -> pure artifact
+--             (_, current) -> go current
+--  in readBMArray ma i >>= go
 
 atomicModifyBMArray_ :: Primal s m => BMArray e s -> Int -> (e -> e) -> m ()
 atomicModifyBMArray_ ma i f =
   atomicModifyBMArray# ma i (\a -> let a' = f a in (# a', () #))
 {-# INLINE atomicModifyBMArray_ #-}
 
-
 atomicModifyBMArray2 :: Primal s m => BMArray e s -> Int -> (e -> (e, b)) -> m (e, e, b)
 atomicModifyBMArray2 ma i f =
   atomicModifyBMArray# ma i (\a -> let (a', b) = f a in (# a', (a, a', b) #))
 {-# INLINE atomicModifyBMArray2 #-}
-
-
-
 
 -- | Strict right fold
 foldrBArray :: (e -> b -> b) -> b -> BArray e -> b
@@ -162,7 +161,6 @@ createBArrayM = I.createArrayM
 createBArrayM_ :: Primal s m => Size -> (BMArray e s -> m b) -> m (BArray e)
 createBArrayM_ = I.createArrayM_
 {-# INLINE createBArrayM_ #-}
-
 
 -- | Traverse an array with a monadic action.
 --

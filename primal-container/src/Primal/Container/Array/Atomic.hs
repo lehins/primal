@@ -10,6 +10,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+
 -- |
 -- Module      : Primal.Container.Array.Atomic
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -17,47 +18,43 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Container.Array.Atomic
-  ( AtomicMutArray(..)
-  , AtomicCountMutArray(..)
-  , AtomicBitsMutArray(..)
-  , casMutArray
-  , atomicReadMutArray
-  , atomicWriteMutArray
-  , atomicModifyMutArray
-  , atomicAddFetchOldMutArray
-  , atomicAddFetchNewMutArray
-  , atomicSubFetchOldMutArray
-  , atomicSubFetchNewMutArray
-  , atomicAndFetchOldMutArray
-  , atomicAndFetchNewMutArray
-  , atomicNandFetchOldMutArray
-  , atomicNandFetchNewMutArray
-  , atomicOrFetchOldMutArray
-  , atomicOrFetchNewMutArray
-  , atomicXorFetchOldMutArray
-  , atomicXorFetchNewMutArray
-  , atomicNotFetchOldMutArray
-  , atomicNotFetchNewMutArray
-  , ifoldAtomicMutArray
-  , ifindAtomicMutArray
-  ) where
+module Primal.Container.Array.Atomic (
+  AtomicMutArray (..),
+  AtomicCountMutArray (..),
+  AtomicBitsMutArray (..),
+  casMutArray,
+  atomicReadMutArray,
+  atomicWriteMutArray,
+  atomicModifyMutArray,
+  atomicAddFetchOldMutArray,
+  atomicAddFetchNewMutArray,
+  atomicSubFetchOldMutArray,
+  atomicSubFetchNewMutArray,
+  atomicAndFetchOldMutArray,
+  atomicAndFetchNewMutArray,
+  atomicNandFetchOldMutArray,
+  atomicNandFetchNewMutArray,
+  atomicOrFetchOldMutArray,
+  atomicOrFetchNewMutArray,
+  atomicXorFetchOldMutArray,
+  atomicXorFetchNewMutArray,
+  atomicNotFetchOldMutArray,
+  atomicNotFetchNewMutArray,
+  ifoldAtomicMutArray,
+  ifindAtomicMutArray,
+) where
 
-import Primal.Monad
 import Data.Bits
-import Primal.Container.Internal
-import Primal.Container.Array.Internal
-import Primal.Container.Ref.Atomic
 import Primal.Array
+import Primal.Container.Array.Internal
+import Primal.Container.Internal
+import Primal.Container.Ref.Atomic
 import Primal.Memory.Addr
 import Primal.Memory.Bytes
 import Primal.Memory.PUArray
-
-
+import Primal.Monad
 
 class (AtomicMutRef ma, MutArray ma) => AtomicMutArray ma where
-
   -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
   -- elements, an old expected value and a new value, swap the actual old value for the
   -- new one atomically, but only if the actual old value was an exact match to the
@@ -70,25 +67,30 @@ class (AtomicMutRef ma, MutArray ma) => AtomicMutArray ma where
   -- have exact same unpacked representation.
   --
   -- @since 1.0.0
-  casMutArrayST ::
-       AtomicElt ma e
-    => ma e s -- ^ Array to be mutated
+  casMutArrayST
+    :: AtomicElt ma e
+    => ma e s
+    -- ^ Array to be mutated
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArrayST` mut@
-    -> e -- ^ Expected old value
-    -> e -- ^ New value to write
-    -> ST s (Bool, e) -- ^ Was compare and swap successfull and the actual value
+    -> e
+    -- ^ Expected old value
+    -> e
+    -- ^ New value to write
+    -> ST s (Bool, e)
+    -- ^ Was compare and swap successfull and the actual value
 
   -- | Read an element from an array atomically. It is different from a regular
   -- `readMutArrayST`, because it might perform steps to guaranty atomicity. Default
   -- implementation uses `atomicModifyMutArrayST`
   --
   -- @since 1.0.0
-  atomicReadMutArrayST ::
-    AtomicElt ma e
-    => ma e s -- ^ Mutable array to read an element from
+  atomicReadMutArrayST
+    :: AtomicElt ma e
+    => ma e s
+    -- ^ Mutable array to read an element from
     -> Int
     -- ^ Offset into the array
     --
@@ -102,14 +104,16 @@ class (AtomicMutRef ma, MutArray ma) => AtomicMutArray ma where
   -- implementation uses `atomicModifyMutArrayST`
   --
   -- @since 1.0.0
-  atomicWriteMutArrayST ::
-       AtomicElt ma e
-    => ma e s -- ^ Mutable array to write an element into
+  atomicWriteMutArrayST
+    :: AtomicElt ma e
+    => ma e s
+    -- ^ Mutable array to write an element into
     -> Int
     -- ^ Offset into the array
     --
     -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArrayST` mut@
-    -> e -- ^ Element to write
+    -> e
+    -- ^ Element to write
     -> ST s ()
   atomicWriteMutArrayST mut !i !y = atomicModifyMutArrayST mut i (const (y, ()))
   {-# INLINE atomicWriteMutArrayST #-}
@@ -117,17 +121,23 @@ class (AtomicMutRef ma, MutArray ma) => AtomicMutArray ma where
   -- | Perform atomic an modification of an element in a mutable structure.
   --
   -- @since 1.0.0
-  atomicModifyMutArrayST ::
-       AtomicElt ma e
-    => ma e s -- ^ Array to be mutated
-    -> Int -- ^ Offset into the array
-    -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
+  atomicModifyMutArrayST
+    :: AtomicElt ma e
+    => ma e s
+    -- ^ Array to be mutated
+    -> Int
+    -- ^ Offset into the array
+    -> (e -> (e, b))
+    -- ^ Function to be applied atomically to the element
     -> ST s b
-  default atomicModifyMutArrayST ::
-       (AtomicElt ma e, Elt ma e)
-    => ma e s -- ^ Array to be mutated
-    -> Int -- ^ Offset into the array
-    -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
+  default atomicModifyMutArrayST
+    :: (AtomicElt ma e, Elt ma e)
+    => ma e s
+    -- ^ Array to be mutated
+    -> Int
+    -- ^ Offset into the array
+    -> (e -> (e, b))
+    -- ^ Function to be applied atomically to the element
     -> ST s b
   atomicModifyMutArrayST mut !i f =
     let go expected =
@@ -139,8 +149,6 @@ class (AtomicMutRef ma, MutArray ma) => AtomicMutArray ma where
                 else go actual
      in readMutArrayST mut i >>= go
   {-# INLINE atomicModifyMutArrayST #-}
-
-
 
 class (AtomicCountMutRef ma, AtomicMutArray ma) => AtomicCountMutArray ma where
   atomicAddFetchOldMutArrayST :: AtomicCountElt ma e => ma e s -> Int -> e -> ST s e
@@ -166,11 +174,10 @@ class (AtomicCountMutRef ma, AtomicMutArray ma) => AtomicCountMutArray ma where
 
   atomicSubFetchNewMutArrayST :: AtomicCountElt ma e => ma e s -> Int -> e -> ST s e
   default atomicSubFetchNewMutArrayST
-   :: (AtomicCountElt ma e, AtomicElt ma e, Num e) => ma e s -> Int -> e -> ST s e
+    :: (AtomicCountElt ma e, AtomicElt ma e, Num e) => ma e s -> Int -> e -> ST s e
   atomicSubFetchNewMutArrayST mut i !y =
     atomicModifyMutArrayST mut i (\x -> let x' = x - y in (x', x'))
   {-# INLINE atomicSubFetchNewMutArrayST #-}
-
 
 class (AtomicBitsMutRef ma, AtomicMutArray ma) => AtomicBitsMutArray ma where
   atomicAndFetchOldMutArrayST :: AtomicBitsElt ma e => ma e s -> Int -> e -> ST s e
@@ -243,7 +250,6 @@ class (AtomicBitsMutRef ma, AtomicMutArray ma) => AtomicBitsMutArray ma where
     atomicModifyMutArrayST mut i (\x -> let x' = complement x in (x', x'))
   {-# INLINE atomicNotFetchNewMutArrayST #-}
 
-
 instance Typeable p => AtomicMutArray (PUMArray p) where
   atomicReadMutArrayST mba i = atomicReadMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicReadMutArrayST #-}
@@ -254,7 +260,6 @@ instance Typeable p => AtomicMutArray (PUMArray p) where
   atomicModifyMutArrayST mba i = atomicModifyMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicModifyMutArrayST #-}
 
-
 instance Typeable p => AtomicCountMutArray (PUMArray p) where
   atomicAddFetchOldMutArrayST mba i = atomicAddFetchOldMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMutArrayST #-}
@@ -264,7 +269,6 @@ instance Typeable p => AtomicCountMutArray (PUMArray p) where
   {-# INLINE atomicSubFetchOldMutArrayST #-}
   atomicSubFetchNewMutArrayST mba i = atomicSubFetchNewMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicSubFetchNewMutArrayST #-}
-
 
 instance Typeable p => AtomicBitsMutArray (PUMArray p) where
   atomicAndFetchOldMutArrayST mba i = atomicAndFetchOldMBytes (coerce mba) (coerce i :: Off e)
@@ -288,9 +292,6 @@ instance Typeable p => AtomicBitsMutArray (PUMArray p) where
   atomicNotFetchNewMutArrayST mba i = atomicNotFetchNewMBytes (coerce mba) (coerce i :: Off e)
   {-# INLINE atomicNotFetchNewMutArrayST #-}
 
-
-
-
 instance AtomicMutArray MAddr where
   atomicReadMutArrayST maddr i = atomicReadOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicReadMutArrayST #-}
@@ -301,7 +302,6 @@ instance AtomicMutArray MAddr where
   atomicModifyMutArrayST maddr i = atomicModifyOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicModifyMutArrayST #-}
 
-
 instance AtomicCountMutArray MAddr where
   atomicAddFetchOldMutArrayST maddr i = atomicAddFetchOldOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicAddFetchOldMutArrayST #-}
@@ -311,7 +311,6 @@ instance AtomicCountMutArray MAddr where
   {-# INLINE atomicSubFetchOldMutArrayST #-}
   atomicSubFetchNewMutArrayST maddr i = atomicSubFetchNewOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicSubFetchNewMutArrayST #-}
-
 
 instance AtomicBitsMutArray MAddr where
   atomicAndFetchOldMutArrayST maddr i = atomicAndFetchOldOffMAddr maddr (coerce i :: Off e)
@@ -335,7 +334,6 @@ instance AtomicBitsMutArray MAddr where
   atomicNotFetchNewMutArrayST maddr i = atomicNotFetchNewOffMAddr maddr (coerce i :: Off e)
   {-# INLINE atomicNotFetchNewMutArrayST #-}
 
-
 instance AtomicMutArray UMArray where
   atomicReadMutArrayST mba i = atomicReadMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicReadMutArrayST #-}
@@ -345,7 +343,6 @@ instance AtomicMutArray UMArray where
   {-# INLINE casMutArrayST #-}
   atomicModifyMutArrayST mba i = atomicModifyMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicModifyMutArrayST #-}
-
 
 instance AtomicCountMutArray UMArray where
   atomicAddFetchOldMutArrayST mba i =
@@ -360,7 +357,6 @@ instance AtomicCountMutArray UMArray where
   atomicSubFetchNewMutArrayST mba i =
     atomicSubFetchNewMBytes (fromUMArrayMBytes mba) (coerce i :: Off e)
   {-# INLINE atomicSubFetchNewMutArrayST #-}
-
 
 instance AtomicBitsMutArray UMArray where
   atomicAndFetchOldMutArrayST mba i =
@@ -401,16 +397,12 @@ instance AtomicMutArray BMArray where
 instance AtomicCountMutArray BMArray
 instance AtomicBitsMutArray BMArray
 
-
 instance AtomicMutArray SBMArray where
   casMutArrayST = casSBMArray
   {-# INLINE casMutArrayST #-}
 
 instance AtomicCountMutArray SBMArray
 instance AtomicBitsMutArray SBMArray
-
-
-
 
 -- | Compare-and-swap (CAS) operation. Given a mutable array, offset in number of
 -- elements, an old expected value and a new value, swap the actual old value for the
@@ -424,16 +416,21 @@ instance AtomicBitsMutArray SBMArray
 -- have exact same unpacked representation.
 --
 -- @since 0.1.0
-casMutArray ::
-     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
-  => ma e s -- ^ Array to be mutated
+casMutArray
+  :: forall ma e m s
+   . (AtomicMutArray ma, AtomicElt ma e, Primal s m)
+  => ma e s
+  -- ^ Array to be mutated
   -> Int
   -- ^ Offset into the array
   --
   -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArray` mut@
-  -> e -- ^ Expected old value
-  -> e -- ^ New value to write
-  -> m (Bool, e) -- ^ Was compare and swap successfull and the actual value
+  -> e
+  -- ^ Expected old value
+  -> e
+  -- ^ New value to write
+  -> m (Bool, e)
+  -- ^ Was compare and swap successfull and the actual value
 casMutArray mut i x = liftST . casMutArrayST mut i x
 {-# INLINE casMutArray #-}
 
@@ -442,9 +439,11 @@ casMutArray mut i x = liftST . casMutArrayST mut i x
 -- implementation uses `atomicModifyMutArray`
 --
 -- @since 0.1.0
-atomicReadMutArray ::
-  forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
-  => ma e s -- ^ Mutable array to read an element from
+atomicReadMutArray
+  :: forall ma e m s
+   . (AtomicMutArray ma, AtomicElt ma e, Primal s m)
+  => ma e s
+  -- ^ Mutable array to read an element from
   -> Int
   -- ^ Offset into the array
   --
@@ -458,14 +457,17 @@ atomicReadMutArray mut = liftST . atomicReadMutArrayST mut
 -- implementation uses `atomicModifyMutArray`
 --
 -- @since 0.1.0
-atomicWriteMutArray ::
-     forall ma e m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
-  => ma e s -- ^ Mutable array to write an element into
+atomicWriteMutArray
+  :: forall ma e m s
+   . (AtomicMutArray ma, AtomicElt ma e, Primal s m)
+  => ma e s
+  -- ^ Mutable array to write an element into
   -> Int
   -- ^ Offset into the array
   --
   -- [Unsafe /offset/] /Unchecked precondition:/ @offset >= 0 && offset < `getSizeOfMutArray` mut@
-  -> e -- ^ Element to write
+  -> e
+  -- ^ Element to write
   -> m ()
 atomicWriteMutArray mut i = liftST . atomicWriteMutArrayST mut i
 {-# INLINE atomicWriteMutArray #-}
@@ -473,19 +475,22 @@ atomicWriteMutArray mut i = liftST . atomicWriteMutArrayST mut i
 -- | Perform atomic an modification of an element in a mutable structure.
 --
 -- @since 0.1.0
-atomicModifyMutArray ::
-     forall ma e b m s. (AtomicMutArray ma, AtomicElt ma e, Primal s m)
-  => ma e s -- ^ Array to be mutated
-  -> Int -- ^ Offset into the array
-  -> (e -> (e, b)) -- ^ Function to be applied atomically to the element
+atomicModifyMutArray
+  :: forall ma e b m s
+   . (AtomicMutArray ma, AtomicElt ma e, Primal s m)
+  => ma e s
+  -- ^ Array to be mutated
+  -> Int
+  -- ^ Offset into the array
+  -> (e -> (e, b))
+  -- ^ Function to be applied atomically to the element
   -> m b
 atomicModifyMutArray mut i = liftST . atomicModifyMutArrayST mut i
 {-# INLINE atomicModifyMutArray #-}
 
-
-
-atomicAddFetchOldMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
+atomicAddFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -493,8 +498,9 @@ atomicAddFetchOldMutArray ::
 atomicAddFetchOldMutArray mut i = liftST . atomicAddFetchOldMutArrayST mut i
 {-# INLINE atomicAddFetchOldMutArray #-}
 
-atomicAddFetchNewMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
+atomicAddFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -502,8 +508,9 @@ atomicAddFetchNewMutArray ::
 atomicAddFetchNewMutArray mut i = liftST . atomicAddFetchNewMutArrayST mut i
 {-# INLINE atomicAddFetchNewMutArray #-}
 
-atomicSubFetchOldMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
+atomicSubFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -511,8 +518,9 @@ atomicSubFetchOldMutArray ::
 atomicSubFetchOldMutArray mut i = liftST . atomicSubFetchOldMutArrayST mut i
 {-# INLINE atomicSubFetchOldMutArray #-}
 
-atomicSubFetchNewMutArray ::
-     forall ma e m s. (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
+atomicSubFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicCountMutArray ma, AtomicCountElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -520,9 +528,9 @@ atomicSubFetchNewMutArray ::
 atomicSubFetchNewMutArray mut i = liftST . atomicSubFetchNewMutArrayST mut i
 {-# INLINE atomicSubFetchNewMutArray #-}
 
-
-atomicAndFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicAndFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -530,8 +538,9 @@ atomicAndFetchOldMutArray ::
 atomicAndFetchOldMutArray mut i = liftST . atomicAndFetchOldMutArrayST mut i
 {-# INLINE atomicAndFetchOldMutArray #-}
 
-atomicAndFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicAndFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -539,8 +548,9 @@ atomicAndFetchNewMutArray ::
 atomicAndFetchNewMutArray mut i = liftST . atomicAndFetchNewMutArrayST mut i
 {-# INLINE atomicAndFetchNewMutArray #-}
 
-atomicNandFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicNandFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -548,8 +558,9 @@ atomicNandFetchOldMutArray ::
 atomicNandFetchOldMutArray mut i = liftST . atomicNandFetchOldMutArrayST mut i
 {-# INLINE atomicNandFetchOldMutArray #-}
 
-atomicNandFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicNandFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -557,8 +568,9 @@ atomicNandFetchNewMutArray ::
 atomicNandFetchNewMutArray mut i = liftST . atomicNandFetchNewMutArrayST mut i
 {-# INLINE atomicNandFetchNewMutArray #-}
 
-atomicOrFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicOrFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -566,8 +578,9 @@ atomicOrFetchOldMutArray ::
 atomicOrFetchOldMutArray mut i = liftST . atomicOrFetchOldMutArrayST mut i
 {-# INLINE atomicOrFetchOldMutArray #-}
 
-atomicOrFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicOrFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -575,8 +588,9 @@ atomicOrFetchNewMutArray ::
 atomicOrFetchNewMutArray mut i = liftST . atomicOrFetchNewMutArrayST mut i
 {-# INLINE atomicOrFetchNewMutArray #-}
 
-atomicXorFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicXorFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -584,8 +598,9 @@ atomicXorFetchOldMutArray ::
 atomicXorFetchOldMutArray mut i = liftST . atomicXorFetchOldMutArrayST mut i
 {-# INLINE atomicXorFetchOldMutArray #-}
 
-atomicXorFetchNewMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicXorFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> e
@@ -593,53 +608,53 @@ atomicXorFetchNewMutArray ::
 atomicXorFetchNewMutArray mut i = liftST . atomicXorFetchNewMutArrayST mut i
 {-# INLINE atomicXorFetchNewMutArray #-}
 
-atomicNotFetchOldMutArray ::
-     forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicNotFetchOldMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> m e
 atomicNotFetchOldMutArray mut = liftST . atomicNotFetchOldMutArrayST mut
 {-# INLINE atomicNotFetchOldMutArray #-}
 
-atomicNotFetchNewMutArray ::
-  forall ma e m s. (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
+atomicNotFetchNewMutArray
+  :: forall ma e m s
+   . (AtomicBitsMutArray ma, AtomicBitsElt ma e, Primal s m)
   => ma e s
   -> Int
   -> m e
 atomicNotFetchNewMutArray mut = liftST . atomicNotFetchNewMutArrayST mut
 {-# INLINE atomicNotFetchNewMutArray #-}
 
-
-
-ifindAtomicMutArray ::
-  (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e) =>
-  ma e s ->
-  (Int -> e -> (e, Maybe a)) ->
-  m (Maybe a)
+ifindAtomicMutArray
+  :: (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e)
+  => ma e s
+  -> (Int -> e -> (e, Maybe a))
+  -> m (Maybe a)
 ifindAtomicMutArray ma f = do
   Size n <- getSizeOfMutArray ma
   let go i
         | i >= n = pure Nothing
         | otherwise =
-          atomicModifyMutArray ma i (f i) >>= \case
-            Nothing -> go (i + 1)
-            Just a -> pure $! Just a
+            atomicModifyMutArray ma i (f i) >>= \case
+              Nothing -> go (i + 1)
+              Just a -> pure $! Just a
   go 0
 {-# INLINE ifindAtomicMutArray #-}
 
-ifoldAtomicMutArray ::
-  (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e) =>
-  ma e s ->
-  c ->
-  (Int -> c -> e -> (e, (c, Maybe a))) ->
-  m (c, Maybe a)
+ifoldAtomicMutArray
+  :: (Primal s m, AtomicMutArray ma, AtomicElt ma e, Elt ma e)
+  => ma e s
+  -> c
+  -> (Int -> c -> e -> (e, (c, Maybe a)))
+  -> m (c, Maybe a)
 ifoldAtomicMutArray ma acc0 f = do
   Size n <- getSizeOfMutArray ma
   let go i !acc
         | i >= n = pure (acc, Nothing)
         | otherwise = do
-          atomicModifyMutArray ma i (f i acc) >>= \case
-            (acc', Nothing) -> go (i + 1) acc'
-            res -> pure res
+            atomicModifyMutArray ma i (f i acc) >>= \case
+              (acc', Nothing) -> go (i + 1) acc'
+              res -> pure res
   go 0 acc0
 {-# INLINE ifoldAtomicMutArray #-}

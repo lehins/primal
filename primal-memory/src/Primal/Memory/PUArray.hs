@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Memory.PUArray
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -16,46 +17,43 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Memory.PUArray
-  ( PUArray(..)
-  , PUMArray(..)
-  , Pinned(..)
-  , singletonPUArray
-  , fromBytesPUArray
-  , toBytesPUArray
-  , fromUArrayPUArray
-  , toUArrayPUArray
-  , castPUArray
-  , fromMBytesPUMArray
-  , toMBytesPUMArray
-  , fromUMArrayPUMArray
-  , toUMArrayPUMArray
-  , castPUMArray
-  , allocPUMArray
-  , allocPinnedPUMArray
-  , allocAlignedPUMArray
-  , allocUnpinnedPUMArray
-  , shrinkPUMArray
-  , resizePUMArray
-  , reallocPUMArray
-  , isPinnedPUArray
-  , isPinnedPUMArray
+module Primal.Memory.PUArray (
+  PUArray (..),
+  PUMArray (..),
+  Pinned (..),
+  singletonPUArray,
+  fromBytesPUArray,
+  toBytesPUArray,
+  fromUArrayPUArray,
+  toUArrayPUArray,
+  castPUArray,
+  fromMBytesPUMArray,
+  toMBytesPUMArray,
+  fromUMArrayPUMArray,
+  toUMArrayPUMArray,
+  castPUMArray,
+  allocPUMArray,
+  allocPinnedPUMArray,
+  allocAlignedPUMArray,
+  allocUnpinnedPUMArray,
+  shrinkPUMArray,
+  resizePUMArray,
+  reallocPUMArray,
+  isPinnedPUArray,
+  isPinnedPUMArray,
+  thawPUArray,
+  freezePUMArray,
+  sizePUArray,
+  getSizeOfPUMArray,
+  readPUMArray,
+  writePUMArray,
+  setPUMArray,
+  copyPUArrayToPUMArray,
+  movePUMArrayToPUMArray,
+  module Primal.Element.Unbox,
+) where
 
-  , thawPUArray
-  , freezePUMArray
-  , sizePUArray
-  , getSizeOfPUMArray
-  , readPUMArray
-  , writePUMArray
-
-  , setPUMArray
-  , copyPUArrayToPUMArray
-  , movePUMArrayToPUMArray
-  , module Primal.Element.Unbox
-  ) where
-
-import Primal.Array (Size(..), UArray(..), UMArray(..), compareWithST, eqWithST)
+import Primal.Array (Size (..), UArray (..), UMArray (..), compareWithST, eqWithST)
 import Primal.Element.Unbox
 import Primal.Element.Unlift
 import Primal.Eval
@@ -74,6 +72,7 @@ import Primal.Mutable.Ord
 -- same way `Bytes` does it.
 newtype PUArray (p :: Pinned) e = PUArray (Bytes p)
   deriving (NFData, Semigroup, Monoid, MemRead)
+
 type role PUArray nominal nominal
 
 instance Unlift (PUArray p e) where
@@ -98,12 +97,11 @@ instance (Unbox e, Ord e) => MutOrd (PUMArray p e) where
 -- | A mutable array with elements of type @e@
 newtype PUMArray (p :: Pinned) e s = PUMArray (MBytes p s)
   deriving (NFData, MutNFData, MutFreeze, MemWrite)
-type role PUMArray nominal nominal nominal
 
+type role PUMArray nominal nominal nominal
 
 instance MutUnlift (PUMArray p e) where
   type MutUnliftIso (PUMArray p e) = MBytes p
-
 
 type instance Frozen (PUMArray p e) = PUArray p e
 
@@ -209,29 +207,31 @@ getSizeOfPUMArray :: forall e p m s. (Primal s m, Unbox e) => PUMArray p e s -> 
 getSizeOfPUMArray = fmap (coerce :: Count e -> Size) . getCountMBytes . toMBytesPUMArray
 {-# INLINE getSizeOfPUMArray #-}
 
-singletonPUArray ::
-     forall e p. (Typeable p, Unbox e)
+singletonPUArray
+  :: forall e p
+   . (Typeable p, Unbox e)
   => e
   -> PUArray p e
 singletonPUArray e = singletonMem e
 {-# INLINE singletonPUArray #-}
 
-allocPUMArray ::
-     forall e p m s . (Typeable p, Unbox e, Primal s m) => Size -> m (PUMArray p e s)
+allocPUMArray
+  :: forall e p m s. (Typeable p, Unbox e, Primal s m) => Size -> m (PUMArray p e s)
 allocPUMArray sz = fromMBytesPUMArray <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocPUMArray #-}
 
-allocUnpinnedPUMArray :: forall e m s . (Primal s m, Unbox e) => Size -> m (PUMArray 'Inc e s)
+allocUnpinnedPUMArray :: forall e m s. (Primal s m, Unbox e) => Size -> m (PUMArray 'Inc e s)
 allocUnpinnedPUMArray sz = fromMBytesPUMArray <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocUnpinnedPUMArray #-}
 
-allocPinnedPUMArray :: forall e m s . (Primal s m, Unbox e) => Size -> m (PUMArray 'Pin e s)
+allocPinnedPUMArray :: forall e m s. (Primal s m, Unbox e) => Size -> m (PUMArray 'Pin e s)
 allocPinnedPUMArray sz = fromMBytesPUMArray <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE allocPinnedPUMArray #-}
 
-allocAlignedPUMArray ::
-     (Primal s m, Unbox e)
-  => Count e -- ^ Size in number of bytes
+allocAlignedPUMArray
+  :: (Primal s m, Unbox e)
+  => Count e
+  -- ^ Size in number of bytes
   -> m (PUMArray 'Pin e s)
 allocAlignedPUMArray = fmap fromMBytesPUMArray . allocAlignedPinnedMBytes
 {-# INLINE allocAlignedPUMArray #-}
@@ -246,40 +246,41 @@ thawPUArray = fmap fromMBytesPUMArray . thawBytes . toBytesPUArray
 
 -- | Shrink mutable bytes to new specified count of elements. The new count must be less
 -- than or equal to the current count as reported by `getCountPUMArray`.
-shrinkPUMArray ::
-     forall e p m s. (Primal s m, Unbox e)
+shrinkPUMArray
+  :: forall e p m s
+   . (Primal s m, Unbox e)
   => PUMArray p e s
   -> Size
   -> m ()
 shrinkPUMArray mba sz = shrinkMBytes (toMBytesPUMArray mba) (coerce sz :: Count e)
 {-# INLINE shrinkPUMArray #-}
 
-
 -- | Attempt to resize mutable bytes in place.
 --
 -- * New bytes might be allocated, with the copy of an old one.
 -- * Old references should not be kept around to allow GC to claim it
 -- * Old references should not be used to avoid undefined behavior
-resizePUMArray ::
-     forall e p m s. (Primal s m, Unbox e)
+resizePUMArray
+  :: forall e p m s
+   . (Primal s m, Unbox e)
   => PUMArray p e s
   -> Size
   -> m (PUMArray 'Inc e s)
 resizePUMArray mba sz =
-  fromMBytesPUMArray <$>
-  resizeMBytes (toMBytesPUMArray mba) (coerce sz :: Count e)
+  fromMBytesPUMArray
+    <$> resizeMBytes (toMBytesPUMArray mba) (coerce sz :: Count e)
 {-# INLINE resizePUMArray #-}
 
-reallocPUMArray ::
-     forall e p m s. (Primal s m, Typeable p,  Unbox e)
+reallocPUMArray
+  :: forall e p m s
+   . (Primal s m, Typeable p, Unbox e)
   => PUMArray p e s
   -> Size
   -> m (PUMArray p e s)
 reallocPUMArray mba sz =
-  fromMBytesPUMArray <$>
-  reallocMBytes (toMBytesPUMArray mba) (coerce sz :: Count e)
-{-# INLINABLE reallocPUMArray #-}
-
+  fromMBytesPUMArray
+    <$> reallocMBytes (toMBytesPUMArray mba) (coerce sz :: Count e)
+{-# INLINEABLE reallocPUMArray #-}
 
 isPinnedPUArray :: PUArray p e -> Bool
 isPinnedPUArray (PUArray b) = isPinnedBytes b
@@ -297,20 +298,24 @@ writePUMArray :: (Primal s m, Unbox e) => PUMArray p e s -> Int -> e -> m ()
 writePUMArray (PUMArray mb) o = writeOffMBytes mb (coerce o)
 {-# INLINE writePUMArray #-}
 
-
-
-setPUMArray ::
-     forall e p m s. (Primal s m, Unbox e)
-  => PUMArray p e s -- ^ Chunk of memory to fill
-  -> Int -- ^ Offset in number of elements
-  -> Size -- ^ Number of cells to fill
-  -> e -- ^ A value to fill the cells with
+setPUMArray
+  :: forall e p m s
+   . (Primal s m, Unbox e)
+  => PUMArray p e s
+  -- ^ Chunk of memory to fill
+  -> Int
+  -- ^ Offset in number of elements
+  -> Size
+  -- ^ Number of cells to fill
+  -> e
+  -- ^ A value to fill the cells with
   -> m ()
 setPUMArray (PUMArray mb) off sz = setMBytes mb (coerce off) (coerce sz)
 {-# INLINE setPUMArray #-}
 
-copyPUArrayToPUMArray ::
-     forall e p m s. (Primal s m, Unbox e)
+copyPUArrayToPUMArray
+  :: forall e p m s
+   . (Primal s m, Unbox e)
   => PUArray p e
   -> Int
   -> PUMArray p e s
@@ -321,8 +326,9 @@ copyPUArrayToPUMArray ba srcOff mba dstOff sz =
   copyMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz `countForProxyTypeOf` ba)
 {-# INLINE copyPUArrayToPUMArray #-}
 
-movePUMArrayToPUMArray ::
-     forall e p m s. (Primal s m, Unbox e)
+movePUMArrayToPUMArray
+  :: forall e p m s
+   . (Primal s m, Unbox e)
   => PUMArray p e s
   -> Int
   -> PUMArray p e s
@@ -332,8 +338,6 @@ movePUMArrayToPUMArray ::
 movePUMArrayToPUMArray ba srcOff mba dstOff sz =
   moveMutMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
 {-# INLINE movePUMArrayToPUMArray #-}
-
-
 
 -- toPtrPUArray :: PUArray Pin e -> Ptr e
 -- toPtrPUArray (PUArray ba#) = Ptr (byteArrayContents# ba#)
@@ -366,7 +370,6 @@ movePUMArrayToPUMArray ba srcOff mba dstOff sz =
 -- withNoHaltPtrPUMArray mb f = withAliveUnliftPrim mb $ f (toPtrPUMArray mb)
 -- {-# INLINE withNoHaltPtrPUMArray #-}
 
-
 -- -- -- | Check if two byte arrays refer to pinned memory and compare their pointers.
 -- -- isSamePUArray :: PUArray p1 e -> PUArray p2 e -> Bool
 -- -- isSamePUArray (PUArray b1#) (PUArray b2#) = isTrue# (isSameByteArray# b1# b2#)
@@ -380,9 +383,6 @@ movePUMArrayToPUMArray ba srcOff mba dstOff sz =
 -- -- isSamePinnedPUArray pb e1 pb2 = toPtrPUArray pb e1 == toPtrPUArray pb e2
 -- -- {-# INLINE isSamePinnedPUArray #-}
 
-
-
 -- -- byteStringConvertError :: String -> a
 -- -- byteStringConvertError msg = error $ "Cannot convert 'ByteString'. " ++ msg
 -- -- {-# NOINLINE byteStringConvertError #-}
-

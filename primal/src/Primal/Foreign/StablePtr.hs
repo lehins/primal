@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Module      : Primal.Foreign.StablePtr
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -7,19 +8,18 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Foreign.StablePtr
-  ( GHC.StablePtr(..)
-  , newStablePtr
-  , deRefStablePtr
-  , freeStablePtr
-  , GHC.castStablePtrToPtr
-  , GHC.castPtrToStablePtr
-  ) where
+module Primal.Foreign.StablePtr (
+  GHC.StablePtr (..),
+  newStablePtr,
+  deRefStablePtr,
+  freeStablePtr,
+  GHC.castStablePtrToPtr,
+  GHC.castPtrToStablePtr,
+) where
 
 import Control.DeepSeq
-import Primal.Monad
 import qualified GHC.Stable as GHC
+import Primal.Monad
 
 -- | Orphan in @primal@
 instance NFData (GHC.StablePtr a) where
@@ -28,7 +28,6 @@ instance NFData (GHC.StablePtr a) where
 -- | Orphan in @primal@
 instance Show (GHC.StablePtr a) where
   show = show . GHC.castStablePtrToPtr
-
 
 -- | Same as `GHC.newStablePtr`, but generalized to `Primal`
 newStablePtr :: PrimalIO m => a -> m (GHC.StablePtr a)

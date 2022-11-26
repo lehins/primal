@@ -4,6 +4,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Memory.Endianness
 -- Copyright   : (c) Alexey Kuleshevich 2021
@@ -11,43 +12,40 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
-module Primal.Memory.Endianness
-  ( ByteOrder(..)
-  , homeEndian
-  , foreignEndian
-  , wordSizeInBits
-  , LE(..)
-  , BE(..)
-  , NativeEndian
-  , pattern NativeEndian
-  , ForeignEndian
-  , pattern ForeignEndian
-  , byteSwap
-  , byteSwap16
-  , byteSwap32
-  , byteSwap64
-  ) where
+module Primal.Memory.Endianness (
+  ByteOrder (..),
+  homeEndian,
+  foreignEndian,
+  wordSizeInBits,
+  LE (..),
+  BE (..),
+  NativeEndian,
+  pattern NativeEndian,
+  ForeignEndian,
+  pattern ForeignEndian,
+  byteSwap,
+  byteSwap16,
+  byteSwap32,
+  byteSwap64,
+) where
 
 import Data.Bits
-import Foreign.C.Error (Errno(..))
+import Foreign.C.Error (Errno (..))
 import Foreign.Ptr
 import GHC.ByteOrder
-import Primal.Array (Size(..))
+import Primal.Array (Size (..))
 import Primal.Element.Unbox
 import Primal.Foreign hiding (Any)
 
 #include "MachDeps.h"
 #include "HsBaseConfig.h"
 
-
 -- | Size of the machine word in number of bits.
 wordSizeInBits :: Int
 wordSizeInBits = finiteBitSize (0 :: Word)
 
-
 newtype BE a = BE a
   deriving (Eq, Ord, Show, Enum, Bounded)
-
 
 newtype LE a = LE a
   deriving (Eq, Ord, Show, Enum, Bounded)
@@ -108,7 +106,6 @@ instance Unbox (BE (Count e)) where
 instance Unbox (BE (Off e)) where
   type UnboxIso (BE (Off e)) = BE Int
 
-
 instance Unbox (LE Word8) where
   type UnboxIso (LE Word8) = Word8
 instance Unbox (LE Int8) where
@@ -125,9 +122,7 @@ instance Unbox (LE (Count e)) where
 instance Unbox (LE (Off e)) where
   type UnboxIso (LE (Off e)) = LE Int
 
-
 -- Wrappers or isomorphisms
-
 
 instance Unbox (LE (FunPtr a)) where
   type UnboxIso (LE (FunPtr a)) = LE (Ptr a)
@@ -242,9 +237,6 @@ instance Unbox (LE CTcflag) where
 instance Unbox (LE CRLim) where
   type UnboxIso (LE CRLim) = LE HTYPE_RLIM_T
 #endif
-
-
-
 
 instance Unbox (BE (FunPtr a)) where
   type UnboxIso (BE (FunPtr a)) = BE (Ptr a)
@@ -386,7 +378,6 @@ instance Unbox (NativeEndian Float) where
   type UnboxIso (NativeEndian Float) = Float
 instance Unbox (NativeEndian Double) where
   type UnboxIso (NativeEndian Double) = Double
-
 
 -- Foreign byte order
 

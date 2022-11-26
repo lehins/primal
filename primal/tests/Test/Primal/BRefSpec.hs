@@ -2,19 +2,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Test.Primal.BRefSpec (spec) where
 
 import Data.Maybe
 import Primal.Concurrent
+import Primal.Element.Unbox
 import Primal.Exception
 import Primal.Ref
-import Primal.Element.Unbox
 import Test.Hspec
-import Test.Primal.ArraySpec (ExpectedException(..), impreciseExpectedException)
+import Test.Primal.ArraySpec (ExpectedException (..), impreciseExpectedException)
 
 instance Typeable a => Show (BRef a RW) where
   show _ = "BRef " ++ showsType (Proxy :: Proxy a) " RW"
-
 
 spec :: Spec
 spec = do
@@ -67,8 +67,10 @@ spec = do
     it "writeFetchOldDeepBRef" $ do
       ref <- newBRef "Hello"
       writeFetchOldDeepBRef ref "World" `shouldReturn` "Hello"
-      writeFetchOldDeepBRef ref
-        ("Booyah" ++ raiseImprecise ExpectedException) `shouldThrow` impreciseExpectedException
+      writeFetchOldDeepBRef
+        ref
+        ("Booyah" ++ raiseImprecise ExpectedException)
+        `shouldThrow` impreciseExpectedException
       readBRef ref `shouldReturn` "World"
     it "modifyBRef" $ do
       ref <- newBRef "Hello"
@@ -92,107 +94,106 @@ spec = do
         pure $ raiseImprecise ExpectedException
       readBRef ref `shouldReturn` "Hello World"
 
-    --   -- Verify value restoration on WHNF evaluation error
-    --   modifyBRef_ ref (\x -> do
-    --     isEmptyBRef ref  `shouldReturn` True
-    --     x `shouldBe` "Hello World"
-    --     pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   readBRef ref `shouldReturn` "Hello World"
+--   -- Verify value restoration on WHNF evaluation error
+--   modifyBRef_ ref (\x -> do
+--     isEmptyBRef ref  `shouldReturn` True
+--     x `shouldBe` "Hello World"
+--     pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   readBRef ref `shouldReturn` "Hello World"
 
-    --   -- check that it is interruptible and that the value is overwritten
-    --   timeout 50000 (modifyBRef_ ref (\_ -> putBRef ref "Foo" >> pure "Bar")) `shouldReturn` Nothing
-    --   readBRef ref `shouldReturn` "Foo"
+--   -- check that it is interruptible and that the value is overwritten
+--   timeout 50000 (modifyBRef_ ref (\_ -> putBRef ref "Foo" >> pure "Bar")) `shouldReturn` Nothing
+--   readBRef ref `shouldReturn` "Foo"
 
-    --    -- check that it is interruptible in the exception handler and that the value is
-    --    -- overwritten
-    --   timeout 50000 (modifyBRef_ ref (\_ -> do
-    --                                 putBRef ref "Goodbye"
-    --                                 "World" <$ throw ExpectedException
-    --                             )) `shouldReturn` Nothing
-    --   takeBRef ref `shouldReturn` "Goodbye"
+--    -- check that it is interruptible in the exception handler and that the value is
+--    -- overwritten
+--   timeout 50000 (modifyBRef_ ref (\_ -> do
+--                                 putBRef ref "Goodbye"
+--                                 "World" <$ throw ExpectedException
+--                             )) `shouldReturn` Nothing
+--   takeBRef ref `shouldReturn` "Goodbye"
 
-    --   -- check that it is interruptible on empty
-    --   timeout 50000 (modifyBRef_ ref pure) `shouldReturn` Nothing
-    -- it "modifyBRefMasked_" $ do
-    --   ref <- newBRef "Hello"
+--   -- check that it is interruptible on empty
+--   timeout 50000 (modifyBRef_ ref pure) `shouldReturn` Nothing
+-- it "modifyBRefMasked_" $ do
+--   ref <- newBRef "Hello"
 
-    --   -- check masking state and actual modification
-    --   modifyBRefMasked_ ref $ \x -> do
-    --     x `shouldBe` "Hello"
-    --     getMaskingState `shouldReturn` MaskedInterruptible
-    --     pure $ x ++ " World"
+--   -- check masking state and actual modification
+--   modifyBRefMasked_ ref $ \x -> do
+--     x `shouldBe` "Hello"
+--     getMaskingState `shouldReturn` MaskedInterruptible
+--     pure $ x ++ " World"
 
-    --   -- Verify value restoration on WHNF evaluation error
-    --   modifyBRefMasked_ ref (\x -> do
-    --     isEmptyBRef ref  `shouldReturn` True
-    --     x `shouldBe` "Hello World"
-    --     pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   readBRef ref `shouldReturn` "Hello World"
+--   -- Verify value restoration on WHNF evaluation error
+--   modifyBRefMasked_ ref (\x -> do
+--     isEmptyBRef ref  `shouldReturn` True
+--     x `shouldBe` "Hello World"
+--     pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   readBRef ref `shouldReturn` "Hello World"
 
-    --   -- check that it is interruptible and that the value is overwritten
-    --   timeout 50000 (modifyBRefMasked_ ref (\_ -> putBRef ref "Foo" >> pure "Bar"))
-    --     `shouldReturn` Nothing
-    --   readBRef ref `shouldReturn` "Foo"
+--   -- check that it is interruptible and that the value is overwritten
+--   timeout 50000 (modifyBRefMasked_ ref (\_ -> putBRef ref "Foo" >> pure "Bar"))
+--     `shouldReturn` Nothing
+--   readBRef ref `shouldReturn` "Foo"
 
-    --    -- check that it is interruptible in the exception handler and that the value is
-    --    -- overwritten
-    --   timeout 50000 (modifyBRefMasked_ ref (\_ -> do
-    --                                 putBRef ref "Goodbye"
-    --                                 "World" <$ throw ExpectedException
-    --                             )) `shouldReturn` Nothing
-    --   takeBRef ref `shouldReturn` "Goodbye"
+--    -- check that it is interruptible in the exception handler and that the value is
+--    -- overwritten
+--   timeout 50000 (modifyBRefMasked_ ref (\_ -> do
+--                                 putBRef ref "Goodbye"
+--                                 "World" <$ throw ExpectedException
+--                             )) `shouldReturn` Nothing
+--   takeBRef ref `shouldReturn` "Goodbye"
 
-    --   -- check that it is interruptible on empty
-    --   timeout 50000 (modifyBRefMasked_ ref pure) `shouldReturn` Nothing
-    -- it "modifyFetchOldBRef" $ do
-    --   ref <- newBRef "Hello"
-    --   modifyFetchOldBRef ref (pure . (++ " World")) `shouldReturn` "Hello"
-    --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   takeBRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchOldBRefMasked" $ do
-    --   ref <- newBRef "Hello"
-    --   modifyFetchOldBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello"
-    --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchOldBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   takeBRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchNewBRef" $ do
-    --   ref <- newBRef "Hello"
-    --   modifyFetchNewBRef ref (pure . (++ " World")) `shouldReturn` "Hello World"
-    --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   takeBRef ref `shouldReturn` "Hello World"
-    -- it "modifyFetchNewBRefMasked" $ do
-    --   ref <- newBRef "Hello"
-    --   modifyFetchNewBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello World"
-    --   readBRef ref `shouldReturn` "Hello World"
-    --   modifyFetchNewBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
-    --     `shouldThrow` impreciseExpectedException
-    --   takeBRef ref `shouldReturn` "Hello World"
-    -- -- xit "modifyBRef" (pure () :: IO ())
-    -- -- xit "modifyBRefMasked" (pure () :: IO ())
-    -- describe "mkWeakBRef" $ do
-    --   it "performGC" $ do
-    --     seref <- newEmptyBRef
-    --     void $ fork $ do
-    --       ref <- newEmptyBRef
-    --       _weak <- mkWeakBRef ref $ putBRef seref ()
-    --       performGC
-    --     takeBRef seref `shouldReturn` ()
-    --   it "finalizeWeak" $ do
-    --     seref <- newEmptyBRef
-    --     ref <- newBRef "Hello"
-    --     weak <- mkWeakBRef ref $ putBRef seref ()
-    --     deBRefWeak weak >>= \case
-    --       Nothing -> expectationFailure "Empty weak ref"
-    --       Just ref' -> do
-    --         ref' `shouldBe` ref
-    --         readBRef ref' `shouldReturn` "Hello"
-    --     finalizeWeak weak
-    --     takeBRef sem `shouldReturn` ()
-
+--   -- check that it is interruptible on empty
+--   timeout 50000 (modifyBRefMasked_ ref pure) `shouldReturn` Nothing
+-- it "modifyFetchOldBRef" $ do
+--   ref <- newBRef "Hello"
+--   modifyFetchOldBRef ref (pure . (++ " World")) `shouldReturn` "Hello"
+--   readBRef ref `shouldReturn` "Hello World"
+--   modifyFetchOldBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   takeBRef ref `shouldReturn` "Hello World"
+-- it "modifyFetchOldBRefMasked" $ do
+--   ref <- newBRef "Hello"
+--   modifyFetchOldBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello"
+--   readBRef ref `shouldReturn` "Hello World"
+--   modifyFetchOldBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   takeBRef ref `shouldReturn` "Hello World"
+-- it "modifyFetchNewBRef" $ do
+--   ref <- newBRef "Hello"
+--   modifyFetchNewBRef ref (pure . (++ " World")) `shouldReturn` "Hello World"
+--   readBRef ref `shouldReturn` "Hello World"
+--   modifyFetchNewBRef ref (\ _ -> pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   takeBRef ref `shouldReturn` "Hello World"
+-- it "modifyFetchNewBRefMasked" $ do
+--   ref <- newBRef "Hello"
+--   modifyFetchNewBRefMasked ref (pure . (++ " World")) `shouldReturn` "Hello World"
+--   readBRef ref `shouldReturn` "Hello World"
+--   modifyFetchNewBRefMasked ref (\ _ -> pure $ raiseImprecise ExpectedException)
+--     `shouldThrow` impreciseExpectedException
+--   takeBRef ref `shouldReturn` "Hello World"
+-- -- xit "modifyBRef" (pure () :: IO ())
+-- -- xit "modifyBRefMasked" (pure () :: IO ())
+-- describe "mkWeakBRef" $ do
+--   it "performGC" $ do
+--     seref <- newEmptyBRef
+--     void $ fork $ do
+--       ref <- newEmptyBRef
+--       _weak <- mkWeakBRef ref $ putBRef seref ()
+--       performGC
+--     takeBRef seref `shouldReturn` ()
+--   it "finalizeWeak" $ do
+--     seref <- newEmptyBRef
+--     ref <- newBRef "Hello"
+--     weak <- mkWeakBRef ref $ putBRef seref ()
+--     deBRefWeak weak >>= \case
+--       Nothing -> expectationFailure "Empty weak ref"
+--       Just ref' -> do
+--         ref' `shouldBe` ref
+--         readBRef ref' `shouldReturn` "Hello"
+--     finalizeWeak weak
+--     takeBRef sem `shouldReturn` ()

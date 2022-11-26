@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Monad.Raises
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -9,30 +10,29 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Monad.Raises
-  ( Raises(..)
-  , raiseLeft
-  , handleExceptT
-  ) where
+module Primal.Monad.Raises (
+  Raises (..),
+  raiseLeft,
+  handleExceptT,
+) where
 
 import Control.Exception
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe
-import GHC.Conc.Sync (STM(..))
-import GHC.Exts
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Cont (ContT)
-import Control.Monad.Trans.Except (ExceptT(..), throwE, catchE)
+import Control.Monad.Trans.Except (ExceptT (..), catchE, throwE)
 import Control.Monad.Trans.Identity (IdentityT)
-import Control.Monad.Trans.Maybe (MaybeT(..))
-import Control.Monad.Trans.Reader (ReaderT(..))
+import Control.Monad.Trans.Maybe (MaybeT (..))
 import Control.Monad.Trans.RWS.Lazy as Lazy (RWST)
 import Control.Monad.Trans.RWS.Strict as Strict (RWST)
+import Control.Monad.Trans.Reader (ReaderT (..))
 import Control.Monad.Trans.State.Lazy as Lazy (StateT)
 import Control.Monad.Trans.State.Strict as Strict (StateT)
 import Control.Monad.Trans.Writer.Lazy as Lazy (WriterT)
 import Control.Monad.Trans.Writer.Strict as Strict (WriterT)
+import GHC.Conc.Sync (STM (..))
+import GHC.Exts
 #if MIN_VERSION_transformers(0, 5, 3)
 import Control.Monad.Trans.Accum (AccumT)
 import Control.Monad.Trans.Select (SelectT)
@@ -75,7 +75,6 @@ class Monad m => Raises m where
   -- | Throw an exception. Note that this throws when this action is run in
   -- the monad @m@, not when it is applied. It is a generalization of
   -- "Primal.Exception"'s 'Primal.Exception.throw'.
-  --
   raiseM :: Exception e => e -> m a
 
 instance Raises Maybe where
@@ -92,7 +91,6 @@ instance Raises (ST s) where
 
 instance Raises STM where
   raiseM e = STM $ raiseIO# (toException e)
-
 
 instance Raises m => Raises (ContT r m) where
   raiseM = lift . raiseM
@@ -143,7 +141,6 @@ instance Raises m => Raises (CPS.WriterT w m) where
 
 #endif
 #endif
-
 
 -- | Raise an exception when it is supplied with Left or return a value unmodified upon Right.
 --

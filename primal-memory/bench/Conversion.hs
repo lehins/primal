@@ -16,7 +16,6 @@ import Primal.Memory.Bytes
 import Primal.Memory.ForeignPtr
 import Primal.Memory.Ptr
 
-
 main :: IO ()
 main = do
   let n = 1000000 :: Count a
@@ -89,64 +88,62 @@ main = do
         ]
     ]
 
-
 withPtrMBytes_noinline :: MBytes 'Pin s -> (Ptr a -> IO b) -> IO b
 withPtrMBytes_noinline mb f = do
   res <- f $ toPtrMBytes mb
   res <$ touch mb
 {-# NOINLINE withPtrMBytes_noinline #-}
 
-ptrAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction :: forall a. (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withNoHaltPtrMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
-        go (i + 1)
+          withNoHaltPtrMBytes mb $ \ptr -> (writeOffPtr ptr (Off i) (123 :: a) :: IO ())
+          go (i + 1)
       | otherwise = pure ()
 
-ptrAction_inline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_inline :: forall a. (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_inline (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withPtrMBytes mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
-        go (i + 1)
+          withPtrMBytes mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
+          go (i + 1)
       | otherwise = pure ()
 
-ptrAction_noinline :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+ptrAction_noinline :: forall a. (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 ptrAction_noinline (Count n) mb = go 0
   where
     go i
       | i < n = do
-        withPtrMBytes_noinline mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
-        go (i + 1)
+          withPtrMBytes_noinline mb $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
+          go (i + 1)
       | otherwise = pure ()
 
-bytesAction :: forall a . (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
+bytesAction :: forall a. (Num a, Unbox a) => Count a -> MBytes 'Pin RealWorld -> IO ()
 bytesAction (Count n) mb = go 0
   where
     go i
       | i < n = do
-        writeOffMBytes mb (Off i) (123 :: a)
-        go (i + 1)
+          writeOffMBytes mb (Off i) (123 :: a)
+          go (i + 1)
       | otherwise = pure ()
 
-foreignPtrAction :: forall a . (Num a, Unbox a) => Count a -> ForeignPtr a -> IO ()
+foreignPtrAction :: forall a. (Num a, Unbox a) => Count a -> ForeignPtr a -> IO ()
 foreignPtrAction (Count n) fp = go 0
   where
     go i
       | i < n = do
-        withForeignPtr fp $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
-        go (i + 1)
+          withForeignPtr fp $ \ptr -> writeOffPtr ptr (Off i) (123 :: a)
+          go (i + 1)
       | otherwise = pure ()
 
-
-foreignPtrStorable :: forall a . (Num a, Storable a) => Count a -> ForeignPtr a -> IO ()
+foreignPtrStorable :: forall a. (Num a, Storable a) => Count a -> ForeignPtr a -> IO ()
 foreignPtrStorable (Count n) fp = go 0
   where
     go i
       | i < n = do
-        GHC.withForeignPtr fp $ \ptr -> pokeElemOff ptr i (123 :: a)
-        go (i + 1)
+          GHC.withForeignPtr fp $ \ptr -> pokeElemOff ptr i (123 :: a)
+          go (i + 1)
       | otherwise = pure ()

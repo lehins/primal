@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Element.Unbox
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -11,66 +12,71 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Element.Unbox
-  ( module Primal.Element.Unbox.Class
-  , module Primal.Element.Unbox.Instances
-  , Atom(..)
-  , Atomic
-  , AtomicCount
-  , AtomicBits
-  , showsType
+module Primal.Element.Unbox (
+  module Primal.Element.Unbox.Class,
+  module Primal.Element.Unbox.Instances,
+  Atom (..),
+  Atomic,
+  AtomicCount,
+  AtomicBits,
+  showsType,
+
   -- * Unboxed element size
-  , byteCount
-  , byteCountType
-  , byteCountProxy
+  byteCount,
+  byteCountType,
+  byteCountProxy,
+
   -- * Unboxed element alignment
-  , alignment
-  , alignmentType
-  , alignmentProxy
+  alignment,
+  alignmentType,
+  alignmentProxy,
+
   -- * Unboxed element count
-  , Count(..)
-  , unCountBytes
-  , toByteCount
-  , unCountBytes#
-  , fromByteCount
-  , fromByteCountRem
-  , offPlusCount
-  , offMinusCount
-  , countPlusOff
-  , countMinusOff
-  , countToOff
-  , countToByteOff
-  , countForType
-  , countForProxyTypeOf
+  Count (..),
+  unCountBytes,
+  toByteCount,
+  unCountBytes#,
+  fromByteCount,
+  fromByteCountRem,
+  offPlusCount,
+  offMinusCount,
+  countPlusOff,
+  countMinusOff,
+  countToOff,
+  countToByteOff,
+  countForType,
+  countForProxyTypeOf,
+
   -- * Offset
-  , Off(..)
-  , unOffBytes
-  , toByteOff
-  , unOff#
-  , unOffBytes#
-  , fromByteOff
-  , fromByteOffRem
-  , offToCount
-  , offToByteCount
-  , offForType
-  , offForProxyTypeOf
+  Off (..),
+  unOffBytes,
+  toByteOff,
+  unOff#,
+  unOffBytes#,
+  fromByteOff,
+  fromByteOffRem,
+  offToCount,
+  offToByteCount,
+  offForType,
+  offForProxyTypeOf,
+
   -- * Prefetch
-  , prefetchValue0
-  , prefetchValue1
-  , prefetchValue2
-  , prefetchValue3
+  prefetchValue0,
+  prefetchValue1,
+  prefetchValue2,
+  prefetchValue3,
+
   -- * Re-export
-  , module Data.Word
-  , module Data.Int
-  , Ptr
-  , ForeignPtr
-  , Typeable
-  , Proxy(..)
-  , module Data.Coerce
-  , (#.)
-  , (.#)
-  ) where
+  module Data.Word,
+  module Data.Int,
+  Ptr,
+  ForeignPtr,
+  Typeable,
+  Proxy (..),
+  module Data.Coerce,
+  (#.),
+  (.#),
+) where
 
 import Control.DeepSeq
 import Data.Coerce
@@ -86,7 +92,6 @@ import Primal.Element.Unbox.Class
 import Primal.Element.Unbox.Instances
 import Primal.Monad
 
-
 -- | Helper function that converts a type into a string
 --
 -- @since 0.3.0
@@ -100,7 +105,7 @@ showsType = showsTypeRep . typeRep
 -- Count {unCount = 5}
 --
 -- @since 0.1.0
-byteCount :: forall e . Unbox e => e -> Count Word8
+byteCount :: forall e. Unbox e => e -> Count Word8
 byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCount #-}
 
@@ -112,7 +117,7 @@ byteCount _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 -- Count {unCount = 8}
 --
 -- @since 0.1.0
-byteCountType :: forall e . Unbox e => Count Word8
+byteCountType :: forall e. Unbox e => Count Word8
 byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCountType #-}
 
@@ -124,16 +129,14 @@ byteCountType = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 -- Count {unCount = 8}
 --
 -- @since 0.1.0
-byteCountProxy :: forall proxy e . Unbox e => proxy e -> Count Word8
+byteCountProxy :: forall proxy e. Unbox e => proxy e -> Count Word8
 byteCountProxy _ = coerce (I# (sizeOf# (proxy# :: Proxy# e)))
 {-# INLINE byteCountProxy #-}
-
-
 
 -- | Get the alignemnt of the type in bytes. Argument is not evaluated.
 --
 -- @since 0.1.0
-alignment :: forall e . Unbox e => e -> Int
+alignment :: forall e. Unbox e => e -> Int
 alignment _ = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignment #-}
 
@@ -145,7 +148,7 @@ alignment _ = I# (alignment# (proxy# :: Proxy# e))
 -- 4
 --
 -- @since 0.1.0
-alignmentType :: forall e . Unbox e => Int
+alignmentType :: forall e. Unbox e => Int
 alignmentType = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignmentType #-}
 
@@ -156,16 +159,15 @@ alignmentType = I# (alignment# (proxy# :: Proxy# e))
 -- 8
 --
 -- @since 0.1.0
-alignmentProxy :: forall proxy e . Unbox e => proxy e -> Int
+alignmentProxy :: forall proxy e. Unbox e => proxy e -> Int
 alignmentProxy _ = I# (alignment# (proxy# :: Proxy# e))
 {-# INLINE alignmentProxy #-}
-
-
 
 -- | Number of elements
 newtype Count e = Count
   { unCount :: Int
-  } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
+  }
+  deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
 instance Unbox (Count e) where
   type UnboxIso (Count e) = Int
@@ -181,7 +183,7 @@ unCountBytes# :: Unbox e => Count e -> Int#
 unCountBytes# c@(Count (I# n#)) =
   case coerce (byteCountProxy c) of
     I# sz# -> sz# *# n#
-{-# INLINE[0] unCountBytes# #-}
+{-# INLINE [0] unCountBytes# #-}
 {-# RULES
 "unCountWord8#" unCountBytes# = unCountWord8#
 "unCountInt8#" unCountBytes# = unCountInt8#
@@ -194,7 +196,6 @@ unCountBytes# c@(Count (I# n#)) =
 unCountBytes :: Unbox e => Count e -> Int
 unCountBytes c = I# (unCountBytes# c)
 {-# INLINE unCountBytes #-}
-
 
 -- | Covert to the `Count` of bytes
 --
@@ -229,23 +230,25 @@ countForType count _ = count
 -- | Compute how many elements of type @e@ can fit in the supplied number of bytes.
 --
 -- @since 0.1.0
-fromByteCount :: forall e . Unbox e => Count Word8 -> Count e
+fromByteCount :: forall e. Unbox e => Count Word8 -> Count e
 fromByteCount sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quotInt)
-{-# INLINE[0] fromByteCount #-}
+{-# INLINE [0] fromByteCount #-}
+
 {-# RULES
 "fromByteCount" fromByteCount = id
 "fromByteCount" fromByteCount = coerce :: Count Word8 -> Count Int8
   #-}
 
-
-fromByteCountRem :: forall e . Unbox e => Count Word8 -> (Count e, Count Word8)
+fromByteCountRem :: forall e. Unbox e => Count Word8 -> (Count e, Count Word8)
 fromByteCountRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 0) quotRemInt)
-{-# INLINE[0] fromByteCountRem #-}
+{-# INLINE [0] fromByteCountRem #-}
 {-# RULES
 "fromByteCountRemWord8"
-  fromByteCountRem = (, 0) :: Count Word8 -> (Count Word8, Count Word8)
+  fromByteCountRem =
+    (,0) :: Count Word8 -> (Count Word8, Count Word8)
 "fromByteCountRemInt8"
-  fromByteCountRem = (, 0) . coerce :: Count Word8 -> (Count Int8, Count Word8)
+  fromByteCountRem =
+    (,0) . coerce :: Count Word8 -> (Count Int8, Count Word8)
   #-}
 
 quotSizeOfWith :: forall e b. Unbox e => Proxy# e -> Int -> b -> (Int -> Int -> b) -> b
@@ -256,15 +259,14 @@ quotSizeOfWith px# sz onZero quotWith
     tySize = I# (sizeOf# px#)
 {-# INLINE quotSizeOfWith #-}
 
-
 -- | Offset in number of elements
 newtype Off e = Off
   { unOff :: Int
-  } deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
+  }
+  deriving (Eq, Show, Ord, Enum, Bounded, Num, Integral, Real, NFData)
 
 instance Unbox (Off e) where
   type UnboxIso (Off e) = Int
-
 
 -- | Helper noop function that restricts `Off`set to the type of proxy
 --
@@ -309,7 +311,6 @@ toByteOff :: Unbox e => Off e -> Off Word8
 toByteOff off = Off (I# (unOffBytes# off))
 {-# INLINE toByteOff #-}
 
-
 -- | Convert an offset for some type @e@ with `Unbox` instance to the number of bytes as an
 -- `Int`.
 --
@@ -321,8 +322,6 @@ toByteOff off = Off (I# (unOffBytes# off))
 unOffBytes :: Unbox e => Off e -> Int
 unOffBytes off = I# (unOffBytes# off)
 {-# INLINE unOffBytes #-}
-
-
 
 unOffWord8# :: Off Word8 -> Int#
 unOffWord8# (Off (I# o#)) = o#
@@ -341,21 +340,20 @@ unOffBytes# :: Unbox e => Off e -> Int#
 unOffBytes# o@(Off (I# o#)) =
   case coerce (byteCountProxy o) of
     I# sz# -> sz# *# o#
-{-# INLINE[0] unOffBytes# #-}
+{-# INLINE [0] unOffBytes# #-}
+
 {-# RULES
 "unOffWord8#" unOffBytes# = unOffWord8#
 "unOffInt8#" unOffBytes# = unOffInt8#
   #-}
 
-
-
 fromByteOffInt8 :: Off Word8 -> Off Int8
 fromByteOffInt8 = coerce
 {-# INLINE fromByteOffInt8 #-}
 
-fromByteOff :: forall e . Unbox e => Off Word8 -> Off e
+fromByteOff :: forall e. Unbox e => Off Word8 -> Off e
 fromByteOff sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) 0 quotInt)
-{-# INLINE[0] fromByteOff #-}
+{-# INLINE [0] fromByteOff #-}
 {-# RULES
 "fromByteOff" fromByteOff = id
 "fromByteOff" fromByteOff = fromByteOffInt8
@@ -369,17 +367,13 @@ fromByteOffRemInt8 :: Off Word8 -> (Off Int8, Off Word8)
 fromByteOffRemInt8 i = (coerce i, 0)
 {-# INLINE fromByteOffRemInt8 #-}
 
-
-fromByteOffRem :: forall e . Unbox e => Off Word8 -> (Off e, Off Word8)
+fromByteOffRem :: forall e. Unbox e => Off Word8 -> (Off e, Off Word8)
 fromByteOffRem sz = coerce (quotSizeOfWith (proxy# :: Proxy# e) (coerce sz) (0, 0) quotRemInt)
-{-# INLINE[0] fromByteOffRem #-}
+{-# INLINE [0] fromByteOffRem #-}
 {-# RULES
 "fromByteOffRemWord8" fromByteOffRem = fromByteOffRemWord8
-"fromByteOffRemInt8"  fromByteOffRem = fromByteOffRemInt8
+"fromByteOffRemInt8" fromByteOffRem = fromByteOffRemInt8
   #-}
-
-
-
 
 offPlusCount :: Off e -> Count e -> Off e
 offPlusCount = coerce ((+) :: Int -> Int -> Int)
@@ -389,8 +383,6 @@ offMinusCount :: Off e -> Count e -> Off e
 offMinusCount = coerce ((-) :: Int -> Int -> Int)
 {-# INLINE offMinusCount #-}
 
-
-
 countPlusOff :: Count e -> Off e -> Count e
 countPlusOff = coerce ((+) :: Int -> Int -> Int)
 {-# INLINE countPlusOff #-}
@@ -398,7 +390,6 @@ countPlusOff = coerce ((+) :: Int -> Int -> Int)
 countMinusOff :: Count e -> Off e -> Count e
 countMinusOff = coerce ((-) :: Int -> Int -> Int)
 {-# INLINE countMinusOff #-}
-
 
 prefetchValue0 :: Primal s m => a -> m ()
 prefetchValue0 a = primal_ (prefetchValue0# a)
@@ -415,7 +406,6 @@ prefetchValue2 a = primal_ (prefetchValue2# a)
 prefetchValue3 :: Primal s m => a -> m ()
 prefetchValue3 a = primal_ (prefetchValue3# a)
 {-# INLINE prefetchValue3 #-}
-
 
 -- | Coerce result of a function (it is also a hidden function in Data.Functor.Utils)
 --

@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
 -- |
 -- Module      : Primal.Memory.UVector
 -- Copyright   : (c) Alexey Kuleshevich 2021
@@ -16,11 +17,10 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Memory.UVector
-  ( UVector(..)
-  , UMVector(..)
-  , Pinned(..)
+module Primal.Memory.UVector (
+  UVector (..),
+  UMVector (..),
+  Pinned (..),
   -- , fromBytesUVector
   -- , toBytesUVector
   -- , fromUArrayUVector
@@ -51,10 +51,10 @@ module Primal.Memory.UVector
   -- , setUMVector
   -- , copyUVectorToUMVector
   -- , moveUMVectorToUMVector
-  , module Primal.Element.Unbox
-  ) where
+  module Primal.Element.Unbox,
+) where
 
-import Primal.Array (Size(..), UArray(..), UMArray(..), compareWithST, eqWithST)
+import Primal.Array (Size (..), UArray (..), UMArray (..), compareWithST, eqWithST)
 import Primal.Element.Unbox
 import Primal.Element.Unlift
 import Primal.Eval
@@ -69,18 +69,18 @@ import Primal.Mutable.Freeze
 import Primal.Mutable.Ord
 
 -- | An immutable vector with unboxed elements of type @e@ and support for constant time slicing.
-data UVector (p :: Pinned) e =
-  UVector
-    { uvOff :: {-# UNPACK #-}!(Off Word8)
-    -- ^ Offset in number of bytes into the memory region where vector begins
-    , uvSize :: {-# UNPACK #-}!(Count e)
-    -- ^ Number of elements of type __e__ in the vector
-    , uvBytes :: {-# UNPACK #-}!(Bytes p)
-    -- ^ Region of memory with the actual data
-    }
+data UVector (p :: Pinned) e = UVector
+  { uvOff :: {-# UNPACK #-} !(Off Word8)
+  -- ^ Offset in number of bytes into the memory region where vector begins
+  , uvSize :: {-# UNPACK #-} !(Count e)
+  -- ^ Number of elements of type __e__ in the vector
+  , uvBytes :: {-# UNPACK #-} !(Bytes p)
+  -- ^ Region of memory with the actual data
+  }
+
 type role UVector nominal nominal
 
-instance MemRead (UVector p e) where
+instance MemRead (UVector p e)
 
 instance (Unbox e, Eq e) => Eq (UVector p e) where
   (==) = eqMem @e
@@ -99,11 +99,11 @@ instance (Unbox e, Ord e) => Ord (UVector p e) where
 --   {-# INLINE compareMutST #-}
 
 -- | A mutable vector with unboxed elements of type @e@ and support for constant time slicing.
-data UMVector (p :: Pinned) e s =
-  UMVector
-    { umvOff :: {-# UNPACK #-}!(Off Word8)
-    , umvMBytes :: {-# UNPACK #-}!(MBytes p s)
-    }
+data UMVector (p :: Pinned) e s = UMVector
+  { umvOff :: {-# UNPACK #-} !(Off Word8)
+  , umvMBytes :: {-# UNPACK #-} !(MBytes p s)
+  }
+
 type role UMVector nominal nominal nominal
 
 type instance Frozen (UMVector p e) = UVector p e
@@ -185,8 +185,9 @@ fromMBytesUMVector = UMVector 0
 -- region matches exactly.
 --
 -- @since 1.0.0
-isSameUMVector ::
-     forall e1 e2 p1 p2 s. (Unbox e1, Unbox e2)
+isSameUMVector
+  :: forall e1 e2 p1 p2 s
+   . (Unbox e1, Unbox e2)
   => UMVector p1 e1 s
   -> UMVector p2 e2 s
   -> Bool
@@ -203,28 +204,30 @@ getSizeOfUMVector umv = do
   pure $ (coerce :: Count e -> Size) $ fromByteCount (bc - offToCount (umvOff umv))
 {-# INLINE getSizeOfUMVector #-}
 
-allocUMVector ::
-     forall e p m s . (Typeable p, Unbox e, Primal s m) => Size -> m (UMVector p e s)
+allocUMVector
+  :: forall e p m s. (Typeable p, Unbox e, Primal s m) => Size -> m (UMVector p e s)
 allocUMVector sz = fromMBytesUMVector <$> allocMBytes (coerce sz :: Count e)
 {-# INLINE allocUMVector #-}
 
-newRawUnpinnedUMVector :: forall e m s . (Primal s m, Unbox e) => Size -> m (UMVector 'Inc e s)
+newRawUnpinnedUMVector :: forall e m s. (Primal s m, Unbox e) => Size -> m (UMVector 'Inc e s)
 newRawUnpinnedUMVector sz = UMVector 0 <$> allocUnpinnedMBytes (coerce sz :: Count e)
 {-# INLINE newRawUnpinnedUMVector #-}
 
-newRawPinnedUMVector :: forall e m s . (Primal s m, Unbox e) => Size -> m (UMVector 'Pin e s)
+newRawPinnedUMVector :: forall e m s. (Primal s m, Unbox e) => Size -> m (UMVector 'Pin e s)
 newRawPinnedUMVector sz = UMVector 0 <$> allocPinnedMBytes (coerce sz :: Count e)
 {-# INLINE newRawPinnedUMVector #-}
 
-newRawAlignedPinnedUMVector ::
-     forall e m s. (Primal s m, Unbox e)
+newRawAlignedPinnedUMVector
+  :: forall e m s
+   . (Primal s m, Unbox e)
   => Size
   -> m (UMVector 'Pin e s)
 newRawAlignedPinnedUMVector sz = UMVector 0 <$> allocAlignedPinnedMBytes (coerce sz :: Count e)
 {-# INLINE newRawAlignedPinnedUMVector #-}
 
-freezeUMVector ::
-     forall e p m s. (Unbox e, Primal s m)
+freezeUMVector
+  :: forall e p m s
+   . (Unbox e, Primal s m)
   => UMVector p e s
   -> m (UVector p e)
 freezeUMVector umv = do
@@ -232,8 +235,9 @@ freezeUMVector umv = do
   UVector (umvOff umv) (coerce sz) <$> freezeMBytes (umvMBytes umv)
 {-# INLINE freezeUMVector #-}
 
-thawCloneUVector ::
-     forall e p m s. (Unbox e, Typeable p, Primal s m)
+thawCloneUVector
+  :: forall e p m s
+   . (Unbox e, Typeable p, Primal s m)
   => UVector p e
   -> m (UMVector p e s)
 thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByteCount c)
@@ -255,7 +259,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 --   -> m ()
 -- shrinkUMVector mba sz = shrinkMBytes (toMBytesUMVector mba) (coerce sz :: Count e)
 -- {-# INLINE shrinkUMVector #-}
-
 
 -- -- | Attempt to resize mutable bytes in place.
 -- --
@@ -282,7 +285,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 --   reallocMBytes (toMBytesUMVector mba) (coerce sz :: Count e)
 -- {-# INLINABLE reallocUMVector #-}
 
-
 -- isPinnedUVector :: UVector p e -> Bool
 -- isPinnedUVector (UVector b) = isPinnedBytes b
 -- {-# INLINE isPinnedUVector #-}
@@ -298,8 +300,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 -- writeUMVector :: (Primal s m, Unbox e) => UMVector p e s -> Int -> e -> m ()
 -- writeUMVector (UMVector mb) o = writeOffMBytes mb (coerce o)
 -- {-# INLINE writeUMVector #-}
-
-
 
 -- setUMVector ::
 --      forall e p m s. (Primal s m, Unbox e)
@@ -335,8 +335,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 --   moveMutMem ba (coerce srcOff) mba (coerce dstOff) (coerce sz :: Count e)
 -- {-# INLINE moveUMVectorToUMVector #-}
 
-
-
 -- toPtrUVector :: UVector Pin e -> Ptr e
 -- toPtrUVector (UVector ba#) = Ptr (byteArrayContents# ba#)
 -- {-# INLINE toPtrUVector #-}
@@ -368,7 +366,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 -- withNoHaltPtrUMVector mb f = withAliveUnliftPrim mb $ f (toPtrUMVector mb)
 -- {-# INLINE withNoHaltPtrUMVector #-}
 
-
 -- -- -- | Check if two byte arrays refer to pinned memory and compare their pointers.
 -- -- isSameUVector :: UVector p1 e -> UVector p2 e -> Bool
 -- -- isSameUVector (UVector b1#) (UVector b2#) = isTrue# (isSameByteArray# b1# b2#)
@@ -382,9 +379,6 @@ thawCloneUVector (UVector o c b) = UMVector 0 <$> thawCloneSliceBytes b o (toByt
 -- -- isSamePinnedUVector pb e1 pb2 = toPtrUVector pb e1 == toPtrUVector pb e2
 -- -- {-# INLINE isSamePinnedUVector #-}
 
-
-
 -- -- byteStringConvertError :: String -> a
 -- -- byteStringConvertError msg = error $ "Cannot convert 'ByteString'. " ++ msg
 -- -- {-# NOINLINE byteStringConvertError #-}
-

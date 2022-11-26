@@ -13,38 +13,38 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
-module Primal.Memory.Encoding.Base16
-  (
+module Primal.Memory.Encoding.Base16 (
   -- * Encode
-    encodeBase16
-  , encodeBase16Mem
-  , encodeBase16MutMem
-  -- * Decode
-  , DecodeError(..)
-  , decodeBase16
-  , decodeBase16Mem
-  , decodeBase16MutMem
-  ) where
+  encodeBase16,
+  encodeBase16Mem,
+  encodeBase16MutMem,
 
-import Primal.Foreign
+  -- * Decode
+  DecodeError (..),
+  decodeBase16,
+  decodeBase16Mem,
+  decodeBase16MutMem,
+) where
+
+import Control.Monad.Trans.Except
 import Primal.Eval
 import Primal.Exception
+import Primal.Foreign
 import Primal.Memory.Addr
 import Primal.Memory.Internal
 import Primal.Monad
 import Primal.Monad.Unsafe
 import Primal.Mutable.Freeze
-import Control.Monad.Trans.Except
 
 -- | Error produced when decoding fails.
 --
 -- @since 1.0.0
-data DecodeError =
-  DecodeInvalidLength
-  -- ^ Error produced when length of the input is unepxected
-  | DecodeInvalidValue !(Off Word8)
-  -- ^ Error produced when unepxected value is encountered. Contains an offset
-  -- into source memory where that value is located.
+data DecodeError
+  = -- | Error produced when length of the input is unepxected
+    DecodeInvalidLength
+  | -- | Error produced when unepxected value is encountered. Contains an offset
+    -- into source memory where that value is located.
+    DecodeInvalidValue !(Off Word8)
   deriving (Show, Eq)
 
 instance Exception DecodeError
@@ -106,7 +106,6 @@ encodeBase16MutMem mr m = do
   liftST $ accessMem mr f g 0
 {-# INLINE encodeBase16MutMem #-}
 
-
 -- | Decode a hexidecimal encoded region of memory. Returned memory type is
 -- the same as the source. See `decodeBase16Mem` if the output memory type
 -- should be different.
@@ -130,11 +129,11 @@ decodeBase16 = decodeBase16Mem
 -- except returned memory type can be any other `MemAlloc`.
 --
 -- @since 1.0.0
-decodeBase16Mem ::
-  forall mr ma.
-  (MemRead mr, MemFreeze ma) =>
-  mr ->
-  Either DecodeError (Frozen ma)
+decodeBase16Mem
+  :: forall mr ma
+   . (MemRead mr, MemFreeze ma)
+  => mr
+  -> Either DecodeError (Frozen ma)
 decodeBase16Mem mr = runST $ do
   let Count c = byteCountMem mr
       q = Count (c `quot` 2) :: Count Word8
@@ -143,7 +142,6 @@ decodeBase16Mem mr = runST $ do
     decodeBase16MutMem mr m
     freezeMutMem m
 {-# INLINE decodeBase16Mem #-}
-
 
 -- | Decode a hexidecimal encoded region of immutable memory and write the
 -- output into the supplied mutable region.
