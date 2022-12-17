@@ -2,8 +2,9 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE GHCForeignImportPrim #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnliftedFFITypes #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE UnliftedFFITypes #-}
+
 -- |
 -- Module      : Primal.Foreign.Cmm
 -- Copyright   : (c) Alexey Kuleshevich 2020-2022
@@ -11,25 +12,21 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Foreign.Cmm
-  ( word32ToFloat#
-  , floatToWord32#
-  , word64ToDouble#
-  , doubleToWord64#
-  , getSizeofMutableArray#
-  , shrinkMutableArray#
-  , resizeMutableArray#
-  , getSizeofMutableArrayArray#
-  , shrinkMutableArrayArray#
-  , resizeMutableArrayArray#
-#if __GLASGOW_HASKELL__ < 810
-  , getSizeofSmallMutableArray#
-  , shrinkSmallMutableArray#
-  , resizeSmallMutableArray#
-#endif
-  ) where
-
+module Primal.Foreign.Cmm (
+  word32ToFloat#,
+  floatToWord32#,
+  word64ToDouble#,
+  doubleToWord64#,
+  getSizeofMutableArray#,
+  shrinkMutableArray#,
+  resizeMutableArray#,
+  getSizeofMutableArrayArray#,
+  shrinkMutableArrayArray#,
+  resizeMutableArrayArray#,
+  getSizeofSmallMutableArray#,
+  shrinkSmallMutableArray#,
+  resizeSmallMutableArray#,
+) where
 
 import GHC.Exts
 
@@ -44,27 +41,26 @@ foreign import prim "primal_stg_floatToWord32zh"
   floatToWord32# :: Float# -> Word#
 
 -- | Cast a 64bit Word into a Double
-foreign import prim "primal_stg_word64ToDoublezh"
 #if WORD_SIZE_IN_BITS == 64
+foreign import prim "primal_stg_word64ToDoublezh"
   word64ToDouble# :: Word# -> Double#
 #else
+foreign import prim "primal_stg_word64ToDoublezh"
   word64ToDouble# :: Word64# -> Double#
 #endif
 
 -- | Cast a Double into a 64bit Word
-foreign import prim "primal_stg_doubleToWord64zh"
 #if WORD_SIZE_IN_BITS == 64
+foreign import prim "primal_stg_doubleToWord64zh"
   doubleToWord64# :: Double# -> Word#
 #else
+foreign import prim "primal_stg_doubleToWord64zh"
   doubleToWord64# :: Double# -> Word64#
 #endif
-
-
 
 getSizeofMutableArray# :: MutableArray# s a -> State# s -> (# State# s, Int# #)
 getSizeofMutableArray# sma# s# = (# s#, sizeofMutableArray# sma# #)
 {-# INLINE getSizeofMutableArray# #-}
-
 
 -- | Shrink MutableArray#
 foreign import prim "primal_stg_shrinkMutableArrayzh"
@@ -82,11 +78,14 @@ shrinkMutableArray# ma# i# s =
     (# s', _ #) -> s'
 {-# INLINE shrinkMutableArray# #-}
 
-resizeMutableArray# ::
-     MutableArray# s a -- ^ Array to resize
-  -> Int# -- ^ New size of array
-  -> a -- ^ Newly created slots initialized to this element. Only used when array is
-       -- grown.
+resizeMutableArray#
+  :: MutableArray# s a
+  -- ^ Array to resize
+  -> Int#
+  -- ^ New size of array
+  -> a
+  -- ^ Newly created slots initialized to this element. Only used when array is
+  -- grown.
   -> State# s
   -> (# State# s, MutableArray# s a #)
 resizeMutableArray# arr0 szNew a s0 =
@@ -94,22 +93,25 @@ resizeMutableArray# arr0 szNew a s0 =
     (# s1, szOld #) ->
       if isTrue# (szNew <# szOld)
         then case shrinkMutableArrayCmm# arr0 szNew s1 of
-               (# s2, _ #) -> (# s2, arr0 #)
-        else if isTrue# (szNew ># szOld)
-               then case newArray# szNew a s1 of
-                      (# s2, arr1 #) ->
-                        case copyMutableArray# arr0 0# arr1 0# szOld s2 of
-                          s3 -> (# s3, arr1 #)
-               else (# s1, arr0 #)
+          (# s2, _ #) -> (# s2, arr0 #)
+        else
+          if isTrue# (szNew ># szOld)
+            then case newArray# szNew a s1 of
+              (# s2, arr1 #) ->
+                case copyMutableArray# arr0 0# arr1 0# szOld s2 of
+                  s3 -> (# s3, arr1 #)
+            else (# s1, arr0 #)
 {-# INLINE resizeMutableArray# #-}
 
 getSizeofMutableArrayArray# :: MutableArrayArray# s -> State# s -> (# State# s, Int# #)
 getSizeofMutableArrayArray# arr# s = (# s, sizeofMutableArrayArray# arr# #)
 {-# NOINLINE getSizeofMutableArrayArray# #-}
 
-resizeMutableArrayArray# ::
-     MutableArrayArray# s -- ^ Array to resize
-  -> Int# -- ^ New size of array
+resizeMutableArrayArray#
+  :: MutableArrayArray# s
+  -- ^ Array to resize
+  -> Int#
+  -- ^ New size of array
   -> State# s
   -> (# State# s, MutableArrayArray# s #)
 resizeMutableArrayArray# arr0 szNew s0 =
@@ -117,15 +119,15 @@ resizeMutableArrayArray# arr0 szNew s0 =
     (# s1, szOld #) ->
       if isTrue# (szNew <# szOld)
         then case shrinkMutableArrayCmm# (unsafeCoerce# arr0) szNew s1 of
-               (# s2, _ #) -> (# s2, arr0 #)
-        else if isTrue# (szNew ># szOld)
-               then case newArrayArray# szNew s1 of
-                      (# s2, arr1 #) ->
-                        case copyMutableArrayArray# arr0 0# arr1 0# szOld s2 of
-                          s3 -> (# s3, arr1 #)
-               else (# s1, arr0 #)
+          (# s2, _ #) -> (# s2, arr0 #)
+        else
+          if isTrue# (szNew ># szOld)
+            then case newArrayArray# szNew s1 of
+              (# s2, arr1 #) ->
+                case copyMutableArrayArray# arr0 0# arr1 0# szOld s2 of
+                  s3 -> (# s3, arr1 #)
+            else (# s1, arr0 #)
 {-# INLINE resizeMutableArrayArray# #-}
-
 
 #if __GLASGOW_HASKELL__ < 810
 

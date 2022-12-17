@@ -5,57 +5,61 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+
 -- |
 -- Module      : Primal.Ref.Boxed.Atomic
--- Copyright   : (c) Alexey Kuleshevich 2020-2021
+-- Copyright   : (c) Alexey Kuleshevich 2020-2022
 -- License     : BSD3
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
---
-module Primal.Ref.Boxed.Atomic
-  ( BRef
+module Primal.Ref.Boxed.Atomic (
+  BRef,
+
   -- * Create
-  , newBRef
-  , newDeepBRef
-  , newLazyBRef
+  newBRef,
+  newDeepBRef,
+  newLazyBRef,
+
   -- * Atomic
-  , atomicReadBRef
-  , atomicSwapBRef
-  , atomicWriteBRef
-  , atomicModifyBRef
-  , atomicModifyBRef_
-  , atomicModifyFetchBRef
-  , atomicModifyFetchNewBRef
-  , atomicModifyFetchOldBRef
-  , atomicModifyFetchBothBRef
+  atomicReadBRef,
+  atomicSwapBRef,
+  atomicWriteBRef,
+  atomicModifyBRef,
+  atomicModifyBRef_,
+  atomicModifyFetchBRef,
+  atomicModifyFetchNewBRef,
+  atomicModifyFetchOldBRef,
+  atomicModifyFetchBothBRef,
+
   -- ** Original
-  , casBRef
-  , atomicModifyBRef2
-  , atomicModifyBRef2_
-  , atomicModifyFetchNewBRef2
-  , atomicModifyFetchOldBRef2
-  , atomicModifyFetchBothBRef2
-  , atomicModifyFetchBRef2
+  casBRef,
+  atomicModifyBRef2,
+  atomicModifyBRef2_,
+  atomicModifyFetchNewBRef2,
+  atomicModifyFetchOldBRef2,
+  atomicModifyFetchBothBRef2,
+  atomicModifyFetchBRef2,
+
   -- * Lazy
+
   -- It is recommended to refrain from usage of lazy functions because they are a memory
   -- leak waiting to happen
-  , atomicWriteLazyBRef
-  , atomicModifyLazyBRef
-  , atomicModifyFetchNewLazyBRef
-  , atomicModifyFetchOldLazyBRef
-  , atomicModifyFetchBothLazyBRef
-  , atomicModifyFetchLazyBRef
-  ) where
+  atomicWriteLazyBRef,
+  atomicModifyLazyBRef,
+  atomicModifyFetchNewLazyBRef,
+  atomicModifyFetchOldLazyBRef,
+  atomicModifyFetchBothLazyBRef,
+  atomicModifyFetchLazyBRef,
+) where
 
-import Primal.Ref.Boxed
-import Primal.Monad
 import Primal.Foreign
+import Primal.Monad
+import Primal.Ref.Boxed
 
 ------------
 -- Atomic --
 ------------
-
 
 -- | Evaluate a value and write it atomically into a `BRef`. This is different from
 -- `writeBRef` because [a memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)
@@ -93,7 +97,7 @@ numTriesCAS = 35
 --
 -- ====__Example__
 --
--- >>> 
+-- >>>
 --
 -- @since 1.0.0
 atomicModifyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
@@ -101,39 +105,37 @@ atomicModifyBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        case f old of
-          (!new, result) -> do
-            (success, current) <- casBRef ref old new
-            if success
-              then pure result
-              else loop (i + 1) current
+          case f old of
+            (!new, result) -> do
+              (success, current) <- casBRef ref old new
+              if success
+                then pure result
+                else loop (i + 1) current
       | otherwise = atomicModifyBRef2 ref f
 {-# INLINE atomicModifyBRef #-}
 
-
-
 atomicModifyBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
-atomicModifyBRef2 (BRef ref#) f =
 #if __GLASGOW_HASKELL__ <= 806
+atomicModifyBRef2 (BRef ref#) f =
   let g prev =
         case f prev of
           r@(!_new, _result) -> r
    in primal (atomicModifyMutVar# ref# g)
 #else
+atomicModifyBRef2 (BRef ref#) f =
   primal $ \s ->
     case atomicModifyMutVar2# ref# f s of
       (# s', _old, (!_new, result) #) -> (# s', result #)
 #endif
 {-# INLINE atomicModifyBRef2 #-}
 
-
 atomicModifyBRef_ :: Primal s m => BRef a s -> (a -> a) -> m ()
 atomicModifyBRef_ ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        (success, current) <- casBRef ref old $! f old
-        unless success $ loop (i + 1) current
+          (success, current) <- casBRef ref old $! f old
+          unless success $ loop (i + 1) current
       | otherwise = atomicModifyBRef2_ ref f
 {-# INLINE atomicModifyBRef_ #-}
 
@@ -149,10 +151,10 @@ atomicModifyFetchOldBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        (success, current) <- casBRef ref old $! f old
-        if success
-          then pure old
-          else loop (i + 1) current
+          (success, current) <- casBRef ref old $! f old
+          if success
+            then pure old
+            else loop (i + 1) current
       | otherwise = atomicModifyFetchOldBRef2 ref f
 {-# INLINE atomicModifyFetchNewBRef #-}
 
@@ -163,16 +165,15 @@ atomicModifyFetchOldBRef2 (BRef ref#) f =
       (# s', _prev, !_cur #) -> (# s', _prev #)
 {-# INLINE atomicModifyFetchOldBRef2 #-}
 
-
 atomicModifyFetchNewBRef :: Primal s m => BRef a s -> (a -> a) -> m a
 atomicModifyFetchNewBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        (success, current) <- casBRef ref old $! f old
-        if success
-          then pure current
-          else loop (i + 1) current
+          (success, current) <- casBRef ref old $! f old
+          if success
+            then pure current
+            else loop (i + 1) current
       | otherwise = atomicModifyFetchNewBRef2 ref f
 {-# INLINE atomicModifyFetchOldBRef #-}
 
@@ -183,20 +184,17 @@ atomicModifyFetchNewBRef2 (BRef ref#) f =
       (# s', _prev, !cur #) -> (# s', cur #)
 {-# INLINE atomicModifyFetchNewBRef2 #-}
 
-
-
 atomicModifyFetchBothBRef :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        (success, current) <- casBRef ref old $! f old
-        if success
-          then pure (old, current)
-          else loop (i + 1) current
+          (success, current) <- casBRef ref old $! f old
+          if success
+            then pure (old, current)
+            else loop (i + 1) current
       | otherwise = atomicModifyFetchBothBRef2 ref f
 {-# INLINE atomicModifyFetchBothBRef #-}
-
 
 atomicModifyFetchBothBRef2 :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothBRef2 (BRef ref#) f =
@@ -213,15 +211,14 @@ atomicModifyFetchBRef ref f = readBRef ref >>= loop (0 :: Int)
   where
     loop i old
       | i < numTriesCAS = do
-        case f old of
-          (!new, result) -> do
-            (success, current) <- casBRef ref old new
-            if success
-              then pure (old, new, result)
-              else loop (i + 1) current
+          case f old of
+            (!new, result) -> do
+              (success, current) <- casBRef ref old new
+              if success
+                then pure (old, new, result)
+                else loop (i + 1) current
       | otherwise = atomicModifyFetchBRef2 ref f
 {-# INLINE atomicModifyFetchBRef #-}
-
 
 -- TODO: Test this property
 -- @atomicModifyIOBRef' ref (\x -> (x+1, undefined))@
@@ -235,7 +232,6 @@ atomicModifyFetchBRef2 ref f =
     case f current of
       r@(!_new, _res) -> r
 {-# INLINE atomicModifyFetchBRef2 #-}
-
 
 -- atomicModifyBRef2 :: Primal s m => BRef a s -> (a -> (a, b)) -> m (a, a, b)
 -- (BRef ref#) f =
@@ -257,18 +253,12 @@ atomicModifyFetchBRef2 ref f =
 --       (# s', _old, res #) -> (# s', res #)
 -- {-# INLINE atomicModifyBRef2 #-}
 
-
-
-
-
-
 atomicModifyFetchBothLazyBRef :: Primal s m => BRef a s -> (a -> a) -> m (a, a)
 atomicModifyFetchBothLazyBRef (BRef ref#) f =
   primal $ \s ->
     case atomicModifyMutVar_# ref# f s of
       (# s', prev, cur #) -> (# s', (prev, cur) #)
 {-# INLINE atomicModifyFetchBothLazyBRef #-}
-
 
 casBRef :: Primal s m => BRef a s -> a -> a -> m (Bool, a)
 casBRef (BRef ref#) expOld new =
@@ -284,7 +274,6 @@ atomicModifyFetchLazyBRef (BRef ref#) f =
     case atomicModifyMutVar2# ref# f s of
       (# s', old, ~(new, res) #) -> (# s', (old, new, res) #)
 {-# INLINE atomicModifyFetchLazyBRef #-}
-
 
 atomicModifyLazyBRef :: Primal s m => BRef a s -> (a -> (a, b)) -> m b
 atomicModifyLazyBRef (BRef ref#) f = primal (atomicModifyMutVar# ref# f)
@@ -312,8 +301,6 @@ atomicModifyFetchNewLazyBRef (BRef ref#) f =
 atomicWriteLazyBRef :: Primal s m => BRef b s -> b -> m ()
 atomicWriteLazyBRef ref x = atomicModifyLazyBRef_ ref (const x)
 
-
-
 -- atomicModifyIOBRef' :: IOBRef a -> (a -> (a,b)) -> IO b
 -- -- See Note [atomicModifyIOBRef' definition]
 -- atomicModifyIOBRef' ref f = do
@@ -337,5 +324,3 @@ atomicWriteLazyBRef ref x = atomicModifyLazyBRef_ ref (const x)
 -- atomicModifyIOBRef2Lazy (IOBRef (STBRef r#)) f =
 --   IO (\s -> case atomicModifyMutVar2# r# f s of
 --               (# s', old, res #) -> (# s', (old, res) #))
-
-
