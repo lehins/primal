@@ -1,0 +1,19 @@
+packages:
+  primal
+  primal-container
+  primal-memory
+  primal-test
+  primal-ops
+
+program-options
+  ghc-options: -Werror
+
+-- Always write GHC env files, because they are needed by the doctests.
+write-ghc-environment-files: always
+
+-- Always build tests and benchmarks.
+tests: true
+benchmarks: true
+
+-- Always show test output as each test is running
+test-show-details: streaming

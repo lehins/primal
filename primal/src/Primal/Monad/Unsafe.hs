@@ -48,7 +48,6 @@ import Data.Kind
 import GHC.Exts
 import GHC.IO hiding (noDuplicate)
 import Primal.Monad.Internal
-import System.IO.Unsafe
 
 -- | Take some mutable data type and unsafely change its state token to match the monad it
 -- should operate in.
