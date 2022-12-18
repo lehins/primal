@@ -1,6 +1,7 @@
 resolver: lts-16.31
 packages:
 - primal
+- primal-ops
 # - primal-adaptive
 - primal-container
 - primal-memory

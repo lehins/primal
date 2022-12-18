@@ -7,12 +7,12 @@ module Main where
 import Test.DocTest (doctest)
 
 main :: IO ()
-main = doctest ["src", "-fobject-code"]
+main = doctest ["-fobject-code", "src", "internal"]
 
 #else
 
 -- TODO: fix doctest support
 main :: IO ()
-main = putStrLn "\nDoctests are not supported for ghc version 8.2 and prior as well as 8.10\n"
+main = putStrLn "\nDoctests are not supported for ghc version 8.2 and prior as well as 8.10 onwards\n"
 
 #endif

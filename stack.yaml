@@ -1,10 +1,16 @@
 resolver: lts-18.28
 packages:
 - primal
+- primal-ops
 # - primal-adaptive
 - primal-container
 - primal-memory
 - primal-test
+
+extra-deps:
+- hspec-2.10.7@sha256:7a11550ecd1d741fdca9415a4190279d8113107a20e4e59da9b199c5c0fb0107,1712
+- hspec-core-2.10.7@sha256:fa6e13c51d7542492d39e9208d0c4be564bc39a6a788f5a3fe9e864e5fe242ea,6551
+- hspec-discover-2.10.7@sha256:55c33806a9700cea5fa3446db224984a09d5f2d4e0ac9a728812784e454b08c1,2167
 
 # extra-deps:
 # - QuickCheck-2.13.2@sha256:ad4e5adbd1c9dc0221a44307b992cb040c515f31095182e47aa7e974bc461df1,6952
