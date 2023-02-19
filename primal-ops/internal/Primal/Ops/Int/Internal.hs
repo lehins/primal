@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
-
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE UnliftedFFITypes #-}
 -- |
 -- Module      : Primal.Ops.Int.Internal
 -- Copyright   : (c) Alexey Kuleshevich 2022-2023
@@ -34,6 +35,7 @@ module Primal.Ops.Int.Internal (
   leInt8#,
   ltInt8#,
   neInt8#,
+
   -- ** Testing
   toRealInt8#,
   fromRealInt8#,
@@ -59,6 +61,7 @@ module Primal.Ops.Int.Internal (
   leInt16#,
   ltInt16#,
   neInt16#,
+
   -- ** Testing
   toRealInt16#,
   fromRealInt16#,
@@ -84,6 +87,7 @@ module Primal.Ops.Int.Internal (
   leInt32#,
   ltInt32#,
   neInt32#,
+
   -- ** Testing
   toRealInt32#,
   fromRealInt32#,
@@ -103,12 +107,14 @@ module Primal.Ops.Int.Internal (
   uncheckedIShiftRA64#,
   uncheckedIShiftRL64#,
   int64ToWord64#,
+  word64ToInt64#,
   eqInt64#,
   geInt64#,
   gtInt64#,
   leInt64#,
   ltInt64#,
   neInt64#,
+
   -- ** Testing
   toRealInt64#,
   fromRealInt64#,
@@ -116,50 +122,66 @@ module Primal.Ops.Int.Internal (
 
 #include "MachDeps.h"
 
-import Primal.Ops.Word.Internal (Word16#, Word32#, Word64#, Word8#)
+import Primal.Ops.Word.Internal (Word16#, Word32#, Word8#, int64ToWord64#, word64ToInt64#)
 
 import GHC.Exts (
   Int#,
+  int2Word#,
+  narrow16Int#,
+  narrow16Word#,
+  narrow32Int#,
+  narrow32Word#,
+  narrow8Int#,
+  narrow8Word#,
   negateInt#,
-  (+#),
-  (-#),
-  (*#),
   quotInt#,
-  remInt#,
   quotRemInt#,
+  remInt#,
   uncheckedIShiftL#,
   uncheckedIShiftRA#,
   uncheckedIShiftRL#,
-  narrow8Int#,
-  narrow16Int#,
-  narrow32Int#,
-  narrow8Word#,
-  narrow16Word#,
-  narrow32Word#,
-  (==#),
-  (>=#),
-  (>#),
-  (<=#),
-  (<#),
+  (*#),
+  (+#),
+  (-#),
   (/=#),
-  int2Word#,
-  )
+  (<#),
+  (<=#),
+  (==#),
+  (>#),
+  (>=#),
+ )
 
 #if __GLASGOW_HASKELL__ >= 902
 import qualified GHC.Exts as GHC
 #endif
 
-
-#if WORD_SIZE_IN_BITS < 64
-import GHC.Prim (Int64#)
-#else
-type Int64# = Int#
+#if __GLASGOW_HASKELL__ >= 904 || WORD_SIZE_IN_BITS < 64
+import GHC.Exts (
+  int64ToInt#,
+  intToInt64#,
+  negateInt64#,
+  plusInt64#,
+  subInt64#,
+  timesInt64#,
+  quotInt64#,
+  remInt64#,
+  quotRemInt64#,
+  uncheckedIShiftL64#,
+  uncheckedIShiftRA64#,
+  uncheckedIShiftRL64#,
+  eqInt64#,
+  geInt64#,
+  gtInt64#,
+  leInt64#,
+  ltInt64#,
+  neInt64#,
+  )
 #endif
+import GHC.Prim (Int64#)
 
 type Int32# = Int#
 type Int16# = Int#
 type Int8# = Int#
-
 
 #if __GLASGOW_HASKELL__ >= 902
 toRealInt8# :: Int8# -> GHC.Int8#
@@ -180,12 +202,6 @@ toRealInt32# = GHC.intToInt32#
 fromRealInt32# :: GHC.Int32# -> Int32#
 fromRealInt32# = GHC.int32ToInt#
 
-toRealInt64# :: Int64# -> GHC.Int64#
-toRealInt64# = GHC.intToInt64#
-
-fromRealInt64# :: GHC.Int64# -> Int64#
-fromRealInt64# = GHC.int64ToInt#
-
 #else
 toRealInt8# :: Int8# -> Int8#
 toRealInt8# x# = x#
@@ -205,13 +221,13 @@ toRealInt32# x# = x#
 fromRealInt32# :: Int32# -> Int32#
 fromRealInt32# x# = x#
 
+#endif
+
 toRealInt64# :: Int64# -> Int64#
 toRealInt64# x# = x#
 
 fromRealInt64# :: Int64# -> Int64#
 fromRealInt64# x# = x#
-
-#endif
 
 
 timesInt2# :: Int# -> Int# -> (# Int#, Int#, Int# #)
@@ -225,7 +241,7 @@ int8ToInt# :: Int8# -> Int#
 int8ToInt# i8# = i8#
 
 intToInt8# :: Int# -> Int8#
-intToInt8# i8# = narrow8Int# i8#
+intToInt8# = narrow8Int#
 
 negateInt8# :: Int8# -> Int8#
 negateInt8# i8# = narrow8Int# (negateInt# i8#)
@@ -255,7 +271,7 @@ uncheckedShiftRAInt8# :: Int8# -> Int# -> Int8#
 uncheckedShiftRAInt8# i8# i# = narrow8Int# (uncheckedIShiftRA# i8# i#)
 
 uncheckedShiftRLInt8# :: Int8# -> Int# -> Int8#
-uncheckedShiftRLInt8# i8# i# = uncheckedIShiftRL# i8# i#
+uncheckedShiftRLInt8# = uncheckedIShiftRL#
 
 int8ToWord8# :: Int8# -> Word8#
 int8ToWord8# i8# = narrow8Word# (int2Word# i8#)
@@ -278,7 +294,6 @@ ltInt8# = (<#)
 neInt8# :: Int8# -> Int8# -> Int#
 neInt8# = (/=#)
 
-
 --------------------------------------------------------------------------------
 -- Int16# ----------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -287,7 +302,7 @@ int16ToInt# :: Int16# -> Int#
 int16ToInt# i16# = i16#
 
 intToInt16# :: Int# -> Int16#
-intToInt16# i16# = narrow16Int# i16#
+intToInt16# = narrow16Int#
 
 negateInt16# :: Int16# -> Int16#
 negateInt16# i16# = narrow16Int# (negateInt# i16#)
@@ -348,7 +363,7 @@ int32ToInt# :: Int32# -> Int#
 int32ToInt# i32# = i32#
 
 intToInt32# :: Int# -> Int32#
-intToInt32# i32# = narrow32Int# i32#
+intToInt32# = narrow32Int#
 
 negateInt32# :: Int32# -> Int32#
 negateInt32# i32# = narrow32Int# (negateInt# i32#)
@@ -405,101 +420,33 @@ neInt32# = (/=#)
 -- Int64# ----------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-#if WORD_SIZE_IN_BITS >= 64
+#if __GLASGOW_HASKELL__ < 904 && WORD_SIZE_IN_BITS >= 64
 
-int64ToInt# :: Int64# -> Int#
-int64ToInt# i64# = i64#
+foreign import ccall unsafe "hs_eqInt64"     eqInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_neInt64"     neInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_ltInt64"     ltInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_leInt64"     leInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_gtInt64"     gtInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_geInt64"     geInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "hs_quotInt64"   quotInt64#    :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "hs_remInt64"    remInt64#     :: Int64# -> Int64# -> Int64#
 
-intToInt64# :: Int# -> Int64#
-intToInt64# i64# = i64#
+foreign import ccall unsafe "hs_plusInt64"   plusInt64#    :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "hs_minusInt64"  minusInt64#   :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "hs_timesInt64"  timesInt64#   :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "hs_negateInt64" negateInt64#  :: Int64# -> Int64#
 
-negateInt64# :: Int64# -> Int64#
-negateInt64# i64# = negateInt# i64#
+foreign import ccall unsafe "hs_uncheckedIShiftL64"  uncheckedIShiftL64#  :: Int64# -> Int# -> Int64#
+foreign import ccall unsafe "hs_uncheckedIShiftRA64" uncheckedIShiftRA64# :: Int64# -> Int# -> Int64#
+foreign import ccall unsafe "hs_uncheckedIShiftRL64" uncheckedIShiftRL64# :: Int64# -> Int# -> Int64#
 
-plusInt64# :: Int64# -> Int64# -> Int64#
-plusInt64# = (+#)
+foreign import ccall unsafe "hs_intToInt64"      intToInt64#      :: Int# -> Int64#
+foreign import ccall unsafe "hs_int64ToInt"      int64ToInt#      :: Int64# -> Int#
 
-subInt64# :: Int64# -> Int64# -> Int64#
-subInt64# = (-#)
-
-timesInt64# :: Int64# -> Int64# -> Int64#
-timesInt64# = (*#)
-
-quotInt64# :: Int64# -> Int64# -> Int64#
-quotInt64# = quotInt#
-
-remInt64# :: Int64# -> Int64# -> Int64#
-remInt64# = remInt#
-
-quotRemInt64# :: Int64# -> Int64# -> (# Int64#, Int64# #)
-quotRemInt64# = quotRemInt#
-
-uncheckedIShiftL64# :: Int64# -> Int# -> Int64#
-uncheckedIShiftL64# = uncheckedIShiftL#
-
-uncheckedIShiftRA64#  :: Int64# -> Int# -> Int64#
-uncheckedIShiftRA64# = uncheckedIShiftRA#
-
-uncheckedIShiftRL64# :: Int64# -> Int# -> Int64#
-uncheckedIShiftRL64# = uncheckedIShiftRL#
-
-int64ToWord64# :: Int64# -> Word64#
-int64ToWord64# i64# = int2Word# i64#
-
-eqInt64# :: Int64# -> Int64# -> Int#
-eqInt64# = (==#)
-
-geInt64# :: Int64# -> Int64# -> Int#
-geInt64# = (>=#)
-
-gtInt64# :: Int64# -> Int64# -> Int#
-gtInt64# = (>#)
-
-leInt64# :: Int64# -> Int64# -> Int#
-leInt64# = (<=#)
-
-ltInt64# :: Int64# -> Int64# -> Int#
-ltInt64# = (<#)
-
-neInt64# :: Int64# -> Int64# -> Int#
-neInt64# = (/=#)
-
-#else
+#endif
 
 subInt64# :: Int64# -> Int64# -> Int64#
 subInt64# = minusInt64#
 
 quotRemInt64# :: Int64# -> Int64# -> (# Int64#, Int64# #)
 quotRemInt64# x# y# = (# quotInt64# x# y#, remInt64# x# y# #)
-
-uncheckedIShiftL64# :: Int64# -> Int# -> Int64#
-uncheckedIShiftL64# = uncheckedIShiftL#
-
-uncheckedIShiftRA64#  :: Int64# -> Int# -> Int64#
-uncheckedIShiftRA64# = uncheckedIShiftRA#
-
-uncheckedIShiftRL64# :: Int64# -> Int# -> Int64#
-uncheckedIShiftRL64# = uncheckedIShiftRL#
-
-int64ToWord64# :: Int64# -> Word64#
-int64ToWord64# i64# = narrow64Word# (int2Word# i64#)
-
-eqInt64# :: Int64# -> Int64# -> Int#
-eqInt64# = (==#)
-
-geInt64# :: Int64# -> Int64# -> Int#
-geInt64# = (>=#)
-
-gtInt64# :: Int64# -> Int64# -> Int#
-gtInt64# = (>#)
-
-leInt64# :: Int64# -> Int64# -> Int#
-leInt64# = (<=#)
-
-ltInt64# :: Int64# -> Int64# -> Int#
-ltInt64# = (<#)
-
-neInt64# :: Int64# -> Int64# -> Int#
-neInt64# = (/=#)
-
-#endif

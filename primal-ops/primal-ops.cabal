@@ -54,6 +54,8 @@ library
   --          , cbits/primal_atomic.c
   --          , cbits/primal_stg.cmm
   cc-options: -Wno-sync-nand
+  if impl(ghc < 9.4)
+     c-sources: cbits/longlong.c
   -- if impl(ghc < 8.6)
   --   c-sources: cbits/primal_compat.c
   --   if impl(ghc < 8.4)

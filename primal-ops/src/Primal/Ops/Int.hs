@@ -10,12 +10,17 @@
 -- Maintainer  : Alexey Kuleshevich <alexey@kuleshevi.ch>
 -- Stability   : experimental
 -- Portability : non-portable
+--
+-- Fixed width signed integers
 module Primal.Ops.Int (
-  -- * Fixed width signed integers
+  -- * Int
+
+  -- | Native-size boxed signed integer (32+ bits).
+  Int (..),
 
   -- ** Int#
 
-  -- |Operations on native-size signed integers (32+ bits).
+  -- | Native-size primitive signed integer (32+ bits).
   Int#,
 
   -- *** (+#)
@@ -81,6 +86,18 @@ module Primal.Ops.Int (
   -- >>> :set -XMagicHash
   -- >>> I# (quotInt# 21# 5#)
   -- 4
+  -- >>> I# (quotInt# -21# 5#)
+  -- -4
+  --
+  -- Subject to overflow:
+  --
+  -- >>> I# (quotInt# -9223372036854775808# -1#)
+  -- -9223372036854775808
+  --
+  -- Fails with unrecoverable exception when second argument is @0#@
+  --
+  -- > >>> I# (quotInt# 5# 0#)
+  -- ><process is terminated>
   quotInt#,
 
   -- *** remInt#
@@ -141,43 +158,147 @@ module Primal.Ops.Int (
 
   -- *** negateInt#
 
-  -- | Binary NOT of a primitive signed integer:
+  -- | Flip the sign of a primitive signed integer:
   --
   -- >>> :set -XMagicHash
-  -- >>> I# (negateInt# 1#)
-  -- -1
+  -- >>> I# (negateInt# 5#)
+  -- -5
+  --
+  -- Subject to overflow for the smallest value:
+  --
+  -- >>> I# (negateInt# -9223372036854775808#)
+  -- -9223372036854775808
   negateInt#,
 
   -- *** addIntC#
 
   -- | Add two primitive signed integers with indication of overflow:
   --
-  -- >>> :set -XMagicHash
-  -- >>> toIntTuple# (addIntC# 1# 2#)
-  -- (0, 3)
-  -- >>> toIntTuple# (addIntC# 1# 9223372036854775807#)
-  -- (1, -9223372036854775808)
+  -- >>> :set -XMagicHash -XUnboxedTuples
+  -- >>> case addIntC# 1# 5# of (# r#, o# #) -> (I# r#, isTrue# o#)
+  -- (6,False)
+  -- >>> case addIntC# 1# 9223372036854775807# of (# r#, o# #) -> (I# r#, isTrue# o#)
+  -- (-9223372036854775808,True)
   addIntC#,
+
+  -- *** subIntC#
+
+  -- | Subtract one primitive signed integer from another with indication of overflow:
+  --
+  -- >>> :set -XMagicHash -XUnboxedTuples
+  -- >>> case subIntC# 1# 5# of (# r#, o# #) -> (I# r#, isTrue# o#)
+  -- (-4,False)
+  -- >>> case subIntC# -9223372036854775808# 1# of (# r#, o# #) -> (I# r#, isTrue# o#)
+  -- (9223372036854775807,True)
   subIntC#,
+
+  -- *** >#
+
+  -- | Compare if one primitive signed integer is greater than another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# ># 5#)
+  -- False
+  -- >>> isTrue# (5# ># 5#)
+  -- False
+  -- >>> isTrue# (6# ># 5#)
+  -- True
   (>#),
+
+  -- *** >=#
+
+  -- | Compare if one primitive signed integer is greater or equal than another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# >=# 5#)
+  -- False
+  -- >>> isTrue# (5# >=# 5#)
+  -- True
+  -- >>> isTrue# (6# >=# 5#)
+  -- True
   (>=#),
+
+  -- *** ==#
+
+  -- | Compare if one primitive signed integer is equal to another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# ==# 5#)
+  -- False
+  -- >>> isTrue# (5# ==# 5#)
+  -- True
+  -- >>> isTrue# (6# ==# 5#)
+  -- False
   (==#),
+
+  -- *** /=#
+
+  -- | Compare if one primitive signed integer is not equal to another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# /=# 5#)
+  -- True
+  -- >>> isTrue# (5# /=# 5#)
+  -- False
+  -- >>> isTrue# (6# /=# 5#)
+  -- True
   (/=#),
+
+  -- *** <#
+
+  -- | Compare if one primitive signed integer is less than another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# <# 5#)
+  -- True
+  -- >>> isTrue# (5# <# 5#)
+  -- False
+  -- >>> isTrue# (6# <# 5#)
+  -- False
   (<#),
+
+  -- *** <=#
+
+  -- | Compare if one primitive signed integer is less or equal than another:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> isTrue# (4# <=# 5#)
+  -- True
+  -- >>> isTrue# (5# <=# 5#)
+  -- True
+  -- >>> isTrue# (6# <=# 5#)
+  -- False
   (<=#),
-  chr#,
+
+  -- *** int2Word#
+
+  -- | Convert a primitive signed integer to a primitive unsigned integer:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> import Primal.Ops.Word (Word (W#))
+  -- >>> W# (int2Word# 5#)
+  -- 5
+  --
+  -- Subject to overflow:
+  --
+  -- >>> W# (int2Word# -5#)
+  -- 18446744073709551611
+
   int2Word#,
   int2Float#,
   int2Double#,
-  word2Float#,
-  word2Double#,
   uncheckedIShiftL#,
   uncheckedIShiftRA#,
   uncheckedIShiftRL#,
 
+  -- * Int8
+
+  -- | 8-bit boxed signed integers.
+  Int8 (..),
+
   -- ** Int8#
 
-  -- | Operations on 8-bit signed integers.
+  -- | 8-bit primitive signed integers.
   Int8#,
   int8ToInt#,
   intToInt8#,
@@ -199,9 +320,14 @@ module Primal.Ops.Int (
   ltInt8#,
   neInt8#,
 
-  -- * Int16#
+  -- * Int16
 
-  -- | Operations on 16-bit signed integers.
+  -- | 16-bit boxed signed integers.
+  Int16 (..),
+
+  -- ** Int16#
+
+  -- | 16-bit primitive signed integers.
   Int16#,
   int16ToInt#,
   intToInt16#,
@@ -223,9 +349,14 @@ module Primal.Ops.Int (
   ltInt16#,
   neInt16#,
 
-  -- * Int32#
+  -- * Int32
 
-  -- | Operations on 32-bit signed integers.
+  -- | 32-bit boxed signed integers.
+  Int32 (..),
+
+  -- ** Int32#
+
+  -- | 32-bit primitive signed integers.
   Int32#,
   int32ToInt#,
   intToInt32#,
@@ -247,9 +378,14 @@ module Primal.Ops.Int (
   ltInt32#,
   neInt32#,
 
-  -- * Int64#
+  -- * Int64
 
-  -- | Operations on 64-bit signed integers.
+  -- | 64-bit boxed signed integers.
+  Int64 (..),
+
+  -- ** Int64#
+
+  -- | 64-bit primitive signed integers.
   Int64#,
   int64ToInt#,
   intToInt64#,
@@ -271,8 +407,40 @@ module Primal.Ops.Int (
   neInt64#,
 ) where
 
-#if __GLASGOW_HASKELL__ >= 902
+import GHC.Int (Int8(..), Int16(..), Int32(..), Int64(..))
+
+#if __GLASGOW_HASKELL__ >= 904
 import GHC.Exts
+
+#elif __GLASGOW_HASKELL__ >= 902
+import GHC.Exts
+
+#include "MachDeps.h"
+
+#if WORD_SIZE_IN_BITS >= 64
+import Primal.Ops.Int.Internal (
+  int64ToInt#,
+  intToInt64#,
+  negateInt64#,
+  plusInt64#,
+  subInt64#,
+  timesInt64#,
+  quotInt64#,
+  remInt64#,
+  quotRemInt64#,
+  uncheckedIShiftL64#,
+  uncheckedIShiftRA64#,
+  uncheckedIShiftRL64#,
+  int64ToWord64#,
+  eqInt64#,
+  geInt64#,
+  gtInt64#,
+  leInt64#,
+  ltInt64#,
+  neInt64#,
+  )
+#endif
+
 #else
 
 #if __GLASGOW_HASKELL__ >= 900
@@ -359,7 +527,6 @@ import GHC.Exts hiding (
   neInt64#,
  )
 #elif __GLASGOW_HASKELL__ >= 810
-
 import GHC.Exts hiding (
   Int8#,
   negateInt8#,
@@ -395,18 +562,15 @@ import GHC.Exts hiding (
   uncheckedIShiftRA64#,
  )
 #endif
-
 import Primal.Ops.Int.Internal hiding (timesInt2#)
 #if __GLASGOW_HASKELL__ < 900
 -- Despite that changelog mentions `timesInt2#` in ghc-prim-0.6.1 which comes with ghc-8.10
 import Primal.Ops.Int.Internal (timesInt2#)
 #endif
 
-#endif
+#endif /* __GLASGOW_HASKELL__ >= 902 */
 
 -- $setup
 --
--- >>> :set -XMagicHash
--- >>> import GHC.Int
 -- >>> import GHC.Exts (isTrue#)
 -- >>> import Primal.Ops.Int
