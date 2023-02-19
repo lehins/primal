@@ -399,13 +399,13 @@ callStack = ?callStack
 
 -- | Pretty print a 'SrcLoc'. (Implemented for compatibility with GHC-7.10.2)
 --
--- @since 3.0.0
+-- @since 1.0.0
 prettySrcLoc :: SrcLoc -> String
 prettySrcLoc = showSrcLoc
 
 -- | Pretty print a 'CallStack'. (Implemented for compatibility with GHC-7.10.2)
 --
--- @since 3.0.0
+-- @since 1.0.0
 prettyCallStack :: CallStack -> String
 prettyCallStack = intercalate "\n" . prettyCallStackLines
 
