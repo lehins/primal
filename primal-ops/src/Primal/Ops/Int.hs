@@ -75,8 +75,12 @@ module Primal.Ops.Int (
   -- >>> :set -XMagicHash
   -- >>> isTrue# (mulIntMayOflo# 4# 5#)
   -- False
-  -- >>> isTrue# (mulIntMayOflo# 4# 9223372036854775806#)
+  -- >>> isTrue# (mulIntMayOflo# 12# 9223372036854775806#)
   -- True
+  --
+  -- It is allowed to produce false positives
+  -- >>> isTrue# (mulIntMayOflo# 4# 9223372036854775806#)
+  -- False
   mulIntMayOflo#,
 
   -- *** quotInt#
@@ -275,7 +279,7 @@ module Primal.Ops.Int (
   -- | Convert a primitive signed integer to a primitive unsigned integer:
   --
   -- >>> :set -XMagicHash
-  -- >>> import Primal.Ops.Word (Word (W#))
+  -- >>> import GHC.Word (Word (W#))
   -- >>> W# (int2Word# 5#)
   -- 5
   --
@@ -405,9 +409,14 @@ module Primal.Ops.Int (
   leInt64#,
   ltInt64#,
   neInt64#,
+  -- * Useful re-exports
+  isTrue#,
 ) where
 
-import GHC.Int (Int8(..), Int16(..), Int32(..), Int64(..))
+#include "MachDeps.h"
+
+
+import GHC.Int (Int(..), Int8(..), Int16(..), Int32(..), Int64(..))
 
 #if __GLASGOW_HASKELL__ >= 904
 import GHC.Exts
@@ -415,7 +424,6 @@ import GHC.Exts
 #elif __GLASGOW_HASKELL__ >= 902
 import GHC.Exts
 
-#include "MachDeps.h"
 
 #if WORD_SIZE_IN_BITS >= 64
 import Primal.Ops.Int.Internal (
@@ -441,9 +449,7 @@ import Primal.Ops.Int.Internal (
   )
 #endif
 
-#else
-
-#if __GLASGOW_HASKELL__ >= 900
+#elif __GLASGOW_HASKELL__ >= 900
 import GHC.Exts hiding (
   Int8#,
   int8ToInt#,
@@ -525,7 +531,10 @@ import GHC.Exts hiding (
   leInt64#,
   ltInt64#,
   neInt64#,
- )
+  )
+-- Despite that changelog mentions `timesInt2#` in ghc-prim-0.6.1 it actually comes with ghc-8.10
+import Primal.Ops.Int.Internal hiding (timesInt2#)
+
 #elif __GLASGOW_HASKELL__ >= 810
 import GHC.Exts hiding (
   Int8#,
@@ -561,16 +570,44 @@ import GHC.Exts hiding (
   uncheckedIShiftL64#,
   uncheckedIShiftRA64#,
  )
-#endif
-import Primal.Ops.Int.Internal hiding (timesInt2#)
-#if __GLASGOW_HASKELL__ < 900
--- Despite that changelog mentions `timesInt2#` in ghc-prim-0.6.1 which comes with ghc-8.10
-import Primal.Ops.Int.Internal (timesInt2#)
-#endif
+import Primal.Ops.Int.Internal
 
-#endif /* __GLASGOW_HASKELL__ >= 902 */
+#else
+
+import GHC.Exts (
+  Int#,
+  (*#),
+  (+#),
+  (-#),
+  (/=#),
+  (<#),
+  (<=#),
+  (==#),
+  (>#),
+  (>=#),
+  negateInt#,
+  quotInt#,
+  remInt#,
+  addIntC#,
+  subIntC#,
+  quotRemInt#,
+  uncheckedIShiftL#,
+  uncheckedIShiftRL#,
+  uncheckedIShiftRA#,
+  mulIntMayOflo#,
+  andI#,
+  orI#,
+  xorI#,
+  notI#,
+  int2Word#,
+  int2Float#,
+  int2Double#,
+  isTrue#,
+  )
+import Primal.Ops.Int.Internal
+
+#endif
 
 -- $setup
 --
--- >>> import GHC.Exts (isTrue#)
 -- >>> import Primal.Ops.Int

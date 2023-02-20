@@ -422,26 +422,29 @@ neInt32# = (/=#)
 
 #if __GLASGOW_HASKELL__ < 904 && WORD_SIZE_IN_BITS >= 64
 
-foreign import ccall unsafe "hs_eqInt64"     eqInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_neInt64"     neInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_ltInt64"     ltInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_leInt64"     leInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_gtInt64"     gtInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_geInt64"     geInt64#      :: Int64# -> Int64# -> Int#
-foreign import ccall unsafe "hs_quotInt64"   quotInt64#    :: Int64# -> Int64# -> Int64#
-foreign import ccall unsafe "hs_remInt64"    remInt64#     :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "primal_eqInt64"     eqInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_neInt64"     neInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_ltInt64"     ltInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_leInt64"     leInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_gtInt64"     gtInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_geInt64"     geInt64#      :: Int64# -> Int64# -> Int#
+foreign import ccall unsafe "primal_quotInt64"   quotInt64#    :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "primal_remInt64"    remInt64#     :: Int64# -> Int64# -> Int64#
 
-foreign import ccall unsafe "hs_plusInt64"   plusInt64#    :: Int64# -> Int64# -> Int64#
-foreign import ccall unsafe "hs_minusInt64"  minusInt64#   :: Int64# -> Int64# -> Int64#
-foreign import ccall unsafe "hs_timesInt64"  timesInt64#   :: Int64# -> Int64# -> Int64#
-foreign import ccall unsafe "hs_negateInt64" negateInt64#  :: Int64# -> Int64#
+foreign import ccall unsafe "primal_plusInt64"   plusInt64#    :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "primal_minusInt64"  minusInt64#   :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "primal_timesInt64"  timesInt64#   :: Int64# -> Int64# -> Int64#
+foreign import ccall unsafe "primal_negateInt64" negateInt64#  :: Int64# -> Int64#
 
-foreign import ccall unsafe "hs_uncheckedIShiftL64"  uncheckedIShiftL64#  :: Int64# -> Int# -> Int64#
-foreign import ccall unsafe "hs_uncheckedIShiftRA64" uncheckedIShiftRA64# :: Int64# -> Int# -> Int64#
-foreign import ccall unsafe "hs_uncheckedIShiftRL64" uncheckedIShiftRL64# :: Int64# -> Int# -> Int64#
+foreign import ccall unsafe "primal_uncheckedIShiftL64"
+  uncheckedIShiftL64#  :: Int64# -> Int# -> Int64#
+foreign import ccall unsafe "primal_uncheckedIShiftRA64"
+  uncheckedIShiftRA64# :: Int64# -> Int# -> Int64#
+foreign import ccall unsafe "primal_uncheckedIShiftRL64"
+  uncheckedIShiftRL64# :: Int64# -> Int# -> Int64#
 
-foreign import ccall unsafe "hs_intToInt64"      intToInt64#      :: Int# -> Int64#
-foreign import ccall unsafe "hs_int64ToInt"      int64ToInt#      :: Int64# -> Int#
+foreign import ccall unsafe "primal_intToInt64"      intToInt64#      :: Int# -> Int64#
+foreign import ccall unsafe "primal_int64ToInt"      int64ToInt#      :: Int64# -> Int#
 
 #endif
 

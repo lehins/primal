@@ -215,35 +215,37 @@ timesWord2# = undefined
 
 #if __GLASGOW_HASKELL__ < 904 && WORD_SIZE_IN_BITS >= 64
 
-foreign import ccall unsafe "hs_eqWord64"    eqWord64#     :: Word64# -> Word64# -> Int#
-foreign import ccall unsafe "hs_neWord64"    neWord64#     :: Word64# -> Word64# -> Int#
-foreign import ccall unsafe "hs_ltWord64"    ltWord64#     :: Word64# -> Word64# -> Int#
-foreign import ccall unsafe "hs_leWord64"    leWord64#     :: Word64# -> Word64# -> Int#
-foreign import ccall unsafe "hs_gtWord64"    gtWord64#     :: Word64# -> Word64# -> Int#
-foreign import ccall unsafe "hs_geWord64"    geWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_eqWord64"    eqWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_neWord64"    neWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_ltWord64"    ltWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_leWord64"    leWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_gtWord64"    gtWord64#     :: Word64# -> Word64# -> Int#
+foreign import ccall unsafe "primal_geWord64"    geWord64#     :: Word64# -> Word64# -> Int#
 
-foreign import ccall unsafe "hs_quotWord64"  quotWord64#   :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_remWord64"   remWord64#    :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_quotWord64"  quotWord64#   :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_remWord64"   remWord64#    :: Word64# -> Word64# -> Word64#
 
--- Relies on an implicitley cast over FFI: Int64<->Word64
-foreign import ccall unsafe "hs_plusInt64"   plusWord64#    :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_minusInt64"  minusWord64#   :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_timesInt64"  timesWord64#   :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_negateInt64" negateWord64#  :: Word64# -> Word64#
+-- Relies on an implicit cast over FFI: Int64<->Word64
+foreign import ccall unsafe "primal_plusInt64"   plusWord64#    :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_minusInt64"  minusWord64#   :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_timesInt64"  timesWord64#   :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_negateInt64" negateWord64#  :: Word64# -> Word64#
 
-foreign import ccall unsafe "hs_and64"       and64#        :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_or64"        or64#         :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_xor64"       xor64#        :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "hs_not64"       not64#        :: Word64# -> Word64#
+foreign import ccall unsafe "primal_and64"       and64#        :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_or64"        or64#         :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_xor64"       xor64#        :: Word64# -> Word64# -> Word64#
+foreign import ccall unsafe "primal_not64"       not64#        :: Word64# -> Word64#
 
-foreign import ccall unsafe "hs_uncheckedShiftL64"   uncheckedShiftL64#   :: Word64# -> Int# -> Word64#
-foreign import ccall unsafe "hs_uncheckedShiftRL64"  uncheckedShiftRL64#  :: Word64# -> Int# -> Word64#
+foreign import ccall unsafe "primal_uncheckedShiftL64"
+  uncheckedShiftL64#  :: Word64# -> Int# -> Word64#
+foreign import ccall unsafe "primal_uncheckedShiftRL64"
+  uncheckedShiftRL64# :: Word64# -> Int# -> Word64#
 
-foreign import ccall unsafe "hs_int64ToWord64"   int64ToWord64#   :: Int64# -> Word64#
-foreign import ccall unsafe "hs_word64ToInt64"   word64ToInt64#   :: Word64# -> Int64#
+foreign import ccall unsafe "primal_int64ToWord64"   int64ToWord64#   :: Int64# -> Word64#
+foreign import ccall unsafe "primal_word64ToInt64"   word64ToInt64#   :: Word64# -> Int64#
 
-foreign import ccall unsafe "hs_wordToWord64"    wordToWord64#    :: Word# -> Word64#
-foreign import ccall unsafe "hs_word64ToWord"    word64ToWord#    :: Word64# -> Word#
+foreign import ccall unsafe "primal_wordToWord64"    wordToWord64#    :: Word# -> Word64#
+foreign import ccall unsafe "primal_word64ToWord"    word64ToWord#    :: Word64# -> Word#
 
 #endif
 
