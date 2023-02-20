@@ -58,12 +58,13 @@ module Primal.Ops.Word.Internal (
   Word64#,
   int64ToWord#,
   intToWord64#,
-  negateWord64#,
+  -- negateWord64#,
   plusWord64#,
   subWord64#,
   timesWord64#,
   quotWord64#,
   remWord64#,
+  quotRemWord64#,
   and64#,
   or64#,
   xor64#,
@@ -83,20 +84,23 @@ module Primal.Ops.Word.Internal (
 #include "MachDeps.h"
 
 import GHC.Exts (Int#, Word#, int2Word#)
-import qualified GHC.Exts as GHC (Int16#, Int32#, Int64#, Int8#)
+--import qualified GHC.Exts as GHC (Int16#, Int32#, Int64#, Int8#)
 #if __GLASGOW_HASKELL__ >= 904 || WORD_SIZE_IN_BITS < 64
 import GHC.Exts (
   word64ToWord#,
   wordToWord64#,
-  negateWord64#,
+  int64ToWord64#,
+  word64ToInt64#,
   plusWord64#,
   subWord64#,
   timesWord64#,
   quotWord64#,
   remWord64#,
-  quotRemWord64#,
+  and64#,
+  or64#,
+  xor64#,
+  not64#,
   uncheckedShiftL64#,
-  uncheckedShiftRA64#,
   uncheckedShiftRL64#,
   eqWord64#,
   geWord64#,
@@ -229,7 +233,6 @@ foreign import ccall unsafe "primal_remWord64"   remWord64#    :: Word64# -> Wor
 foreign import ccall unsafe "primal_plusInt64"   plusWord64#    :: Word64# -> Word64# -> Word64#
 foreign import ccall unsafe "primal_minusInt64"  minusWord64#   :: Word64# -> Word64# -> Word64#
 foreign import ccall unsafe "primal_timesInt64"  timesWord64#   :: Word64# -> Word64# -> Word64#
-foreign import ccall unsafe "primal_negateInt64" negateWord64#  :: Word64# -> Word64#
 
 foreign import ccall unsafe "primal_and64"       and64#        :: Word64# -> Word64# -> Word64#
 foreign import ccall unsafe "primal_or64"        or64#         :: Word64# -> Word64# -> Word64#
@@ -247,11 +250,12 @@ foreign import ccall unsafe "primal_word64ToInt64"   word64ToInt64#   :: Word64#
 foreign import ccall unsafe "primal_wordToWord64"    wordToWord64#    :: Word# -> Word64#
 foreign import ccall unsafe "primal_word64ToWord"    word64ToWord#    :: Word64# -> Word#
 
-#endif
-
 
 subWord64# :: Word64# -> Word64# -> Word64#
 subWord64# = minusWord64#
+
+#endif
+
 
 int64ToWord# :: Int64# -> Word#
 int64ToWord# i64# = word64ToWord# (int64ToWord64# i64#)
@@ -259,3 +263,5 @@ int64ToWord# i64# = word64ToWord# (int64ToWord64# i64#)
 intToWord64# :: Int# -> Word64#
 intToWord64# i# = wordToWord64# (int2Word# i#)
 
+quotRemWord64# :: Word64# -> Word64# -> (# Word64#, Word64# #)
+quotRemWord64# x# y# = (# quotWord64# x# y#, remWord64# x# y# #)

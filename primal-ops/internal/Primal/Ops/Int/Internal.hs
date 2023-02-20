@@ -165,7 +165,6 @@ import GHC.Exts (
   timesInt64#,
   quotInt64#,
   remInt64#,
-  quotRemInt64#,
   uncheckedIShiftL64#,
   uncheckedIShiftRA64#,
   uncheckedIShiftRL64#,
@@ -446,10 +445,11 @@ foreign import ccall unsafe "primal_uncheckedIShiftRL64"
 foreign import ccall unsafe "primal_intToInt64"      intToInt64#      :: Int# -> Int64#
 foreign import ccall unsafe "primal_int64ToInt"      int64ToInt#      :: Int64# -> Int#
 
-#endif
-
 subInt64# :: Int64# -> Int64# -> Int64#
 subInt64# = minusInt64#
+
+
+#endif
 
 quotRemInt64# :: Int64# -> Int64# -> (# Int64#, Int64# #)
 quotRemInt64# x# y# = (# quotInt64# x# y#, remInt64# x# y# #)
