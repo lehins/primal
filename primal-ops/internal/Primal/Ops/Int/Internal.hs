@@ -114,10 +114,6 @@ module Primal.Ops.Int.Internal (
   leInt64#,
   ltInt64#,
   neInt64#,
-
-  -- ** Testing
-  toRealInt64#,
-  fromRealInt64#,
 ) where
 
 #include "MachDeps.h"
@@ -221,13 +217,6 @@ fromRealInt32# :: Int32# -> Int32#
 fromRealInt32# x# = x#
 
 #endif
-
-toRealInt64# :: Int64# -> Int64#
-toRealInt64# x# = x#
-
-fromRealInt64# :: Int64# -> Int64#
-fromRealInt64# x# = x#
-
 
 timesInt2# :: Int# -> Int# -> (# Int#, Int#, Int# #)
 timesInt2# = undefined
