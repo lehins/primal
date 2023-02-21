@@ -39,7 +39,7 @@ library
                      -- , Primal.Ops.SmallArray
                      -- , Primal.Ops.Char
                      , Primal.Ops.Int
-                     -- , Primal.Ops.Word
+                     , Primal.Ops.Word
                      -- , Primal.Ops.Float
                      -- , Primal.Ops.Double
 

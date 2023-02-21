@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_HADDOCK print-explicit-runtime-reps #-}
 
 -- |
@@ -21,6 +22,52 @@ module Primal.Ops.Int (
 
   -- | Native-size primitive signed integer (32+ bits).
   Int#,
+
+  -- ** int2Word#
+
+  -- | Convert a primitive signed integer to a primitive unsigned integer:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> import Primal.Ops.Word (Word (W#))
+  -- >>> W# (int2Word# 5#)
+  -- 5
+  --
+  -- Subject to underflow:
+  --
+  -- >>> W# (int2Word# -5#)
+  -- 18446744073709551611
+  int2Word#,
+  -- word2Int#,
+
+  -- ** int2Float#
+
+  -- | Convert a primitive signed integer to a primitive 32bit floating point value:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> import GHC.Float (Float (F#))
+  -- >>> F# (int2Float# 5#)
+  -- 5.0
+  --
+  -- Subject to precision loss:
+  --
+  -- >>> F# (int2Float# 9223372036854775807#)
+  -- 9.223372e18
+  int2Float#,
+
+  -- ** int2Double#
+
+  -- | Convert a primitive signed integer to a primitive 64bit floating point value:
+  --
+  -- >>> :set -XMagicHash
+  -- >>> import GHC.Float (Double (D#))
+  -- >>> D# (int2Double# 5#)
+  -- 5.0
+  --
+  -- Subject to precision loss:
+  --
+  -- >>> D# (int2Double# 9223372036854775807#)
+  -- 9.223372036854776e18
+  int2Double#,
 
   -- ** negateInt#
 
@@ -112,7 +159,7 @@ module Primal.Ops.Int (
   -- >>> I# (quotInt# -9223372036854775808# -1#)
   -- -9223372036854775808
   --
-  -- Fails with unrecoverable exception when second argument is @0#@
+  -- Fails with an unrecoverable exception when second argument is @0@
   --
   -- > >>> I# (quotInt# 5# 0#)
   -- ><process is terminated>
@@ -126,7 +173,7 @@ module Primal.Ops.Int (
   -- >>> I# (remInt# 24# 5#)
   -- 4
   --
-  -- Fails with unrecoverable exception when second argument is @0#@
+  -- Fails with an unrecoverable exception when second argument is @0@
   --
   -- > >>> I# (remInt# 5# 0#)
   -- ><process is terminated>
@@ -279,51 +326,6 @@ module Primal.Ops.Int (
   -- False
   (<#),
 
-  -- ** int2Word#
-
-  -- | Convert a primitive signed integer to a primitive unsigned integer:
-  --
-  -- >>> :set -XMagicHash
-  -- >>> import GHC.Word (Word (W#))
-  -- >>> W# (int2Word# 5#)
-  -- 5
-  --
-  -- Subject to underflow:
-  --
-  -- >>> W# (int2Word# -5#)
-  -- 18446744073709551611
-  int2Word#,
-
-  -- ** int2Float#
-
-  -- | Convert a primitive signed integer to a primitive 32bit floating point value:
-  --
-  -- >>> :set -XMagicHash
-  -- >>> import GHC.Float (Float (F#))
-  -- >>> F# (int2Float# 5#)
-  -- 5.0
-  --
-  -- Subject to precision loss:
-  --
-  -- >>> F# (int2Float# 9223372036854775807#)
-  -- 9.223372e18
-  int2Float#,
-
-  -- ** int2Double#
-
-  -- | Convert a primitive signed integer to a primitive 64bit floating point value:
-  --
-  -- >>> :set -XMagicHash
-  -- >>> import GHC.Float (Double (D#))
-  -- >>> D# (int2Double# 5#)
-  -- 5.0
-  --
-  -- Subject to precision loss:
-  --
-  -- >>> D# (int2Double# 9223372036854775807#)
-  -- 9.223372036854776e18
-  int2Double#,
-
   -- ** uncheckedIShiftL#
 
   -- | Binary shift to the left of a primitive signed integer by a number of bits. Sign bit
@@ -398,9 +400,22 @@ module Primal.Ops.Int (
   -- | Convert an 8-bit primitive signed integer to a 8-bit primitive unsigned integer.
   --
   -- >>> :set -XMagicHash
-  -- >>> I# (int8ToInt# (intToInt8# 8#))
+  -- >>> import Primal.Ops.Word (Word8 (W8#))
+  -- >>> W8# (int8ToWord8# (intToInt8# 8#))
   -- 8
+  --
+  -- Subject to underflow
   int8ToWord8#,
+
+  -- ** word8ToInt8#
+
+  -- | Convert an 8-bit primitive signed integer to a 8-bit primitive unsigned integer.
+  --
+  -- >>> :set -XMagicHash
+  -- >>> import Primal.Ops.Word (wordToWord8#)
+  -- >>> I8# (word8ToInt8# (wordToWord8# 8##))
+  -- 8
+  word8ToInt8#,
 
   -- ** negateInt8#
 
@@ -462,7 +477,7 @@ module Primal.Ops.Int (
   -- > >>> I8# (intToInt8# -128# `quotInt8#` intToInt8# -1#)
   -- > -128
   --
-  -- Fails with unrecoverable exception when second argument is @0#@
+  -- Fails with an unrecoverable exception when second argument is @0@
   --
   -- > >>> I8# (intToInt8# 8# `quotInt8#` intToInt8# 0#)
   -- ><process is terminated>
@@ -473,12 +488,12 @@ module Primal.Ops.Int (
   -- | Get the remainder of dividing one 8-bit primitive signed integer by another:
   --
   -- >>> :set -XMagicHash
-  -- >>> I# (remInt# 24# 5#)
+  -- >>> I8# (remInt8# (intToInt8# 24#) (intToInt8# 5#))
   -- 4
   --
-  -- Fails with unrecoverable exception when second argument is @0#@
+  -- Fails with an unrecoverable exception when second argument is @0@
   --
-  -- > >>> I# (remInt# 5# 0#)
+  -- > >>> I8# (remInt# (intToInt8# 58#) (intToInt8# 0#))
   -- ><process is terminated>
   remInt8#,
 
@@ -618,7 +633,6 @@ import GHC.Exts hiding (Int)
 #elif __GLASGOW_HASKELL__ >= 902
 import GHC.Exts hiding (Int)
 
-
 #if WORD_SIZE_IN_BITS >= 64
 import Primal.Ops.Int.Internal (
   int64ToInt#,
@@ -629,7 +643,6 @@ import Primal.Ops.Int.Internal (
   timesInt64#,
   quotInt64#,
   remInt64#,
-  quotRemInt64#,
   uncheckedIShiftL64#,
   uncheckedIShiftRA64#,
   uncheckedIShiftRL64#,
@@ -730,6 +743,11 @@ import GHC.Exts hiding (
   )
 -- Despite that changelog mentions `timesInt2#` in ghc-prim-0.6.1 it actually comes with ghc-8.10
 import Primal.Ops.Int.Internal hiding (timesInt2#)
+import Primal.Ops.Word.Internal (
+  word16ToInt16#,
+  word32ToInt32#,
+  word8ToInt8#,
+ )
 
 #elif __GLASGOW_HASKELL__ >= 810
 import GHC.Exts hiding (
@@ -767,6 +785,11 @@ import GHC.Exts hiding (
   uncheckedIShiftRA64#,
  )
 import Primal.Ops.Int.Internal
+import Primal.Ops.Word.Internal (
+  word16ToInt16#,
+  word32ToInt32#,
+  word8ToInt8#,
+ )
 
 #else
 
@@ -805,13 +828,14 @@ import Primal.Ops.Int.Internal
 
 #endif
 
-import Primal.Ops.Word.Internal (
-  -- word16ToInt16#,
-  -- word32ToInt32#,
+import Primal.Ops.Int.Internal (
   word64ToInt64#,
-  -- word8ToInt8#,
+  -- int64ToWord64#,
  )
 
 -- $setup
 --
 -- >>> import Primal.Ops.Int
+
+quotRemInt64# :: Int64# -> Int64# -> (# Int64#, Int64# #)
+quotRemInt64# x# y# = (# quotInt64# x# y#, remInt64# x# y# #)

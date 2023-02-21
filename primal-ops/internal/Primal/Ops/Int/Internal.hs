@@ -18,6 +18,8 @@ module Primal.Ops.Int.Internal (
   Int8#,
   int8ToInt#,
   intToInt8#,
+  int8ToWord8#,
+  word8ToInt8#,
   negateInt8#,
   plusInt8#,
   subInt8#,
@@ -28,7 +30,6 @@ module Primal.Ops.Int.Internal (
   uncheckedShiftLInt8#,
   uncheckedShiftRAInt8#,
   uncheckedShiftRLInt8#,
-  int8ToWord8#,
   eqInt8#,
   geInt8#,
   gtInt8#,
@@ -44,6 +45,8 @@ module Primal.Ops.Int.Internal (
   Int16#,
   int16ToInt#,
   intToInt16#,
+  int16ToWord16#,
+  word16ToInt16#,
   negateInt16#,
   plusInt16#,
   subInt16#,
@@ -54,7 +57,6 @@ module Primal.Ops.Int.Internal (
   uncheckedShiftLInt16#,
   uncheckedShiftRAInt16#,
   uncheckedShiftRLInt16#,
-  int16ToWord16#,
   eqInt16#,
   geInt16#,
   gtInt16#,
@@ -70,6 +72,8 @@ module Primal.Ops.Int.Internal (
   Int32#,
   int32ToInt#,
   intToInt32#,
+  int32ToWord32#,
+  word32ToInt32#,
   negateInt32#,
   plusInt32#,
   subInt32#,
@@ -80,7 +84,6 @@ module Primal.Ops.Int.Internal (
   uncheckedShiftLInt32#,
   uncheckedShiftRAInt32#,
   uncheckedShiftRLInt32#,
-  int32ToWord32#,
   eqInt32#,
   geInt32#,
   gtInt32#,
@@ -96,18 +99,17 @@ module Primal.Ops.Int.Internal (
   Int64#,
   int64ToInt#,
   intToInt64#,
+  int64ToWord64#,
+  word64ToInt64#,
   negateInt64#,
   plusInt64#,
   subInt64#,
   timesInt64#,
   quotInt64#,
   remInt64#,
-  quotRemInt64#,
   uncheckedIShiftL64#,
   uncheckedIShiftRA64#,
   uncheckedIShiftRL64#,
-  int64ToWord64#,
-  word64ToInt64#,
   eqInt64#,
   geInt64#,
   gtInt64#,
@@ -123,6 +125,7 @@ import Primal.Ops.Word.Internal (Word16#, Word32#, Word8#, int64ToWord64#, word6
 import GHC.Exts (
   Int#,
   int2Word#,
+  word2Int#,
   narrow16Int#,
   narrow16Word#,
   narrow32Int#,
@@ -231,6 +234,12 @@ int8ToInt# i8# = i8#
 intToInt8# :: Int# -> Int8#
 intToInt8# = narrow8Int#
 
+int8ToWord8# :: Int8# -> Word8#
+int8ToWord8# i8# = narrow8Word# (int2Word# i8#)
+
+word8ToInt8# :: Word8# -> Int8#
+word8ToInt8# w8# = narrow8Int# (word2Int# w8#)
+
 negateInt8# :: Int8# -> Int8#
 negateInt8# i8# = narrow8Int# (negateInt# i8#)
 
@@ -261,9 +270,6 @@ uncheckedShiftRAInt8# i8# i# = narrow8Int# (uncheckedIShiftRA# i8# i#)
 uncheckedShiftRLInt8# :: Int8# -> Int# -> Int8#
 uncheckedShiftRLInt8# = uncheckedIShiftRL#
 
-int8ToWord8# :: Int8# -> Word8#
-int8ToWord8# i8# = narrow8Word# (int2Word# i8#)
-
 eqInt8# :: Int8# -> Int8# -> Int#
 eqInt8# = (==#)
 
@@ -291,6 +297,12 @@ int16ToInt# i16# = i16#
 
 intToInt16# :: Int# -> Int16#
 intToInt16# = narrow16Int#
+
+int16ToWord16# :: Int16# -> Word16#
+int16ToWord16# i16# = narrow16Word# (int2Word# i16#)
+
+word16ToInt16# :: Word16# -> Int16#
+word16ToInt16# w16# = narrow16Int# (word2Int# w16#)
 
 negateInt16# :: Int16# -> Int16#
 negateInt16# i16# = narrow16Int# (negateInt# i16#)
@@ -321,9 +333,6 @@ uncheckedShiftRAInt16# = uncheckedIShiftRA#
 
 uncheckedShiftRLInt16# :: Int16# -> Int# -> Int16#
 uncheckedShiftRLInt16# = uncheckedIShiftRL#
-
-int16ToWord16# :: Int16# -> Word16#
-int16ToWord16# i16# = narrow16Word# (int2Word# i16#)
 
 eqInt16# :: Int16# -> Int16# -> Int#
 eqInt16# = (==#)
@@ -356,6 +365,12 @@ intToInt32# = narrow32Int#
 negateInt32# :: Int32# -> Int32#
 negateInt32# i32# = narrow32Int# (negateInt# i32#)
 
+int32ToWord32# :: Int32# -> Word32#
+int32ToWord32# i32# = narrow32Word# (int2Word# i32#)
+
+word32ToInt32# :: Word32# -> Int32#
+word32ToInt32# w32# = narrow32Int# (word2Int# w32#)
+
 plusInt32# :: Int32# -> Int32# -> Int32#
 plusInt32# x# y# = narrow32Int# (x# +# y#)
 
@@ -382,9 +397,6 @@ uncheckedShiftRAInt32# = uncheckedIShiftRA#
 
 uncheckedShiftRLInt32# :: Int32# -> Int# -> Int32#
 uncheckedShiftRLInt32# = uncheckedIShiftRL#
-
-int32ToWord32# :: Int32# -> Word32#
-int32ToWord32# i32# = narrow32Word# (int2Word# i32#)
 
 eqInt32# :: Int32# -> Int32# -> Int#
 eqInt32# = (==#)
@@ -437,8 +449,4 @@ foreign import ccall unsafe "primal_int64ToInt"      int64ToInt#      :: Int64# 
 subInt64# :: Int64# -> Int64# -> Int64#
 subInt64# = minusInt64#
 
-
 #endif
-
-quotRemInt64# :: Int64# -> Int64# -> (# Int64#, Int64# #)
-quotRemInt64# x# y# = (# quotInt64# x# y#, remInt64# x# y# #)

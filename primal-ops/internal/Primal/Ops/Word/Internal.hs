@@ -20,7 +20,6 @@ module Primal.Ops.Word.Internal (
   Word8#,
   word8ToWord#,
   wordToWord8#,
-  word8ToInt8#,
   plusWord8#,
   subWord8#,
   timesWord8#,
@@ -40,13 +39,16 @@ module Primal.Ops.Word.Internal (
   ltWord8#,
   neWord8#,
 
+  -- ** Testing
+  toRealWord8#,
+  fromRealWord8#,
+
   -- * Word16#
 
   -- | Operations on 16-bit unsigned integers.
   Word16#,
   word16ToWord#,
   wordToWord16#,
-  word16ToInt16#,
   plusWord16#,
   subWord16#,
   timesWord16#,
@@ -66,13 +68,16 @@ module Primal.Ops.Word.Internal (
   ltWord16#,
   neWord16#,
 
+  -- ** Testing
+  toRealWord16#,
+  fromRealWord16#,
+
   -- * Word32#
 
   -- | Operations on 32-bit unsigned integers.
   Word32#,
   word32ToWord#,
   wordToWord32#,
-  word32ToInt32#,
   plusWord32#,
   subWord32#,
   timesWord32#,
@@ -92,6 +97,10 @@ module Primal.Ops.Word.Internal (
   ltWord32#,
   neWord32#,
 
+  -- ** Testing
+  toRealWord32#,
+  fromRealWord32#,
+
   -- * Word64#
 
   -- | Operations on 64-bit unsigned integers.
@@ -103,7 +112,6 @@ module Primal.Ops.Word.Internal (
   timesWord64#,
   quotWord64#,
   remWord64#,
-  quotRemWord64#,
   and64#,
   or64#,
   xor64#,
@@ -151,37 +159,12 @@ import GHC.Exts (
   )
 #endif
 
-import GHC.Exts (
-  Word#,
-  int2Word#,
-  narrow16Word#,
-  narrow32Word#,
-  narrow8Word#,
-  quotRemWord#,
-  quotWord#,
-  remWord#,
-  uncheckedIShiftL#,
-  uncheckedIShiftRA#,
-  uncheckedIShiftRL#,
-  (*#),
-  (+#),
-  (-#),
-  (/=#),
-  (<#),
-  (<=#),
-  (==#),
-  (>#),
-  (>=#),
- )
-
-#if __GLASGOW_HASKELL__ >= 902
 import qualified GHC.Exts as GHC
-#endif
 
 #if __GLASGOW_HASKELL__ >= 904 || WORD_SIZE_IN_BITS < 64
 import GHC.Exts (
-  int64ToWord#,
-  intToWord64#,
+  word64ToWord#,
+  wordToWord64#,
   plusWord64#,
   subWord64#,
   timesWord64#,
@@ -248,12 +231,6 @@ fromRealWord32# x# = x#
 
 #endif
 
-toRealWord64# :: Word64# -> Word64#
-toRealWord64# x# = x#
-
-fromRealWord64# :: Word64# -> Word64#
-fromRealWord64# x# = x#
-
 --------------------------------------------------------------------------------
 -- Word8# ----------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -262,34 +239,31 @@ word8ToWord# :: Word8# -> Word#
 word8ToWord# i8# = i8#
 
 wordToWord8# :: Word# -> Word8#
-wordToWord8# = narrow8Word#
+wordToWord8# = GHC.narrow8Word#
 
 plusWord8# :: Word8# -> Word8# -> Word8#
-plusWord8# x# y# = narrow8Word# (x# `GHC.plusWord#` y#)
+plusWord8# x# y# = GHC.narrow8Word# (x# `GHC.plusWord#` y#)
 
 subWord8# :: Word8# -> Word8# -> Word8#
-subWord8# x# y# = narrow8Word# (x# `GHC.minusWord#` y#)
+subWord8# x# y# = GHC.narrow8Word# (x# `GHC.minusWord#` y#)
 
 timesWord8# :: Word8# -> Word8# -> Word8#
-timesWord8# x# y# = narrow8Word# (x# `GHC.timesWord#` y#)
+timesWord8# x# y# = GHC.narrow8Word# (x# `GHC.timesWord#` y#)
 
 quotWord8# :: Word8# -> Word8# -> Word8#
-quotWord8# = quotWord#
+quotWord8# = GHC.quotWord#
 
 remWord8# :: Word8# -> Word8# -> Word8#
-remWord8# = remWord#
+remWord8# = GHC.remWord#
 
 quotRemWord8# :: Word8# -> Word8# -> (# Word8#, Word8# #)
-quotRemWord8# = quotRemWord#
+quotRemWord8# = GHC.quotRemWord#
 
 uncheckedShiftLWord8# :: Word8# -> Int# -> Word8#
-uncheckedShiftLWord8# i8# i# = narrow8Word# (GHC.uncheckedShiftL# i8# i#)
+uncheckedShiftLWord8# i8# i# = GHC.narrow8Word# (GHC.uncheckedShiftL# i8# i#)
 
 uncheckedShiftRLWord8# :: Word8# -> Int# -> Word8#
 uncheckedShiftRLWord8# = GHC.uncheckedShiftRL#
-
-word8ToInt8# :: Word8# -> Int#
-word8ToInt8# w8# = GHC.narrow8Int# (GHC.word2Int# w8#)
 
 andWord8# :: Word8# -> Word8# -> Word8#
 andWord8# = GHC.and#
@@ -329,34 +303,31 @@ word16ToWord# :: Word16# -> Word#
 word16ToWord# i16# = i16#
 
 wordToWord16# :: Word# -> Word16#
-wordToWord16# = narrow16Word#
+wordToWord16# = GHC.narrow16Word#
 
 plusWord16# :: Word16# -> Word16# -> Word16#
-plusWord16# x# y# = narrow16Word# (x# `GHC.plusWord#` y#)
+plusWord16# x# y# = GHC.narrow16Word# (x# `GHC.plusWord#` y#)
 
 subWord16# :: Word16# -> Word16# -> Word16#
-subWord16# x# y# = narrow16Word# (x# `GHC.minusWord#` y#)
+subWord16# x# y# = GHC.narrow16Word# (x# `GHC.minusWord#` y#)
 
 timesWord16# :: Word16# -> Word16# -> Word16#
-timesWord16# x# y# = narrow16Word# (x# `GHC.timesWord#` y#)
+timesWord16# x# y# = GHC.narrow16Word# (x# `GHC.timesWord#` y#)
 
 quotWord16# :: Word16# -> Word16# -> Word16#
-quotWord16# = quotWord#
+quotWord16# = GHC.quotWord#
 
 remWord16# :: Word16# -> Word16# -> Word16#
-remWord16# = remWord#
+remWord16# = GHC.remWord#
 
 quotRemWord16# :: Word16# -> Word16# -> (# Word16#, Word16# #)
-quotRemWord16# = quotRemWord#
+quotRemWord16# = GHC.quotRemWord#
 
 uncheckedShiftLWord16# :: Word16# -> Int# -> Word16#
 uncheckedShiftLWord16# = GHC.uncheckedShiftL#
 
 uncheckedShiftRLWord16# :: Word16# -> Int# -> Word16#
 uncheckedShiftRLWord16# = GHC.uncheckedShiftRL#
-
-word16ToInt16# :: Word16# -> Int#
-word16ToInt16# w16# = GHC.narrow16Int# (GHC.word2Int# w16#)
 
 andWord16# :: Word16# -> Word16# -> Word16#
 andWord16# = GHC.and#
@@ -396,34 +367,31 @@ word32ToWord# :: Word32# -> Word#
 word32ToWord# i32# = i32#
 
 wordToWord32# :: Word# -> Word32#
-wordToWord32# = narrow32Word#
+wordToWord32# = GHC.narrow32Word#
 
 plusWord32# :: Word32# -> Word32# -> Word32#
-plusWord32# x# y# = narrow32Word# (x# `GHC.plusWord#` y#)
+plusWord32# x# y# = GHC.narrow32Word# (x# `GHC.plusWord#` y#)
 
 subWord32# :: Word32# -> Word32# -> Word32#
-subWord32# x# y# = narrow32Word# (x# `GHC.minusWord#` y#)
+subWord32# x# y# = GHC.narrow32Word# (x# `GHC.minusWord#` y#)
 
 timesWord32# :: Word32# -> Word32# -> Word32#
-timesWord32# x# y# = narrow32Word# (x# `GHC.timesWord#` y#)
+timesWord32# x# y# = GHC.narrow32Word# (x# `GHC.timesWord#` y#)
 
 quotWord32# :: Word32# -> Word32# -> Word32#
-quotWord32# = quotWord#
+quotWord32# = GHC.quotWord#
 
 remWord32# :: Word32# -> Word32# -> Word32#
-remWord32# = remWord#
+remWord32# = GHC.remWord#
 
 quotRemWord32# :: Word32# -> Word32# -> (# Word32#, Word32# #)
-quotRemWord32# = quotRemWord#
+quotRemWord32# = GHC.quotRemWord#
 
 uncheckedShiftLWord32# :: Word32# -> Int# -> Word32#
 uncheckedShiftLWord32# = GHC.uncheckedShiftL#
 
 uncheckedShiftRLWord32# :: Word32# -> Int# -> Word32#
 uncheckedShiftRLWord32# = GHC.uncheckedShiftRL#
-
-word32ToInt32# :: Word32# -> Int#
-word32ToInt32# w32# = GHC.narrow32Int# (GHC.word2Int# w32#)
 
 andWord32# :: Word32# -> Word32# -> Word32#
 andWord32# = GHC.and#
@@ -499,6 +467,3 @@ int64ToWord# i64# = word64ToWord# (int64ToWord64# i64#)
 
 intToWord64# :: Int# -> Word64#
 intToWord64# i# = wordToWord64# (int2Word# i#)
-
-quotRemWord64# :: Word64# -> Word64# -> (# Word64#, Word64# #)
-quotRemWord64# x# y# = (# quotWord64# x# y#, remWord64# x# y# #)
